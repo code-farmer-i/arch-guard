@@ -31,7 +31,8 @@ import { canonical, designSystem, copy, hygiene, uiKit, antdKit } from 'arch-gua
 
 export default {
   presets: [
-    canonical(), // 目录契约 / 角色表 / 命名 / 阈值
+    canonical(), // 应用范式：三根拓扑 / 角色表 / 阈值
+    // 库或 CLI 工具改用 library()：库角色表 + 库适用规则集（见 PARADIGM.md §11.1）
     designSystem({ tokenPrefix: '--sh' }), // 令牌分层 / 颜色唯一出处 / 对比度
     copy({ languages: ['zh-CN', 'en'] }), // 文案契约
     hygiene(), // 反退化：逃生舱 / 调试残留 / 未完成标记
@@ -109,6 +110,7 @@ pnpm test                      # node --test（引擎 API + 夹具端到端）
 pnpm self-test                 # 夹具回归：每条规则违规必报 × 合规不报
 pnpm self-check-portability    # P1 / P2 / P3
 pnpm guard:sample              # 拿 examples/minimal 当宿主跑一遍
+pnpm guard:self                # 狗粮：门禁跑自己（library() 范式 + 配置豁免）
 ```
 
 ## 文档

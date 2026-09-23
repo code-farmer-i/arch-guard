@@ -109,6 +109,6 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     },
     entries: [`${app}/main.tsx`],
     // 门禁自身的配置文件不属于项目源码树
-    ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json'],
+    ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json', '.agents/**'],
   }
 }

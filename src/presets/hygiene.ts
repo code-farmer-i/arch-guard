@@ -6,7 +6,6 @@ import type { Preset } from '../engine/types.js'
  */
 export function hygiene(): Preset {
   return {
-    enable: 'all',
     thresholds: { functionLines: 150 },
   }
 }

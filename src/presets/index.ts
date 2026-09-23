@@ -1,6 +1,7 @@
 import type { Preset, Adapter } from '../engine/types.js'
 
 export { canonical, roleTable, type CanonicalOptions } from './canonical.js'
+export { library, libraryRoleTable, type LibraryOptions } from './library.js'
 export {
   designSystem,
   copy,

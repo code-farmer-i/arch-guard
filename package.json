@@ -70,7 +70,8 @@
     "self-check-portability": "node es/cli.js --self-check-portability",
     "check": "node es/cli.js --self-test && node es/cli.js --self-check-portability",
     "test": "node --test tests/*.test.mjs",
-    "guard:sample": "cd examples/minimal && node ../../es/cli.js"
+    "guard:sample": "cd examples/minimal && node ../../es/cli.js",
+    "guard:self": "node es/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

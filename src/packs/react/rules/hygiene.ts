@@ -17,7 +17,7 @@ const finding = (
 const TS_COMMENT = /@ts-(ignore|expect-error|nocheck)/
 const SUPPRESSION = /(eslint|oxlint|biome)-disable/
 const ABANDONED = /\b(TODO|FIXME|XXX|HACK|WIP)\b/
-const NOT_IMPLEMENTED = /(not implemented|NotImplemented|暂未实现|待实现|待开发)/i
+const NOT_IMPLEMENTED = /^(not implemented|notimplemented|todo|暂未实现|待实现|待开发)$/i
 const DEBUG_CALLEES = /^(console\.|alert$|confirm$|prompt$)/
 
 /** H01 类型逃生舱 */

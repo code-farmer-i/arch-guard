@@ -18,6 +18,8 @@ export interface ReportInput {
   durationMs: number
   rulesEnabled: number
   rulesTotal: number
+  /** 配置里 exempt 掉的文件数（豁免必须可见） */
+  exemptedFiles: number
 }
 
 const DOMAIN_LABEL: Record<Domain, string> = {
@@ -98,6 +100,7 @@ export function renderSummary(input: ReportInput): void {
     `全局违规 ${input.globalFindings}`,
     `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
     `豁免 ${input.exemptedCount}`,
+    input.exemptedFiles > 0 ? `配置豁免 ${input.exemptedFiles} 个文件` : null,
     `${input.durationMs}ms`,
   ].filter(Boolean)
   out(color.dim(parts.join(' | ')))

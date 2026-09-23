@@ -7,7 +7,7 @@
  *   import { runGuard } from 'arch-guard'
  */
 
-export * from './engine/types.js'
+export type * from './engine/types.js'
 export { loadConfig, aliasesFromTsconfig } from './engine/config.js'
 export { scanProject } from './engine/scan.js'
 export { extractFacts, factInputOf, TS_EXTENSIONS } from './engine/facts.js'
@@ -31,6 +31,7 @@ export {
 export { anchorOf } from './engine/util.js'
 
 export { canonical, roleTable } from './presets/canonical.js'
+export { library, libraryRoleTable } from './presets/library.js'
 export { designSystem, copy, deps } from './presets/design-system.js'
 export { hygiene } from './presets/hygiene.js'
 export { uiKit, antdKit, noneKit } from './presets/index.js'

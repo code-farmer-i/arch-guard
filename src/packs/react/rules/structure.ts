@@ -122,7 +122,7 @@ export const noBarrel: Rule = {
       const facts = ctx.facts.get(record.rel)
       if (!facts) return []
       return facts.exports
-        .filter((entry) => entry.isStar)
+        .filter((entry) => entry.isStar && !entry.typeOnly)
         .map((entry) => finding('S11', record.rel, entry.line, '禁 barrel：export * from ...'))
     }),
 }

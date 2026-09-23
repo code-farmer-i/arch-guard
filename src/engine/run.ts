@@ -214,6 +214,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     durationMs: Date.now() - started,
     rulesEnabled: registry.enabled.length,
     rulesTotal: options.rules.length,
+    exemptedFiles: scan.exempted.length,
   }
 
   if (!quiet) {
