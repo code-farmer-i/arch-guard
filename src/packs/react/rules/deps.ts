@@ -86,6 +86,12 @@ interface FingerprintHit {
   line: number
 }
 
+/** import 语句里的包名（@scope/x、x/sub 归一化到包） */
+function packageOf(spec: string): string {
+  const parts = spec.split('/')
+  return spec.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? spec)
+}
+
 /** 把注释区间替换成空格（保留换行）：只在真实代码上匹配指纹 */
 function maskComments(text: string, facts: Facts | undefined): string {
   if (facts && facts.comments.length > 0) {
@@ -116,10 +122,8 @@ function scanStrongFingerprints(
     const lines = maskComments(raw, ctx.facts.get(record.rel)).split('\n')
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] as string
-      if (regexes.some((regex) => regex.test(line))) {
+      if (regexes.some((regex) => regex.test(line)))
         hits.push({ file: record.rel, line: index + 1 })
-        break
-      }
     }
   }
   return hits
@@ -144,14 +148,27 @@ export const capabilityPreferred: Rule = {
       if (!entry) continue
       const hits = scanStrongFingerprints(ctx, capability)
       if (hits.length === 0) continue
-      const usesPreferred = entry.platform === true || ctx.deps.imported.has(preferred)
-      if (usesPreferred) continue
-      for (const hit of hits) {
+      // 按**文件**判定：这个文件自己有没有在用登记方案。
+      // 用全项目判定会放过「部分迁移」（A 文件用了 dayjs、B 文件还在手搓）。
+      const fileUsesPreferred = (file: string): boolean => {
+        if (entry.platform === true) return true
+        const facts = ctx.facts.get(file)
+        return facts?.imports.some((item) => packageOf(item.spec) === preferred) === true
+      }
+      // 每文件只报首个命中行，但把该文件其余命中数带上（否则会以为只有一处）
+      const firstHitPerFile = new Map<string, FingerprintHit>()
+      for (const hit of hits) if (!firstHitPerFile.has(hit.file)) firstHitPerFile.set(hit.file, hit)
+      const hitCountByFile = new Map<string, number>()
+      for (const hit of hits) hitCountByFile.set(hit.file, (hitCountByFile.get(hit.file) ?? 0) + 1)
+
+      for (const [file, hit] of firstHitPerFile) {
+        if (fileUsesPreferred(file)) continue
+        const others = (hitCountByFile.get(file) ?? 1) - 1
         const findingEntry = finding(
           'P06',
-          hit.file,
+          file,
           hit.line,
-          `手搓了 ${capability} 的活，但没在用登记的 ${preferred}`,
+          `手搓了 ${capability} 的活，但没在用登记的 ${preferred}${others > 0 ? `（该文件另有 ${others} 处）` : ''}`,
           entry.hint,
         )
         if (entry.allowOwn === true) findingEntry.hint = `${entry.hint}（该能力允许自研，仅提示）`

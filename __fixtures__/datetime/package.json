@@ -1,0 +1,8 @@
+{
+  "name": "datetime-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "dayjs": "^1.11.0"
+  }
+}

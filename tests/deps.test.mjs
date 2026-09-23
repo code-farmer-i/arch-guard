@@ -73,6 +73,19 @@ test('P 域：违规夹具报出四条 error 与一条 warn', async () => {
   ])
 })
 
+test('P 域：手搓日期格式化被抓，而正确使用 dayjs 的文件不报', async () => {
+  const result = await run('datetime')
+  const p06 = result.all.filter((finding) => finding.rule === 'P06')
+  assert.equal(p06.length, 1)
+  assert.equal(p06[0].file, 'src/app/main.tsx')
+  assert.match(p06[0].text, /另有 5 处/)
+  // 正确使用 dayjs 的文件不该被点名
+  assert.equal(
+    result.all.some((finding) => finding.file.includes('time.ts')),
+    false,
+  )
+})
+
 test('P 域：命中指纹但确实在用登记方案时不报（本体即正例）', async () => {
   // 本体用 process.argv.slice（命中 cli-args 强指纹），同时真的 import 了 commander → P06 不该报
   const result = await runGuard({ cwd: PACKAGE_ROOT, rules: reactRules, quiet: true })

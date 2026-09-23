@@ -34,12 +34,22 @@ export const wheelFingerprints: WheelFingerprint[] = [
     capability: 'datetime',
     preferred: ['dayjs'],
     syntax: [
+      // 手搓格式化：locale API / 模板串 / 手动拼年月日
       '\\.toLocaleDateString\\(',
       '\\.toLocaleTimeString\\(',
+      '\\.toLocaleString\\(',
       '\\bIntl\\.DateTimeFormat\\b',
-      'new Date\\([^)]*\\)\\.getFullYear\\(',
+      '\\.toISOString\\(\\)\\s*\\.\\s*slice\\(',
       '\\bYYYY[-/]MM[-/]DD\\b',
-      'new Date\\([^)]*\\)\\.getTime\\(\\)\\s*[+-]\\s*\\d{4,}',
+      // 手动取日期分量（这些方法只存在于 Date 上，误报率低）
+      '\\.getFullYear\\(\\)',
+      '\\.getMonth\\(\\)\\s*\\+\\s*1',
+      '\\.getDate\\(\\)',
+      '\\.getHours\\(\\)',
+      '\\.getMinutes\\(\\)',
+      // 用毫秒数手算日期差
+      'Date\\.now\\(\\)\\s*[-+]\\s*\\d{4,}',
+      'new Date\\([^)]*\\)\\.getTime\\(\\)\\s*[-+]\\s*\\d{4,}',
     ],
     apiNames: [
       'formatDate',
