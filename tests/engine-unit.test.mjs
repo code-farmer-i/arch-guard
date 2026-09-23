@@ -31,6 +31,10 @@ test('glob：支持 ** / ? / 花括号枚举 / 转义', () => {
   assert.ok(globToRegExp('a?.ts').test('ab.ts'))
   assert.ok(!globToRegExp('a?.ts').test('a/b.ts'))
   assert.ok(globToRegExp('a.b.ts').test('a.b.ts'), '点号必须转义（不当通配）')
+  // 花括号里的字面量枚举也要转义：`{index.ts}` 的 `.` 不该变成"任意字符"
+  assert.ok(globToRegExp('src/{index.ts,cli.ts}').test('src/index.ts'))
+  assert.ok(!globToRegExp('src/{index.ts,cli.ts}').test('src/indexXts'), '花括号内的点号必须转义')
+  assert.ok(!globToRegExp('src/{index.ts,cli.ts}').test('src/index.ts.bak'))
 })
 
 test('锚点：对格式不敏感，对内容敏感', () => {

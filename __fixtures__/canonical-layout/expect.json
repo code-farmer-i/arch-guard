@@ -1,0 +1,17 @@
+{
+  "findings": [
+    {
+      "rule": "S04",
+      "file": "src/features/a/views/APage.tsx"
+    },
+    {
+      "rule": "S05",
+      "file": "src/features/a/views/APage.tsx"
+    },
+    {
+      "rule": "S06",
+      "file": "src/features/a/views/APage.tsx"
+    }
+  ],
+  "exact": true
+}

@@ -13,7 +13,13 @@ import { readText, relOf, walk } from './util.js'
  * 说明：只扫**字符串字面量**（注释里写这些词是合法的），并排除自检模块自身。
  */
 
-/** 运行时依赖白名单：除 Node 内置与自身外，本体只允许这些 */
+/**
+ * 运行时依赖白名单：除 Node 内置与自身外，本体只允许这些。
+ *
+ * **这是一道审查门，不是"零依赖"洁癖**：本包以 npm 包发布，"可整目录复制"早已不是发布形态，
+ * 所以要看的是「门禁读你全量源码、跑在 CI —— 新依赖有没有人看过、会不会把宿主拖进版本冲突」。
+ * 要加依赖：改这里 + `package.json`，并在 CHANGELOG 写明理由。
+ */
 const ALLOWED_BARE_IMPORTS = new Set(['typescript', 'commander'])
 /** 宿主项目名（换宿主时改这里；本体不该认识任何具体宿主） */
 const HOST_MARKERS = ['superhive']
@@ -43,8 +49,8 @@ export function checkPortability(packageRoot: string): PortabilityResult {
         rule: 'P1',
         file: rel,
         line: imported.line,
-        text: `本体只许依赖 node:* 与白名单依赖，出现了：${spec}`,
-        hint: '要把能力带进本体，请把它变成本体内的实现或适配器数据；新增运行时依赖需写进 package.json 并同步白名单',
+        text: `依赖没登记：${spec}`,
+        hint: '新增运行时依赖要在 package.json 与本文件的 ALLOWED_BARE_IMPORTS 里显式登记（并写清理由），不许顺手引进来',
         global: true,
       })
     }

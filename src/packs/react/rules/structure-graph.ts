@@ -28,9 +28,20 @@ const domainOf = (rel: string, modulesRoot: string): string | null => {
 }
 const isShared = (rel: string, sharedRoot: string): boolean => rel.startsWith(`${sharedRoot}/`)
 
+/**
+ * 域根与共享根**从配置的 layout 读**，不再自己拼 `${srcRoot}/modules`。
+ *
+ * 为什么必须这样：`canonical({ modules: 'src/features' })` 时角色表跟着参数变了（S01 不再报"无处安放"），
+ * 但这里如果还查 `src/modules`，图规则就会查一个不存在的目录 → 静默空转 → 跨域引用私有 views
+ * 一条都不报，门禁显示"通过"（假绿）。**layout 是预设算好的唯一真相**：
+ * `canonical()` 里同一组 app/modules/shared 变量同时喂给角色表与 layout。
+ *
+ * 空串表示「这个概念在本范式里不存在」（如库范式没有域与共享层）——
+ * `rel.startsWith('/')` 恒假，依赖它的规则自然空转，正是该有的行为。
+ */
 const rootsOf = (ctx: RuleContext): { modulesRoot: string; sharedRoot: string } => ({
-  modulesRoot: `${ctx.config.srcRoot}/modules`,
-  sharedRoot: `${ctx.config.srcRoot}/shared`,
+  modulesRoot: ctx.config.layout.modules,
+  sharedRoot: ctx.config.layout.shared,
 })
 
 /* ---------------- S04 域内 import 前缀白名单 ---------------- */

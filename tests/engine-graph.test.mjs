@@ -77,7 +77,6 @@ test('scan：合规示例每个文件恰好一个角色，且有歧义/缺失时
       exportsPerFile: 6,
       componentsPerFile: 3,
     },
-    layers: {},
     adapters: {},
     enable: 'all',
     params: {},

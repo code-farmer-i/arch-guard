@@ -10,7 +10,12 @@ import { deps, hygiene, library } from './es/index.js'
 
 export default {
   presets: [
-    library(),
+    library({
+      // 本体自己的**目录表**：目录名 → 层号（越小越底层）。
+      // 库范式没有应用的「域 / 共享层」概念，结构就是「入口 + 这些内部目录」。
+      modules: { data: 1, engine: 2, packs: 4, presets: 4 },
+      entry: ['index.ts', 'cli.ts'],
+    }),
     hygiene(),
     deps({
       // 能力表：登记了的能力，代码里命中「手搓指纹」却没在用首选方案 → P06。
@@ -26,6 +31,19 @@ export default {
     }),
   ],
   overrides: {
+    // `ignore` 与 `include` 是两件事，别混：
+    //   ignore  = 别碰（不进文件集、不解析、不进依赖图）—— 构建产物 / 示例宿主 / 夹具属于这类
+    //   include = 不判目录契约（但仍会解析、仍进图，供跨域 import 与测试可达根）
+    // 所以下面这些不能只靠 `library()` 的 include（那样它们照样会被解析）。
+    ignore: [
+      'es/**',
+      'lib/**',
+      'bin/**',
+      'examples/**',
+      '__fixtures__/**',
+      'pagoda.config.mjs',
+      'eslint.config.mjs',
+    ],
     // 豁免走官方通道：写清理由，可见、可评审（不用内联注释）
     exempt: [
       {

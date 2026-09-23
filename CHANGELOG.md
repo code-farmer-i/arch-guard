@@ -4,6 +4,66 @@
 
 ## [Unreleased]
 
+### Changed（依赖政策：P1 从"零依赖洁癖"改成"审查门"）
+
+- **"整目录可搬"不再是发布形态**（本包以 npm 包发布），所以 P1 的理由改成真实的那个：
+  门禁读全量源码、跑在 CI —— **新增依赖要有理由，且不得把宿主拖进版本冲突**。
+  要加依赖：改 `ALLOWED_BARE_IMPORTS` + `package.json` + CHANGELOG，P1 的报错话术同步改成「依赖没登记」。
+- **P2 / P3 保留**，但把理由写对：它们与发布方式无关 —— P2 是「换宿主不改引擎」，P3 是「引擎不假设布局」
+  （`canonical` / `library` / 自定义目录全靠它，今天刚靠它抓到 `rootsOf` 写死 `src/modules` 的假绿）。
+- README「本体自包含（可抽取）」→「**引擎不绑宿主**」；`CONTEXT.md`、`DESIGN` §0/§6.1.1/§7.1/§7.4 的措辞同步校正。
+
+### Fixed（`globToRegExp` 花括号里的点号没转义）
+
+- `{index.ts,cli.ts}` 会被编译成 `(?:index.ts|cli.ts)` —— 里面的 `.` 是**任意字符**，
+  能匹配到 `indexXts`。现在花括号分支逐个转义正则元字符（`{ts,tsx}` 这类无点号的写法不受影响），并加测试锁住。
+  之前 `library()` 的入口就是绕开了这个写法才没踩到。
+
+### Added（oxc spike：结论是**不换 parser**）
+
+- 量了（[.scratch/oxc-spike/](./.scratch/oxc-spike/spec.md)，脚本可重跑）：真实规模 3044 文件 / 9.8 MB 下，
+  `oxc.parseSync` 比 `ts.createSourceFile` 快 **2.2×**（511ms vs 1133ms）—— 但**解析只占 extractFacts 的 32%**，
+  换 parser 的端到端上界只有 **≈17%**；26k 小文件上更是 **≈1%**（每文件开销主导）。
+- **真正的大头是我们自己的访问器 + 注释扫描（2.4s / 3.6s = 67%）**，换 parser 还要把这段在 oxc 的 AST 上重写一遍，
+  外加 native 多平台二进制与缓存键变更。所以 `DESIGN` §6.1.1 的 oxc 行改成「可再评估」并指向 spike 结论。
+- 力气挪到自有代码：注释扫描按需、`containsJsx` 自底向上标记、主循环按 `node.kind` 分派（见 spike 的「下一步」）。
+
+### Changed（canonical 对齐：删死配置、提示指路、跨域组合拍板）
+
+- **删掉 `layers`**（`Preset.layers` / `Config.layers` / `canonical()` 里那 12 行）：全仓没有任何规则读它 ——
+  S07 用的是角色描述符上的 `record.layer`。留着就是第二个层号真相 + 一个没人读的配置面。
+- **删掉 DESIGN §7 示例里的 `semanticSlots`**：消费它的 D20 从未实现，示例却把它写得像可用配置。
+- **S01 / S03 的提示改成「指路」**：按文件位置直接念出落点表 —— `app/providers.tsx` → 「装配套壳写进 App.tsx，
+  配置对象下沉 shared/」，`modules/<域>/types.ts` → 「域根只放 routes.tsx，类型与常量进 model/」，
+  没登记的槽位 → 念出域内七个槽位，`shared/components/Button.tsx` → 「进 ui/ 或 common/」。
+  闭集枚举只说"你错了"没用，迁移中的人（或 agent）要知道"放哪"。
+- **R1 拍板（方案 c）**：跨域组合一律**提升**到 `shared/components/common`（业务中立组合件）或
+  `shared/api`（数据契约），由 `app` 层组合；域间直连继续红（S04–S06）。
+  被否的替代：给域开第二个公开面 `index.ts` —— 深模块会变成两个出口。已写进 PARADIGM §6.3，DESIGN §14 的 R1 标为已拍板。
+
+### Fixed（layout 是唯一真相：自定义目录不再假绿）
+
+- **`canonical({ modules, shared })` 之前是假旋钮**：角色表跟着参数变了（S01 不再报"无处安放"），
+  但 S04–S09 / S15 / S18 / S03 还写死查 `${srcRoot}/modules` 与 `${srcRoot}/shared` ——
+  查一个不存在的目录 → 静默空转 → 跨域引用私有 views **一条都不报**，门禁显示"通过"。
+  实测 A/B：同一份违规，目录叫 `src/modules` 报 S05+S06，配置成 `src/features` 时零报告。
+  现在这四处（`structure-graph.ts` 的 `rootsOf`、`structure.ts` 的 S03 / S01 域根豁免）一律读 `config.layout`。
+- 新增夹具 `canonical-layout`（`exact: true`）：自定义 `modules: 'src/features'` 下，跨域引用必须报 S04/S05/S06。
+
+### Changed（`library()` 变成真正通用的库范式）
+
+- **角色表参数化**：`library({ modules: { utils: 1, core: 2 }, entry: ['index.ts'] })` ——
+  库的结构就是「公开面入口 + 项目自己声明的目录表」。旧版把**本体的目录名写死**在预设里
+  （`engine/` `packs/` `presets/` `data/`、入口写死 `cli.ts`、ignore 里一串宿主文件），
+  任何第三方库用它都会得到一片 S01（实测：普通库的 `src/utils/`、`src/core/`、`src/types.ts` 全报）。
+- **`layout.modules` / `.shared` 置空**表示「库没有域与共享层这两个应用概念」——
+  依赖它们的图规则因此自然空转，而不是去查一个不存在的目录假装检查过。
+- 内部目录角色**不设 `slot`**：目录名恰好叫 `lib` / `hooks` 时不会误套应用范式的槽位语义（S12/S13 会误判）。
+- 宿主专有的 ignore（`es/**`、`examples/**`、`__fixtures__/**`、`pagoda.config.mjs` …）从预设移出，
+  本仓库在 `arch.config.mjs` 里显式声明 —— `ignore`（别碰）与 `include`（不判契约但仍解析）是两件事，
+  只靠 `include` 会让这些文件照样被解析（实测狗粮 71 → 340 个文件）。
+- 新增夹具 `library-generic`（`exact: true`）：一个普通第三方库形态的 `src/index.ts` + `src/utils/` + `src/core/`，零发现项。
+
 ### Added（P11：组件库适配表声明了却零使用）
 
 - **`P11`**：声明了 `uiKit(antdKit())`，但项目里既没 import 它声明的任何包、也没有任何 vendor 选择器/变量

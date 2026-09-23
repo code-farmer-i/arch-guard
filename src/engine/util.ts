@@ -39,7 +39,14 @@ export function walk(
   return out.sort()
 }
 
-/** glob → RegExp：支持 ** / * / ?，仅用于项目内相对路径匹配（L1 判定） */
+/**
+ * glob → RegExp：支持 `**` / `*` / `?` / 花括号枚举，仅用于项目内相对路径匹配（L1 判定）。
+ *
+ * 花括号里是**字面量枚举**（`{index.ts,cli.ts}`），所以每个分支都要转义正则元字符 ——
+ * 早先直接 `join('|')`，`{index.ts}` 里的 `.` 会变成"任意字符"（能匹配 `indexXts`）。
+ * 花括号内不支持嵌套通配符（`{*.ts}` 会被当成字面量 `*`）：那是"没匹配上"，
+ * 而不是"匹配错了" —— 门禁宁可少匹配也不要错匹配。
+ */
 export function globToRegExp(glob: string): RegExp {
   let out = '^'
   for (let i = 0; i < glob.length; i++) {
@@ -69,6 +76,7 @@ export function globToRegExp(glob: string): RegExp {
           .split(',')
           .map((item) => item.trim())
           .filter(Boolean)
+          .map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         out += `(?:${alternatives.join('|')})`
         i = close
       }
@@ -124,7 +132,6 @@ export function mergePresets(presets: Preset[]): Preset {
     if (preset.srcRoot) out.srcRoot = preset.srcRoot
     if (preset.naming) out.naming = { ...out.naming, ...preset.naming }
     if (preset.thresholds) out.thresholds = { ...out.thresholds, ...preset.thresholds }
-    if (preset.layers) out.layers = { ...out.layers, ...preset.layers }
     if (preset.adapters) out.adapters = { ...out.adapters, ...preset.adapters }
     if (preset.params) out.params = { ...out.params, ...preset.params }
     if (preset.enable) out.enable = preset.enable

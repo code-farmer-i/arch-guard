@@ -1,5 +1,5 @@
 import { resolveFramework } from '../../../data/framework-sources.js'
-import type { Finding, Rule } from '../../../engine/types.js'
+import type { Config, Finding, Rule } from '../../../engine/types.js'
 
 /** S00 解析失败必须报错：fail-closed —— 语法错误会让该文件失去全部检查，绝不能静默通过 */
 export const parseFailClosed: Rule = {
@@ -40,6 +40,46 @@ const finding = (
 })
 
 /**
+ * S01 / S03 的「该去哪」提示：照着**这个文件的位置**给下一步。
+ *
+ * 为什么值得单独写：目录契约是封闭枚举，报「未命中任何角色」只是说"你错了"，
+ * 而迁移中的项目（或 agent）需要的是"放哪"。提示是纯文本，不参与判定，
+ * 所以它可以把范式里的落点表直接念出来 —— 这是让"按范式来"可执行的那一半。
+ */
+export function placementHint(rel: string, config: Config): string {
+  const { app, modules, shared } = config.layout
+  if (rel.startsWith(`${app}/`)) {
+    return (
+      'app 层只认 main / App / router/** / layouts/**：装配套壳写进 App.tsx，' +
+      '配置对象各自下沉 shared/（queryClient→shared/api、theme→shared/theme、store→shared/stores）'
+    )
+  }
+  if (rel.startsWith(`${modules}/`)) {
+    const inDomain = rel.slice(modules.length + 1).split('/')
+    if (inDomain.length === 2) {
+      return (
+        '域根只放 routes.tsx：页面进 views/、域内类型与常量进 model/、' +
+        '纯函数进 lib/、域内组件进 components/'
+      )
+    }
+    return (
+      '域内只有七个槽位（routes.tsx / views/ / components/ / hooks/ / model/ / lib/ / assets/）：' +
+      '放进其中之一；端点与契约类型统一进 shared/api/，客户端状态进 shared/stores/'
+    )
+  }
+  if (rel.startsWith(`${shared}/components/`)) {
+    return 'shared/components 下只有两个槽位：哑基础件进 ui/，业务中立组合件进 common/'
+  }
+  if (rel.startsWith(`${shared}/`)) {
+    return (
+      'shared 的槽位：styles/ assets/ lib/ config/ i18n/ api/ stores/ theme/ hooks/ ' +
+      'components/{ui,common}'
+    )
+  }
+  return '顶层只有 app/ modules/ shared/ 三根（PARADIGM.md §6.1）：先归到其中一根，再选槽位'
+}
+
+/**
  * S03 文件必须落在某个槽位：域根目录只许 `routes.tsx`（`*.d.ts` 例外）。
  *
  * 与 S01 的分工：S01 管「src 下的目录白名单 + 角色表互斥完备」，S03 把「域根不放散件」
@@ -51,9 +91,10 @@ export const domainRootOnlyRoutes: Rule = {
   level: 'L1',
   severity: 'error',
   title: '域根目录只许 routes.tsx',
-  hint: '域内按槽位组织（views/ components/ hooks/ model/ lib/）；散件说明还没落位',
+  hint: '域根只放 routes.tsx；页面进 views/、域内类型与常量进 model/、纯函数进 lib/、域内组件进 components/',
   run: (ctx) => {
-    const modulesRoot = `${ctx.config.srcRoot}/modules`
+    // 域根从 layout 读（唯一真相），不要再拼 `${srcRoot}/modules` —— 见 structure-graph 的 rootsOf
+    const modulesRoot = ctx.config.layout.modules
     const out: Finding[] = []
     for (const rel of [...ctx.scan.missing, ...ctx.scan.ambiguous.map((entry) => entry.rel)]) {
       if (!rel.startsWith(`${modulesRoot}/`)) continue
@@ -62,7 +103,15 @@ export const domainRootOnlyRoutes: Rule = {
       // 域根下的文件：modules/<域>/<file>
       if (segments.length !== 2) continue
       if (segments[1] === 'routes.tsx' || rel.endsWith('.d.ts')) continue
-      out.push(finding('S03', rel, 1, `域根目录只许 routes.tsx，出现了 ${segments[1]}`))
+      out.push(
+        finding(
+          'S03',
+          rel,
+          1,
+          `域根目录只许 routes.tsx，出现了 ${segments[1]}`,
+          placementHint(rel, ctx.config),
+        ),
+      )
     }
     return out
   },
@@ -78,13 +127,23 @@ export const roleTableComplete: Rule = {
   hint: '按 PARADIGM.md 的目录契约把文件放到对应槽位',
   run: (ctx) => {
     const out: Finding[] = []
-    const modulesRoot = `${ctx.config.srcRoot}/modules`
+    // 域根从 layout 读（唯一真相），不要再拼 `${srcRoot}/modules` —— 见 structure-graph 的 rootsOf
+    const modulesRoot = ctx.config.layout.modules
     /** 域根下的散件由 S03 专门报，S01 跳过以免同一处报两遍 */
     const isDomainRootFile = (rel: string): boolean =>
       rel.startsWith(`${modulesRoot}/`) && rel.slice(modulesRoot.length + 1).split('/').length === 2
     for (const rel of ctx.scan.missing) {
       if (isDomainRootFile(rel)) continue
-      out.push(finding('S01', rel, 1, '文件不在目录契约内（未命中任何角色）', undefined, true))
+      out.push(
+        finding(
+          'S01',
+          rel,
+          1,
+          '文件不在目录契约内（未命中任何角色）',
+          placementHint(rel, ctx.config),
+          true,
+        ),
+      )
     }
     for (const entry of ctx.scan.ambiguous) {
       out.push(

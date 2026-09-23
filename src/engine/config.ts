@@ -211,7 +211,6 @@ export async function loadConfig(options: {
     roles: overrides.roles ?? preset.roles ?? [],
     naming: { ...DEFAULT_NAMING, ...preset.naming, ...overrides.naming },
     thresholds: { ...DEFAULT_THRESHOLDS, ...preset.thresholds, ...overrides.thresholds },
-    layers: overrides.layers ?? preset.layers ?? {},
     adapters: { ...preset.adapters, ...overrides.adapters },
     enable: overrides.enable ?? preset.enable ?? 'all',
     params: { ...preset.params, ...overrides.params },

@@ -93,20 +93,6 @@ export function canonical(options: CanonicalOptions = {}): Preset {
       exportsPerFile: 6,
       componentsPerFile: 3,
     },
-    layers: {
-      [`${shared}/styles`]: 0,
-      [`${shared}/assets`]: 0,
-      [`${shared}/lib`]: 1,
-      [`${shared}/config`]: 2,
-      [`${shared}/i18n`]: 3,
-      [`${shared}/api`]: 4,
-      [`${shared}/stores`]: 5,
-      [`${shared}/theme`]: 6,
-      [`${shared}/hooks`]: 7,
-      [`${shared}/components`]: 8,
-      [modules]: 10,
-      [app]: 11,
-    },
     entries: [`${app}/main.tsx`],
     // 契约扫描域：只有 src 下的 ts/css 参与角色判定。域外（vite.config.ts / e2e / scripts /
     // 生成代码）既不该被要求"落位"，也不该每次全量解析；但它们仍留在文件集里供 import 解析。

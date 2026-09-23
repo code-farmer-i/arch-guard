@@ -2,27 +2,54 @@ import type { Preset, RoleDescriptor } from '../engine/types.js'
 
 export interface LibraryOptions {
   src?: string
+  /**
+   * 库的**目录表**：目录名 → 层号（层号越小越底层）。
+   *
+   * 这是库唯一的「结构声明」—— 库没有应用那套「业务域 / 共享层」的概念，
+   * 它的结构就是「公开面入口 + 若干内部目录」。不传 = 只认入口，
+   * 其余文件会以 S01「无处安放」报出来（这是有意的：目录表必须由项目声明，
+   * 而不是本体替你猜）。
+   */
+  modules?: Record<string, number>
+  /** 公开面入口（相对 src 的文件路径），默认 `['index.ts']` */
+  entry?: string[]
 }
 
 /**
- * 库 / CLI 工具范式（对比 `canonical()` 的应用范式）。
+ * 库 / CLI 工具范式的角色表（对比 `canonical()` 的应用范式）。
  *
- * 为什么需要它：应用的目录契约（装配 / 业务域 / 共享）对库不成立 ——
+ * 为什么与应用范式分开：应用的目录契约（装配 / 业务域 / 共享）对库不成立 ——
  * 库没有业务域、没有路由分片、也没有别名（内部相对导入是 Node 生态的常规写法）。
  * 强行用应用规则去量库，只会得到一堆与设计无关的报错。
  *
- * 于是「工程类型」也是一层可替换面：角色表 + 规则集一起换，引擎不动。
+ * 角色表由「入口 + 目录表」生成，因此同一份预设既能量第三方库，也能量本体自己：
+ * ```js
+ * library({ modules: { utils: 1, core: 2, transport: 3 } })          // 普通库
+ * library({ modules: { data: 1, engine: 2, packs: 4, presets: 4 },    // 本体（arch.config.mjs）
+ *           entry: ['index.ts', 'cli.ts'] })
+ * ```
  */
 export function libraryRoleTable(options: LibraryOptions = {}): RoleDescriptor[] {
   const src = options.src ?? 'src'
+  const entry = options.entry ?? ['index.ts']
+  const modules = options.modules ?? {}
   return [
     { id: 'test', pattern: '**/*.test.{ts,tsx,mts,cts,js,mjs,cjs}', layer: 99, exclusive: true },
     { id: 'test', pattern: '**/*.spec.{ts,tsx,mts,cts,js,mjs,cjs}', layer: 99, exclusive: true },
-    { id: 'lib:entry', pattern: `${src}/{index,cli}.ts`, layer: 10, slot: 'entry' },
-    { id: 'lib:engine', pattern: `${src}/engine/**`, layer: 2, slot: 'engine' },
-    { id: 'lib:packs', pattern: `${src}/packs/**`, layer: 4, slot: 'packs' },
-    { id: 'lib:presets', pattern: `${src}/presets/**`, layer: 4, slot: 'presets' },
-    { id: 'lib:data', pattern: `${src}/data/**`, layer: 1, slot: 'data' },
+    // 入口逐个成角色（而不是 `{index,cli}.ts` 花括号枚举）：花括号里的 `.` 不转义，会匹配到 `indexXts`
+    ...entry.map((file) => ({
+      id: 'lib:entry',
+      pattern: `${src}/${file}`,
+      layer: 10,
+      slot: 'entry',
+    })),
+    // 内部目录：id 用 `lib:<目录名>`，层号由项目给 —— 故意**不设 slot**，
+    // 免得目录名恰好叫 lib / hooks 时套上应用范式那套槽位语义（S13 等会误判）
+    ...Object.entries(modules).map(([dir, layer]) => ({
+      id: `lib:${dir}`,
+      pattern: `${src}/${dir}/**`,
+      layer,
+    })),
   ]
 }
 
@@ -33,8 +60,11 @@ export function libraryRoleTable(options: LibraryOptions = {}): RoleDescriptor[]
 export function library(options: LibraryOptions = {}): Preset {
   const src = options.src ?? 'src'
   return {
-    roles: libraryRoleTable({ src }),
-    layout: { app: src, modules: `${src}/packs`, shared: `${src}/engine` },
+    roles: libraryRoleTable(options),
+    // 库没有应用那套「装配 / 域 / 共享」：app 就是源码根，modules / shared 置空表示**不存在**。
+    // 依赖它们的图规则（S04–S09、S15、S18、S03）会因此自然空转，而不是去查一个不存在的
+    // `${srcRoot}/modules` 假装检查过（那曾经是假绿来源，见 structure-graph 的 rootsOf 注释）。
+    layout: { app: src, modules: '', shared: '' },
     srcRoot: src,
     naming: { hookPrefix: 'use', viewSuffix: 'Page' },
     thresholds: {
@@ -44,25 +74,11 @@ export function library(options: LibraryOptions = {}): Preset {
       exportsPerFile: 6,
       componentsPerFile: 3,
     },
-    entries: [`${src}/index.ts`, `${src}/cli.ts`],
-    // 契约扫描域：本体的源码树只有 src；构建产物、示例宿主、夹具、工具配置都在域外，
-    // 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。
+    entries: (options.entry ?? ['index.ts']).map((file) => `${src}/${file}`),
+    // 契约扫描域：只有 src 下的 ts/css 参与角色判定。构建产物、示例宿主、夹具、工具配置
+    // 都在域外 —— 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。
     include: [`${src}/**`],
-    ignore: [
-      'arch.config.mjs',
-      'arch.config.js',
-      'arch.baseline.json',
-      // 构建产物与宿主示例不属于本体源码树
-      'es/**',
-      'lib/**',
-      'bin/**',
-      'node_modules/**',
-      '.agents/**',
-      'examples/**',
-      '__fixtures__/**',
-      'pagoda.config.mjs',
-      'eslint.config.mjs',
-    ],
+    ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json', '.agents/**'],
     enable: ['S00', 'S01', 'S02', 'S11', 'S12', 'S13', 'S16', 'P01', 'P02', 'P06'],
   }
 }

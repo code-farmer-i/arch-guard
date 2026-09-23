@@ -5,7 +5,7 @@ import { extractFacts } from '../es/engine/facts.js'
 import { reactRules } from '../es/packs/react/index.js'
 
 /** 造一个够用的规则上下文：只填被测规则真正会读的字段 */
-function makeContext({ files = {}, records, params = {}, adapters = {}, i18n } = {}) {
+function makeContext({ files = {}, records, params = {}, adapters = {}, i18n, scan } = {}) {
   const facts = new Map()
   for (const [rel, text] of Object.entries(files)) {
     facts.set(rel, extractFacts({ file: rel, rel, role: 'tool', text }))
@@ -57,6 +57,7 @@ function makeContext({ files = {}, records, params = {}, adapters = {}, i18n } =
       exempted: [],
       outside: [],
       foreign: [],
+      ...scan,
     },
     deps: { hasManifest: false, runtime: [], dev: [], peer: [], declared: new Set() },
     policy: { allow: [], deny: [], capabilities: {} },
@@ -72,6 +73,43 @@ test('规则：有记录但事实缺失（解析失败的文件）时跳过而�
   for (const rule of reactRules) {
     assert.doesNotThrow(() => rule.run(ctx), `${rule.id} 在没有 facts 时抛异常`)
   }
+})
+
+test('S01 / S03：提示要指路（闭集枚举只说"你错了"没用，要说"放哪"）', () => {
+  const s01 = reactRules.find((rule) => rule.id === 'S01')
+  const s03 = reactRules.find((rule) => rule.id === 'S03')
+  assert.ok(s01 && s03)
+
+  const scanFor = (missing) => ({
+    records: [],
+    files: [],
+    missing,
+    ambiguous: [],
+    exempted: [],
+    outside: [],
+    foreign: [],
+  })
+
+  const app = s01.run(makeContext({ scan: scanFor(['src/app/providers.tsx']) }))
+  assert.match(app[0]?.hint ?? '', /App\.tsx/, 'app 层装配件要指到 App.tsx')
+  assert.match(app[0]?.hint ?? '', /shared\//, '配置对象要指到 shared/')
+
+  // 域根散件由 S03 报（S01 会跳过，避免同一处报两遍）
+  const straySlot = s01.run(makeContext({ scan: scanFor(['src/modules/crews/screens/Home.tsx']) }))
+  assert.match(straySlot[0]?.hint ?? '', /七个槽位/, '没登记的槽位要念出闭集')
+
+  const sharedUi = s01.run(makeContext({ scan: scanFor(['src/shared/components/Button.tsx']) }))
+  assert.match(
+    sharedUi[0]?.hint ?? '',
+    /ui\/.*common\/|ui\//,
+    'shared/components 下要指到 ui/ 或 common/',
+  )
+
+  const root = s01.run(makeContext({ scan: scanFor(['src/features/x.ts']) }))
+  assert.match(root[0]?.hint ?? '', /app\/ modules\/ shared\//, '域外文件要指回三根')
+
+  const s03Findings = s03.run(makeContext({ scan: scanFor(['src/modules/crews/types.ts']) }))
+  assert.match(s03Findings[0]?.hint ?? '', /model\//, 'S03 对域根散件要指到 model/')
 })
 
 test('D 域：storage.ts 里找不到 htmlKeys 指定的键时明确报出来', () => {

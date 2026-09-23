@@ -50,7 +50,7 @@ const DEFAULTS: Omit<
  * `tokenPrefix` / `spacing` / `styleDir` / `tokenDir` / `vendorDir` / `paletteFile` /
  * `themeFile` / `storageFile` 八个字段的配置**全部被静默忽略**：规则照默认路径去找，
  * 什么也找不到，还显示"通过"。字段逐条列出而不是 `...params`，是为了让这份可配清单可见 ——
- * 顺带避免把 `params` 里别的键（semanticSlots、deps 的 allow 等）漏进 DesignParams。
+ * 顺带避免把 `params` 里别的键（deps 的 allow / capabilities、maxDepth 等）漏进 DesignParams。
  */
 export function designParams(ctx: RuleContext): DesignParams {
   const p = ctx.config.params as Partial<DesignParams>

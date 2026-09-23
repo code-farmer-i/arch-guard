@@ -168,7 +168,6 @@ export interface Preset {
   adapters?: Record<string, Adapter>
   enable?: string[] | 'all'
   params?: Record<string, unknown>
-  layers?: Record<string, number>
   entries?: string[]
   ignore?: string[]
   /** 契约扫描域：只有命中这些 glob 的 ts/css 参与角色判定（空 = 不限制） */
@@ -185,7 +184,6 @@ export interface Config {
   roles: RoleDescriptor[]
   naming: NamingRules
   thresholds: Thresholds
-  layers: Record<string, number>
   adapters: Record<string, Adapter>
   enable: string[] | 'all'
   params: Record<string, unknown>
