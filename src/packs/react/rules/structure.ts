@@ -144,11 +144,13 @@ export const namingRules: Rule = {
       if (record.slot === 'hooks' && !stem.startsWith(hookPrefix)) {
         out.push(finding('S12', record.rel, 1, `hook 文件必须以 ${hookPrefix} 开头：${base}`))
       }
-      if (record.slot === 'views' && !stem.endsWith(viewSuffix)) {
+      // 只对代码文件查页面命名：views/ 下的 .module.css 是页面样式，不是页面
+      if (record.slot === 'views' && /\.tsx?$/.test(base) && !stem.endsWith(viewSuffix)) {
         out.push(finding('S12', record.rel, 1, `页面文件必须以 ${viewSuffix} 结尾：${base}`))
       }
-      if (record.role === 'shared:api' && /[A-Z]/.test(stem)) {
-        out.push(finding('S12', record.rel, 1, `api 端点的文件名必须小写：${base}`))
+      // api 层允许 camelCase（queryKeys / queryClient 这类基础设施），只禁首字母大写与下划线
+      if (record.role === 'shared:api' && (/^[A-Z]/.test(stem) || stem.includes('_'))) {
+        out.push(finding('S12', record.rel, 1, `api 文件名必须小写 camelCase（禁首字母大写与下划线）：${base}`))
       }
       if (
         (record.role === 'shared:components:ui' || record.role === 'shared:components:common') &&
@@ -185,6 +187,8 @@ export const exportShape: Rule = {
       }
       if (record.slot === 'hooks') {
         for (const entry of exports) {
+          // 类型导出是 hook 的公开契约（ToolStep / ConversationStream…），不是"非 hook 导出"
+          if (entry.typeOnly) continue
           if (entry.isDefault || !entry.name.startsWith(ctx.config.naming.hookPrefix)) {
             out.push(
               finding('S13', record.rel, entry.line, `hook 模块只允许导出 use*：${entry.name}`),
@@ -235,7 +239,11 @@ export const routesRequired: Rule = {
         hasRoutes: false,
         sample: record.rel,
       }
-      if (record.slot === 'views') entry.hasViews = true
+      if (record.slot === 'views') {
+        entry.hasViews = true
+        // 定位点优先用代码文件：域级发现落在 .module.css 上会让人找不到北
+        if (/\.tsx?$/.test(record.rel)) entry.sample = record.rel
+      }
       if (record.slot === 'routes') entry.hasRoutes = true
       domains.set(record.domain, entry)
     }
