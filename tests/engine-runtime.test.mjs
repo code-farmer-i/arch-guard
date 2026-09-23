@@ -140,6 +140,15 @@ test('cli：commander 注册了全部对外开关（防止重构时丢参数）'
   ])
 })
 
+test('typescript 版本自检：缺 API 的版本给出可执行报错（而不是 undefined 崩）', async () => {
+  const { assertTypeScriptApi, describeTypeScriptProblem } = await import('../es/engine/ts-api.js')
+  assert.equal(describeTypeScriptProblem({ createSourceFile: () => {}, ScriptKind: {} }), null)
+  assert.match(describeTypeScriptProblem({}) ?? '', /createSourceFile \/ ScriptKind/)
+  assert.match(describeTypeScriptProblem({ createSourceFile: () => {} }) ?? '', /ScriptKind/)
+  assert.throws(() => assertTypeScriptApi({}), /typescript >=5.4 <7/)
+  assert.doesNotThrow(() => assertTypeScriptApi({ createSourceFile: () => {}, ScriptKind: {} }))
+})
+
 test('阈值：默认 500 行，且可按项目覆盖', async () => {
   const { config } = await loadConfig({ root: `${PACKAGE_ROOT}examples/minimal` })
   assert.equal(config.thresholds.fileLines, 500)

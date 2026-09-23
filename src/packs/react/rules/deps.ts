@@ -49,7 +49,11 @@ export const depsAllowlist: Rule = {
   },
 }
 
-/** P02 明确禁用库 */
+/**
+ * P02 明确禁用库。
+ * 注意：启用 allow 白名单（P01）后，这个规则基本是多余的 —— 未登记的依赖已经被拦下。
+ * 保留它只为两种情况：① 项目不想维护白名单，只想表达少数硬禁令；② 想给某个库更明确的报错。
+ */
 export const depsDenied: Rule = {
   id: 'P02',
   domain: 'deps',

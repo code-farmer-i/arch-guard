@@ -24,6 +24,8 @@ agent 写代码最典型的退化不是语法错误，而是**结构退化**：
 pnpm add -D arch-guard
 ```
 
+要求 **Node ≥ 22.18**、**TypeScript 5.4 – 6.x**（`typescript@7` 是原生重写，JS 侧不再暴露编译期 API，装到它会明确报错而不是崩在 `undefined`）。
+
 在项目根建 `arch.config.mjs`：
 
 ```js

@@ -1,11 +1,16 @@
 import ts from 'typescript'
 
+import { assertTypeScriptApi } from './ts-api.js'
+
 import type { CommentFact, Facts, FileRecord } from './types.js'
 
 /**
  * 事实模型（facts）：引擎里**唯一**接触 TS AST 的地方。
  * 规则只消费这里产出的纯 JSON —— 换 parser 只需重写本文件（见 docs/DESIGN.md §6.1.1）。
  */
+
+// typescript@7 是原生重写，JS 侧不再暴露编译期 API；这里 fail-fast 给出可执行报错
+assertTypeScriptApi(ts)
 
 interface SourceFileWithDiagnostics extends ts.SourceFile {
   parseDiagnostics?: ts.Diagnostic[]

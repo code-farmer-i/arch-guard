@@ -10,7 +10,8 @@ export default defineConfig({
     // 目标平台是 Node，不是浏览器
     platform: 'node',
     umd: false,
-    sourcemap: true,
+    // 不生成 sourcemap：esbuild 会把开发机绝对路径写进 .js.map，进而进入发布产物
+    sourcemap: false,
     packageManager: 'pnpm',
     extensions: {
       // 产物用 .js（package.json 已声明 "type": "module"）：
