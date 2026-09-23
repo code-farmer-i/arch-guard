@@ -1,5 +1,5 @@
 import { wheelFingerprints } from '../../../data/wheel-fingerprints.js'
-import type { Facts, Finding, Rule } from '../../../engine/types.js'
+import type { Facts, Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 const finding = (
   rule: string,
@@ -25,19 +25,39 @@ const finding = (
  * 判定等级：清单类 L1（读 package.json），能力类 L2（单文件形态 + 全项目 import 集合）。
  */
 
-/** P01 新增依赖必须登记：**没登记 = 没批准**（只在项目声明了白名单/能力表时启用） */
+/**
+ * 适配表声明的包也算「已批准」：适配器是「项目用什么库」的唯一声明（P04 用同一份数据），
+ * 不必在 allow 里重抄一遍。注意它只**并入名单**，不负责打开 P01 —— 开关仍然只有 allow。
+ */
+function adapterPackages(ctx: RuleContext): string[] {
+  const out = new Set<string>()
+  for (const adapter of Object.values(ctx.config.adapters)) {
+    for (const name of adapter.packages ?? []) out.add(name)
+  }
+  return [...out]
+}
+
+/**
+ * P01 新增依赖必须登记：**没登记 = 没批准**。
+ *
+ * 开关是 `allow`（显式声明才进入 fail-closed）。`capabilities` **不再**隐式开启本规则 ——
+ * 否则「只想声明一个能力（datetime → dayjs）」会等价于「批准清单里只有 dayjs」，
+ * 项目其余依赖全部报红，而用户并没有要过白名单。能力表只驱动 P06（手搓指纹）。
+ * 反重复由 `policyConflicts` 保证：只要 allow 非空，能力首选必须同时登记在 allow 里；
+ * 适配表声明的包则由 `adapterPackages()` 自动并入名单。
+ */
 export const depsAllowlist: Rule = {
   id: 'P01',
   domain: 'deps',
   level: 'L1',
   severity: 'error',
   title: '运行时依赖必须登记',
-  hint: '把包加进 arch.config.mjs 的 deps({ allow }) 或登记为某能力的首选方案；devDependencies 不受此限',
+  hint: '把包加进 arch.config.mjs 的 deps({ allow })，或登记为能力的首选方案 / 适配表里的组件库；devDependencies 不受此限',
   run: (ctx) => {
     if (!ctx.deps.hasManifest) return []
-    const { allow, capabilities, deny } = ctx.policy
-    const approved = new Set([...allow, ...Object.values(capabilities)])
-    if (approved.size === 0) return [] // 没声明白名单就不进入 fail-closed 模式
+    const { allow, deny } = ctx.policy
+    if (allow.length === 0) return [] // 没声明白名单就不进入 fail-closed 模式
+    const approved = new Set([...allow, ...adapterPackages(ctx)])
     return (
       ctx.deps.runtime
         // deny 里的库由 P02 报，不在这里重复

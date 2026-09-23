@@ -195,7 +195,9 @@ export const keysExist: Rule = {
         if (!isTranslationCallee(call.callee, fn)) continue
         // 动态键（`t(`ns.${x}`)`）不做求值，只按前缀放行；没有字面量参数的调用无法判定
         if (!call.stringArg) continue
-        const hit = keyCandidates(call.stringArg, hints.get(record.rel)).some((key) => known.has(key))
+        const hit = keyCandidates(call.stringArg, hints.get(record.rel)).some((key) =>
+          known.has(key),
+        )
         if (hit) continue
         out.push(finding('C02', record.rel, call.line, `文案键不存在：${call.stringArg}`))
       }

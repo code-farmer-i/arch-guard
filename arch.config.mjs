@@ -13,8 +13,8 @@ export default {
     library(),
     hygiene(),
     deps({
-      // 能力表：登记了的能力，代码里命中「手搓指纹」却没在用首选方案 → P06；
-      // 登记了首选方案却全项目零引用 → P08。
+      // 能力表：登记了的能力，代码里命中「手搓指纹」却没在用首选方案 → P06。
+      // 注意：能力表**不会**顺带开启 P01 依赖白名单（见 docs/adr/0005）—— P01 只由下面的 allow 开启。
       capabilities: { 'cli-args': 'commander' },
       // allow 是 fail-closed 白名单，**只约束 package.json 的 dependencies**：
       // 声明了它就等于「没登记 = 没批准」。本体唯一的运行时依赖就是 commander。

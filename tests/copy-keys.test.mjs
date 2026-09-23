@@ -34,7 +34,8 @@ function makeContext(files, { adapters = { i18n: i18nAdapter }, extraRecords = [
   }
 }
 
-const shape = (findings) => findings.map((item) => `${item.rule} ${item.file}:${item.line} ${item.text}`)
+const shape = (findings) =>
+  findings.map((item) => `${item.rule} ${item.file}:${item.line} ${item.text}`)
 
 test('C02：t() 的键存在就放行，拼错就报在调用行上', () => {
   const ctx = makeContext({
@@ -71,7 +72,8 @@ test('C02：冒号写法的命名空间也要按 nav.<key> 校验', () => {
 
 test('C02：useTranslation("translation") 是 i18next 默认命名空间，不参与拼前缀', () => {
   const ctx = makeContext({
-    'src/modules/a/views/A.tsx': "const { t } = useTranslation('translation')\nexport const a = t('nav.crews')\n",
+    'src/modules/a/views/A.tsx':
+      "const { t } = useTranslation('translation')\nexport const a = t('nav.crews')\n",
   })
   assert.deepEqual(keysExist.run(ctx), [])
 })
@@ -79,7 +81,11 @@ test('C02：useTranslation("translation") 是 i18next 默认命名空间，不�
 test('C02：适配器只登记函数名时，允许带对象前缀的调用，且默认名字是 t', () => {
   const custom = makeContext(
     { 'src/modules/a/views/A.tsx': "export const a = i18n.translate('nav.typo')\n" },
-    { adapters: { i18n: { facet: 'i18n', fn: 'translate', hook: 'useTranslation', resourceDir: DIR } } },
+    {
+      adapters: {
+        i18n: { facet: 'i18n', fn: 'translate', hook: 'useTranslation', resourceDir: DIR },
+      },
+    },
   )
   assert.equal(keysExist.run(custom).length, 1)
 
@@ -133,9 +139,11 @@ test('C06：间接引用（常量表里的键字面量）与动态前缀都算�
     { path: 'nav.title', line: 2 },
     { path: 'nav.crews', line: 3 },
   ])
-  assert.deepEqual(shape(noDeadKeys.run(indirect)), [
-    'C06 src/shared/i18n/locales/zh-CN/nav.ts:3 死键：nav.crews',
-  ], 'labelKey 这类常量表引用要兜住（不做绑定解析），但同命名空间里没人引用的键照样报')
+  assert.deepEqual(
+    shape(noDeadKeys.run(indirect)),
+    ['C06 src/shared/i18n/locales/zh-CN/nav.ts:3 死键：nav.crews'],
+    'labelKey 这类常量表引用要兜住（不做绑定解析），但同命名空间里没人引用的键照样报',
+  )
 
   const dynamic = makeContext({
     'src/modules/a/views/A.tsx': 'export const pick = (name: string) => t(`nav.${name}`)\n',
@@ -144,9 +152,11 @@ test('C06：间接引用（常量表里的键字面量）与动态前缀都算�
     { path: 'nav.crews', line: 2 },
     { path: 'common.save', line: 3 },
   ])
-  assert.deepEqual(shape(noDeadKeys.run(dynamic)), [
-    'C06 src/shared/i18n/locales/zh-CN/nav.ts:3 死键：common.save',
-  ], '模板串只放行它自己的前缀，别的前缀不受影响')
+  assert.deepEqual(
+    shape(noDeadKeys.run(dynamic)),
+    ['C06 src/shared/i18n/locales/zh-CN/nav.ts:3 死键：common.save'],
+    '模板串只放行它自己的前缀，别的前缀不受影响',
+  )
 })
 
 test('C06：聚合入口的键没有语义；没有可校验的索引时直接空', () => {

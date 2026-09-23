@@ -94,3 +94,18 @@ test('P 域：命中指纹但确实在用登记方案时不报（本体即正例
     [],
   )
 })
+
+test('P 域：只写声明（能力表 / 适配表）不隐式开启 P01（白名单必须显式 allow）', async () => {
+  const result = await run('declarations-only')
+  // react / antd 都没登记也不报：声明了什么 ≠ 批准了什么；能力表只驱动 P06
+  assert.deepEqual(
+    result.all.map((finding) => `${finding.rule} ${finding.file}`),
+    ['P06 src/app/main.tsx'],
+  )
+})
+
+test('P 域：适配表声明的包并入 P01 批准名单（不必在 allow 里重抄）', async () => {
+  const result = await run('allowlist-adapters')
+  // allow 只有 react/react-dom，但 antd 三件套由 uiKit(antdKit()) 的 packages 批准
+  assert.deepEqual(result.all, [])
+})

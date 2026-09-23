@@ -207,6 +207,12 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   if (conflicts.length > 0) {
     throw new Error(`依赖策略自相矛盾：\n  - ${conflicts.join('\n  - ')}`)
   }
+  // 能力表不再隐式开启 P01：把这条语义显式说出来，避免用户以为还处在「未登记即拒」模式
+  if (policy.allow.length === 0 && Object.keys(policy.capabilities).length > 0) {
+    notices.push(
+      '能力表只驱动 P06（手搓指纹），本次未开启 P01 依赖白名单；要「未登记即拒」请显式写 deps({ allow: [...] })',
+    )
+  }
   const deps = readProjectDeps(config.root, graph.externals.keys())
 
   const registry = createRegistry(options.rules, config, {

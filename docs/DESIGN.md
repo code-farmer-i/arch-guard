@@ -81,22 +81,22 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 判定标准：**纯语法/纯图属性、且不需要项目专有数据的约束，一律委派**；只有需要「角色表 / 适配器 /
 能力表」这类项目数据的约束才由本工具实现。
 
-| 已委派的约束                                    | 原规则          | 交给谁                                                                            |
-| ----------------------------------------------- | --------------- | --------------------------------------------------------------------------------- |
-| `any` / 非空断言 / ts 注释逃生舱                | H01             | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment` |
-| console / debugger / alert                      | H03             | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                          |
-| 未完成标记（TODO 等）                           | H04             | `no-warning-comments`                                                             |
-| 空 catch / 空块                                 | H05             | `no-empty`                                                                        |
-| 假异步、`Math.random`、硬编码地址、假数据字面量 | H07–H09         | `no-restricted-syntax` / `no-restricted-properties` 选择器                        |
-| 文件行数 / 函数行数                             | S16             | `max-lines` · `max-lines-per-function`                                            |
-| 相对越级 `../`                                  | S10             | `no-restricted-imports`                                                           |
-| 依赖环                                          | S08             | `import/no-cycle` · dependency-cruiser `no-circular`                              |
-| 孤儿文件                                        | S15（部分）     | dependency-cruiser `no-orphans`                                                   |
-| 幽灵依赖 / 声明但未使用                         | P03 · P08       | `knip` · `depcheck`                                                               |
-| 颜色字面量只在色板                              | D01             | stylelint `color-no-hex` + `overrides`                                            |
-| `!important`                                    | D09             | stylelint `declaration-no-important`                                              |
-| 长度 / z-index / 时长白名单                     | D12–D14         | stylelint `declaration-property-value-allowed-list`                               |
-| JSX 裸文案                                    | C01             | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
+| 已委派的约束                                    | 原规则      | 交给谁                                                                                                                        |
+| ----------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `any` / 非空断言 / ts 注释逃生舱                | H01         | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                             |
+| console / debugger / alert                      | H03         | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                      |
+| 未完成标记（TODO 等）                           | H04         | `no-warning-comments`                                                                                                         |
+| 空 catch / 空块                                 | H05         | `no-empty`                                                                                                                    |
+| 假异步、`Math.random`、硬编码地址、假数据字面量 | H07–H09     | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                    |
+| 文件行数 / 函数行数                             | S16         | `max-lines` · `max-lines-per-function`                                                                                        |
+| 相对越级 `../`                                  | S10         | `no-restricted-imports`                                                                                                       |
+| 依赖环                                          | S08         | `import/no-cycle` · dependency-cruiser `no-circular`                                                                          |
+| 孤儿文件                                        | S15（部分） | dependency-cruiser `no-orphans`                                                                                               |
+| 幽灵依赖 / 声明但未使用                         | P03 · P08   | `knip` · `depcheck`                                                                                                           |
+| 颜色字面量只在色板                              | D01         | stylelint `color-no-hex` + `overrides`                                                                                        |
+| `!important`                                    | D09         | stylelint `declaration-no-important`                                                                                          |
+| 长度 / z-index / 时长白名单                     | D12–D14     | stylelint `declaration-property-value-allowed-list`                                                                           |
+| JSX 裸文案                                      | C01         | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
 
 **代价（必须知道）**：委派之后，**宿主没有对应工具就等于失去这层覆盖**。所以接入清单里要一起做：
 装 eslint（含 typescript-eslint）、stylelint、knip，并在 `pnpm lint` 链路里跑起来。
@@ -190,13 +190,13 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ### 5.4 依赖（P）
 
-| ID  | 红线                                                                                                 | 判据                    | 等级 | 级别  |
-| --- | ---------------------------------------------------------------------------------------------------- | ----------------------- | ---- | ----- |
-| P01 | `dependencies` 必须在选型白名单内（对齐 `AGENTS.md` 选型表）                                         | `package.json`          | L1   | error |
-| P02 | 明确禁用库（axios/ky/swr/redux/mobx/jotai/react-hook-form/tailwind/styled-components…）              | `package.json`          | L1   | error |
-| P04 | **适配表与实际依赖一致**：适配表声明的包必须在 `dependencies` 里；反向，装了适配表之外的组件库即报错 | 适配表 + `package.json` | L1   | error |
-| P05 | **图标来源唯一**：图标 import 只许来自适配表登记的图标包                                             | 适配表 + AST            | L2   | error |
-| P03 | 幽灵依赖：import 了未声明的包                                                                        | 图 + `package.json`     | L3   | error |
+| ID  | 红线                                                                                                          | 判据                    | 等级 | 级别  |
+| --- | ------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- | ----- |
+| P01 | `dependencies` 必须在 `deps({ allow })` ∪ 适配表 `packages` 内（**显式开启**；能力表不隐式开启，见 ADR-0005） | `package.json`          | L1   | error |
+| P02 | 明确禁用库（axios/ky/swr/redux/mobx/jotai/react-hook-form/tailwind/styled-components…）                       | `package.json`          | L1   | error |
+| P04 | **适配表与实际依赖一致**：适配表声明的包必须在 `dependencies` 里；反向，装了适配表之外的组件库即报错          | 适配表 + `package.json` | L1   | error |
+| P05 | **图标来源唯一**：图标 import 只许来自适配表登记的图标包                                                      | 适配表 + AST            | L2   | error |
+| P03 | 幽灵依赖：import 了未声明的包                                                                                 | 图 + `package.json`     | L3   | error |
 
 ### 5.5 反退化（H）
 
@@ -461,17 +461,17 @@ export default {
 
 **适配器契约** —— 每个字段驱动哪条规则：
 
-| 字段               | 含义                                                    | 驱动的规则                               |
-| ------------------ | ------------------------------------------------------- | ---------------------------------------- |
-| `id`               | 适配器标识                                              | 报告与文档                               |
-| `packages`         | 该库允许出现在 `dependencies` 的包名                    | P01 白名单、P04 一致性                   |
-| `icons.from`       | 允许的图标来源包（唯一）                                | P05                                      |
-| `vendorSelectors`  | 该库的 DOM 选择器前缀（如 `\.ant-`）                    | D10 / D10b                               |
-| `vendorVars`       | 该库的 CSS 变量前缀（如 `^--ant-`）                     | D10 / D10b                               |
-| `detachedApis`     | 脱离上下文的全局 API 与替代写法                         | H06                                      |
-| `styleProps`       | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`） | D15                                      |
-| `themeIntegration` | 库主题映射的落点（CSS 目录 + JS 文件）                  | exclusiveOwner（S03 落点 + D10 边界）    |
-| `policy`（可选）   | 组件来源阶梯、覆盖阶梯的文本                            | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
+| 字段               | 含义                                                       | 驱动的规则                               |
+| ------------------ | ---------------------------------------------------------- | ---------------------------------------- |
+| `id`               | 适配器标识                                                 | 报告与文档                               |
+| `packages`         | 适配表声明的包（必须装在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时）       |
+| `icons.from`       | 允许的图标来源包（唯一）                                   | P05                                      |
+| `vendorSelectors`  | 该库的 DOM 选择器前缀（如 `\.ant-`）                       | D10 / D10b                               |
+| `vendorVars`       | 该库的 CSS 变量前缀（如 `^--ant-`）                        | D10 / D10b                               |
+| `detachedApis`     | 脱离上下文的全局 API 与替代写法                            | H06                                      |
+| `styleProps`       | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`）    | D15                                      |
+| `themeIntegration` | 库主题映射的落点（CSS 目录 + JS 文件）                     | exclusiveOwner（S03 落点 + D10 边界）    |
+| `policy`（可选）   | 组件来源阶梯、覆盖阶梯的文本                               | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
 
 ```js
 // presets/ui-kits/antd.mjs —— 约 30 行，这就是"换框架"的全部成本
@@ -544,7 +544,7 @@ export default () => ({
 | 11  | 命名契约            | `*Page.tsx`、`use*`、`use*Store`                                            | 项目用 `*.view.tsx` / 自定义 hook 前缀                               | T2            |
 | 12  | 导出风格            | views 必须 default export                                                   | 全 named export 的项目                                               | T2            |
 | 13  | 硬编码文案判定      | 中文字符检测                                                                | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关）    | T2 已缓解     |
-| 14  | 依赖选型表          | P01「对齐 AGENTS.md 选型表」＝**两处真相**                                  | 表改了、config 没改 → 漂移                                           | T1（见 §7.3） |
+| 14  | 依赖选型表          | P01 白名单（`deps({ allow })`）与文档里的选型表各写一份                     | 表改了、config 没改 → 漂移                                           | T1（见 §7.3） |
 | 15  | 时间库              | H10 建议 dayjs                                                              | date-fns / Temporal                                                  | T3            |
 | 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                          | monorepo 需要多实例配置                                              | 范围外        |
 
@@ -686,16 +686,16 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 **只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` / `definePack` / config·baseline 的 `specVersion` 均已落地，从本表移除）
 已落地的能力见 [`CHANGELOG.md`](../CHANGELOG.md)，进度见 [`README.md`](../README.md) 的 Roadmap。
 
-| ID   | 缺口                                                                                                                                                                                                                                                 | 影响                                                        |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| R1   | 应用范式的域只有 `routes.tsx` 一个公开面，跨域组合没有合法落点（缺 `index.ts` 契约）                                                                                                                                                                 | 跨域页面会挤进 `shared/components/common`，域边界从内部侵蚀 |
-| R4   | 豁免只有 `exempt` 白名单与基线两条通道，缺「有理由 + 有期限」的结构化例外                                                                                                                                                                            | 正当的永久例外会被记成"存量债"，语义腐败                    |
-| R6   | 有 `exempt`，但没有「生成代码必须带 `@generated` 标记」的可证伪要求                                                                                                                                                                                  | 豁免可以被随意扩大                                          |
-| E2   | 适配器面清单（facet）仍硬编码在引擎里（已支持 i18n 面；新增面仍要动引擎）                                                                                                                                                                            | 加一个新面要动引擎                                          |
-| D 域 | **11 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（stylelint 的值白名单 + eslint 的 `no-restricted-syntax`，见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖                                |
-| C 域 | **5 条已落地**（C02–C06：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键）；C01 裸文案委派给 `eslint-plugin-i18next` | 动态键（`t(\`ns.${x}\`)`）只按静态前缀放行，不做求值                               |
-| P07  | 弱指纹 + 命名指纹的「疑似自造轮子」判定未实现（见 `.scratch/wheel-detection/spec.md`）                                                                                                                                                               | 自研 `debounce` / `deepClone` 抓不到                        |
-| —    | `--verify-deps`（联网查 npm 成熟度）未实现                                                                                                                                                                                                           | 新增依赖的成熟度只能靠人评审                                |
+| ID   | 缺口                                                                                                                                                                                                                                                                                                                  | 影响                                                        |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| R1   | 应用范式的域只有 `routes.tsx` 一个公开面，跨域组合没有合法落点（缺 `index.ts` 契约）                                                                                                                                                                                                                                  | 跨域页面会挤进 `shared/components/common`，域边界从内部侵蚀 |
+| R4   | 豁免只有 `exempt` 白名单与基线两条通道，缺「有理由 + 有期限」的结构化例外                                                                                                                                                                                                                                             | 正当的永久例外会被记成"存量债"，语义腐败                    |
+| R6   | 有 `exempt`，但没有「生成代码必须带 `@generated` 标记」的可证伪要求                                                                                                                                                                                                                                                   | 豁免可以被随意扩大                                          |
+| E2   | 适配器面清单（facet）仍硬编码在引擎里（已支持 i18n 面；新增面仍要动引擎）                                                                                                                                                                                                                                             | 加一个新面要动引擎                                          |
+| D 域 | **11 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（stylelint 的值白名单 + eslint 的 `no-restricted-syntax`，见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖          |
+| C 域 | **5 条已落地**（C02–C06：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键）；C01 裸文案委派给 `eslint-plugin-i18next`                                                                                                                                                                                         | 动态键（`t(\`ns.${x}\`)`）只按静态前缀放行，不做求值        |
+| P07  | 弱指纹 + 命名指纹的「疑似自造轮子」判定未实现（见 `.scratch/wheel-detection/spec.md`）                                                                                                                                                                                                                                | 自研 `debounce` / `deepClone` 抓不到                        |
+| —    | `--verify-deps`（联网查 npm 成熟度）未实现                                                                                                                                                                                                                                                                            | 新增依赖的成熟度只能靠人评审                                |
 
 ## 16. 选型纪律：优先成熟开源方案（反造轮子）
 

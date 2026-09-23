@@ -92,15 +92,15 @@ npx arch-guard --list-rules                     # 本工具当前规则清单
 
 ## 4. 本次审计新发现的重叠（**已按判定规则处理**）
 
-| 候选                      | 等价实现                                                                                                        | 建议                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `H02` 禁 `eslint-disable` | `eslint-plugin-eslint-comments` 的 `no-restricted-disable` + `--report-unused-disable-directives`（零项目数据） | **删除**（按判定规则属完全重复）                     |
-| `D15` 内联样式纪律        | `no-restricted-syntax` 选择器抓 `style={{ … }}` 里的裸数字与颜色字面量（零项目数据）。**注意 `no-magic-numbers` 不行**：ESLint 默认 `detectObjects: false`，对象字面量里的值它不管；oxlint 的同名规则没有该选项（且处于 nursery），实测对 `style={{ margin: 8 }}` 0 命中       | **删除**（宿主改用 `no-restricted-syntax` 落地）       |
-| `D02` 色板只放色板令牌    | stylelint `custom-property-pattern` + `overrides`（一个 pattern）                                               | **删除**                                             |
-| `C02` / `C06` 键存在性与死键 | **没有等价实现**：`eslint-plugin-i18next` 只有 `no-literal-string`（不做键对账），别的生态工具也不碰"这个键有没有人用" | **恢复实现**（当初按插件能力删除属误判）             |
-| `D18` 组件只消费语义令牌  | stylelint `declaration-property-value-disallowed-list`（一个 token 前缀）                                       | **删除**                                             |
-| `D04` 引用闭合            | `stylelint-value-no-unknown-custom-properties` 只查文件内                                                       | 保留（我们是跨文件令牌图）                           |
-| `M02`–`M05`               | vitest glob/perFile 阈值、`diff-cover`、社区 ratchet 工具                                                       | 保留但**默认不启用**，仅当宿主运行器没有对应能力时开 |
+| 候选                         | 等价实现                                                                                                                                                                                                                                                                 | 建议                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `H02` 禁 `eslint-disable`    | `eslint-plugin-eslint-comments` 的 `no-restricted-disable` + `--report-unused-disable-directives`（零项目数据）                                                                                                                                                          | **删除**（按判定规则属完全重复）                     |
+| `D15` 内联样式纪律           | `no-restricted-syntax` 选择器抓 `style={{ … }}` 里的裸数字与颜色字面量（零项目数据）。**注意 `no-magic-numbers` 不行**：ESLint 默认 `detectObjects: false`，对象字面量里的值它不管；oxlint 的同名规则没有该选项（且处于 nursery），实测对 `style={{ margin: 8 }}` 0 命中 | **删除**（宿主改用 `no-restricted-syntax` 落地）     |
+| `D02` 色板只放色板令牌       | stylelint `custom-property-pattern` + `overrides`（一个 pattern）                                                                                                                                                                                                        | **删除**                                             |
+| `C02` / `C06` 键存在性与死键 | **没有等价实现**：`eslint-plugin-i18next` 只有 `no-literal-string`（不做键对账），别的生态工具也不碰"这个键有没有人用"                                                                                                                                                   | **恢复实现**（当初按插件能力删除属误判）             |
+| `D18` 组件只消费语义令牌     | stylelint `declaration-property-value-disallowed-list`（一个 token 前缀）                                                                                                                                                                                                | **删除**                                             |
+| `D04` 引用闭合               | `stylelint-value-no-unknown-custom-properties` 只查文件内                                                                                                                                                                                                                | 保留（我们是跨文件令牌图）                           |
+| `M02`–`M05`                  | vitest glob/perFile 阈值、`diff-cover`、社区 ratchet 工具                                                                                                                                                                                                                | 保留但**默认不启用**，仅当宿主运行器没有对应能力时开 |
 
 ### 4.1 测试相关门禁的专项结论（实测）
 

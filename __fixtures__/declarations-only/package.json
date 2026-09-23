@@ -1,0 +1,13 @@
+{
+  "name": "declarations-only-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ant-design/icons": "^6.0.0",
+    "@ant-design/x": "^2.0.0",
+    "antd": "^5.0.0",
+    "dayjs": "^1.11.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
