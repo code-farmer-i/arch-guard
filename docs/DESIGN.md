@@ -12,6 +12,7 @@
 | 为什么这么设计                       | [`docs/adr/`](./adr/)                                           |
 | 现在实现到哪                         | [`README.md`](../README.md) + [`CHANGELOG.md`](../CHANGELOG.md) |
 | 某个特性的规格                       | `.scratch/<feature-slug>/spec.md`                               |
+| 不装本门禁用什么 / 竞品盘点          | [`ALTERNATIVES.md`](./ALTERNATIVES.md)                          |
 
 文中 `tools/arch-guard/` 对应本仓库根；`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
 

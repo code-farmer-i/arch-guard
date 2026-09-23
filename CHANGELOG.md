@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+### Added（`docs/ALTERNATIVES.md`：替代组合与竞品盘点）
+
+- 新增一份整体版生态审计（[ECOSYSTEM-AUDIT](./docs/ECOSYSTEM-AUDIT.md) 的补充）：
+  逐条列出我们的判据在生态里谁在做（含周下载量）、**拼一套成熟组合能覆盖 ≈30/53 条**、
+  以及**任何组合都补不上的七项**（跨文件令牌图 / 跨语言一致 / 声明⇄事实 / 依赖选型体系 / 统一棘轮 / 判定纪律 / CSS Module 契约）。
+- 收录实测证据：steiger 在非 FSD 项目上给 **`✔ No problems found!`（静默假绿，退出码 0）**，同一个工具在 FSD 项目上报 10 条；
+  eslint 的 suppressions 是 `文件+规则→计数`（**按计数不按行**，修一处可在别处加一处），与我们的行文本锚点形成实质差别。
+- 收录 FSD 场景的完整配方（路径约定表、`steiger.config.js`、`library({ modules: 六层, entry: [] })` + 契约预设、四个坑），
+  以及「结构声明化」方向草案（`structure: { order, isolate, publicApi, slots }` + 四条方法无关的通用规则）。
+- 已知阻塞点也写进去了：**`enable` 是覆盖不是并集** —— 不写并集时 `library()` 的白名单会把 D/C/M 域静默关掉（实测 10/53）。
+
 ### Changed（依赖政策：P1 从"零依赖洁癖"改成"审查门"）
 
 - **"整目录可搬"不再是发布形态**（本包以 npm 包发布），所以 P1 的理由改成真实的那个：

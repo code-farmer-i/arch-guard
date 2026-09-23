@@ -148,6 +148,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式 + �
 
 - [`PARADIGM.md`](./PARADIGM.md) —— **通用范式**：三条公理、十个检测原语、五条设计律、目录契约、判定等级、适配器契约、scope 语义。可直接搬到别的仓库当规约。
 - [`docs/DESIGN.md`](./docs/DESIGN.md) —— 怎么实现 + 还没做什么：引擎机制、规则清单、已知缺口。
+- [`docs/ALTERNATIVES.md`](./docs/ALTERNATIVES.md) —— **替代组合与竞品盘点**：不装本门禁能覆盖多少（≈30/53）、FSD 场景怎么拼、我们立得住的是什么。
 
 ## Roadmap
 
