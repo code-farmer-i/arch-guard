@@ -1,0 +1,5 @@
+<!doctype html>
+<html><head><script>
+  /* 首帧防闪烁：key 必须与 STORAGE_KEYS.theme 一致 */
+  document.documentElement.dataset.theme = localStorage.getItem('legacy-theme') || 'dark'
+</script></head><body><div id="root"></div><script type="module" src="/src/app/main.tsx"></script></body></html>

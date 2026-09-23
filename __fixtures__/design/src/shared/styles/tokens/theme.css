@@ -1,0 +1,15 @@
+/* 语义令牌：明暗两套 */
+:root {
+  --sh-alias-label-primary: var(--sh-static-neutral-00);
+  --sh-alias-bg-base: var(--sh-static-neutral-900);
+  --sh-alias-broken: var(--sh-alias-not-defined);
+}
+[data-theme="dark"] {
+  --sh-alias-label-primary: var(--sh-static-neutral-00);
+  --sh-alias-bg-base: var(--sh-static-neutral-900);
+  --sh-alias-broken: var(--sh-static-orphan-100);
+}
+[data-theme="light"] {
+  --sh-alias-label-primary: var(--sh-static-neutral-00);
+  --sh-alias-bg-base: var(--sh-static-neutral-00);
+}

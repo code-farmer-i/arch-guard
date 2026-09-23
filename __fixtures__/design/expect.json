@@ -1,0 +1,64 @@
+{
+  "findings": [
+    {
+      "rule": "D01",
+      "file": "src/shared/components/ui/Bad.module.css"
+    },
+    {
+      "rule": "D02",
+      "file": "src/shared/styles/tokens/palette.css"
+    },
+    {
+      "rule": "D03",
+      "file": "src/shared/styles/tokens/palette.css"
+    },
+    {
+      "rule": "D04",
+      "file": "src/shared/styles/tokens/theme.css"
+    },
+    {
+      "rule": "D05",
+      "file": "src/shared/styles/tokens/palette.css"
+    },
+    {
+      "rule": "D05",
+      "file": "src/shared/styles/tokens/palette.css"
+    },
+    {
+      "rule": "D05",
+      "file": "src/shared/styles/tokens/palette.css"
+    },
+    {
+      "rule": "D05",
+      "file": "src/shared/styles/tokens/theme.css"
+    },
+    {
+      "rule": "D06",
+      "file": "src/shared/styles/tokens/theme.css"
+    },
+    {
+      "rule": "D07",
+      "file": "src/shared/styles/tokens/theme.css"
+    },
+    {
+      "rule": "D08",
+      "file": "index.html"
+    },
+    {
+      "rule": "D09",
+      "file": "src/shared/components/ui/Bad.module.css"
+    },
+    {
+      "rule": "D10",
+      "file": "src/shared/components/ui/Bad.module.css"
+    },
+    {
+      "rule": "D10b",
+      "file": "src/shared/styles/vendor/antd-overrides.css"
+    },
+    {
+      "rule": "D11",
+      "file": "src/shared/components/ui/Bad.module.css"
+    }
+  ]
+}

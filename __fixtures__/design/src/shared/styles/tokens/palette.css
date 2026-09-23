@@ -1,0 +1,9 @@
+/* 色板：颜色字面量的唯一出处 */
+:root {
+  --sh-static-neutral-00: #ffffff;
+  --sh-static-neutral-900: #101014;
+  --sh-static-brand-500: #3b6cf5;
+  --sh-static-brand-500-copy: #3b6cf5;
+  --sh-static-orphan-100: #eeeeee;
+  --sh-alias-wrong-in-palette: #000000;
+}
