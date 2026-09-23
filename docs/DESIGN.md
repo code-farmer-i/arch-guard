@@ -108,35 +108,37 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 49 条**（以 `arch-guard --stats` / `reactRules` 为准）：
-> `S00–S07`、`S09`、`S11–S20`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`H06`、`P01`、`P02`、`P04–P07`、`P11`、`M02–M09`。
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 55 条**（以 `arch-guard --stats` / `reactRules` 为准）：
+> `S00–S06`、`S09`、`S11–S23`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`H06`、`P01`、`P02`、`P04–P07`、`P11`、`M02–M09`。
 > `S08`（无环）、`S10`（相对越级）、`P03`（幽灵依赖）、`P08`（死依赖）等已按 §4.9 **委派**给
 > eslint / dependency-cruiser / knip，不在本体实现；`H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。
 
 ### 5.1 结构与边界（S）
 
-| ID  | 红线                                                                                                                        | 判据        | 等级  | 级别  |
-| --- | --------------------------------------------------------------------------------------------------------------------------- | ----------- | ----- | ----- |
-| S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内                                                     | 目录白名单  | L1    | error |
-| S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套                                                                                 | 路径        | L1    | error |
-| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）                                                                               | 路径        | L1    | error |
-| S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方                                                               | import 前缀 | L3    | error |
-| S05 | 域外只许 `import '@/modules/<域>/routes'`                                                                                   | 图          | L3    | error |
-| S06 | `views/` 对域外私有                                                                                                         | 图          | L3    | error |
-| S07 | `shared` 线性层序                                                                                                           | 图          | L3    | error |
-| S08 | 全图无环                                                                                                                    | 图 DFS      | L3    | error |
-| S09 | `app/layouts` 不得 import `modules/**`                                                                                      | 图          | L3    | error |
-| S10 | 禁相对越级 `../`                                                                                                            | import 前缀 | L2    | error |
-| S11 | 禁 barrel / `export *`                                                                                                      | AST         | L2    | error |
-| S12 | 命名契约（目录/文件/导出名，§4.7）                                                                                          | 路径 + AST  | L1+L2 | error |
-| S13 | 导出形态契约（§4.5）                                                                                                        | AST         | L2    | error |
-| S14 | 有 `views/` 必须有 `routes.tsx`                                                                                             | 路径        | L1    | error |
-| S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用                                            | 可达性      | L3    | error |
-| S16 | 体积：文件 ≤500（默认，可配）/ 单组件函数 ≤150                                                                              | AST 计数    | L2    | error |
-| S19 | **宽度**：单文件导出值 ≤6 / 单文件组件数 ≤3（不含类型导出）。**仅应用范式** —— 库的入口就是公开面，导出几十个符号是对的形态 | AST 计数    | L2    | error |
-| S17 | 同一导出名在两处定义（防复制粘贴实现）                                                                                      | AST         | L2    | warn  |
-| S18 | `shared` 里的项只被一个域使用 → 应下沉域内                                                                                  | 图入度来源  | L3    | warn  |
-| S20 | **框架包必须覆盖项目的源码形态**：出现当前 pack 量不了的源码（如 react pack 遇到 `.vue`）即报                               | 扩展名分派  | L1    | error |
+| ID  | 红线                                                                                                                                                                           | 判据        | 等级  | 级别  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ----- | ----- |
+| S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内                                                                                                        | 目录白名单  | L1    | error |
+| S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套                                                                                                                                    | 路径        | L1    | error |
+| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）                                                                                                                                  | 路径        | L1    | error |
+| S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方                                                                                                                  | import 前缀 | L3    | error |
+| S05 | 域外只许 `import '@/modules/<域>/routes'`                                                                                                                                      | 图          | L3    | error |
+| S06 | `views/` 对域外私有                                                                                                                                                            | 图          | L3    | error |
+| S08 | 全图无环                                                                                                                                                                       | 图 DFS      | L3    | error |
+| S09 | `app/layouts` 不得 import `modules/**`                                                                                                                                         | 图          | L3    | error |
+| S10 | 禁相对越级 `../`                                                                                                                                                               | import 前缀 | L2    | error |
+| S11 | 禁 barrel / `export *`                                                                                                                                                         | AST         | L2    | error |
+| S12 | 命名契约（目录/文件/导出名，§4.7）                                                                                                                                             | 路径 + AST  | L1+L2 | error |
+| S13 | 导出形态契约（§4.5）                                                                                                                                                           | AST         | L2    | error |
+| S14 | 有 `views/` 必须有 `routes.tsx`                                                                                                                                                | 路径        | L1    | error |
+| S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用                                                                                               | 可达性      | L3    | error |
+| S16 | 体积：文件 ≤500（默认，可配）/ 单组件函数 ≤150                                                                                                                                 | AST 计数    | L2    | error |
+| S19 | **宽度**：单文件导出值 ≤6 / 单文件组件数 ≤3（不含类型导出）。**仅应用范式** —— 库的入口就是公开面，导出几十个符号是对的形态                                                    | AST 计数    | L2    | error |
+| S17 | 同一导出名在两处定义（防复制粘贴实现）                                                                                                                                         | AST         | L2    | warn  |
+| S18 | `shared` 里的项只被一个域使用 → 应下沉域内                                                                                                                                     | 图入度来源  | L3    | warn  |
+| S20 | **框架包必须覆盖项目的源码形态**：出现当前 pack 量不了的源码（如 react pack 遇到 `.vue`）即报                                                                                  | 扩展名分派  | L1    | error |
+| S21 | **分层单向（通用）**：只许依赖层号 ≤ 自己的文件。应用范式（`canonical()`）与库/FSD 都靠它 —— 一套机制管到底；也补上了原先没人管的 `shared → modules`、`modules → app` 向上依赖 | 依赖图      | L3    | error |
+| S22 | **组隔离**：同组维度、同层、不同组之间不许互相引用（`structure.isolate` 声明了才判）                                                                                           | 依赖图      | L3    | error |
+| S23 | **公开面**：组必须有入口（角色描述符 `entry: true`），且组外不许直接引用组内非入口文件（`structure.publicApi` 声明了才判）                                                     | 依赖图      | L3    | error |
 
 ### 5.2 设计系统与魔法数字（D）
 
@@ -326,6 +328,29 @@ export function noBarrel(ctx) {
 }
 ```
 
+### 6.2.1 结构声明（structure as data）
+
+目录规范不是本体内置的，而是**宿主可声明的数据**：
+
+```ts
+structure: {
+  order: true,              // 层序单向：只许依赖层号 ≤ 自己的文件（S21）
+  isolate: ['slice'],       // 组隔离：同维度、同层、不同组不许互引（S22）
+  publicApi: ['slice'],     // 公开面：组必须有入口，组外不许绕过（S23）
+}
+```
+
+**组**由角色描述符声明：`{ pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' }` —— 同一切片的文件同组；
+入口用 `entry: true` 标记（三根范式是 `routes.tsx`，FSD 是 `index.ts`，**规则不认识文件名**）。
+record 上派生 `captures`（全部 `{name}` 捕获）、`group`（组值）、`groupName`（维度名）。
+
+三个字段**各有一条规则消费**（S21/S22/S23），不存在"声明了没人读"的配置。多个预设与 `overrides` 之间**加法合并**。
+应用范式（`canonical()`）也走这条路：它声明 `structure: { order: true }`，层序由 **S21** 判（原先 shared 专属的 S07 已删）。
+域与装配层的关系（域间只能经 routes、layouts 不许引域）仍归 S04–S09 —— 那些不是层序。
+
+效果：**同一份引擎**可以用声明表达三根拓扑、FSD、Atomic Design 等任意分层规范，引擎零改动
+（见 `tests/rules-branches.test.mjs` 的「同一份引擎换范式」用例与 `__fixtures__/structure-*`）。
+
 ### 6.3 ctx 数据模型
 
 ```js
@@ -377,7 +402,7 @@ ctx = {
 | -------------- | ------------------------------------------------------------------ | -------------------------- |
 | 单文件形态     | H01 `any`、S12 命名、D15 内联样式、S16 体积                        | ✅ 可                      |
 | 单文件依赖出边 | S04 域内前缀、S10 `../`、S11 barrel                                | ✅ 可（只需本文件 import） |
-| **全图谓词**   | S05 域隔离、S07 层序、S08 无环、S15 可达/孤儿、S18 shared 单域独占 | ❌ 必须全量图              |
+| **全图谓词**   | S05 域隔离、S21 层序、S08 无环、S15 可达/孤儿、S18 shared 单域独占 | ❌ 必须全量图              |
 | **全局唯一性** | D03 色值唯一、D05 死令牌、C03 双份同构、C06 死键、S17 重复导出名   | ❌ 必须全量                |
 | **角色表完备** | S01–S03                                                            | ❌ 必须全量                |
 
@@ -456,12 +481,14 @@ export default {
   presets: [
     canonical(), // 三根拓扑、角色表、命名、体积阈值
     designSystem({ tokenPrefix: '--sh', spacing: '--spacing', themes: ['dark', 'light'] }),
-    copy({ locales: 'shared/i18n/locales', languages: ['zh-CN', 'en'] }),
+    copy({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] }),
     deps({ deny: ['axios', 'swr', 'redux', 'mobx', 'react-hook-form'] }),
     uiKit(antdKit()), // ← 换库 / 不用库只改这一行（见 §7.1）
     hygiene(),
   ],
   layout: { app: 'src/app', modules: 'src/modules', shared: 'src/shared' }, // 默认即范式
+  // 结构声明：把"目录规范"变成数据（库 / FSD / 自研分层用；应用范式不必声明，见 §6.2.1）
+  structure: { order: true, isolate: [], publicApi: [] },
   overrides: {
     // 契约扫描域：默认由预设给（= 源码根）。域外文件不判契约、也不被逐文件规则扫，
     // 但仍进依赖图（角色 `(outside)`）—— 所以 tests/ 里的测试照旧把 src 接成可达。
@@ -473,23 +500,55 @@ export default {
 
 项目差异只写在 `overrides`；引擎与预设保持项目无关。
 
+### 7.0 预设的组合语义
+
+**自由组合的前提是每样东西的合并规则都说清楚**：
+
+| 字段                                          | 合并规则                       | 说明                                                                 |
+| --------------------------------------------- | ------------------------------ | -------------------------------------------------------------------- |
+| `enable` / `disable`                          | **并集**                       | 预设各自声明"我贡献哪几条规则"；任一预设说 `all` → 结果 `all`        |
+| `structure.{order,isolate,publicApi}`         | **加法**（布尔取或、数组并集） | 多个预设可以叠加结构声明                                             |
+| `adapters` / `params`                         | 逐键覆盖（后者胜）             | 每个预设只写自己的 facet / 键                                        |
+| `include` / `ignore` / `entries` / `addRoles` | **拼接**                       | 只增不减                                                             |
+| `thresholds` / `naming`                       | 逐键覆盖                       | —                                                                    |
+| `roles`                                       | **整体替换**                   | 范式角色表；要**追加**用 `addRoles`（如项目自己的 `src/legacy/**`）  |
+| `paradigm`                                    | **只能有一个**                 | `canonical` / `library` / `fsd` 三选一 —— 混用 `loadConfig` 直接报错 |
+
+两条与"符合所选规范"直接相关的设计：
+
+1. **契约落点由范式声明**（`canonical()` → `src/shared/styles`，`fsd()` → `src/shared/ui/styles`…）。
+   域预设（`designSystem()` 等）**只写用户显式给的路径**，不塞三根默认值 ——
+   否则 `[fsd(), designSystem()]` 会被悄悄改回三根路径（实测过）。谁都没声明时，
+   `designParams()` 的内置默认兜底，行为与旧版一致。
+2. **范式唯一性是 fail-closed 的**：`[canonical(), fsd()]` 这种组合以前会得到
+   "角色表来自后者、`layout` 逐键混合、`structure` 取并集"的静默错误状态，现在直接报错并指路 `addRoles`。
+
+**预设列表**：`canonical()`（三根应用）/ `library()`（库 / CLI：入口 + 目录表）/ **`fsd()`**（Feature-Sliced Design：
+六层 + 切片 + 片段 + 公开面，全部落成数据，判定走通用规则 S21/S22/S23）/ `designSystem()` / `copy()` / `deps()` /
+`metrics()` / `hygiene()` / `uiKit(…)`。预设是**规范的家**（`canonical()` 也是规范），引擎里不得出现任何方法论字面量。
+
 ### 7.1 UI 组件库适配（可换、可不用）
 
 **组件库是可选、可替换的配置轴，不是范式的一部分。** 引擎里不得出现任何具体库名。
 
+`uiKit(adapter)` 是**纯数据**：它只声明"用哪个库"，并**贡献读它的那几条规则**（`uiKit.vendorSelectors` → D10/D10b ·
+`uiKit.icons` → P05 · `uiKit.packages` → P11 · `uiKit.detachedApis` → H06）。两者缺一不可 ——
+只给数据不启用规则就是"装了适配器却一条不跑"的静默失效（真实踩过：`fsd() + uiKit(antdKit())` 时 `.ant-btn`
+出现在 vendor 之外不报）。规则是否真的跑仍由**能力协商**决定，适配器没给的字段会明确列在「因能力未声明而停用」里。
+守卫测试：`tests/presets.test.mjs` 的「能力提供者必须启用消费它的规则」。
+
 **适配器契约** —— 每个字段驱动哪条规则：
 
-| 字段               | 含义                                                       | 驱动的规则                               |
-| ------------------ | ---------------------------------------------------------- | ---------------------------------------- |
-| `id`               | 适配器标识                                                 | 报告与文档                               |
-| `packages`         | 适配表声明的包（必须装在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时）       |
-| `icons.from`       | 允许的图标来源包（唯一）                                   | P05                                      |
-| `vendorSelectors`  | 该库的 DOM 选择器前缀（如 `\.ant-`）                       | D10 / D10b                               |
-| `vendorVars`       | 该库的 CSS 变量前缀（如 `^--ant-`）                        | D10 / D10b                               |
-| `detachedApis`     | 脱离上下文的全局 API 与替代写法                            | H06                                      |
-| `styleProps`       | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`）    | D15                                      |
-| `themeIntegration` | 库主题映射的落点（CSS 目录 + JS 文件）                     | exclusiveOwner（S03 落点 + D10 边界）    |
-| `policy`（可选）   | 组件来源阶梯、覆盖阶梯的文本                               | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
+| 字段              | 含义                                                       | 驱动的规则                               |
+| ----------------- | ---------------------------------------------------------- | ---------------------------------------- |
+| `id`              | 适配器标识                                                 | 报告与文档                               |
+| `packages`        | 适配表声明的包（必须装在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时）       |
+| `icons.from`      | 允许的图标来源包（唯一）                                   | P05                                      |
+| `vendorSelectors` | 该库的 DOM 选择器前缀（如 `\.ant-`）                       | D10 / D10b                               |
+| `vendorVars`      | 该库的 CSS 变量前缀（如 `^--ant-`）                        | D10 / D10b                               |
+| `detachedApis`    | 脱离上下文的全局 API 与替代写法                            | H06                                      |
+| `styleProps`      | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`）    | D15                                      |
+| `policy`（可选）  | 组件来源阶梯、覆盖阶梯的文本                               | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
 
 ```js
 // presets/ui-kits/antd.mjs —— 约 30 行，这就是"换框架"的全部成本
@@ -515,7 +574,6 @@ export default () => ({
     },
   ],
   styleProps: ['style'],
-  themeIntegration: { css: 'shared/styles/vendor', js: ['shared/theme/antdTheme.ts'] },
   policy: {
     componentLadder: ['antd', '@ant-design/x', 'shared/components/ui', '一次性内联'],
     overrideLadder: [

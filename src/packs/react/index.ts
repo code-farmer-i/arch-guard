@@ -9,6 +9,7 @@ import { designStyleRules } from './rules/design-styles.js'
 import { designTokenRules } from './rules/design-tokens.js'
 import { designVendorRules } from './rules/design-vendor.js'
 import { metricsRules } from './rules/metrics.js'
+import { declaredStructureRules } from './rules/structure-declared.js'
 import { structureGraphRules } from './rules/structure-graph.js'
 import { structureRules } from './rules/structure.js'
 
@@ -19,6 +20,7 @@ import { structureRules } from './rules/structure.js'
 export const reactRules: Rule[] = [
   ...structureRules,
   ...structureGraphRules,
+  ...declaredStructureRules,
   ...designTokenRules,
   ...designVendorRules,
   ...designStyleRules,

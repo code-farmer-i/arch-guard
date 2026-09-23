@@ -1,0 +1,4 @@
+{
+  "findings": [{ "rule": "S22", "file": "src/pages/crews/ui/BadLink.tsx" }],
+  "exact": true
+}

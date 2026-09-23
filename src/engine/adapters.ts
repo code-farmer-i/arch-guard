@@ -17,7 +17,6 @@ const FACET_FIELDS: Record<string, string[]> = {
     'vendorVars',
     'detachedApis',
     'styleProps',
-    'themeIntegration',
     'policy',
     'examples',
   ],

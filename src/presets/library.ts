@@ -60,6 +60,7 @@ export function libraryRoleTable(options: LibraryOptions = {}): RoleDescriptor[]
 export function library(options: LibraryOptions = {}): Preset {
   const src = options.src ?? 'src'
   return {
+    paradigm: 'library',
     roles: libraryRoleTable(options),
     // 库没有应用那套「装配 / 域 / 共享」：app 就是源码根，modules / shared 置空表示**不存在**。
     // 依赖它们的图规则（S04–S09、S15、S18、S03）会因此自然空转，而不是去查一个不存在的
@@ -79,6 +80,23 @@ export function library(options: LibraryOptions = {}): Preset {
     // 都在域外 —— 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。
     include: [`${src}/**`],
     ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json', '.agents/**'],
-    enable: ['S00', 'S01', 'S02', 'S11', 'S12', 'S13', 'S16', 'P01', 'P02', 'P06'],
+    // S21 是「分层单向」——它不是应用专属，库/自定义目录表靠它把层号变成可判定红线
+    enable: [
+      'S00',
+      'S01',
+      'S02',
+      'S11',
+      'S12',
+      'S13',
+      'S16',
+      'S21',
+      'S22',
+      'S23',
+      'P01',
+      'P02',
+      'P06',
+    ],
+    // 层号不是装饰：库/自定义目录表靠 S21 把「只许依赖层号 ≤ 自己」变成红线
+    structure: { order: true },
   }
 }

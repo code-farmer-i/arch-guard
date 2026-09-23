@@ -51,6 +51,7 @@ export {
 
 export { canonical, roleTable } from './presets/canonical.js'
 export { library, libraryRoleTable } from './presets/library.js'
+export { fsd, fsdRoleTable } from './presets/fsd.js'
 export { designSystem, deps } from './presets/design-system.js'
 export { copy } from './presets/copy.js'
 export { metrics } from './presets/metrics.js'

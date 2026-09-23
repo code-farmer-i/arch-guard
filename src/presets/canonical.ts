@@ -82,9 +82,23 @@ export function canonical(options: CanonicalOptions = {}): Preset {
   const shared = options.shared ?? `${src}/shared`
 
   return {
+    paradigm: 'canonical',
+    // 三根范式的**契约落点**：范式负责声明自己的惯用目录，域预设（designSystem 等）不再塞默认值 ——
+    // 这样 `[fsd(), designSystem()]` 不会被悄悄改回三根路径
+    params: {
+      styleDir: `${src}/shared/styles`,
+      tokenDir: `${src}/shared/styles/tokens`,
+      vendorDir: `${src}/shared/styles/vendor`,
+      paletteFile: `${src}/shared/styles/tokens/palette.css`,
+      themeFile: `${src}/shared/styles/tokens/theme.css`,
+      storageFile: `${src}/shared/config/storage.ts`,
+    },
     // 应用范式默认**全开**：显式写出来，与其它预设贡献的域取并集时仍是 'all'
     // （不写的话，`canonical() + hygiene()` 的并集会被 hygiene 的列表顶成只有 H 域）
     enable: 'all',
+    // 层序也走**通用规则**（S21）：shared 0–8 线性层序 + 域/装配层方向，一套机制管到底。
+    // 它比原先的 S07 更严：`shared → modules`、`modules → app` 这类向上依赖以前没人管。
+    structure: { order: true },
     roles: roleTable({ src, app, modules, shared }),
     layout: { app, modules, shared },
     srcRoot: src,

@@ -155,7 +155,21 @@ export async function loadConfig(options: {
   }
 
   const notices: string[] = []
-  const preset = mergePresets(raw.presets ?? [])
+  const presetList = raw.presets ?? []
+  /**
+   * 一个配置只能有**一个范式预设**。角色表是整体替换的，两个范式混用会得到
+   * "角色表来自后者、`layout` 逐键混合、`structure` 取并集"的组合 —— 静默的错误组合，
+   * 所以这里直接报错（fail-closed），而不是让门禁去量一个不存在的目录。
+   */
+  const paradigms = [...new Set(presetList.map((item) => item.paradigm).filter(Boolean))]
+  if (paradigms.length > 1) {
+    throw new Error(
+      `一个配置只能有一个范式预设，却同时出现了：${paradigms.join(' / ')}。` +
+        'canonical / library / fsd 各带一份角色表与布局，混用会得到"角色表一半、布局另一半"的错误组合。' +
+        '要在某个范式之上加自己的目录，用 addRoles（追加）而不是再叠加一个范式。',
+    )
+  }
+  const preset = mergePresets(presetList)
   const overrides = raw.overrides ?? {}
 
   /* ---- 框架包：恰好一个，且它与 metaFramework 只能有一处真相 ---- */
@@ -208,13 +222,32 @@ export async function loadConfig(options: {
     root,
     srcRoot: overrides.srcRoot ?? preset.srcRoot ?? 'src',
     layout,
-    roles: overrides.roles ?? preset.roles ?? [],
+    // 追加角色：项目自己的目录（`src/legacy/**`）加在范式角色表之上，不必整份重写
+    addRoles: [...(preset.addRoles ?? []), ...(overrides.addRoles ?? [])],
+    roles: [
+      ...(overrides.roles ?? preset.roles ?? []),
+      ...(preset.addRoles ?? []),
+      ...(overrides.addRoles ?? []),
+    ],
     naming: { ...DEFAULT_NAMING, ...preset.naming, ...overrides.naming },
     thresholds: { ...DEFAULT_THRESHOLDS, ...preset.thresholds, ...overrides.thresholds },
     adapters: { ...preset.adapters, ...overrides.adapters },
     // `overrides.enable` 仍是"我全都要自己定"的总开关（整体替换）；预设之间是并集（见 mergePresets）
     enable: overrides.enable ?? preset.enable ?? 'all',
     disable: [...new Set([...(preset.disable ?? []), ...(overrides.disable ?? [])])],
+    // 结构声明同样是加法：预设与 overrides 合并（布尔取或、数组取并集）
+    structure: {
+      order: preset.structure?.order === true || overrides.structure?.order === true,
+      isolate: [
+        ...new Set([...(preset.structure?.isolate ?? []), ...(overrides.structure?.isolate ?? [])]),
+      ],
+      publicApi: [
+        ...new Set([
+          ...(preset.structure?.publicApi ?? []),
+          ...(overrides.structure?.publicApi ?? []),
+        ]),
+      ],
+    },
     params: { ...preset.params, ...overrides.params },
     entries,
     ignore: [...(preset.ignore ?? []), ...(overrides.ignore ?? [])],

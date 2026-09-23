@@ -33,11 +33,11 @@
       "file": "src/modules/crews/views/CrewsPage.tsx"
     },
     {
-      "rule": "S07",
+      "rule": "S21",
       "file": "src/shared/api/a.ts"
     },
     {
-      "rule": "S07",
+      "rule": "S21",
       "file": "src/shared/lib/format.ts"
     },
     {

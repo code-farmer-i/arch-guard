@@ -139,10 +139,38 @@ steiger 的 20 条规则分三类：**依赖方向**（`forbidden-imports` / `no
 
 DX 上它比我们强：**每条带文档链接、标 `✔ Auto-fixable`、有 `--fix`、`--watch`、`TIMING` 性能表、规则并发跑**。
 
-### 3.3 契约层接我们（实测零重叠）
+> **先读 §3.5 与 §8**：结构声明化落地之后，**我们自己就能表达 FSD**（层号 + 组隔离 + 公开面 → S21/S22/S23），
+> 不需要第二个工具。本节只适用于**已经在用 steiger** 的宿主：让它继续管 FSD 细则，我们用 `disable` 避开重复报。
+> **新项目不必引入 steiger** —— 走 §3.5 的声明配方即可。
+
+### 3.3 已用 steiger 的宿主：契约层接我们（实测零重叠）
+
+**装什么**
+
+```bash
+# npm：装 steiger 即可
+npm i -D steiger @arch-guard/core
+
+# pnpm：插件必须**显式**装成直接依赖 —— 严格 node_modules 不提升传递依赖，
+#       否则配置里 import fsd from '@feature-sliced/steiger-plugin' 解析不到
+pnpm add -D steiger @feature-sliced/steiger-plugin @arch-guard/core
+```
+
+**steiger 侧（结构层）**
 
 ```js
-// arch.config.mjs —— FSD 宿主
+// steiger.config.mjs  ← 必须 .mjs，或在 package.json 里设 "type": "module"；
+//   用 .js 且没设 type 时 steiger 会报 Failed to load the ES module
+import { defineConfig } from 'steiger'
+import fsd from '@feature-sliced/steiger-plugin'
+
+export default defineConfig([...fsd.configs.recommended, { ignores: ['**/__mocks__/**'] }])
+```
+
+**我们这侧（契约层 + 兜底枚举）**
+
+```js
+// arch.config.mjs
 import {
   copy,
   deps,
@@ -152,16 +180,19 @@ import {
   noneKit,
   reactPack,
   uiKit,
-} from 'arch-guard/presets'
+} from '@arch-guard/core'
+
+// 一份目录事实：FSD 六层 + 层号（越小越底层）
+const FSD_LAYERS = { shared: 1, entities: 2, features: 3, widgets: 4, pages: 5, app: 6 }
 
 export default {
   packs: [reactPack],
   presets: [
-    // 六层当"目录表"；**entry 必须置空**（否则 app/index.tsx 同时命中 entry 与 app 两个角色）
-    library({
-      modules: { shared: 1, entities: 2, features: 3, widgets: 4, pages: 5, app: 6 },
-      entry: [],
-    }),
+    // ① 六层当"目录表"：只做两件事 —— 兜住**层外文件**（S01）+ 提供层号。
+    //    entry 必须置空：FSD 的入口在 app/ 层内，否则 app/index.tsx 同时命中 entry 与 app 两个角色
+    library({ modules: FSD_LAYERS, entry: [] }),
+
+    // ② 契约域：**声明即启用**（各域预设的规则集取并集，不用手写 enable 清单）
     designSystem({
       styleDir: 'src/shared/ui/styles',
       tokenDir: 'src/shared/ui/styles/tokens',
@@ -172,26 +203,185 @@ export default {
     copy({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] }),
     deps({ allow: ['react', 'react-dom', 'react-router'] }),
     hygiene(),
-    uiKit(noneKit()),
+    uiKit(noneKit()), // 或 uiKit(antdKit()) —— 按项目实际的组件库
   ],
-  // 不需要手写 enable 清单：`library()` 与各域预设的规则集是**并集**（见「四个坑」第 1 条）。
-  // 结构交给 steiger，这里只留兜底枚举与跨文件契约。
+
   overrides: {
-    // 若 FSD 的公开面坚持用 `export *`，再把 S11 关掉（见「四个坑」第 3 条）
-    // disable: ['S11'],
+    // ③ 关掉与 steiger 重复的那条：S21 层序单向 ←→ fsd/forbidden-imports
+    //    若 FSD 公开面坚持用 `export *`，把 S11 一起关：disable: ['S11', 'S21']
+    disable: ['S21'],
   },
 }
 ```
 
-**实测结果**（同一个项目、同一条命令）：
+```jsonc
+// package.json
+"scripts": { "check": "steiger ./src && arch-guard" }
+```
 
-| 我们（契约层）                                                        | steiger（结构层）                                                  |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `D04` 未定义令牌引用 · `D05` 死令牌 ×2 · `D17` CSS Module 无人 import | `forbidden-imports` 跨 slice 引用 · `no-public-api-sidestep`       |
-| `C03` en 缺键 · `C05` 分片未聚合 · `C06` 死键 ×3                      | `public-api` ×3 · `insignificant-slice` ×2 · `segments-by-purpose` |
-| `P01` 未登记的运行时依赖                                              | —                                                                  |
+> **别用细粒度角色表。** §3.5 那份 27 条（层 × 切片 × 片段）是"我们**自己**完整实现 FSD"用的；
+> steiger 在场时它只会和 `segments-by-purpose` / `public-api` 重复报。**粗粒度六层足够** ——
+> FSD 的切片 / 片段 / 公开面细则全归 steiger。
 
-**零重叠** —— 分工成立。
+**实测分工**（同一个 FSD 项目、两侧同时注入违规）：
+
+| steiger（结构层，14 条）                | 我们（契约层 + 兜底枚举，10 条）                         |
+| --------------------------------------- | -------------------------------------------------------- |
+| `forbidden-imports` ×2（层序 + 跨切片） | `S01` 层外文件 `src/utils.ts` —— **steiger 对它 0 命中** |
+| `no-public-api-sidestep` ×3             | `D05` 死令牌 ×2                                          |
+| `public-api` ×7                         | `C03` 缺键 · `C05` 分片未聚合 ×2 · `C06` 死键 ×3         |
+| `insignificant-slice` ×1                | `P01` 未登记的运行时依赖                                 |
+| `segments-by-purpose` ×1                | —                                                        |
+
+**零重叠**，而且是互补的：**它管 FSD 的层内细则，我们管"文件根本不在任何层里"与跨文件契约。**
+
+</details>
+
+### 3.4 组合时踩过的坑（都是实测）
+
+| 坑                        | 症状                                                   | 解法                                                                     |
+| ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| ESM 配置                  | `Failed to load the ES module: steiger.config.js`      | 用 `steiger.config.mjs` 或设 `"type": "module"`                          |
+| pnpm 严格依赖             | `Cannot find package '@feature-sliced/steiger-plugin'` | 插件显式装成 devDependency                                               |
+| `entry` 没置空            | 报「角色歧义：同时命中 lib:entry / lib:app」           | `entry: []`                                                              |
+| S21 与 steiger 重复       | 同一条越层依赖两边各报一次                             | `disable: ['S21']`                                                       |
+| `export *` 冲突           | 我们报 S11，而 FSD 认为 `index.ts` 就是公开面          | `disable: ['S11', 'S21']` 或坚持具名导出                                 |
+| i18n 形态                 | C 域整块失效                                           | locales 必须是 `<lang>/<ns>.ts` **默认导出嵌套对象** + `<lang>/index.ts` |
+| **别用 `\| grep` 跑门禁** | 管道吃掉崩溃、退出码还是 0                             | 直接跑，或 `set -o pipefail`                                             |
+
+（早前版本的阻塞点「`enable` 是覆盖不是并集」已修：现在多预设取并集，`designSystem()` / `copy()` / `deps()` 声明即启用，
+不再需要手抄 40 个 id 的清单。）
+
+### 3.5 FSD 就这么配（`fsd()` 预设，已实测）
+
+```js
+// arch.config.mjs —— FSD 项目的全部配置
+import { copy, deps, designSystem, fsd, hygiene, noneKit, reactPack, uiKit } from '@arch-guard/core'
+
+export default {
+  packs: [reactPack],
+  presets: [
+    fsd(), // ← 六层 + 切片 + 片段 + 公开面，**连契约落点一起声明**
+    // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 令牌 `src/shared/ui/styles/tokens`、
+    // 第三方覆盖 `src/shared/ui/styles/vendor`、storage key `src/shared/config/storage.ts`。
+    // 只有**要改**哪条才写哪条（显式参数压过范式声明）：`designSystem({ tokenPrefix: '--x', styleDir: '…' })`
+    designSystem(),
+    copy({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] }),
+    deps({ allow: ['react', 'react-dom', 'react-router'] }),
+    hygiene(),
+    uiKit(noneKit()),
+  ],
+}
+```
+
+`fsd()` 把 FSD 的三层模型全部落成**数据**（38 条角色描述符）：
+
+| FSD 概念                                         | 落成什么                                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| 层（app/pages/widgets/features/entities/shared） | 角色描述符的 `layer` 号（越小越底层）                                                        |
+| 切片（`pages/crews`）                            | `group: 'slice'`（组维度）· 分组切片用 `fsd({ slicesGrouped: true })`                        |
+| 片段（ui/model/api/lib/config）                  | **封闭枚举**的角色 — 没登记的片段（`components`…）由 S01 报出来                              |
+| 公开面（切片根的 `index.ts`）                    | `entry: true`                                                                                |
+| 层序 / 跨切片禁令 / 公开面必须存在且不许绕过     | `structure: { order: true, isolate: ['slice'], publicApi: ['slice'] }` → **S21 / S22 / S23** |
+
+夹具 [`__fixtures__/fsd-preset`](../__fixtures__/fsd-preset) 实测（合规的一条不报）：
+
+| 注入的违规                                                 | 报出              |
+| ---------------------------------------------------------- | ----------------- |
+| `pages/crews` → `pages/dashboard`（同层跨切片 + 直引内部） | **S22** + **S23** |
+| `pages/dashboard` 没有 `index.ts`                          | **S23**           |
+| `shared/lib` → `pages/crews/ui`（向上依赖 + 绕过公开面）   | **S21** + **S23** |
+| `pages/crews/components/Nope.tsx`（没登记的片段）          | **S01**           |
+
+> 若项目坚持在公开面里用 `export *`，加 `overrides: { disable: ['S11'] }`（S11 禁 barrel 是我们更严的一条）。
+
+#### 片段名字要过 `segments-by-purpose`
+
+FSD 用**黑名单**判"按内容命名"（社区官方 linter steiger 的
+[`segments-by-purpose`](https://github.com/feature-sliced/steiger/tree/master/packages/steiger-plugin-fsd/src/segments-by-purpose)）：
+
+> `components` · `helpers` · `utils` · `constants` · `types` · `stores` · `modals` · `services` · `functions` ·
+> `classes` · `enums` · `interfaces` · `decorators` · `schemas` · `handlers` · `fixtures` · `middlewares` ·
+> `validators` · `resolvers` · `mutations` · **`assets`** · （React）`hooks` · `context` · **`providers`** ·
+> （Vue）`composables` · `directives`
+
+黑名单**没有** `styles` / `router` / `i18n` / `config` / `ui` / `lib` / `api` / `model` —— 所以 `shared/styles` 合规。
+但 `assets` 与 `providers` **在**名单里，因此 `fsd()` 的默认片段**故意不含这两个**（它们太常见，很多项目会踩）：
+
+```js
+fsd() // 默认：合规集
+fsd({ sharedSegments: ['ui', 'lib', 'api', 'config', 'i18n', 'styles'] }) // 加自定义片段（styles 合规）
+fsd({ appSegments: ['router', 'styles', 'i18n', 'providers'] }) // 明知会被 linter 警告才这么写
+```
+
+`uiKit(…)` 是**正交轴**（组件库 ≠ 目录规范）：不用组件库写 `uiKit(noneKit())`，用 antd 写 `uiKit(antdKit())`
+（换库只改这一行；自研设计系统也可以只写一个 adapter 对象）。它同时声明了读它的那 5 条规则（D10/D10b/P05/P11/H06）——
+**别只装适配器不启用规则**，那是静默失效（已由守卫测试锁住）。Tailwind + shadcn 的项目另有 `@shadcn/lint` 管类名层面的约束（见 §1）。
+
+**它检查不了的**：`insignificant-slice`（死切片）、`excessive-slicing`（切片过多）、复数一致等**阈值/词形**类 ——
+那些判不准，我们不放进红线（要的话自己装 steiger，见 §3.3）。
+
+<details>
+<summary>展开：不用预设时，手写角色表长什么样</summary>
+
+### 3.5.1 用现有能力定义 FSD：能定义多少（实测）
+
+**27 条角色描述符**就能钉住 FSD 的"可判定部分"（零引擎改动）：
+
+```js
+export default {
+  presets: [
+    library({
+      modules: { shared: 1, entities: 2, features: 3, widgets: 4, pages: 5, app: 6 },
+      entry: [],
+    }),
+    hygiene(),
+  ],
+  overrides: {
+    roles: [
+      { id: 'test', pattern: '**/*.test.{ts,tsx}', layer: 99, exclusive: true },
+
+      // ① 无切片层（app / shared）：直接就是片段
+      { id: 'fsd:app:root', pattern: 'src/app/index.{ts,tsx}', layer: 6, slot: 'root' },
+      { id: 'fsd:app:providers', pattern: 'src/app/providers/**', layer: 6, slot: 'providers' },
+      { id: 'fsd:app:router', pattern: 'src/app/router/**', layer: 6, slot: 'router' },
+      { id: 'fsd:app:styles', pattern: 'src/app/styles/**', layer: 6, slot: 'styles' },
+
+      // ② 有切片的层：切片 → 片段（**片段封闭枚举**：没列到的片段一律 S01）
+      { id: 'fsd:pages:ui', pattern: 'src/pages/{slice}/ui/**', layer: 5, slot: 'ui' },
+      { id: 'fsd:pages:model', pattern: 'src/pages/{slice}/model/**', layer: 5, slot: 'model' },
+      { id: 'fsd:pages:api', pattern: 'src/pages/{slice}/api/**', layer: 5, slot: 'api' },
+      { id: 'fsd:pages:lib', pattern: 'src/pages/{slice}/lib/**', layer: 5, slot: 'lib' },
+      // widgets(4) / features(3) / entities(2) 同形，各列 ui / model / api / lib
+
+      // ③ shared：无切片层，直接是片段
+      { id: 'fsd:shared:ui', pattern: 'src/shared/ui/**', layer: 1, slot: 'ui' },
+      { id: 'fsd:shared:lib', pattern: 'src/shared/lib/**', layer: 1, slot: 'lib' },
+      { id: 'fsd:shared:api', pattern: 'src/shared/api/**', layer: 1, slot: 'api' },
+      { id: 'fsd:shared:config', pattern: 'src/shared/config/**', layer: 1, slot: 'config' },
+    ],
+  },
+}
+```
+
+三条违规同时注入的实测结果：
+
+| FSD 规矩                                                 | 注入的违规                                              | 我们报吗                                     |
+| -------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------- |
+| 层封闭枚举                                               | 层外文件                                                | ✅ S01                                       |
+| **片段按用途封闭枚举**（`segments-by-purpose` 的闭集版） | `pages/crews/components/Bad.tsx`（没登记 `components`） | ✅ **S01**                                   |
+| 层序单向                                                 | `entities`(2) 引 `features`(3)                          | ✅ **S21**「反向依赖：第 2 层引用了第 3 层」 |
+| **同层切片互不引用**（`no-cross-imports`）               | `pages/crews` 引 `pages/dashboard`                      | ❌ **不报**                                  |
+
+**定义不了的两条，根因是两个引擎缺口**：
+
+1. **切片维度丢失**：`{slice}` 捕获被丢掉（`src/engine/scan.ts` 只保留固定名 `domain`）→ 规则拿不到切片名，
+   写不出"切片 A 不许引切片 B"；
+2. **没有公开面规则**：缺"某组必须有 `index.ts`"与"到组内部的边必须经由 `index.ts`"两条。
+
+（启发式那几条 —— `insignificant-slice` / `excessive-slicing` / 复数一致 —— 仍归 steiger，别自己写。）
+补齐这两个缺口就是 §8「结构声明化」的内容；补完后 FSD 的结构层可判定部分就完整了，
+同一套能力也能表达三根拓扑与自研分层。
 
 ### 3.4 四个必须知道的坑（都是实测出来的）
 
@@ -255,14 +445,26 @@ export default {
 - 我们的 `canonical()` 三根会排除"其他前端"（他们得先迁目录）—— 这是当前最大的接入阻力。
 - 空位很清楚：**§6 那七项**。要么把定位收敛到契约层，要么把目录规范那层做成"可声明的通用能力"（见 §8）。
 
-## 8. 候选方向：结构声明化（structure as data）
+## 8. 结构声明化（structure as data）—— **已实现**
 
-**问题**：现在 S 域是**内置范式**（三根 + 固定槽位 + `layout` 三个根）。要支持 FSD / 自研分层，两条路：
+**已落地**（2026-09-23，规格 [`.scratch/structure-as-data/spec.md`](../.scratch/structure-as-data/spec.md)）：
 
-| 路线              | 做法                                                                      | 代价                                                                                               |
-| ----------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| ❌ 内置 FSD 范式  | 写 `fsd()` 预设 + 约 15 条 FSD 规则                                       | 重做半个 steiger；跟别人的规范演进；与"契约层"定位冲突；只惠及一种方法论；仍缺 `--fix` / `--watch` |
-| ✅ **结构声明化** | 把结构检查从内置范式改成**宿主声明的角色表 + 关系**，规则全部从角色表推导 | 引擎两处改造 + 4 条方法无关的通用规则                                                              |
+| 声明                             | 判它的规则                                                               |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `structure.order: true`          | **S21** 层序单向                                                         |
+| `structure.isolate: ['slice']`   | **S22** 组隔离（同维度、同层、不同组不许互引）                           |
+| `structure.publicApi: ['slice']` | **S23** 公开面（组必须有入口 + 禁绕过；入口由角色表 `entry: true` 标记） |
+
+record 现在携带 `captures` / `group` / `groupName`；组与入口名全部来自**角色表数据**，引擎里没有任何方法论字面量。
+**原计划的第二个缺口（目录枚举）被设计消解**：组由文件派生（没文件的目录不构成组），
+所以"组缺入口"用文件集就能判定，不需要扫目录。
+
+**问题（回顾）**：原先 S 域是**内置范式**（三根 + 固定槽位 + `layout` 三个根）。要支持 FSD / 自研分层，两条路：
+
+| 路线                        | 做法                                                                      | 代价                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| ❌ 内置 FSD 范式            | 写 `fsd()` 预设 + 约 15 条 FSD 规则                                       | 重做半个 steiger；跟别人的规范演进；与"契约层"定位冲突；只惠及一种方法论；仍缺 `--fix` / `--watch` |
+| ✅ **结构声明化（已实现）** | 把结构检查从内置范式改成**宿主声明的角色表 + 关系**，规则全部从角色表推导 | 引擎两处改造 + 3 条方法无关的通用规则（S21/S22/S23）                                               |
 
 声明形态（草案）：
 
@@ -284,14 +486,59 @@ structure: {
 | `public-api`      | 组必须有入口 + 禁直引内部 | `index.ts` / `no-public-api-sidestep`                  | 域唯一公开面 `routes.tsx` |
 | `slot-enum`       | 组内槽位封闭枚举          | `segments-by-purpose` / `no-segments-on-sliced-layers` | 域内七槽位                |
 
-### 已知的引擎缺口（实现前必须知道）
+### 先例：这种引擎别处早就有了（且形状一致）
 
-1. **多维捕获**：`FileRecord` 只带 `domain`（固定名）+ `slot`（见 `src/engine/scan.ts`）——
-   FSD 需要「层 + 切片 + 片段」三个维度 → 要携带任意捕获。
-2. **关系声明**：`layout` 只有 `{app, modules, shared}` 三个根，S03–S09/S15/S18 都从它推导 →
-   层序 / 隔离 / 公开面要改成从角色表推导或由宿主声明。
-3. **不写 FSD 的启发式规则**：`insignificant-slice`、`excessive-slicing`、复数一致那些仍归 steiger。
-4. 我们**没有** `--fix`（DESIGN 里记着 fixer × 棘轮的冲突，未解）与 `--watch`。
+"兼容所有规范的引擎"不是新想法 —— **其他生态有教科书级先例，而且它们抽象出的是同一个形状**：
+
+| 工具                                   | 生态        | 声明形态                                                                                                                      |
+| -------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **ArchUnit**                           | Java        | `layeredArchitecture().layer("Controller").definedBy("..controller..").whereLayer("Controller").mayNotBeAccessedByAnyLayer()` |
+| **import-linter**（v2.15）             | Python      | `[importlinter:contract:layers]` + `layers = a \| b \| c`；另有 `forbidden` / `independence` 契约                             |
+| **go-arch-lint**                       | Go          | YAML 声明组件 + 允许的依赖                                                                                                    |
+| **Nx `@nx/enforce-module-boundaries`** | JS monorepo | **tag + `depConstraints`**（`onlyDependOnLibsWithTags`）—— 最接近通用"标签 + 约束"引擎                                        |
+
+四者共同的抽象，正是 §8 的四个字段：
+
+1. **主体 → 组 的映射**（`definedBy("..controller..")` / `tags`）→ 我们的**角色表**
+2. **组间关系**（`mayNotBeAccessedBy` / `forbidden` / `depConstraints`）→ `isolate` / `order`
+3. **层的顺序**（`layeredArchitecture` / `layers` 契约）→ `order`
+4. **组的入口 / 公开面**（boundaries 的 `entry-point`、import-linter 的 `independence`）→ `publicApi`
+
+**JS/TS 侧只有"半个"**（周下载为 2026-09 last-week）：
+
+| 包                                | 周下载    | 覆盖到哪一层                                                                     |
+| --------------------------------- | --------- | -------------------------------------------------------------------------------- |
+| `eslint-plugin-boundaries`        | 1,099,071 | element-types / entry-point / external                                           |
+| **`@boundaries/elements`**        | 994,018   | **"Element descriptors and matchers"** —— 把"映射"拆成独立引擎包，最接近"引擎库" |
+| `dependency-cruiser`              | 2,874,211 | 通用图引擎，但规则要手写正则（没有"规范"抽象）                                   |
+| `eslint-plugin-project-structure` | 49,026    | `folder-structure` + `file-composition`，"Create your own framework"             |
+| `archlint`                        | 10        | 2019 年起停更                                                                    |
+
+**为什么 JS/TS 没长出成熟的**：① ESLint 生态偏好"装上就有一堆规则"（airbnb / next 模式），通用引擎"零规则全靠声明"卖点弱
+（dependency-cruiser 靠**依赖图可视化**这个第二卖点活下来）；② 团队觉得"自己写几条规则就行"，于是每家抄一份角色表；
+③ TS 解析生态碎片化（tsc / oxc / swc / tree-sitter）——**这条我们恰好绕过了**：规则只消费归一化 facts，换 parser 不动规则；
+④ **没人把"结构 + 契约"接在一起** —— 结构有工具、契约（令牌/文案/依赖/度量）没有，完整架构门禁这个位置一直空着。
+
+**我们比对手多的四样**：统一**棘轮**（ArchUnit / import-linter / boundaries 都没有）、**能力协商**、
+**判定等级纪律 + 每条规则必须带夹具**、**跨语言事实**（TS ↔ CSS ↔ HTML ↔ locales）。
+而对手做不到的是：**同一份声明同时驱动结构规则与契约规则**（共享同一套角色表、facts、棘轮、报告）。
+
+**硬边界**：只能兼容规范的**可判定部分（L1–L3）**。"这个 feature 必须是一个用户动作"（FSD）、
+"这个组件是 molecule 还是 organism"（Atomic Design）是 L5，**任何引擎都判不了** —— 不是我们弱，是问题不可判定。
+所以承诺要写成：**把任何目录规范里可判定的那部分变成红线**。
+
+**可验收的定义**：同一份引擎，用三份声明分别表达「三根拓扑」「FSD」「Atomic Design」，各自夹具通过，
+**切换声明不改一行引擎代码**。
+
+### 引擎缺口（现状）
+
+1. ✅ **多维捕获**：`FileRecord.captures` 携带全部 `{name}` 捕获，并派生 `group` / `groupName`。
+2. ✅ **关系声明**：`StructureSpec`（`order` / `isolate` / `publicApi`）三个字段各有一条规则消费（S21/S22/S23）。
+3. ❌ **目录枚举**：原以为要扫目录才能查"空切片 / 缺 index"—— 设计后消解：组由文件派生，不必扫目录。
+4. ❌ **不写 FSD 的启发式规则**：`insignificant-slice`、`excessive-slicing`、复数一致那些仍归 steiger。
+5. ❌ 我们**没有** `--fix`（DESIGN 里记着 fixer × 棘轮的冲突，未解）与 `--watch`。
+6. ✅ `canonical()` 已迁移到通用规则：应用范式声明 `structure: { order: true }`，层序由 **S21** 判；原先 shared 专属的 **S07 已删**
+   （顺带补上原先没人管的 `shared → modules`、`modules → app` 向上依赖）。
 
 > 结论：**"用我们 = 引擎"而不是"用我们 = 接受三根拓扑"**。这一步做完，FSD 与"其他前端"都进得来，
 > 而且不必重做 steiger。
@@ -301,4 +548,4 @@ structure: {
 - 2026-09-23 成文：来自"成熟工具组合 → FSD 组合 → steiger 的边界 → 能否实现 FSD"这一串讨论。
   所有下载量为该日 npm last-week 数据；steiger 的行为、我们的 FSD 配方、`enable` 阻塞点、
   `entry: []` 的角色歧义均为**本地实测**。
-- 待办：**结构声明化**（§8）—— `enable` 并集 + `disable` 减法已落地，§3.3 的 FSD 配方现在开箱可用。
+- 2026-09-23 **结构声明化已实现**（§8）：`structure: { order, isolate, publicApi }` + S21/S22/S23 + 夹具 `structure-isolate` / `structure-public-api`。

@@ -12,6 +12,5 @@ export function noneKit(): UiKitAdapter {
     specVersion: '1',
     packages: [],
     styleProps: ['style'],
-    themeIntegration: {},
   })
 }

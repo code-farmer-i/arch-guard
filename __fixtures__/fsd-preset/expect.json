@@ -1,0 +1,11 @@
+{
+  "findings": [
+    { "rule": "S01", "file": "src/pages/crews/components/Nope.tsx" },
+    { "rule": "S21", "file": "src/shared/lib/leak.ts" },
+    { "rule": "S22", "file": "src/pages/crews/ui/BadLink.tsx" },
+    { "rule": "S23", "file": "src/pages/crews/ui/BadLink.tsx" },
+    { "rule": "S23", "file": "src/pages/dashboard/ui/DashboardPage.tsx" },
+    { "rule": "S23", "file": "src/shared/lib/leak.ts" }
+  ],
+  "exact": true
+}

@@ -47,7 +47,8 @@ export default {
   packs: [reactPack], // 框架包（一个项目一个）：规则集由它决定
   presets: [
     canonical(), // 应用范式：三根拓扑 / 角色表 / 阈值
-    // 库或 CLI 工具改用 library()：库角色表 + 库适用规则集（见 PARADIGM.md §11.1）
+    // 库 / CLI 工具改用 library()：入口 + 目录表（见 PARADIGM.md §11.1）
+    // FSD 项目改用 fsd()：六层 + 切片 + 片段 + 公开面（见 docs/ALTERNATIVES.md §3.5）
     designSystem({ tokenPrefix: '--sh' }), // 令牌分层 / 颜色唯一出处 / 对比度
     copy({ languages: ['zh-CN', 'en'] }), // 文案契约
     hygiene(), // 反退化：逃生舱 / 调试残留 / 未完成标记
@@ -157,7 +158,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式 + �
 - [x] 结构域与反退化域第一批规则（S00–S16、H01–H05）
 - [x] 设计系统域 D01–D18：颜色唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / `!important` / vendor 边界 / 框架残留 / 魔法数字三族 / 内联样式 / 样式落点 / CSS Module 契约 / 只消费语义令牌（已覆盖并替代 `check-theme`）
 - [x] 依赖域 P01 · P02 · P04–P07：登记白名单 / 禁用库 / 适配表与实际依赖一致 / 图标来源唯一 / 能力必须用登记方案 / 疑似自造轮子（P03 幽灵依赖、P08 声明但未使用按 §4.9 委派给 knip · depcheck）
-- [x] 共 **51 条规则**（结构 S · 设计 D · 文案 C · 依赖 P · 退化 H · 度量 M；以 `--stats` 为准）
+- [x] 共 **55 条规则**（结构 S · 设计 D · 文案 C · 依赖 P · 退化 H · 度量 M；以 `--stats` 为准）
 - [x] **与 lint 生态不交叉**：单文件语法卫生、颜色/`!important`/数值白名单、幽灵依赖、
       文案键存在性等全部**委派**给 eslint / oxlint / stylelint / knip（见 `docs/DESIGN.md` 的「委派清单」）
 - [ ] P07 疑似自造轮子（弱指纹 + 命名指纹）、`--verify-deps` 联网成熟度

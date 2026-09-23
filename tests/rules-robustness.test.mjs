@@ -23,6 +23,8 @@ function emptyContext() {
         componentsPerFile: 3,
       },
       layout: { app: 'src/app', modules: 'src/modules', shared: 'src/shared' },
+      // 归一化后的 Config 一定有 structure（三个字段都在）—— 规则直接读它，不必防御
+      structure: { order: false, isolate: [], publicApi: [] },
       entries: [],
       ignore: [],
       aliases: {},

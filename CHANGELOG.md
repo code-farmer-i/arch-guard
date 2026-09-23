@@ -4,6 +4,116 @@
 
 ## [Unreleased]
 
+### Added（预设组合语义：范式唯一 + 落点跟范式 + `addRoles` 追加）
+
+- **范式唯一性守卫（fail-closed）**：`presets` 里出现两个范式预设（如 `[canonical(), fsd()]`）→ `loadConfig` 直接报错并指路。
+  以前是**静默错误组合**（实测：角色表取后者 36 条、`layout` 逐键混成库范式的空根、`structure` 取并集 → 门禁在量一个不存在的目录）。
+- **契约落点改由范式声明**：`canonical()` 声明三根落点、`fsd()` 声明 FSD 落点（`src/shared/ui/styles/…`），
+  `designSystem()` **只写用户显式给的路径**（不再塞三根默认值）。于是 `[fsd(), designSystem()]` 开箱就用 FSD 目录，
+  以前会被悄悄改回 `src/shared/styles`（实测）。谁都没声明时仍由 `designParams()` 内置默认兜底 —— 与旧版行为一致。
+  落点也跟着 `src` 走：`canonical({ src: 'app-src' })` → `app-src/shared/styles`。
+- **`addRoles`（追加角色）**：项目在所选规范之外还有自己的目录（`src/legacy/**`）时，
+  用 `overrides: { addRoles: [...] }` 追加即可，不必整份重写角色表（那样范式一升级就漂）。`roles` 仍是整体替换。
+- 新增 `tests/preset-compose.test.mjs`（4 条）：范式唯一性 · 落点随范式 · 落点随 `src` · `addRoles` 追加与替换的分界。
+- 文档：DESIGN 新增 §7.0「预设的组合语义」表（每个字段的合并规则）；PARADIGM §6.6 补一句；ALTERNATIVES §3.5 配方简化为
+  `fsd() + designSystem()`（不再手写 6 条路径）。
+
+### Fixed（`fsd()` 默认片段里有两个"按内容命名"的名字）
+
+- 按社区官方 linter 的 [`segments-by-purpose`](https://github.com/feature-sliced/steiger/tree/master/packages/steiger-plugin-fsd/src/segments-by-purpose) 黑名单核对，
+  `fsd()` 的默认片段里有**两个不合规**：`shared/assets` 与 `app/providers`（名单里明确列了 `assets` 与 React 的 `providers`）。
+  默认值改成合规集 —— shared：`ui/lib/api/config/i18n`；app：`router/styles/i18n`。
+- 需要这两个名字就显式加（一行）：`fsd({ sharedSegments: [...默认, 'assets'] })` / `fsd({ appSegments: [...默认, 'providers'] })`；
+  这是**有意的摩擦**：默认值不该替项目"洗白"一个会被社区 linter 判为按内容命名的片段。
+- 顺带记录一条容易误判的结论：**`styles` 不在黑名单里 → `shared/styles` 合规**（黑名单是穷举式，未列即允许）。
+  文档：ALTERNATIVES §3.5 新增「片段名字要过 `segments-by-purpose`」小节（含完整词表与三种写法）。
+
+### Removed（适配器里没人读的 `themeIntegration` 字段）
+
+- **删掉 `uiKit` 适配器的 `themeIntegration` 字段**：它只在 schema 白名单与两个 kit 里出现，**没有任何规则读它**，
+  而 DESIGN §7.1 的适配器契约表却写着它驱动 "exclusiveOwner（S03 落点 + D10 边界）" —— 文档在承诺一个不存在的判定。
+- 更根本的理由：**第三方覆盖的落点与主题集成文件是项目决定，不是组件库事实**（同一个项目换库不该改变目录）。
+  它由 `designSystem({ vendorDir, themeFile, ... })` 与目录规范声明，只有一处真相。
+- ⚠️ 破坏性（fail-closed，不静默）：自定义 kit 若还写着 `themeIntegration`，`defineAdapter` 会因未知字段直接报错，
+  删掉该字段即可。DESIGN §7.1 表格行与 §7.4 示例同步删除。
+- 与 `uiKit()` 的 enable 修复同源：**每条声明都必须有消费者**（`config.layers` 那次的教训）。
+
+### Fixed（`uiKit()` 只给数据不启用规则 → 适配器静默失效）
+
+- **实测的静默失效**：`presets: [fsd(), uiKit(antdKit())]` 时 `.ant-btn` 出现在 vendor 之外**不报** ——
+  `uiKit()` 只注册适配器，而读它的 5 条规则（`uiKit.vendorSelectors` → D10/D10b · `uiKit.icons` → P05 ·
+  `uiKit.packages` → P11 · `uiKit.detachedApis` → H06）没被任何预设启用（`fsd()`/`library()` 的 enable 是白名单）。
+  加上 `designSystem()` 才报 —— 说明这是"谁声明域、谁顺带启用"的偶然，不是设计。
+- **修法**：`uiKit()` 声明自己贡献的规则集（与域预设同一套"声明即启用"语义，取并集）；是否真的跑仍由**能力协商**决定。
+  修复后同一配置 13 → **18 条规则**，D10 正常报出。
+- **新增通用守卫测试**「能力提供者必须启用消费它的规则」：遍历所有带 `requires` 的规则，断言提供该能力的预设
+  （`copy()` / `metrics()` / `uiKit()`）确实启用了它 —— 这类"装了适配器却没人读"的漏洞以后会被测试拦住。
+
+### Added（`fsd()` 预设：FSD 从 38 行角色表变成一行）
+
+- 新增 **`fsd()`**：把 Feature-Sliced Design 的三层模型全部落成**数据** ——
+  层 → `layer` 层号 · 切片 → `group: 'slice'` · 片段 → **封闭枚举** · 公开面（切片根 `index.ts`）→ `entry: true`；
+  三条结构规矩由通用规则判：`structure: { order: true, isolate: ['slice'], publicApi: ['slice'] }` → **S21 / S22 / S23**。
+  **引擎里没有一行 FSD 字面量** —— 换范式只是换预设那一行。
+- 选项：`src` / `slicedLayers` / `appLayer` / `sharedLayer` / `segments` / `sharedSegments` / `appSegments`，
+  以及 `slicesGrouped`（分组切片 `features/auth/login/...`）。**分组必须显式打开**：两种形态无法用一组 glob 同时表达
+  （`{group}/{slice}/{seg}` 会把不分组的路径也匹配上 → 角色歧义）。
+- **决策反转并记录**：结构声明化之前定的"不内置 FSD 预设"是错的 —— 预设层本来就是**规范的家**（`canonical()` 也是规范），
+  让每个宿主手抄 38 行角色表才是重复劳动；引擎的零方法论字面量由 P2/P3 自检保证。
+- 夹具 [`__fixtures__/fsd-preset`](./__fixtures__/fsd-preset)：一份完整 FSD 项目（合规文件 + 四类违规）→ 夹具回归 **26/26**；
+  预设结构测试进 `tests/presets.test.mjs`。
+- 文档：ALTERNATIVES §3.5 改成"FSD 就这么配"（原手写配方收进 `<details>`）；DESIGN §7 预设列表与 PARADIGM §6.6 同步。
+
+### Docs（口径修正：不再把 steiger 当 FSD 的必经之路）
+
+- [ALTERNATIVES.md](./docs/ALTERNATIVES.md) §3.3 加前置说明：结构声明化落地后**我们自己就能表达 FSD**（S21/S22/S23），
+  这一节只适用于**已经在用 steiger** 的宿主；新项目走 §3.5 的声明配方即可，不必引入第二个工具。
+  （原先"结构归 steiger"的前提是"我们不管目录规范"，该前提已被结构声明化推翻。）
+
+### Changed（层序只剩一套机制：`canonical()` 也走通用规则，S07 删除）
+
+- **`canonical()` 现在声明 `structure: { order: true }`** —— 应用范式的层序改由通用的 **S21** 判定，
+  原先 shared 专属的 **S07 删除**（规则 56 → **55**，`__fixtures__/graph` 的两条期望随之改为 S21）。
+- **顺带补上一个真实漏洞**：S07 只管 shared 内部，所以 `shared → modules`（低层依赖高层）与 `modules → app`
+  这两类向上依赖**以前没人管**；S21 判的是"只许依赖层号 ≤ 自己的文件"，把它们一并抓住。
+- **不重复报**：S21 只在 `to.layer > from.layer` 时触发，而 S05/S06（域间，同层）与 S09（layouts → modules，向下）
+  都在别的方向上，所以一条边仍只被一条规则报。
+- 域与装配层的**关系**（域间只能经 routes、layouts 不许引域、有 views 必有 routes）仍归 S04–S09/S14 ——
+  那些不是层序，声明表达不了。
+- ⚠️ **迁移提示**：宿主基线里若有 `S07` 条目，会作为「过期条目」被棘轮提示删除（可见，不静默）。
+
+### Added（结构声明化：目录规范变成宿主可声明的数据，S22/S23）
+
+- **`StructureSpec` 三个字段，各有一条规则消费**（不做"声明了没人读"的配置 —— `config.layers` 那次的教训）：
+  - `structure.order: true` → **S21 层序单向**（门控从"猜 `layout` 是否为空"改成**读声明**）；
+  - `structure.isolate: ['slice']` → **S22 组隔离**：同组维度、同层、不同组之间不许互相引用；
+  - `structure.publicApi: ['slice']` → **S23 公开面**：组必须有入口文件，且组外不许直接引用组内非入口文件。
+- **组与入口都是角色表里的数据**：`{ pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' }` 声明组维度，
+  `entry: true` 标记入口（三根是 `routes.tsx`、FSD 是 `index.ts`）—— **规则不认识任何具体文件名**，引擎里没有方法论字面量。
+- **引擎**：`FileRecord` 新增 `captures`（全部 `{name}` 捕获）/`group`（组值）/`groupName`（维度名）；
+  `RoleDescriptor` 新增 `group` / `entry`；`Preset.structure` 与 `overrides.structure` 之间**加法合并**；
+  S21–S23 抽到 `src/packs/react/rules/structure-declared.ts`（"声明驱动"一组）。
+- **"目录枚举"这个原定缺口被设计消解**：组由文件派生（没文件的目录不构成组），"组缺入口"用文件集就能判 —— 少一处引擎改动。
+- **验收**：夹具 `structure-isolate`（S22）与 `structure-public-api`（S23，顺带覆盖 `{slice}` + `{segment}` 多捕获）→ 夹具回归 **25/25**；
+  新增单测「同一份引擎换范式」：用 `atoms/molecules/organisms` 三个**声明**层跑 S21，违规必报且**引擎零改动**。
+- **文档**：DESIGN 新增 §6.2.1 结构声明、§5.1 加 S22/S23、§7 示例补 `structure`（并修正 `copy` 参数名）；
+  PARADIGM 新增 §6.6「结构声明：范式是可换的数据」（含 L1–L3 硬边界）；ALTERNATIVES §8 标为**已实现**；
+  规格 `.scratch/structure-as-data/spec.md`（done）。规则总数 54 → **56**。
+
+### Added（S21 分层单向：`library({ modules })` 的层号不再只是声明）
+
+- **新增 `S21`**：只许依赖**层号 ≤ 自己**的文件（`to.layer > from.layer` 即报）。
+  它是 `library({ modules: { data: 1, engine: 2 } })` 里那些数字的**唯一用途** ——
+  在此之前层号被写进 `record.layer` 却没有任何规则读它（唯一的消费者 S07 是 shared 专属，
+  而库范式把 `layout.shared` 置空 → 恒不生效）。实测证据：**把层号倒过来，输出一模一样**。
+- **自带一道门**：`layout.modules` / `layout.shared` 非空时（应用范式）直接跳过 ——
+  应用范式的层序已由 S07（shared 线性层序）+ S04–S09（域/装配层）负责，不重复报同一条边。
+- 哨兵层（`test` = 99）跳过：测试可以引用任何东西，不算"向上依赖"。
+- 文档补了「用现有能力定义 FSD」的实测（[ALTERNATIVES.md](./docs/ALTERNATIVES.md) §3.5）：27 条角色描述符能钉住层封闭枚举 + 片段封闭枚举 + 层序；
+  同层切片互不引用与公开面定义不了（根因：`{slice}` 捕获被丢 + 缺公开面规则）。
+- 新增夹具 `layer-order`（`exact: true`：low(1) 引 high(2) → 恰好一条 S21）+ 门控单测；
+  `library()` 的 enable 列表加入 `S21`。
+
 ### Fixed（`enable` 取并集 + `disable` 减法：预设组合不再静默关域）
 
 - **`enable` 从"后者覆盖前者"改成"并集"**：多个预设各自声明自己贡献哪几条规则，组合是加法。
@@ -17,6 +127,25 @@
 - `overrides.enable` 语义不变：仍是"我全都要自己定"的整体替换开关。
 - 文档同步：[ALTERNATIVES.md](./docs/ALTERNATIVES.md) §3.3 的 FSD 配方去掉了 40 个 id 的并集、§3.4 的阻塞点标为已修；
   PARADIGM §11.1 补上"预设各贡献规则集并取并集"的语义。
+
+### Docs（"兼容所有规范的引擎"先例调研）
+
+- [ALTERNATIVES.md](./docs/ALTERNATIVES.md) §8 补上先例：这类引擎在 **ArchUnit（Java）/ import-linter（Python）/
+  go-arch-lint（Go）/ Nx tags（JS monorepo）** 早有成熟实现，且抽象出的都是同一个形状（映射 / 关系 / 层序 / 公开面）——
+  也就是 §8 的四个字段。JS/TS 侧只有"半个"（`@boundaries/elements` 99 万/周、`dependency-cruiser` 287 万/周、
+  `eslint-plugin-project-structure` 4.9 万/周），`archlint` 已停更。
+- 记下硬边界与可验收定义：**只能兼容规范的可判定部分（L1–L3）**；验收 = 同一份引擎用三份声明表达
+  三根 / FSD / Atomic Design 且夹具各自通过、引擎零改动。
+
+### Docs（steiger + 我们的实测配方）
+
+- [ALTERNATIVES.md](./docs/ALTERNATIVES.md) §3.3/§3.4 换成**实测通过的配置**：依赖安装（npm 只装 steiger；pnpm 必须显式装
+  `@feature-sliced/steiger-plugin`）、`steiger.config.mjs`（`.js` 且无 `type: module` 会报 `Failed to load the ES module`）、
+  我们这侧的 `library({ modules: 六层, entry: [] })` + 契约预设 + `disable: ['S21']`。
+- 记录一条方法论纠正：**steiger 在场时不要用 27 条细粒度角色表**（会与 `segments-by-purpose` / `public-api` 重复报），
+  粗粒度六层足够 —— 我们只兜"层外文件"与跨文件契约。
+- 实测分工：steiger 14 条（层序/跨切片/公开面/死切片/片段命名）vs 我们 10 条（层外文件 + 死令牌 + 文案 + 依赖），**零重叠**；
+  其中 `src/utils.ts`（层外文件）**steiger 零命中**，只有 S01 抓得住。
 
 ### Added（`docs/ALTERNATIVES.md`：替代组合与竞品盘点）
 

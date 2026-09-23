@@ -14,6 +14,7 @@ function makeContext({
   scan,
   roles = [],
   layout = { app: 'src/app', modules: 'src/modules', shared: 'src/shared' },
+  structure = { order: false, isolate: [], publicApi: [] },
 } = {}) {
   const facts = new Map()
   for (const [rel, text] of Object.entries(files)) {
@@ -36,6 +37,7 @@ function makeContext({
       },
       layout,
       roles,
+      structure,
       entries: [],
       ignore: [],
       aliases: {},
@@ -83,6 +85,91 @@ test('规则：有记录但事实缺失（解析失败的文件）时跳过而�
   for (const rule of reactRules) {
     assert.doesNotThrow(() => rule.run(ctx), `${rule.id} 在没有 facts 时抛异常`)
   }
+})
+
+// 两条不同层的记录 + 一条向上的边（层号由角色描述符声明，不是从 layout 猜的）
+function layeredContext({ order = false, isolate = [], publicApi = [], roles = [] } = {}) {
+  const ctx = makeContext({ scan: {}, structure: { order, isolate, publicApi }, roles })
+  const record = (rel, role, layer) => ({
+    rel,
+    abs: `/tmp/${rel}`,
+    role,
+    layer,
+    domain: null,
+    slot: null,
+    captures: {},
+    group: null,
+    groupName: null,
+    kind: 'ts',
+  })
+  ctx.records = [record('src/low/a.ts', 'low', 1), record('src/high/b.ts', 'high', 2)]
+  ctx.graph = layeredGraph([['src/low/a.ts', ['src/high/b.ts']]])
+  return ctx
+}
+
+function layeredGraph(pairs) {
+  return {
+    edges: new Map(pairs.map(([from, to]) => [from, new Set(to)])),
+    importers: new Map(),
+    externals: new Map(),
+    unresolved: new Map(),
+    reachable: new Set(),
+    orphaned: [],
+    cycles: [],
+  }
+}
+
+test('S21：门控是声明（structure.order），不是猜 layout', () => {
+  const rule = reactRules.find((item) => item.id === 'S21')
+  assert.ok(rule)
+  assert.equal(
+    rule.run(layeredContext({ order: false })).length,
+    0,
+    '没声明 order → 不判（声明了才判，避免与别的规则重复报）',
+  )
+  assert.equal(rule.run(layeredContext({ order: true })).length, 1, '声明 order → 向上依赖必须报')
+})
+
+test('同一份引擎换范式：Atomic Design 的 atoms < molecules < organisms 也能表达（引擎零改动）', () => {
+  const rule = reactRules.find((item) => item.id === 'S21')
+  const ctx = makeContext({ scan: {}, structure: { order: true, isolate: [], publicApi: [] } })
+  // 三个层的角色全部由**声明**给出 —— 引擎里没有任何 atoms/molecules 字面量
+  ctx.config.roles = [
+    { id: 'atoms', pattern: 'src/atoms/**', layer: 1 },
+    { id: 'molecules', pattern: 'src/molecules/**', layer: 2 },
+    { id: 'organisms', pattern: 'src/organisms/**', layer: 3 },
+  ]
+  const record = (rel, role, layer) => ({
+    rel,
+    abs: `/tmp/${rel}`,
+    role,
+    layer,
+    domain: null,
+    slot: null,
+    captures: {},
+    group: null,
+    groupName: null,
+    kind: 'ts',
+  })
+  ctx.records = [
+    record('src/atoms/button.tsx', 'atoms', 1),
+    record('src/molecules/card.tsx', 'molecules', 2),
+    record('src/organisms/panel.tsx', 'organisms', 3),
+  ]
+  // atoms 引 molecules = 向上 → 报；organisms 引 atoms = 向下 → 不报
+  ctx.graph = layeredGraph([
+    ['src/atoms/button.tsx', ['src/molecules/card.tsx']],
+    ['src/organisms/panel.tsx', ['src/atoms/button.tsx']],
+  ])
+  const found = rule.run(ctx)
+  assert.equal(found.length, 1, '只报原子层引用分子层那一条')
+  assert.equal(found[0].file, 'src/atoms/button.tsx')
+})
+
+test('S22 / S23：没声明就不跑（声明了才判，避免与外部工具重复报）', () => {
+  const ctx = makeContext({ scan: {} })
+  assert.equal(reactRules.find((item) => item.id === 'S22').run(ctx).length, 0)
+  assert.equal(reactRules.find((item) => item.id === 'S23').run(ctx).length, 0)
 })
 
 test('S01 / S03：提示要指路（闭集枚举只说"你错了"没用，要说"放哪"）', () => {

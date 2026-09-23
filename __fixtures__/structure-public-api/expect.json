@@ -1,0 +1,7 @@
+{
+  "findings": [
+    { "rule": "S23", "file": "src/app/index.tsx" },
+    { "rule": "S23", "file": "src/pages/dashboard/ui/DashboardPage.tsx" }
+  ],
+  "exact": true
+}

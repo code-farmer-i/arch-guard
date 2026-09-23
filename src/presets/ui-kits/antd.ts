@@ -28,7 +28,8 @@ export function antdKit(): UiKitAdapter {
       },
     ],
     styleProps: ['style'],
-    themeIntegration: { css: 'src/shared/styles/vendor', js: ['src/shared/theme/antdTheme.ts'] },
+    // 注：第三方覆盖的落点（如 `src/shared/styles/vendor`）与主题集成文件是**项目决定**，
+    // 由 `designSystem({ vendorDir, themeFile })` 与目录规范声明 —— 适配器不该决定项目目录。
     policy: {
       componentLadder: ['antd', '@ant-design/x', 'shared/components/ui', '一次性内联'],
       overrideLadder: [

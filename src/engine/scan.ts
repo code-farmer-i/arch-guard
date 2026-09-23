@@ -134,6 +134,9 @@ export function scanProject(config: Config): ScanResult {
         layer: 0,
         domain: null,
         slot: null,
+        captures: {},
+        group: null,
+        groupName: null,
         kind: fileKind,
       })
       continue
@@ -162,6 +165,8 @@ export function scanProject(config: Config): ScanResult {
       continue
     }
     const hit = hits[0] as { descriptor: CompiledRole; captured: Record<string, string> }
+    // 组身份：角色声明了 `group: '<捕获名>'` 时，把该捕获的值当作"组名"
+    const groupName = hit.descriptor.group ?? null
     records.push({
       rel,
       abs: join(root, rel),
@@ -169,6 +174,9 @@ export function scanProject(config: Config): ScanResult {
       layer: hit.descriptor.layer,
       domain: hit.captured.domain ?? null,
       slot: hit.descriptor.slot ?? null,
+      captures: { ...hit.captured },
+      group: groupName ? (hit.captured[groupName] ?? null) : null,
+      groupName: groupName && hit.captured[groupName] ? groupName : null,
       kind: kindOf(rel),
     })
   }

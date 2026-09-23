@@ -40,8 +40,28 @@ export interface DesignSystemOptions {
  * 规则实现在 packs 里；本预设只贡献参数（换项目改这里，不改引擎）。
  */
 export function designSystem(options: DesignSystemOptions = {}): Preset {
-  const tokenPrefix = options.tokenPrefix ?? '--sh'
-  const styleDir = options.styleDir ?? 'src/shared/styles'
+  /**
+   * **落点由范式声明，域预设只写用户显式给的**（见 `Preset.paradigm`）。
+   *
+   * 为什么：`canonical()` 与 `fsd()` 各有惯用落点（三根是 `shared/styles`，FSD 是 `shared/ui/styles`）。
+   * 如果这里塞三根默认值，`[fsd(), designSystem()]` 就会被悄悄改回三根路径 —— **组合起来就不符合所选规范了**（实测过）。
+   * 谁都没声明时，`designParams()` 的内置默认兜底（仍是三根路径），行为与旧版一致。
+   */
+  const paths: Record<string, unknown> = {}
+  if (options.styleDir) {
+    // 给了 styleDir 时其余路径从它推导（少写几行）；任何一项显式给出都直接采纳
+    paths.styleDir = options.styleDir
+    paths.tokenDir = options.tokenDir ?? `${options.styleDir}/tokens`
+    paths.vendorDir = options.vendorDir ?? `${options.styleDir}/vendor`
+    paths.paletteFile = options.paletteFile ?? `${options.styleDir}/tokens/palette.css`
+    paths.themeFile = options.themeFile ?? `${options.styleDir}/tokens/theme.css`
+  } else {
+    if (options.tokenDir) paths.tokenDir = options.tokenDir
+    if (options.vendorDir) paths.vendorDir = options.vendorDir
+    if (options.paletteFile) paths.paletteFile = options.paletteFile
+    if (options.themeFile) paths.themeFile = options.themeFile
+  }
+  if (options.storageFile) paths.storageFile = options.storageFile
   return {
     // 本预设贡献 D 域（多个预设之间是**并集**，见 Preset.enable 的说明）
     enable: ['D03', 'D04', 'D05', 'D06', 'D07', 'D08', 'D10', 'D10b', 'D11', 'D16', 'D17', 'D21'],
@@ -53,15 +73,9 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
        * 光看其余参数分不出来：`designParams()` 带内置默认路径。
        */
       designSystemDeclared: true,
-      tokenPrefix,
+      tokenPrefix: options.tokenPrefix ?? '--sh',
       spacing: options.spacing ?? '--spacing',
       themes: options.themes ?? ['dark', 'light'],
-      styleDir,
-      tokenDir: options.tokenDir ?? `${styleDir}/tokens`,
-      vendorDir: options.vendorDir ?? `${styleDir}/vendor`,
-      paletteFile: options.paletteFile ?? `${styleDir}/tokens/palette.css`,
-      themeFile: options.themeFile ?? `${styleDir}/tokens/theme.css`,
-      storageFile: options.storageFile ?? 'src/shared/config/storage.ts',
       htmlKeys: options.htmlKeys ?? ['theme'],
       contrastPairs: options.contrastPairs ?? [],
       // 魔法数字（长度域）：这些属性必须走刻度令牌
@@ -96,6 +110,8 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       ],
       // 结构性常数：0 与 1px 细线允许裸写
       allowLengthValues: ['0', '1px'],
+      // 落点：用户显式给的（paths）放最后，压过任何默认推导
+      ...paths,
     },
   }
 }

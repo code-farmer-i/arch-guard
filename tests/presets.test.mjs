@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { canonical, library, libraryRoleTable, roleTable } from '../es/presets/index.js'
+import {
+  canonical,
+  fsd,
+  fsdRoleTable,
+  library,
+  libraryRoleTable,
+  roleTable,
+} from '../es/presets/index.js'
 
 test('presets：canonical 默认就是范式三根目录', () => {
   const preset = canonical()
@@ -42,6 +49,70 @@ test('presets：只传部分参数时其余走范式默认（src 推导 app/modu
   assert.deepEqual(onlySrc.entries, ['app-src/app/main.tsx'])
 })
 
+test('能力提供者必须启用消费它的规则（防"适配器装了却静默失效"）', async () => {
+  const { reactRules, copy, metrics, uiKit, antdKit } = await import('../es/index.js')
+  // 能力前缀 → 提供它的预设（新增能力时要补进这张表）
+  const providers = {
+    i18n: copy({ resourceDir: 'src/shared/i18n/locales' }),
+    metrics: metrics(),
+    uiKit: uiKit(antdKit()),
+  }
+  const missing = []
+  for (const rule of reactRules) {
+    for (const capability of rule.requires ?? []) {
+      const prefix = capability.split('.')[0]
+      const provider = providers[prefix]
+      assert.ok(provider, `能力 ${prefix} 没有对应的预设 —— 新增能力时补进本测试的 providers 表`)
+      const enable = provider.enable
+      const enabled = enable === 'all' || (Array.isArray(enable) && enable.includes(rule.id))
+      if (!enabled) missing.push(`${rule.id} 依赖 ${capability}，但 ${prefix} 预设没启用它`)
+    }
+  }
+  assert.deepEqual(missing, [], '适配器给了数据却没人读 = 静默失效')
+})
+test('presets：fsd() 把 FSD 三层模型落成数据（层号 + 切片维度 + 公开面 + 片段封闭枚举）', () => {
+  const preset = fsd()
+  const roles = preset.roles
+  // 切片根：公开面（entry）+ 组维度（slice）+ 层号
+  const index = roles.find((role) => role.id === 'fsd:pages:index')
+  assert.equal(index?.entry, true)
+  assert.equal(index?.group, 'slice')
+  assert.equal(index?.layer, 5)
+  // 片段：同组、同层，路径里带 {slice}
+  const ui = roles.find((role) => role.id === 'fsd:pages:ui')
+  assert.equal(ui?.pattern, 'src/pages/{slice}/ui/**')
+  assert.equal(ui?.group, 'slice')
+  assert.equal(ui?.layer, 5)
+  // 无切片层（app / shared）直接是片段
+  assert.ok(roles.some((role) => role.id === 'fsd:shared:ui'))
+  assert.ok(roles.some((role) => role.id === 'fsd:app:router'))
+  // 默认片段都过 segments-by-purpose：`assets` / `providers` 是常见的**按内容命名**，故意不入默认
+  assert.equal(
+    roles.some((role) => role.id === 'fsd:shared:assets' || role.id === 'fsd:app:providers'),
+    false,
+    '这两个名字会被社区 linter 判为按内容命名，需要时显式加',
+  )
+  // 片段是**闭集**：没列到的片段不进角色表 → 由 S01 报出来
+  assert.equal(
+    roles.some((role) => role.pattern.includes('components')),
+    false,
+    '未登记的片段不该出现在角色表里',
+  )
+  // 三条结构规矩全部走通用规则
+  assert.deepEqual(preset.structure, { order: true, isolate: ['slice'], publicApi: ['slice'] })
+  // FSD 没有三根的「域 / 共享层」：置空让应用专属规则自然空转，而不是查不存在的目录假装检查过
+  assert.equal(preset.layout.modules, '')
+  assert.equal(preset.layout.shared, '')
+  // 分组切片必须显式打开（两种形态无法用一组 glob 同时表达，否则会角色歧义）
+  assert.equal(
+    fsd({ slicesGrouped: true }).roles.find((role) => role.id === 'fsd:pages:ui')?.pattern,
+    'src/pages/{group}/{slice}/ui/**',
+  )
+  assert.equal(
+    fsdRoleTable({ src: 'app-src' }).some((role) => role.pattern.startsWith('app-src/')),
+    true,
+  )
+})
 test('presets：library 是「入口 + 目录表」，默认关掉应用专属规则', () => {
   const preset = library()
   assert.equal(preset.layout.app, 'src')

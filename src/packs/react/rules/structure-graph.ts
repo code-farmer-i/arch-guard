@@ -131,41 +131,6 @@ export const viewsArePrivate: Rule = {
   },
 }
 
-/* ---------------- S07 shared 线性层序 ---------------- */
-
-export const sharedLinearOrder: Rule = {
-  id: 'S07',
-  domain: 'structure',
-  level: 'L3',
-  severity: 'error',
-  title: 'shared 层序单向',
-  hint: 'shared 内部只能低层被高层引用（styles→lib→config→i18n→api→stores→theme→hooks→components）',
-  run: (ctx) => {
-    const { sharedRoot } = rootsOf(ctx)
-    const out: Finding[] = []
-    for (const record of ctx.records) {
-      if (!isShared(record.rel, sharedRoot)) continue
-      for (const target of ctx.graph.edges.get(record.rel) ?? []) {
-        if (!isShared(target, sharedRoot)) continue
-        const targetRecord = ctx.records.find((item) => item.rel === target)
-        if (!targetRecord) continue
-        // 同层互引允许（同一档内的工具彼此复用），只禁「高层被低层引用」
-        if (targetRecord.layer > record.layer) {
-          out.push(
-            finding(
-              'S07',
-              record.rel,
-              1,
-              `shared 反向依赖：${record.role} 引用了更高层的 ${targetRecord.role}`,
-            ),
-          )
-        }
-      }
-    }
-    return out
-  },
-}
-
 /* ---------------- S09 layouts 不得 import modules ---------------- */
 
 export const layoutsDoNotImportModules: Rule = {
@@ -325,7 +290,6 @@ export const structureGraphRules: Rule[] = [
   domainImportWhitelist,
   crossDomainViaRoutes,
   viewsArePrivate,
-  sharedLinearOrder,
   // 依赖环委派给 import/no-cycle 或 dependency-cruiser 的 no-circular（纯图属性，不需要角色表）
   layoutsDoNotImportModules,
   reachability,

@@ -89,6 +89,15 @@ export interface FileRecord {
   layer: number
   domain: string | null
   slot: string | null
+  /**
+   * 角色 pattern 里**所有** `{name}` 捕获。`domain` 只是 `captures.domain` 的快捷方式，
+   * 结构声明化之后规则靠这里拿"这段路径到底在哪一组"（如 `{slice}`）。
+   */
+  captures: Record<string, string>
+  /** 组值：角色声明了 `group: '<捕获名>'` 时取该捕获的值（如 `crews`），否则 null */
+  group: string | null
+  /** 组维度名（捕获名），如 `slice`；无组为 null */
+  groupName: string | null
   kind: FileKind
 }
 
@@ -99,9 +108,39 @@ export interface RoleDescriptor {
   slot?: string
   /** 排他角色：命中即独占（测试文件之类不该再和槽位争角色） */
   exclusive?: boolean
+  /**
+   * 组维度：本角色的文件属于"某个组"，组名取该捕获的值。
+   * 例：`pattern: 'src/pages/{slice}/ui/**', group: 'slice'` → 同一切片的文件同组。
+   * 组是 S22（组隔离）与 S23（公开面）的判定单位。
+   */
+  group?: string
+  /** 本角色是所属组的**公开面（入口）**，配合 `structure.publicApi` 使用 */
+  entry?: boolean
 }
 
 /* ---------------- 配置与适配器 ---------------- */
+
+/**
+ * 结构声明：把"目录规范"变成宿主可声明的数据，规则从声明推导。
+ *
+ * 三个字段**各被一条规则消费**（S21 / S22 / S23）—— 不做"声明了没人读"的配置。
+ * 参照系：ArchUnit / import-linter / go-arch-lint / Nx tags 都是这个形状。
+ */
+export interface StructureSpec {
+  /** 层序单向：只许依赖**层号 ≤ 自己**的文件（S21）。应用范式与库/FSD 都声明它 —— 一套机制 */
+  order?: boolean
+  /** 组隔离：组维度名列表（捕获名）。同维度、同层、不同组之间**不许互相引用**（S22） */
+  isolate?: string[]
+  /** 公开面：组维度名列表。这些维度的组**必须有入口文件**，且组外不许直接引用组内非入口文件（S23） */
+  publicApi?: string[]
+}
+
+/** 归一化后的结构声明：宿主只声明一部分，配置加载后三个字段都补齐 */
+export interface ResolvedStructure {
+  order: boolean
+  isolate: string[]
+  publicApi: string[]
+}
 
 export interface Thresholds {
   fileLines: number
@@ -143,7 +182,6 @@ export interface UiKitAdapter {
   vendorVars?: string[]
   detachedApis?: DetachedApi[]
   styleProps?: string[]
-  themeIntegration?: { css?: string; js?: string[] }
   policy?: Record<string, unknown>
   examples?: AdapterExamples
 }
@@ -160,7 +198,22 @@ export interface GenericAdapter {
 export type Adapter = UiKitAdapter | GenericAdapter
 
 export interface Preset {
+  /**
+   * 范式标识（`canonical` / `library` / `fsd`）。
+   *
+   * 一个配置**只能有一个范式预设** —— 角色表是整体替换的，两个范式混用会得到
+   * "角色表来自后者、layout 逐键混合、structure 取并集"的静默错误组合，所以 `loadConfig` 见到
+   * 两个不同范式就直接报错（fail-closed）。
+   */
+  paradigm?: string
   roles?: RoleDescriptor[]
+  /**
+   * 在范式角色表**之上追加**角色（不替换）。
+   *
+   * 用途：项目在所选规范之外还有自己的目录（如 `src/legacy/**`）——
+   * 不追加的话只能整份重写 `roles`，那样范式一升级就漂了。
+   */
+  addRoles?: RoleDescriptor[]
   layout?: { app: string; modules: string; shared: string }
   srcRoot?: string
   naming?: Partial<NamingRules>
@@ -174,6 +227,8 @@ export interface Preset {
   enable?: string[] | 'all'
   /** 本预设**排除**的规则（并从所有预设的 disable 取并集） */
   disable?: string[]
+  /** 结构声明（层序 / 组隔离 / 公开面）：多个预设之间**加法合并** */
+  structure?: StructureSpec
   params?: Record<string, unknown>
   entries?: string[]
   ignore?: string[]
@@ -189,12 +244,16 @@ export interface Config {
   srcRoot: string
   layout: { app: string; modules: string; shared: string }
   roles: RoleDescriptor[]
+  /** 追加角色（在 `roles` 之上，不替换）—— 项目自己的目录加在范式角色表之上 */
+  addRoles: RoleDescriptor[]
   naming: NamingRules
   thresholds: Thresholds
   adapters: Record<string, Adapter>
   enable: string[] | 'all'
   /** 显式排除的规则：`enable` 求完之后再减掉 */
   disable: string[]
+  /** 结构声明：层序 / 组隔离 / 公开面（S21–S23 的判据来源）。**已归一化**，三个字段都在 */
+  structure: ResolvedStructure
   params: Record<string, unknown>
   entries: string[]
   ignore: string[]
