@@ -82,3 +82,24 @@ test('本体自包含：P1/P2/P3 全过', () => {
   )
   assert.ok(result.checked > 0)
 })
+
+test('definePack：id 重复与空规则在定义时就报错（不等到运行）', async () => {
+  const { definePack, PackError } = await import('../es/index.js')
+  const rule = (id) => ({
+    id,
+    domain: 'structure',
+    level: 'L1',
+    severity: 'error',
+    title: `t${id}`,
+    run: () => [],
+  })
+  const pack = definePack({ id: 'demo', rules: [rule('S01'), rule('S02')] })
+  assert.equal(pack.id, 'demo')
+  assert.equal(Object.isFrozen(pack), true)
+  assert.throws(() => definePack({ id: '', rules: [rule('S01')] }), PackError)
+  assert.throws(() => definePack({ id: 'demo', rules: [] }), PackError)
+  assert.throws(
+    () => definePack({ id: 'demo', rules: [rule('S01'), { ...rule('S01'), title: '另一条' }] }),
+    /规则 id 重复/,
+  )
+})

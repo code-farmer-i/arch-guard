@@ -1,0 +1,11 @@
+{
+  "name": "adapters-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "antd": "^5.0.0",
+    "@ant-design/icons": "^5.0.0",
+    "react-icons": "^5.0.0",
+    "element-plus": "^2.0.0"
+  }
+}

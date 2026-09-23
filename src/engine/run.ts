@@ -8,10 +8,12 @@ import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { extractFacts, factInputOf } from './facts.js'
 import { buildGraph } from './graph.js'
 import { collectI18n } from './i18n.js'
-import { json } from './output.js'
+import { json, out } from './output.js'
 import { createRegistry } from './registry.js'
 import {
+  renderGithubAnnotations,
   renderReport,
+  renderStats,
   renderSummary,
   severityOf,
   toJsonReport,
@@ -36,8 +38,18 @@ export interface RunOptions {
   reportOnly?: boolean
   localOnly?: boolean
   format?: 'pretty' | 'json' | 'github'
+  /** 打印每条规则的耗时与命中（排查「为什么这么慢」） */
+  stats?: boolean
   rules: Rule[]
   quiet?: boolean
+}
+
+/** 单条规则的执行统计（--stats 用） */
+export interface RuleStat {
+  rule: string
+  domain: string
+  ms: number
+  hits: number
 }
 
 export interface RunResult {
@@ -48,6 +60,7 @@ export interface RunResult {
   scope: string
   scopeFiles: string[]
   durationMs: number
+  stats: RuleStat[]
 }
 
 /** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
@@ -152,9 +165,16 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   }
 
   const all: Finding[] = []
+  const stats: RuleStat[] = []
   for (const rule of registry.enabled) {
+    const startedAt = performance.now()
     try {
-      for (const finding of rule.run(ctx)) all.push(finding)
+      let hits = 0
+      for (const finding of rule.run(ctx)) {
+        all.push(finding)
+        hits += 1
+      }
+      stats.push({ rule: rule.id, domain: rule.domain, ms: performance.now() - startedAt, hits })
     } catch (error) {
       // fail closed：规则自身异常绝不能静默通过
       all.push({
@@ -165,6 +185,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
         hint: '这是引擎缺陷或规则实现问题，不是项目代码问题',
         global: true,
       })
+      stats.push({ rule: rule.id, domain: rule.domain, ms: performance.now() - startedAt, hits: 1 })
     }
   }
   const ruleIndex = new Map(options.rules.map((rule) => [rule.id, rule]))
@@ -245,14 +266,29 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   if (!quiet) {
     if (options.format === 'json') {
       json(toJsonReport(reportInput))
+    } else if (options.format === 'github') {
+      // 注解交给 CI 渲染；摘要仍走 stdout 便于人看
+      const annotations = renderGithubAnnotations(reportInput)
+      if (annotations) out(annotations)
+      renderSummary(reportInput)
     } else {
       renderReport(reportInput)
       renderSummary(reportInput)
     }
+    if (options.stats) out(renderStats(reportInput, stats))
   }
 
   const errors = active.filter((finding) => severityOf(finding, ruleIndex) !== 'warn').length
   const exitCode = options.reportOnly === true ? 0 : errors > 0 ? 1 : 0
 
-  return { exitCode, config, all, active, scope, scopeFiles, durationMs: Date.now() - started }
+  return {
+    exitCode,
+    config,
+    all,
+    active,
+    scope,
+    scopeFiles,
+    durationMs: Date.now() - started,
+    stats,
+  }
 }

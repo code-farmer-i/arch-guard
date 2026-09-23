@@ -18,16 +18,30 @@ export interface BaselineEntry {
 
 export interface BaselineFile {
   version: number
+  /** 基线格式版本（不兼容时显式报错，不静默按老格式解读） */
+  specVersion?: string
   entries: BaselineEntry[]
 }
 
 export const EMPTY_BASELINE: BaselineFile = { version: 1, entries: [] }
 
+/** 基线格式版本：不兼容时必须显式报错，不能静默按老格式解读 */
+export const BASELINE_SPEC_VERSION = '1'
+
 export function loadBaseline(path: string): BaselineFile {
   if (!existsSync(path)) return { ...EMPTY_BASELINE, entries: [] }
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as BaselineFile
-    return { version: parsed.version ?? 1, entries: parsed.entries ?? [] }
+    if (parsed.specVersion !== undefined && parsed.specVersion !== BASELINE_SPEC_VERSION) {
+      throw new Error(
+        `基线 specVersion 不支持：${parsed.specVersion}（本工具是 ${BASELINE_SPEC_VERSION}）；请重新生成基线`,
+      )
+    }
+    return {
+      version: parsed.version ?? 1,
+      specVersion: BASELINE_SPEC_VERSION,
+      entries: parsed.entries ?? [],
+    }
   } catch {
     throw new Error(`基线文件无法解析：${path}（应当是 arch-guard 生成的 JSON）`)
   }
@@ -40,7 +54,11 @@ export function saveBaseline(path: string, entries: BaselineEntry[]): void {
       a.file.localeCompare(b.file) ||
       a.anchor.localeCompare(b.anchor),
   )
-  writeFileSync(path, `${JSON.stringify({ version: 1, entries: sorted }, null, 2)}\n`, 'utf8')
+  writeFileSync(
+    path,
+    `${JSON.stringify({ version: 1, specVersion: BASELINE_SPEC_VERSION, entries: sorted }, null, 2)}\n`,
+    'utf8',
+  )
 }
 
 export function anchorFor(

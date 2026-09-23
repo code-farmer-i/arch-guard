@@ -272,3 +272,42 @@ test('run：能力未声明时规则不注册，且报告里能看到 skipped', 
   const { config } = await loadConfig({ root: `${PACKAGE_ROOT}examples/minimal` })
   assert.equal(config.enable === 'all' || Array.isArray(config.enable), true)
 })
+
+test('输出：GitHub 注解与 --stats 统计表（CI 与排查用）', async () => {
+  const { renderGithubAnnotations, renderStats } = await import('../es/engine/report.js')
+  const ruleIndex = new Map([
+    ['H01', { id: 'H01', severity: 'error' }],
+    ['S16', { id: 'S16', severity: 'warn' }],
+  ])
+  const input = {
+    config: { root: '/tmp' },
+    ruleIndex,
+    findings: [
+      { rule: 'H01', file: 'src/a.ts', line: 3, text: '问题一' },
+      { rule: 'S16', file: 'src/b.ts', line: 7, text: '问题二\n换行要被压平' },
+    ],
+    exemptedCount: 0,
+    unusedBaseline: [],
+    skipped: [],
+    unknownEnabled: [],
+    notices: [],
+    scope: 'full',
+    scopeFiles: 0,
+    globalFindings: 0,
+    durationMs: 1,
+    rulesEnabled: 2,
+    rulesTotal: 2,
+    exemptedFiles: 0,
+  }
+  const annotations = renderGithubAnnotations(input)
+  assert.match(annotations, /::error file=src\/a\.ts,line=3/)
+  assert.match(annotations, /::warning file=src\/b\.ts,line=7/)
+  assert.ok(!annotations.includes('\n换行'), '注解里的换行必须压平，否则会截断注解')
+
+  const stats = renderStats(input, [
+    { rule: 'S16', domain: 'structure', ms: 12.5, hits: 2 },
+    { rule: 'H01', domain: 'hygiene', ms: 1.25, hits: 1 },
+  ])
+  assert.match(stats, /S16\s+structure\s+12\.50ms\s+2 命中/)
+  assert.match(stats, /合计 13\.75ms \/ 2 条规则/)
+})

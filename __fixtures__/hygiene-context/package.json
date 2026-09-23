@@ -1,0 +1,10 @@
+{
+  "name": "hygiene-context-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "antd": "^5.0.0",
+    "@ant-design/icons": "^5.0.0",
+    "@ant-design/x": "^1.0.0"
+  }
+}

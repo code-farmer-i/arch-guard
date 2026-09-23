@@ -23,6 +23,10 @@ export {
   type ProjectDeps,
 } from './engine/deps.js'
 export { createRule, RuleDefinitionError } from './engine/rule.js'
+export { definePack, PackError, type Pack as PackDefinition } from './engine/pack.js'
+export { auditAdapterDeps, describePolicy } from './engine/deps-audit.js'
+export { CONFIG_SPEC_VERSION } from './engine/config.js'
+export { BASELINE_SPEC_VERSION } from './engine/baseline.js'
 export { runGuard, type RunOptions, type RunResult } from './engine/run.js'
 export { checkPortability } from './engine/portability.js'
 export { runSelfTest } from './engine/self-test.js'

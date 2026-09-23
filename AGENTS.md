@@ -13,6 +13,8 @@
 ## 提交前
 
 ```bash
+pnpm --filter . exec arch-guard --stats        # 看每条规则的耗时与命中（规则该不该留）
+pnpm --filter . exec arch-guard --verify-deps   # 适配表 vs 实际依赖对账
 pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint → format → test → coverage
               #   → 夹具回归 → 本体自包含(P1/P2/P3) → 示例宿主 → 狗粮(自己查自己)
 ```

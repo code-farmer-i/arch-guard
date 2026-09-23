@@ -140,3 +140,30 @@ export function toJsonReport(input: ReportInput): JsonReport {
     durationMs: input.durationMs,
   }
 }
+
+/** GitHub Actions 注解：每条违规一行 `::error file=…,line=…::text`（reviewdog 风格） */
+export function renderGithubAnnotations(input: ReportInput): string {
+  const lines: string[] = []
+  for (const finding of input.findings) {
+    const severity = severityOf(finding, input.ruleIndex) === 'warn' ? 'warning' : 'error'
+    const title = `${finding.rule} ${finding.text}`.replace(/[\r\n]+/g, ' ')
+    lines.push(`::${severity} file=${finding.file},line=${finding.line},title=${title}::${title}`)
+  }
+  return lines.join('\n')
+}
+
+/** 规则耗时与命中统计（--stats）：用来回答「为什么这次跑了 3 秒」 */
+export function renderStats(
+  _input: ReportInput,
+  stats: { rule: string; domain: string; ms: number; hits: number }[],
+): string {
+  const rows = [...stats].sort((a, b) => b.ms - a.ms)
+  const total = stats.reduce((sum, item) => sum + item.ms, 0)
+  const width = Math.max(...rows.map((row) => row.rule.length), 4)
+  const lines = rows.map(
+    (row) =>
+      `  ${row.rule.padEnd(width)}  ${row.domain.padEnd(9)}  ${row.ms.toFixed(2).padStart(8)}ms  ${String(row.hits).padStart(3)} 命中`,
+  )
+  lines.push(`  合计 ${total.toFixed(2)}ms / ${rows.length} 条规则（扫描之外的时间：解析与图构建）`)
+  return lines.join('\n')
+}

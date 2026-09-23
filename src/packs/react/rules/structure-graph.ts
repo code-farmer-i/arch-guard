@@ -248,6 +248,8 @@ export const reachability: Rule = {
       }
       // ③ 每个 view 必须被本域 routes 引用
       if (record.slot === 'views') {
+        // 只判代码文件：views/ 下的 .module.css 是页面样式，不是"没被引用的页面"
+        if (!/\.tsx?$/.test(record.rel)) continue
         const domain = domainOf(record.rel, modulesRoot)
         const routes = domain ? `${modulesRoot}/${domain}/routes.tsx` : null
         // 域里根本没有 routes.tsx 是 S14 的活（「有 views 必须有 routes」），这里不重复报

@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
@@ -7,6 +7,8 @@ import type { Config, Preset, Thresholds } from './types.js'
 import { exists, mergePresets } from './util.js'
 
 export interface RawProjectConfig {
+  /** 配置格式版本；与本工具不匹配时显式报错 */
+  specVersion?: string
   presets?: Preset[]
   /** 项目差异只写这里；与预设合并后即最终配置 */
   overrides?: Partial<Config>
@@ -42,12 +44,50 @@ export function aliasesFromTsconfig(root: string): {
   const file = join(root, 'tsconfig.json')
   if (!exists(file)) return { aliases: {} }
   try {
-    const read = ts.readConfigFile(file, (path) => ts.sys.readFile(path))
-    if (read.error) return { aliases: {} }
-    const options = (
-      read.config as { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } }
-    ).compilerOptions
+    /**
+     * Vite 官方模板的根 tsconfig.json 只有 `references` + `files: []`，真正的 `paths` 在
+     * tsconfig.app.json 里。只读根配置会让所有 `@/` 导入解析不了 —— 依赖图随之全空，
+     * 图规则（S04–S09/S15/S18）在真实项目上会集体失明甚至误报「全是孤儿」。
+     * 所以这里顺着 references 往下找 paths（限深，避免环）。
+     */
+    const readOne = (
+      configPath: string,
+    ): { baseUrl?: string; paths?: Record<string, string[]> } | null => {
+      const read = ts.readConfigFile(configPath, (path) => ts.sys.readFile(path))
+      if (read.error) return null
+      return (
+        (
+          read.config as {
+            compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> }
+            references?: { path: string }[]
+          }
+        ).compilerOptions ?? null
+      )
+    }
+    const readRefs = (
+      configPath: string,
+      depth: number,
+    ): { baseUrl?: string; paths?: Record<string, string[]> } | null => {
+      if (depth > 3) return null
+      const read = ts.readConfigFile(configPath, (path) => ts.sys.readFile(path))
+      if (read.error) return null
+      const config = read.config as {
+        compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> }
+        references?: { path: string }[]
+      }
+      if (config.compilerOptions?.paths) return config.compilerOptions
+      for (const reference of config.references ?? []) {
+        const next = resolve(dirname(configPath), reference.path)
+        const found = readRefs(exists(next) ? next : `${next}.json`, depth + 1)
+        if (found) return found
+      }
+      return null
+    }
+    const options = readOne(file)?.paths
+      ? (readOne(file) ?? undefined)
+      : (readRefs(file, 0) ?? undefined)
     if (!options?.paths) return { aliases: {} }
+    const viaReferences = !readOne(file)?.paths
     const baseUrl = (options.baseUrl ?? '.').replace(/^\.\//, '').replace(/\/$/, '')
     const aliases: Record<string, string> = {}
     for (const [key, targets] of Object.entries(options.paths)) {
@@ -60,12 +100,17 @@ export function aliasesFromTsconfig(root: string): {
     }
     return {
       aliases,
-      notice: `别名取自 tsconfig.json 的 paths（${Object.keys(aliases).length} 条）`,
+      notice: viaReferences
+        ? `别名取自 tsconfig 的 references 链（根配置只有 references，${Object.keys(aliases).length} 条）`
+        : `别名取自 tsconfig.json 的 paths（${Object.keys(aliases).length} 条）`,
     }
   } catch {
     return { aliases: {} }
   }
 }
+
+/** 配置格式版本 */
+export const CONFIG_SPEC_VERSION = '1'
 
 export async function loadConfig(options: {
   root: string
@@ -84,6 +129,12 @@ export async function loadConfig(options: {
     presets?: Preset[]
   }
   const raw: RawProjectConfig = module.default ?? { presets: module.presets }
+  if (raw.specVersion !== undefined && raw.specVersion !== CONFIG_SPEC_VERSION) {
+    throw new Error(
+      `配置 specVersion 不支持：${raw.specVersion}（本工具是 ${CONFIG_SPEC_VERSION}）\n` +
+        '（版本不同意味着配置语义可能变了，不猜测、不降级）',
+    )
+  }
 
   const notices: string[] = []
   const preset = mergePresets(raw.presets ?? [])

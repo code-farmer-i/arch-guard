@@ -35,6 +35,8 @@ interface CliOptions {
   minLevel?: string
   severity?: string
   format: string
+  stats?: boolean
+  verifyDeps?: boolean
   updateBaseline?: boolean
   reportOnly?: boolean
   localOnly?: boolean
@@ -67,7 +69,9 @@ export function createProgram(): Command {
     .option('--only <ids>', '只跑指定规则（逗号分隔）')
     .option('--min-level <level>', '只跑判定等级不低于下限的规则：L1 | L2 | L3')
     .option('--severity <severity>', '只报告指定严重度：error | warn')
-    .option('--format <format>', '输出格式：pretty | json', 'pretty')
+    .option('--format <format>', '输出格式：pretty | json | github（CI 注解）', 'pretty')
+    .option('--stats', '打印每条规则的耗时与命中数（排查「为什么这么慢」）')
+    .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
     .option('--update-baseline', '把当前全部违规写入基线（只能在全量 scope 下）')
     .option('--report-only', '只报告，不因 error 退出非零')
     .option('--local-only', 'scope 非全量时允许跳过不可归属的全局违规')
@@ -159,16 +163,21 @@ export async function run(argv: string[]): Promise<number> {
     err(color.red(`✖ 未知严重度：${options.severity}（可用 error/warn）`))
     return 2
   }
-  if (options.format !== 'pretty' && options.format !== 'json') {
-    err(color.red(`✖ 未知输出格式：${options.format}（可用 pretty/json）`))
+  if (options.format !== 'pretty' && options.format !== 'json' && options.format !== 'github') {
+    err(color.red(`✖ 未知输出格式：${options.format}（可用 pretty/json/github）`))
     return 2
+  }
+
+  if (options.verifyDeps === true) {
+    return verifyDeps(options.config)
   }
 
   try {
     const result = await runGuard({
       cwd: process.cwd(),
       rules: reactRules,
-      format: options.format as 'pretty' | 'json',
+      format: options.format as 'pretty' | 'json' | 'github',
+      stats: options.stats === true,
       scope: options.scope,
       reportOnly: options.reportOnly === true,
       localOnly: options.localOnly === true,
@@ -183,6 +192,39 @@ export async function run(argv: string[]): Promise<number> {
     return result.exitCode
   } catch (error) {
     // fail closed：引擎异常永远非零
+    err(color.red(`✖ 引擎异常：${(error as Error).message}`))
+    return 2
+  }
+}
+
+/**
+ * `--verify-deps`：把适配表与实际依赖对账并打印全表。
+ * 与 P04 的分工：P04 是红线（错就拒），这条是排查工具（告诉你全貌）。
+ */
+async function verifyDeps(configPath: string | undefined): Promise<number> {
+  try {
+    const { loadConfig } = await import('./engine/config.js')
+    const { readProjectDeps } = await import('./engine/deps.js')
+    const { auditAdapterDeps, describePolicy } = await import('./engine/deps-audit.js')
+    const { depsPolicyFrom } = await import('./engine/deps.js')
+    const loaded = await loadConfig({ root: process.cwd(), ...(configPath ? { configPath } : {}) })
+    const deps = readProjectDeps(loaded.config.root, [])
+    const audit = auditAdapterDeps(loaded.config, deps)
+    out(color.bold('适配表 vs 实际依赖'))
+    if (audit.rows.length === 0) out('  （没有声明任何适配器）')
+    for (const row of audit.rows) {
+      out(`  ${row.facet.padEnd(10)} ${row.id}`)
+      for (const item of row.packages) {
+        out(`    ${item.declared ? color.green('✔') : color.red('✖')} ${item.name}`)
+      }
+    }
+    out(`  依赖策略：${describePolicy(depsPolicyFrom(loaded.config.params))}`)
+    if (audit.foreign.length > 0) {
+      out(color.red(`  装有适配表之外的组件库：${audit.foreign.join(', ')}`))
+    }
+    out(audit.ok ? color.green('✔ 对账通过') : color.red('✖ 对账失败：适配表与依赖不一致'))
+    return audit.ok ? 0 : 1
+  } catch (error) {
     err(color.red(`✖ 引擎异常：${(error as Error).message}`))
     return 2
   }
