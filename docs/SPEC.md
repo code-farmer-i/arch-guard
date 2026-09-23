@@ -1,11 +1,19 @@
-# 架构门禁 arch-guard 完整方案
+# arch-guard 设计文档
 
-> **本文是设计文档（从 superhive 仓库迁出）。** 在本仓库里，「本体」= 仓库根本身；
-> 文中 `tools/arch-guard/` 对应本仓库根，`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
-> 面向使用者的规约见 [PARADIGM.md](../PARADIGM.md)，快速上手见 [README.md](../README.md)。
+> **本文写「应该是什么、为什么」，不写「现在到哪了」。**
+> 进度、状态、Roadmap 属于 `README.md` 与 `CHANGELOG.md` —— 混进来就会 sediment：没人敢删、也没人读得完。
 
-Status: draft（待拍板）
-作用域：通用范式 + 通用引擎；superhive 是其第一个实例
+读者：维护本体的工程师。
+
+| 你要找什么                           | 去哪                                                            |
+| ------------------------------------ | --------------------------------------------------------------- |
+| 规范（判据 / 目录契约 / 适配器协议） | [`PARADIGM.md`](../PARADIGM.md)                                 |
+| 领域词汇                             | [`CONTEXT.md`](../CONTEXT.md)                                   |
+| 为什么这么设计                       | [`docs/adr/`](./adr/)                                           |
+| 现在实现到哪                         | [`README.md`](../README.md) + [`CHANGELOG.md`](../CHANGELOG.md) |
+| 某个特性的规格                       | `.scratch/<feature-slug>/spec.md`                               |
+
+文中 `tools/arch-guard/` 对应本仓库根；`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
 
 ## 0. 摘要
 
