@@ -36,7 +36,14 @@ export {
   type BaselineFile,
   type BaselineSplit,
 } from './engine/baseline.js'
-export { anchorOf } from './engine/util.js'
+export { anchorOf, globToRegExp, mergePresets, sha1 } from './engine/util.js'
+export {
+  summarize,
+  toJsonReport,
+  renderReport,
+  renderSummary,
+  severityOf,
+} from './engine/report.js'
 
 export { canonical, roleTable } from './presets/canonical.js'
 export { library, libraryRoleTable } from './presets/library.js'

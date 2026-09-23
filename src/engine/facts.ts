@@ -33,31 +33,39 @@ function scriptKindOf(file: string): ts.ScriptKind {
 }
 
 /** 注释：走 TS 的 comment range API，避免正则把字符串里的 // 当注释 */
-function collectComments(sf: ts.SourceFile, text: string): CommentFact[] {
+/**
+ * 注释采集：用 TS scanner 走**全部**注释 trivia。
+ *
+ * 不用 `getLeading/TrailingCommentRanges` 逐节点采集 —— 那会漏掉空块里的注释
+ * （`catch { /* 忽略 *\/ }`），而「空 catch 是否写明理由」（H05）正好依赖它。
+ * scanner 不认识 JSX 文本，所以 JSX 文本里出现 `//` 会被误当注释：这是已知边界。
+ */
+function collectComments(
+  sf: ts.SourceFile,
+  text: string,
+  variant: ts.LanguageVariant,
+): CommentFact[] {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, variant, text)
   const out: CommentFact[] = []
-  const seen = new Set<string>()
-  const push = (ranges: readonly ts.CommentRange[] | undefined, kind: string): void => {
-    for (const range of ranges ?? []) {
-      const key = `${range.pos}:${range.end}`
-      if (seen.has(key)) continue
-      seen.add(key)
+  let token = scanner.scan()
+  while (token !== ts.SyntaxKind.EndOfFileToken) {
+    if (
+      token === ts.SyntaxKind.SingleLineCommentTrivia ||
+      token === ts.SyntaxKind.MultiLineCommentTrivia
+    ) {
+      const pos = scanner.getTokenPos()
+      const end = scanner.getTextPos()
       out.push({
-        pos: range.pos,
-        end: range.end,
-        line: lineOf(sf, range.pos),
-        text: text.slice(range.pos, range.end),
-        kind,
+        pos,
+        end,
+        line: lineOf(sf, pos),
+        text: text.slice(pos, end),
+        kind: token === ts.SyntaxKind.SingleLineCommentTrivia ? 'line' : 'block',
       })
     }
+    token = scanner.scan()
   }
-  const visit = (node: ts.Node): void => {
-    push(ts.getLeadingCommentRanges(text, node.pos), 'leading')
-    push(ts.getTrailingCommentRanges(text, node.end), 'trailing')
-    ts.forEachChild(node, visit)
-  }
-  visit(sf)
-  push(ts.getLeadingCommentRanges(text, sf.endOfFileToken.pos), 'eof')
-  return out.sort((a, b) => a.line - b.line)
+  return out
 }
 
 function propNameOf(node: ts.Node): string | null {
@@ -102,15 +110,21 @@ export interface FactInput {
 
 export function extractFacts(input: FactInput): Facts {
   const { file, rel, role, text } = input
+  const scriptKind = scriptKindOf(file)
   const sf = ts.createSourceFile(
     file,
     text,
     ts.ScriptTarget.Latest,
     /* setParentNodes */ true,
-    scriptKindOf(file),
+    scriptKind,
   ) as SourceFileWithDiagnostics
 
-  const positioned = collectComments(sf, text)
+  // scanner 需要 LanguageVariant 而不是 ScriptKind（JSX 变体才能正确扫描 JSX）
+  const variant =
+    scriptKind === ts.ScriptKind.TSX || scriptKind === ts.ScriptKind.JSX
+      ? ts.LanguageVariant.JSX
+      : ts.LanguageVariant.Standard
+  const positioned = collectComments(sf, text, variant)
   const facts: Facts = {
     file,
     rel,
@@ -276,8 +290,8 @@ export function extractFacts(input: FactInput): Facts {
 
     /* ---- 调用 / debugger ---- */
     if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
-      const callee = node.expression.getText(sf)
-      if (callee.includes('.')) facts.calls.push({ callee, line: lineOf(sf, node.getStart(sf)) })
+      // 记录**所有**调用：裸调用（alert/confirm/prompt）也要能被 H03 看见
+      facts.calls.push({ callee: node.expression.getText(sf), line: lineOf(sf, node.getStart(sf)) })
     }
     if (node.kind === ts.SyntaxKind.DebuggerStatement) {
       facts.calls.push({ callee: 'debugger', line: lineOf(sf, node.getStart(sf)) })

@@ -61,6 +61,37 @@ test('报告过滤：--severity=warn 在没有 warn 规则时不报 error', asyn
   assert.deepEqual(result.active, [])
 })
 
+test('契约：每条已实现规则都有「违规必报」夹具', async () => {
+  const implemented = [
+    'S00',
+    'S01',
+    'S02',
+    'S10',
+    'S11',
+    'S12',
+    'S13',
+    'S14',
+    'S16',
+    'P01',
+    'P02',
+    'P03',
+    'P06',
+    'P08',
+    'H01',
+    'H02',
+    'H03',
+    'H04',
+    'H05',
+  ]
+  const covered = new Set()
+  for (const fixture of ['rules', 'violations', 'parse-error', 'deps', 'datetime']) {
+    const result = await run(fixture)
+    for (const finding of result.all) covered.add(finding.rule)
+  }
+  const missing = implemented.filter((rule) => !covered.has(rule))
+  assert.deepEqual(missing, [], `这些规则还没有夹具：${missing.join(', ')}`)
+})
+
 test('棘轮：豁免按行文本锁定，改掉那一行豁免即失效', () => {
   const findings = [{ rule: 'H03', file: 'a.ts', line: 1, text: 'console' }]
   const baseline = {

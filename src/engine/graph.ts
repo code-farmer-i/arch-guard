@@ -22,8 +22,21 @@ function packageNameOf(spec: string): string {
   return spec.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? spec)
 }
 
+/** TS 的 nodenext 写法：`./b.js` 指向的是 `b.ts`；不映射就会让依赖图对这类项目变成空的 */
+const JS_TO_TS: Record<string, string[]> = {
+  '.js': ['.ts', '.tsx'],
+  '.jsx': ['.tsx'],
+  '.mjs': ['.mts'],
+  '.cjs': ['.cts'],
+}
+
 function candidatesFor(target: string): string[] {
-  if (RESOLVE_EXTENSIONS.some((ext) => target.endsWith(ext))) return [target]
+  const known = RESOLVE_EXTENSIONS.find((ext) => target.endsWith(ext))
+  if (known) {
+    const out = [target]
+    for (const twin of JS_TO_TS[known] ?? []) out.push(`${target.slice(0, -known.length)}${twin}`)
+    return out
+  }
   const out: string[] = []
   for (const ext of RESOLVE_EXTENSIONS) out.push(`${target}${ext}`)
   for (const ext of RESOLVE_EXTENSIONS) out.push(posix.join(target, `index${ext}`))

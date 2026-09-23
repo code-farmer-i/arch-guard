@@ -1,0 +1,49 @@
+{
+  "findings": [
+    {
+      "rule": "H01",
+      "file": "src/shared/lib/hygiene.ts"
+    },
+    {
+      "rule": "H02",
+      "file": "src/shared/lib/hygiene.ts"
+    },
+    {
+      "rule": "H03",
+      "file": "src/shared/lib/hygiene.ts"
+    },
+    {
+      "rule": "H04",
+      "file": "src/shared/lib/hygiene.ts"
+    },
+    {
+      "rule": "H05",
+      "file": "src/shared/lib/hygiene.ts"
+    },
+    {
+      "rule": "S02",
+      "file": "src/modules/demo/views/nested/DeepPage.tsx"
+    },
+    {
+      "rule": "S12",
+      "file": "src/modules/demo/hooks/badName.ts"
+    },
+    {
+      "rule": "S13",
+      "file": "src/modules/demo/hooks/badName.ts"
+    },
+    {
+      "rule": "S13",
+      "file": "src/modules/demo/model/thing.ts"
+    },
+    {
+      "rule": "S16",
+      "file": "src/modules/demo/views/WidgetPage.tsx"
+    },
+    {
+      "rule": "S16",
+      "file": "src/shared/lib/big.ts"
+    }
+  ],
+  "exact": true
+}
