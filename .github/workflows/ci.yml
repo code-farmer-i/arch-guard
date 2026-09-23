@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22.18.0', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm build
+      - run: pnpm test
+      # 夹具回归：每条规则「违规必报 × 合规不报」
+      - run: pnpm self-test
+      # 本体自包含：P1 依赖白名单 / P2 无宿主字面量 / P3 引擎无布局假设
+      - run: pnpm self-check-portability
+      # 拿示例工程当宿主跑一遍，证明可搬运且零误报
+      - run: pnpm guard:sample

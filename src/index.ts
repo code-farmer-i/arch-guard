@@ -37,3 +37,8 @@ export { uiKit, antdKit, noneKit } from './presets/index.js'
 
 export { reactPack, reactRules } from './packs/react/index.js'
 export { kitFingerprints, fingerprintsOf } from './data/kit-fingerprints.js'
+export {
+  wheelFingerprints,
+  capabilityOf,
+  type WheelFingerprint,
+} from './data/wheel-fingerprints.js'
