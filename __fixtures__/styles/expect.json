@@ -1,19 +1,11 @@
 {
   "findings": [
     {
-      "rule": "D15",
-      "file": "src/shared/components/ui/Bad.tsx"
-    },
-    {
       "rule": "D16",
       "file": "src/shared/components/ui/globals.css"
     },
     {
       "rule": "D17",
-      "file": "src/shared/components/ui/Bad.module.css"
-    },
-    {
-      "rule": "D18",
       "file": "src/shared/components/ui/Bad.module.css"
     }
   ]

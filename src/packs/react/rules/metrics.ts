@@ -1,0 +1,307 @@
+import { existsSync, readFileSync } from 'node:fs'
+
+import { aggregate, type CoverageReport } from '../../../engine/coverage.js'
+import type { Finding, Rule } from '../../../engine/types.js'
+import { globToRegExp } from '../../../engine/util.js'
+
+/**
+ * 度量域（M）：只读数字产物 + 阈值。
+ *
+ * 一条纪律：**门禁不跑测试、不构建**（零副作用）。产物由宿主的 check 链路先跑出来：
+ * `pnpm test && pnpm coverage && arch-guard`。
+ *
+ * 与生态的分工：总覆盖率阈值 vitest / c8 / jest 自带，所以这里没有「总阈值」规则 ——
+ * 用 `perDirMin: { 'src/**': 95 }` 表达同样的事。我们做的是：目录级下限、零覆盖文件、
+ * 棘轮、变更文件必须被覆盖、产物缺失/过期 fail-closed、依赖预算。
+ */
+
+interface PerDirMinEntry {
+  lines?: number
+  branches?: number
+  functions?: number
+}
+
+interface CoverageConfig {
+  report?: string
+  perDirMin?: Record<string, number | PerDirMinEntry>
+  zeroAllow?: { file: string; reason: string }[]
+  ratchet?: boolean
+  baselineFile?: string
+  mustCover?: string[]
+  pathRewrite?: [string, string][]
+}
+
+interface MetricsConfig {
+  coverage?: CoverageConfig
+  depsBudget?: { runtime?: number; dev?: number }
+}
+
+const finding = (
+  rule: string,
+  file: string,
+  line: number,
+  text: string,
+  hint?: string,
+): Finding => ({
+  rule,
+  file,
+  line,
+  text,
+  ...(hint ? { hint } : {}),
+  global: true,
+})
+
+/** 度量配置来自 metrics 适配器（数据，不是 params） */
+const metricsOf = (ctx: { config: { adapters: Record<string, unknown> } }): MetricsConfig =>
+  (ctx.config.adapters.metrics ?? {}) as MetricsConfig
+
+const coverageOf = (ctx: { config: { adapters: Record<string, unknown> } }): CoverageConfig =>
+  metricsOf(ctx).coverage ?? {}
+
+/* ---------------- M06 产物存在且新鲜（fail closed） ---------------- */
+
+export const coverageArtifact: Rule = {
+  id: 'M06',
+  domain: 'metrics',
+  level: 'L1',
+  severity: 'error',
+  title: '覆盖率产物必须存在且新鲜',
+  hint: '先跑覆盖率再跑门禁（check 链路里 test → coverage → guard）；报告比最近一次提交还旧说明没重跑',
+  requires: ['metrics.coverage'],
+  run: (ctx) => {
+    const coverage = coverageOf(ctx)
+    if (!coverage.report) return []
+    const metrics = ctx.metrics
+    if (!metrics) return []
+    if (metrics.error) {
+      return [
+        finding(
+          'M06',
+          metrics.reportPath,
+          1,
+          `覆盖率产物读不到：${metrics.error}`,
+          'missing → 先跑覆盖率；不可解析 → 检查是不是覆盖工具换了格式',
+        ),
+      ]
+    }
+    const report = metrics.report
+    if (!report) return []
+    const headTime = ctx.git?.headTimeMs
+    if (typeof headTime === 'number' && report.mtimeMs < headTime) {
+      return [
+        finding(
+          'M06',
+          metrics.reportPath,
+          1,
+          `覆盖率产物比最近一次提交（${new Date(headTime).toISOString()}）还旧`,
+          '每次提交前重跑覆盖率，否则数字是过期的',
+        ),
+      ]
+    }
+    return []
+  },
+}
+
+/* ---------------- M02 目录级下限 ---------------- */
+
+export const coveragePerDir: Rule = {
+  id: 'M02',
+  domain: 'metrics',
+  level: 'L2',
+  severity: 'error',
+  title: '目录级覆盖率下限',
+  hint: '总覆盖率高不代表关键目录达标；优先给 engine / shared 这类核心层设下限',
+  requires: ['metrics.coverage'],
+  run: (ctx) => {
+    const limits = coverageOf(ctx).perDirMin ?? {}
+    const report = ctx.metrics?.report
+    if (!report || Object.keys(limits).length === 0) return []
+    const out: Finding[] = []
+    for (const [pattern, limit] of Object.entries(limits)) {
+      const matcher = globToRegExp(pattern)
+      const stats = aggregate(report, (rel) => matcher.test(rel))
+      if (!stats) {
+        out.push(finding('M02', report.path, 1, `没有文件匹配 ${pattern}（配置写错？）`))
+        continue
+      }
+      const expected: PerDirMinEntry = typeof limit === 'number' ? { lines: limit } : limit
+      for (const metric of ['lines', 'branches', 'functions'] as const) {
+        const min = expected[metric]
+        if (min === undefined) continue
+        const actual = stats[metric]
+        if (actual + 1e-9 < min) {
+          out.push(
+            finding(
+              'M02',
+              report.path,
+              1,
+              `${pattern} 的${metric === 'lines' ? '行' : metric === 'branches' ? '分支' : '函数'}覆盖 ${actual.toFixed(2)}% < ${min}%（${stats.files} 个文件）`,
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- M03 零覆盖文件 ---------------- */
+
+export const zeroCoveredFiles: Rule = {
+  id: 'M03',
+  domain: 'metrics',
+  level: 'L2',
+  severity: 'error',
+  title: '零覆盖文件',
+  hint: '被加载但一行都没跑到的文件＝没测；要么补测，要么进白名单并写清理由',
+  requires: ['metrics.coverage'],
+  run: (ctx) => {
+    const report = ctx.metrics?.report
+    if (!report) return []
+    const allowed = new Set((coverageOf(ctx).zeroAllow ?? []).map((item) => item.file))
+    return report.files
+      .filter((file) => file.lines <= 0 && !allowed.has(file.rel))
+      .map((file) =>
+        finding(
+          'M03',
+          file.rel,
+          1,
+          `覆盖率 0%：${file.rel}`,
+          '补测试，或在 coverageZeroAllow 里写清理由',
+        ),
+      )
+  },
+}
+
+/* ---------------- M04 覆盖率棘轮 ---------------- */
+
+interface CoverageSnapshot {
+  specVersion?: string
+  files?: number
+  lines?: number
+  branches?: number
+  functions?: number
+}
+
+const totalsOf = (
+  report: CoverageReport,
+): { lines: number; branches: number; functions: number } => {
+  const stats = aggregate(report, () => true)
+  return {
+    lines: stats?.lines ?? 0,
+    branches: stats?.branches ?? 0,
+    functions: stats?.functions ?? 0,
+  }
+}
+
+export const coverageRatchet: Rule = {
+  id: 'M04',
+  domain: 'metrics',
+  level: 'L2',
+  severity: 'error',
+  title: '覆盖率不许倒退',
+  hint: '棘轮只往上走；确要下调请显式改基线文件（改了就留痕）',
+  requires: ['metrics.coverage'],
+  run: (ctx) => {
+    const coverage = coverageOf(ctx)
+    if (coverage.ratchet !== true) return []
+    const report = ctx.metrics?.report
+    if (!report) return []
+    const rel = coverage.baselineFile ?? 'arch.coverage.json'
+    const path = `${ctx.config.root}/${rel}`
+    if (!existsSync(path)) return []
+    let snapshot: CoverageSnapshot
+    try {
+      snapshot = JSON.parse(readFileSync(path, 'utf8')) as CoverageSnapshot
+    } catch {
+      return [
+        finding('M04', path, 1, '覆盖率棘轮快照无法解析', '删掉它并用 --update-baseline 重新生成'),
+      ]
+    }
+    const current = totalsOf(report)
+    const out: Finding[] = []
+    for (const metric of ['lines', 'branches', 'functions'] as const) {
+      const previous = snapshot[metric]
+      if (typeof previous !== 'number') continue
+      if (current[metric] + 1e-9 < previous) {
+        out.push(
+          finding(
+            'M04',
+            rel,
+            1,
+            `${metric} 覆盖从 ${previous.toFixed(2)}% 掉到 ${current[metric].toFixed(2)}%`,
+            '把丢掉的测试补回来，或显式下调基线',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- M05 变更文件必须被覆盖 ---------------- */
+
+export const changedFilesCovered: Rule = {
+  id: 'M05',
+  domain: 'metrics',
+  level: 'L3',
+  severity: 'error',
+  title: '本次改动的文件必须被覆盖',
+  hint: '新增/修改的源码没有测试加载过，说明这次改动没有验证；补测试或明确豁免',
+  requires: ['metrics.coverage'],
+  run: (ctx) => {
+    const report = ctx.metrics?.report
+    const changed = ctx.git?.changedFiles
+    if (!report || !changed || changed.length === 0) return []
+    const globs = (coverageOf(ctx).mustCover ?? ['src/**']).map(globToRegExp)
+    const covered = new Set(report.files.filter((file) => file.lines > 0).map((file) => file.rel))
+    // 变更集相对配置根；报告里的路径可能指向构建产物，两边都做一次归一
+    return changed
+      .filter((rel) => globs.some((matcher) => matcher.test(rel)))
+      .filter((rel) => !covered.has(rel))
+      .map((rel) => finding('M05', rel, 1, `本次改动的 ${rel} 没有被任何测试覆盖`))
+  },
+}
+
+/* ---------------- M07 依赖预算 ---------------- */
+
+export const depsBudget: Rule = {
+  id: 'M07',
+  domain: 'metrics',
+  level: 'L1',
+  severity: 'error',
+  title: '依赖数量预算',
+  hint: '依赖是长期负债：超过预算要么合并能力，要么把预算显式调大并说明理由',
+  run: (ctx) => {
+    const budget = metricsOf(ctx).depsBudget
+    if (!budget) return []
+    const deps = ctx.deps
+    if (!deps.hasManifest) return []
+    const out: Finding[] = []
+    if (typeof budget.runtime === 'number' && deps.runtime.length > budget.runtime) {
+      out.push(
+        finding(
+          'M07',
+          'package.json',
+          1,
+          `运行时依赖 ${deps.runtime.length} 个，超过预算 ${budget.runtime}`,
+        ),
+      )
+    }
+    if (typeof budget.dev === 'number' && deps.dev.length > budget.dev) {
+      out.push(
+        finding('M07', 'package.json', 1, `开发依赖 ${deps.dev.length} 个，超过预算 ${budget.dev}`),
+      )
+    }
+    return out
+  },
+}
+
+export const metricsRules: Rule[] = [
+  coverageArtifact,
+  coveragePerDir,
+  zeroCoveredFiles,
+  coverageRatchet,
+  changedFilesCovered,
+  depsBudget,
+]

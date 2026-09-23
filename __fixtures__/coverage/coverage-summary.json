@@ -1,0 +1,58 @@
+{
+  "total": {
+    "lines": {
+      "pct": 46.7
+    },
+    "branches": {
+      "pct": 50
+    },
+    "functions": {
+      "pct": 50
+    },
+    "statements": {
+      "pct": 46.7
+    }
+  },
+  "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/src/shared/lib/good.ts": {
+    "lines": {
+      "pct": 100
+    },
+    "branches": {
+      "pct": 90
+    },
+    "functions": {
+      "pct": 100
+    },
+    "statements": {
+      "pct": 100
+    }
+  },
+  "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/src/shared/lib/bad.ts": {
+    "lines": {
+      "pct": 40
+    },
+    "branches": {
+      "pct": 50
+    },
+    "functions": {
+      "pct": 50
+    },
+    "statements": {
+      "pct": 40
+    }
+  },
+  "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/src/shared/lib/zero.ts": {
+    "lines": {
+      "pct": 0
+    },
+    "branches": {
+      "pct": 0
+    },
+    "functions": {
+      "pct": 0
+    },
+    "statements": {
+      "pct": 0
+    }
+  }
+}

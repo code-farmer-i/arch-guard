@@ -217,7 +217,7 @@ export interface Config {
 
 export type Level = 'L1' | 'L2' | 'L3' | 'L4'
 export type Severity = 'error' | 'warn'
-export type Domain = 'structure' | 'design' | 'copy' | 'deps' | 'hygiene'
+export type Domain = 'structure' | 'design' | 'copy' | 'deps' | 'hygiene' | 'metrics'
 
 export interface Finding {
   rule: string
@@ -244,6 +244,14 @@ export interface RuleContext {
   policy: import('./deps.js').DepsPolicy
   /** i18n 资源索引（文案域规则用；未配置资源目录时为空） */
   i18n?: import('./i18n.js').I18nIndex
+  /** 度量产物（M 域规则用）：报告本体或读取失败的原因 */
+  metrics?: {
+    reportPath: string
+    report: import('./coverage.js').CoverageReport | null
+    error?: string
+  }
+  /** git 事实（M05 变更必须被覆盖用；无 git 时为 undefined） */
+  git?: { changedFiles: string[] | null; headTimeMs: number | null }
   files: string[]
   /** 按 rel 读原始文本（规则需要行文本算锚点时用） */
   sourceOf: (rel: string) => string | undefined

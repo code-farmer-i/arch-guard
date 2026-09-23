@@ -1,10 +1,6 @@
 {
   "findings": [
     {
-      "rule": "H02",
-      "file": "src/shared/lib/hygiene.ts"
-    },
-    {
       "rule": "S02",
       "file": "src/modules/demo/views/nested/deeper/DeepPage.tsx"
     },

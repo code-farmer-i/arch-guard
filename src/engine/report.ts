@@ -28,6 +28,7 @@ const DOMAIN_LABEL: Record<Domain, string> = {
   copy: '文案',
   deps: '依赖',
   hygiene: '反退化',
+  metrics: '度量',
 }
 
 export function severityOf(finding: Finding, ruleIndex: Map<string, Rule>): Severity {

@@ -57,12 +57,14 @@ const FACET_FIELDS: Record<string, string[]> = {
     'format',
     'examples',
   ],
+  metrics: ['facet', 'id', 'specVersion', 'coverage', 'depsBudget', 'examples'],
 }
 
 export const FACETS = Object.keys(FACET_FIELDS)
 
 /** 能力根名 → 适配器面（capability 用 `uiKit.vendorSelectors` 这种路径表达） */
 export const CAPABILITY_ROOTS: Record<string, string> = {
+  metrics: 'metrics',
   uiKit: 'ui-kit',
   dataLayer: 'data-layer',
   router: 'router',

@@ -28,6 +28,8 @@ test('夹具覆盖了全部已实现规则（防「加了规则没加夹具」�
     try {
       const expect = JSON.parse(readFileSync(join(root, name, 'expect.json'), 'utf8'))
       for (const finding of expect.findings ?? []) covered.add(finding.rule)
+      // 有些规则只能在带 git / 缺失产物这类条件下触发，由单测覆盖（夹具里显式声明，别悄悄漏）
+      for (const id of expect.unitOnly ?? []) covered.add(id)
     } catch {
       /* 没有 expect.json 的夹具目录跳过 */
     }

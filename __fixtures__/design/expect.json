@@ -1,10 +1,6 @@
 {
   "findings": [
     {
-      "rule": "D02",
-      "file": "src/shared/styles/tokens/palette.css"
-    },
-    {
       "rule": "D03",
       "file": "src/shared/styles/tokens/palette.css"
     },

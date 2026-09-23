@@ -3,26 +3,6 @@ import type { Finding, Rule } from '../../../engine/types.js'
 
 import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-shared.js'
 
-/* ---------------- D02 色板只放色板令牌 ---------------- */
-
-export const paletteOnlyTokens: Rule = {
-  id: 'D02',
-  domain: 'design',
-  level: 'L2',
-  severity: 'error',
-  title: '色板文件只放色板令牌',
-  hint: 'palette.css 只许 --sh-static-*；语义令牌放 theme.css',
-  run: (ctx) => {
-    const params = designParams(ctx)
-    const file = cssFiles(ctx).find((item) => item.rel === params.paletteFile)
-    if (!file) return []
-    const expected = `${params.tokenPrefix}-static-`
-    return file.vars
-      .filter((item) => !item.name.startsWith(expected))
-      .map((item) => finding('D02', file.rel, item.line, `色板文件里出现非色板令牌：${item.name}`))
-  },
-}
-
 /* ---------------- D03 色值唯一 ---------------- */
 
 export const paletteColorUnique: Rule = {
@@ -217,7 +197,6 @@ export const themeTwinBlocks: Rule = {
 
 export const designTokenRules: Rule[] = [
   // 颜色字面量委派给 stylelint（color-no-hex + overrides 给色板开口）
-  paletteOnlyTokens,
   paletteColorUnique,
   tokenRefsClosed,
   noDeadTokens,

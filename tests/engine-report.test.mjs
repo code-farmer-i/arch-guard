@@ -82,7 +82,7 @@ test('report：按域分组、带修法、标注全局违规', () => {
             hint: '放到槽位里',
             global: true,
           },
-          { rule: 'H02', file: 'src/b.ts', line: 2, text: '禁用注释' },
+          { rule: 'H06', file: 'src/b.ts', line: 2, text: '脱离上下文的全局 API' },
         ],
       }),
     ),
@@ -92,14 +92,14 @@ test('report：按域分组、带修法、标注全局违规', () => {
   assert.match(text, /\[S01\]/)
   assert.match(text, /→ 放到槽位里/)
   assert.match(text, /（全局）/)
-  assert.match(text, /\[H02\]/)
+  assert.match(text, /\[H06\]/)
 })
 
 test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线', () => {
   const text = capture(() =>
     renderSummary(
       baseInput({
-        findings: [{ rule: 'H02', file: 'a.ts', line: 1, text: 'x' }],
+        findings: [{ rule: 'H06', file: 'a.ts', line: 1, text: 'x' }],
         scope: 'staged',
         scopeFiles: 3,
         globalFindings: 1,

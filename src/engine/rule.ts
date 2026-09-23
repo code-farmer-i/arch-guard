@@ -31,6 +31,7 @@ const DOMAIN_LETTER: Record<Domain, string> = {
   copy: 'C',
   deps: 'P',
   hygiene: 'H',
+  metrics: 'M',
 }
 
 export function createRule(definition: RuleDefinition): Rule {

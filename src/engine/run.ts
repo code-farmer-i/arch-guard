@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { realpathSync, writeFileSync } from 'node:fs'
+import { aggregate, readCoverageReport, type CoverageReport } from './coverage.js'
 import { join, relative } from 'node:path'
 
 import { applyBaseline, entriesFromFindings, loadBaseline, saveBaseline } from './baseline.js'
@@ -41,6 +42,8 @@ export interface RunOptions {
   format?: 'pretty' | 'json' | 'github'
   /** 打印每条规则的耗时与命中（排查「为什么这么慢」） */
   stats?: boolean
+  /** 覆盖率产物路径（覆盖 metrics 适配器里的配置；门禁只读它，不跑测试） */
+  coverageReport?: string
   rules: Rule[]
   quiet?: boolean
 }
@@ -62,6 +65,33 @@ export interface RunResult {
   scopeFiles: string[]
   durationMs: number
   stats: RuleStat[]
+}
+
+/** 覆盖率总览（棘轮快照写的就是这三个数） */
+function coverageTotals(report: CoverageReport): {
+  lines: number
+  branches: number
+  functions: number
+} {
+  const stats = aggregate(report, () => true)
+  return {
+    lines: stats?.lines ?? 0,
+    branches: stats?.branches ?? 0,
+    functions: stats?.functions ?? 0,
+  }
+}
+
+/** 最近一次提交的时间（M06 用来判「覆盖率产物是不是过期的」）；没有 git 或没有提交时返回 null */
+function gitHeadTimeMs(root: string): number | null {
+  try {
+    const seconds = execFileSync('git', ['-C', root, 'log', '-1', '--format=%ct'], {
+      encoding: 'utf8',
+    }).trim()
+    const value = Number.parseInt(seconds, 10)
+    return Number.isFinite(value) ? value * 1000 : null
+  } catch {
+    return null
+  }
 }
 
 /** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
@@ -167,11 +197,44 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     ),
   })
 
+  /* ---- scope 提前算：M05（变更文件必须被覆盖）要用同一份变更集，后面报告过滤复用 ---- */
+  const scope = options.scope ?? 'full'
+  const changed = scope === 'full' ? null : gitChangedFiles(config.root, scope)
+
+  /* ---- 度量产物：门禁只读，不跑测试；读不到就交给 M06 fail-closed ---- */
+  const metricsAdapter = config.adapters.metrics as
+    | {
+        coverage?: {
+          report?: string
+          ratchet?: boolean
+          baselineFile?: string
+          pathRewrite?: [string, string][]
+        }
+      }
+    | undefined
+  const reportPath = options.coverageReport ?? metricsAdapter?.coverage?.report
+  let metricsInfo: RuleContext['metrics']
+  if (reportPath) {
+    const abs = join(config.root, reportPath)
+    try {
+      const report = readCoverageReport(abs, config.root)
+      for (const [pattern, replacement] of metricsAdapter?.coverage?.pathRewrite ?? []) {
+        const matcher = new RegExp(pattern)
+        for (const file of report.files) file.rel = file.rel.replace(matcher, replacement)
+      }
+      metricsInfo = { reportPath, report }
+    } catch (error) {
+      metricsInfo = { reportPath, report: null, error: (error as Error).message }
+    }
+  }
+
   const ctx: RuleContext = {
     config,
     records: scan.records,
     facts,
     i18n,
+    ...(metricsInfo ? { metrics: metricsInfo } : {}),
+    git: { changedFiles: changed?.files ?? null, headTimeMs: gitHeadTimeMs(config.root) },
     graph,
     scan,
     deps,
@@ -223,6 +286,19 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     const entries = entriesFromFindings(all, sourceOf)
     saveBaseline(baselinePath, entries)
     notices.push(`已写入基线 ${config.baselineFile}：${entries.length} 条`)
+    // 覆盖率棘轮的快照一并写下（同一个命令，避免两处手动维护）
+    const coverage = metricsAdapter?.coverage
+    if (coverage?.ratchet === true && metricsInfo?.report) {
+      const totals = coverageTotals(metricsInfo.report)
+      writeFileSync(
+        join(config.root, coverage.baselineFile ?? 'arch.coverage.json'),
+        `${JSON.stringify({ specVersion: '1', files: metricsInfo.report.files.length, ...totals }, null, 2)}\n`,
+        'utf8',
+      )
+      notices.push(
+        `已写入覆盖率快照：行 ${totals.lines.toFixed(2)}% / 分支 ${totals.branches.toFixed(2)}%`,
+      )
+    }
     active = []
   } else {
     const baseline = loadBaseline(baselinePath)
@@ -234,10 +310,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   }
 
   /* ---- scope 过滤：只过滤报告，不过滤正确性 ---- */
-  const scope = options.scope ?? 'full'
   let scopeFiles: string[] = []
   if (scope !== 'full') {
-    const changed = gitChangedFiles(config.root, scope)
     if (changed === null) {
       notices.push(`scope=${scope} 无法取得 git 变更集（无 git 或无提交），已降级为全量`)
     } else {

@@ -1,70 +1,11 @@
 import { parseCss } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
-import { cssFiles, designParams, finding } from './design-shared.js'
+import { designParams, finding } from './design-shared.js'
 
 /**
  * 设计系统域·样式纪律（D12–D18）：魔法数字三族、内联样式、样式落点、CSS Module 契约、语义令牌。
  */
-
-const COLOR_PROPS = new Set([
-  'color',
-  'background',
-  'backgroundColor',
-  'borderColor',
-  'borderTopColor',
-  'borderBottomColor',
-  'fill',
-  'stroke',
-  'boxShadow',
-  'outlineColor',
-])
-/* ---------------- D15 内联样式纪律 ---------------- */
-
-export const inlineStyleDiscipline: Rule = {
-  id: 'D15',
-  domain: 'design',
-  level: 'L2',
-  severity: 'error',
-  title: '内联样式纪律',
-  hint: '颜色与尺寸别写在 JSX 里：主题切换与刻度都会绕不过去',
-  run: (ctx) => {
-    const out: Finding[] = []
-    for (const record of ctx.records) {
-      if (record.kind !== 'ts') continue
-      const facts = ctx.facts.get(record.rel)
-      if (!facts) continue
-      for (const style of facts.inlineStyles) {
-        if (COLOR_PROPS.has(style.prop)) {
-          out.push(
-            finding(
-              'D15',
-              record.rel,
-              style.line,
-              `内联样式写了颜色：${style.prop}: ${style.value.slice(0, 24)}`,
-            ),
-          )
-          continue
-        }
-        // 裸数字（React 里数字即 px）与带单位的字符串都算
-        if (
-          /^-?\d+(\.\d+)?$/.test(style.value.trim()) ||
-          /^-?\d+(\.\d+)?(px|rem|em)$/.test(style.value.trim())
-        ) {
-          out.push(
-            finding(
-              'D15',
-              record.rel,
-              style.line,
-              `内联样式写了裸尺寸：${style.prop}: ${style.value}`,
-            ),
-          )
-        }
-      }
-    }
-    return out
-  },
-}
 
 /* ---------------- D16 自研样式只在 *.module.css ---------------- */
 
@@ -146,34 +87,8 @@ export const cssModuleContract: Rule = {
   },
 }
 
-/* ---------------- D18 组件样式只消费语义令牌 ---------------- */
-
-export const semanticTokensOnly: Rule = {
-  id: 'D18',
-  domain: 'design',
-  level: 'L2',
-  severity: 'error',
-  title: '组件样式只消费语义令牌',
-  hint: '组件里引色板令牌（--sh-static-*）会绕过明暗两套语义层；要用语义令牌（--sh-alias-*）',
-  run: (ctx) => {
-    const params = designParams(ctx)
-    const staticPrefix = `${params.tokenPrefix}-static-`
-    const out: Finding[] = []
-    for (const file of cssFiles(ctx)) {
-      if (!file.rel.endsWith('.module.css')) continue
-      for (const ref of file.varRefs) {
-        if (!ref.name.startsWith(staticPrefix)) continue
-        out.push(finding('D18', file.rel, ref.line, `组件样式直接引色板令牌：${ref.name}`))
-      }
-    }
-    return out
-  },
-}
-
 export const designStyleRules: Rule[] = [
   // 魔法数字三族委派给 stylelint declaration-property-value-allowed-list
-  inlineStyleDiscipline,
   stylesInModules,
   cssModuleContract,
-  semanticTokensOnly,
 ]

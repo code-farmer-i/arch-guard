@@ -8,7 +8,7 @@ import { contextHygieneRules } from './rules/hygiene-context.js'
 import { designStyleRules } from './rules/design-styles.js'
 import { designTokenRules } from './rules/design-tokens.js'
 import { designVendorRules } from './rules/design-vendor.js'
-import { hygieneRules } from './rules/hygiene.js'
+import { metricsRules } from './rules/metrics.js'
 import { structureGraphRules } from './rules/structure-graph.js'
 import { structureRules } from './rules/structure.js'
 
@@ -25,7 +25,7 @@ export const reactRules: Rule[] = [
   ...copyRules,
   ...depsRules,
   ...adapterRules,
-  ...hygieneRules,
+  ...metricsRules,
   ...contextHygieneRules,
 ]
 

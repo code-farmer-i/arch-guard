@@ -1,0 +1,8 @@
+{
+  "name": "coverage-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "lodash": "^4.0.0"
+  }
+}

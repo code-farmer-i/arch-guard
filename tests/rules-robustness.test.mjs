@@ -70,7 +70,7 @@ test('规则契约：id 唯一、都有 title/hint、error 级必须在 L1–L3'
     seen.add(rule.id)
     assert.ok(rule.title.length > 0, `${rule.id} 缺 title`)
     assert.ok(rule.hint.length > 0, `${rule.id} 缺 hint（要告诉人怎么改）`)
-    assert.ok(['S', 'D', 'C', 'P', 'H'].includes(rule.id[0]), `${rule.id} 的域前缀不合法`)
+    assert.ok(['S', 'D', 'C', 'P', 'H', 'M'].includes(rule.id[0]), `${rule.id} 的域前缀不合法`)
     if (rule.severity === 'error') {
       assert.ok(['L1', 'L2', 'L3'].includes(rule.level), `${rule.id} 是 error 却落在 ${rule.level}`)
     }

@@ -15,11 +15,13 @@ import { reactRules } from './packs/react/index.js'
 const LEVELS: Level[] = ['L1', 'L2', 'L3', 'L4']
 const DOMAINS: Record<string, Domain> = {
   S: 'structure',
+  M: 'metrics',
   D: 'design',
   C: 'copy',
   P: 'deps',
   H: 'hygiene',
   structure: 'structure',
+  metrics: 'metrics',
   design: 'design',
   copy: 'copy',
   deps: 'deps',
@@ -37,6 +39,7 @@ interface CliOptions {
   format: string
   stats?: boolean
   verifyDeps?: boolean
+  coverageReport?: string
   updateBaseline?: boolean
   reportOnly?: boolean
   localOnly?: boolean
@@ -63,13 +66,14 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--config <path>', '配置文件路径', 'arch.config.mjs')
     .option('--scope <mode>', '检测范围：full | changed | staged | since:<ref>', 'full')
     .option('--paths <globs>', '只报告匹配路径（逗号分隔）')
-    .option('--domain <letters>', '只跑指定域：S,D,C,P,H（结构/设计/文案/依赖/退化）')
+    .option('--domain <letters>', '只跑指定域：S,D,C,P,H,M（结构/设计/文案/依赖/退化/度量）')
     .option('--only <ids>', '只跑指定规则（逗号分隔）')
     .option('--min-level <level>', '只跑判定等级不低于下限的规则：L1 | L2 | L3')
     .option('--severity <severity>', '只报告指定严重度：error | warn')
     .option('--format <format>', '输出格式：pretty | json | github（CI 注解）', 'pretty')
     .option('--stats', '打印每条规则的耗时与命中数（排查「为什么这么慢」）')
     .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
+    .option('--coverage-report <path>', '覆盖率产物路径（覆盖 metrics 适配器里的配置）')
     .option('--update-baseline', '把当前全部违规写入基线（只能在全量 scope 下）')
     .option('--report-only', '只报告，不因 error 退出非零')
     .option('--local-only', 'scope 非全量时允许跳过不可归属的全局违规')
@@ -152,7 +156,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     for (const token of options.domain.split(',').filter(Boolean)) {
       const domain = DOMAINS[token]
       if (!domain) {
-        err(color.red(`✖ 未知域：${token}（可用 S/D/C/P/H）`))
+        err(color.red(`✖ 未知域：${token}（可用 S/D/C/P/H/M）`))
         return 2
       }
       domains.push(domain)
@@ -181,6 +185,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
       rules: reactRules,
       format: options.format as 'pretty' | 'json' | 'github',
       stats: options.stats === true,
+      ...(options.coverageReport ? { coverageReport: options.coverageReport } : {}),
       scope: options.scope,
       reportOnly: options.reportOnly === true,
       localOnly: options.localOnly === true,

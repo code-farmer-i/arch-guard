@@ -1,0 +1,24 @@
+{
+  "findings": [
+    {
+      "rule": "M02",
+      "file": "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/coverage-summary.json"
+    },
+    {
+      "rule": "M03",
+      "file": "src/shared/lib/zero.ts"
+    },
+    {
+      "rule": "M04",
+      "file": "arch.coverage.json"
+    },
+    {
+      "rule": "M07",
+      "file": "package.json"
+    }
+  ],
+  "unitOnly": [
+    "M05",
+    "M06"
+  ]
+}
