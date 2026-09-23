@@ -1,5 +1,6 @@
 import type { Rule } from '../../engine/types.js'
 
+import { depsRules } from './rules/deps.js'
 import { hygieneRules } from './rules/hygiene.js'
 import { structureRules } from './rules/structure.js'
 
@@ -12,7 +13,7 @@ export interface Pack {
   rules: Rule[]
 }
 
-export const reactRules: Rule[] = [...structureRules, ...hygieneRules]
+export const reactRules: Rule[] = [...structureRules, ...depsRules, ...hygieneRules]
 
 export const reactPack: Pack = {
   id: 'react',

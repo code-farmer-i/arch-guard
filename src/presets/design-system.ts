@@ -48,6 +48,8 @@ export function copy(options: CopyOptions = {}): Preset {
 export interface DepsOptions {
   allow?: string[]
   deny?: string[]
+  /** 能力 → 首选方案：{ 'cli-args': 'commander', datetime: 'dayjs' } */
+  capabilities?: Record<string, string>
 }
 
 export function deps(options: DepsOptions = {}): Preset {
@@ -55,6 +57,7 @@ export function deps(options: DepsOptions = {}): Preset {
     params: {
       allow: options.allow ?? [],
       deny: options.deny ?? ['axios', 'swr', 'redux', 'mobx', 'jotai', 'react-hook-form'],
+      capabilities: options.capabilities ?? {},
     },
   }
 }

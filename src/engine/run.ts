@@ -3,6 +3,8 @@ import { join, relative, resolve } from 'node:path'
 
 import { applyBaseline, entriesFromFindings, loadBaseline, saveBaseline } from './baseline.js'
 import { loadConfig } from './config.js'
+import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
+import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { extractFacts, factInputOf } from './facts.js'
 import { buildGraph } from './graph.js'
 import { json } from './output.js'
@@ -110,6 +112,17 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const graph = buildGraph({ config, files: scan.files, facts, cssTexts })
   const sourceOf = (rel: string): string | undefined => texts.get(rel)
 
+  // 依赖策略：自相矛盾必须报错（不许默默按某一侧生效）
+  const policy = depsPolicyFrom(config.params)
+  const platformCapabilities = wheelFingerprints
+    .filter((entry) => entry.platform === true)
+    .map((entry) => entry.capability)
+  const conflicts = policyConflicts(policy, platformCapabilities)
+  if (conflicts.length > 0) {
+    throw new Error(`依赖策略自相矛盾：\n  - ${conflicts.join('\n  - ')}`)
+  }
+  const deps = readProjectDeps(config.root, graph.externals.keys())
+
   const registry = createRegistry(options.rules, config, {
     ...(options.only ? { only: options.only } : {}),
     ...(options.domain ? { domain: options.domain } : {}),
@@ -122,6 +135,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     facts,
     graph,
     scan,
+    deps,
+    policy,
     files: scan.files,
     sourceOf,
   }

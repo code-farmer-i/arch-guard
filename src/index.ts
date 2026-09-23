@@ -14,6 +14,14 @@ export { extractFacts, factInputOf, TS_EXTENSIONS } from './engine/facts.js'
 export { buildGraph, resolveSpecifier } from './engine/graph.js'
 export { defineAdapter, AdapterError, FACETS } from './engine/adapters.js'
 export { createRegistry, hasCapability } from './engine/registry.js'
+export {
+  depsPolicyFrom,
+  policyConflicts,
+  readPackageJson,
+  readProjectDeps,
+  type DepsPolicy,
+  type ProjectDeps,
+} from './engine/deps.js'
 export { createRule, RuleDefinitionError } from './engine/rule.js'
 export { runGuard, type RunOptions, type RunResult } from './engine/run.js'
 export { checkPortability } from './engine/portability.js'

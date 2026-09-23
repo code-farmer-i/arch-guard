@@ -58,6 +58,9 @@ export interface CommentFact {
   line: number
   text: string
   kind: string
+  /** 区间 [pos, end)：指纹扫描时要遮罩掉注释，避免「注释里写了轮子」被误报 */
+  pos: number
+  end: number
 }
 
 export interface ParseErrorFact {
@@ -223,6 +226,10 @@ export interface RuleContext {
   facts: Map<string, Facts>
   graph: import('./graph.js').Graph
   scan: import('./scan.js').ScanResult
+  /** 依赖事实：声明了什么、真实用了什么 */
+  deps: import('./deps.js').ProjectDeps
+  /** 依赖策略：allow / deny / capabilities */
+  policy: import('./deps.js').DepsPolicy
   files: string[]
   /** 按 rel 读原始文本（规则需要行文本算锚点时用） */
   sourceOf: (rel: string) => string | undefined

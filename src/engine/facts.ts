@@ -32,13 +32,9 @@ function scriptKindOf(file: string): ts.ScriptKind {
   return SCRIPT_KIND[file.slice(dot)] ?? ts.ScriptKind.TS
 }
 
-interface PositionedComment extends CommentFact {
-  pos: number
-}
-
 /** 注释：走 TS 的 comment range API，避免正则把字符串里的 // 当注释 */
-function collectComments(sf: ts.SourceFile, text: string): PositionedComment[] {
-  const out: PositionedComment[] = []
+function collectComments(sf: ts.SourceFile, text: string): CommentFact[] {
+  const out: CommentFact[] = []
   const seen = new Set<string>()
   const push = (ranges: readonly ts.CommentRange[] | undefined, kind: string): void => {
     for (const range of ranges ?? []) {
@@ -47,6 +43,7 @@ function collectComments(sf: ts.SourceFile, text: string): PositionedComment[] {
       seen.add(key)
       out.push({
         pos: range.pos,
+        end: range.end,
         line: lineOf(sf, range.pos),
         text: text.slice(range.pos, range.end),
         kind,
@@ -132,7 +129,13 @@ export function extractFacts(input: FactInput): Facts {
     functions: [],
     anyNodes: [],
     nonNull: [],
-    comments: positioned.map(({ line, text: body, kind }) => ({ line, text: body, kind })),
+    comments: positioned.map(({ line, text: body, kind, pos, end }) => ({
+      line,
+      text: body,
+      kind,
+      pos,
+      end,
+    })),
     hasJsx: false,
   }
 
