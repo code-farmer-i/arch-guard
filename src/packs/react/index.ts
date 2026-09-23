@@ -2,9 +2,11 @@ import type { Rule } from '../../engine/types.js'
 
 import { copyRules } from './rules/copy.js'
 import { depsRules } from './rules/deps.js'
+import { designStyleRules } from './rules/design-styles.js'
 import { designTokenRules } from './rules/design-tokens.js'
 import { designVendorRules } from './rules/design-vendor.js'
 import { hygieneRules } from './rules/hygiene.js'
+import { structureGraphRules } from './rules/structure-graph.js'
 import { structureRules } from './rules/structure.js'
 
 /**
@@ -18,8 +20,10 @@ export interface Pack {
 
 export const reactRules: Rule[] = [
   ...structureRules,
+  ...structureGraphRules,
   ...designTokenRules,
   ...designVendorRules,
+  ...designStyleRules,
   ...copyRules,
   ...depsRules,
   ...hygieneRules,

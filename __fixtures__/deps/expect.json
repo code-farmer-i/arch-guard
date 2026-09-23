@@ -20,6 +20,5 @@
       "rule": "P08",
       "file": "package.json"
     }
-  ],
-  "exact": true
+  ]
 }

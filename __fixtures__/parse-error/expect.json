@@ -1,1 +1,8 @@
-{ "findings": [{ "rule": "S00", "file": "src/app/main.tsx" }] }
+{
+  "findings": [
+    {
+      "rule": "S00",
+      "file": "src/app/main.tsx"
+    }
+  ]
+}

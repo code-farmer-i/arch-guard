@@ -1,0 +1,10 @@
+.card {
+  padding: 13px;
+  z-index: 5;
+  transition: all 200ms;
+  color: var(--sh-static-brand-500);
+}
+
+.unused {
+  margin: 0;
+}

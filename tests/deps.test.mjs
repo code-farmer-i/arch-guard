@@ -79,9 +79,9 @@ test('P 域：手搓日期格式化被抓，而正确使用 dayjs 的文件不�
   assert.equal(p06.length, 1)
   assert.equal(p06[0].file, 'src/app/main.tsx')
   assert.match(p06[0].text, /另有 5 处/)
-  // 正确使用 dayjs 的文件不该被点名
+  // 正确使用 dayjs 的文件不该被 P06 点名（别的规则可能因为它不可达而报 S15，这里只看 P06）
   assert.equal(
-    result.all.some((finding) => finding.file.includes('time.ts')),
+    result.all.some((finding) => finding.rule === 'P06' && finding.file.includes('time.ts')),
     false,
   )
 })

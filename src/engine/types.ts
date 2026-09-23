@@ -45,6 +45,13 @@ export interface CallFact {
   keyPrefix?: string
 }
 
+/** JSX 内联样式的一条声明：style={{ color: '#fff', margin: 8 }} */
+export interface InlineStyleFact {
+  prop: string
+  value: string
+  line: number
+}
+
 export interface CatchFact {
   line: number
   statements: number
@@ -89,6 +96,7 @@ export interface Facts {
   nonNull: { line: number }[]
   comments: CommentFact[]
   hasJsx: boolean
+  inlineStyles: InlineStyleFact[]
 }
 
 /* ---------------- 结构与角色 ---------------- */

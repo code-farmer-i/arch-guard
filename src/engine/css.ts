@@ -68,7 +68,10 @@ export function parseCss(rel: string, text: string): CssModel {
   let bufferStart = 0
   let current: CssRule | null = null
 
-  const flushDeclaration = (raw: string, line: number): void => {
+  /** startIndex 是声明缓冲的首字符位置；真正的行号要加上前导空白 */
+  const flushDeclaration = (raw: string, startIndex: number): void => {
+    const leading = raw.length - raw.trimStart().length
+    const line = lineOf(text, startIndex + leading)
     const trimmed = raw.trim()
     if (!trimmed) return
     const colon = trimmed.indexOf(':')
@@ -99,14 +102,14 @@ export function parseCss(rel: string, text: string): CssModel {
       continue
     }
     if (ch === '}') {
-      flushDeclaration(buffer, lineOf(text, bufferStart))
+      flushDeclaration(buffer, bufferStart)
       buffer = ''
       current = null
       continue
     }
     if (ch === ';') {
       // 用声明自己的起始行：块起始行对定位毫无用处
-      flushDeclaration(buffer, lineOf(text, bufferStart))
+      flushDeclaration(buffer, bufferStart)
       buffer = ''
       bufferStart = i + 1
       continue
@@ -114,7 +117,7 @@ export function parseCss(rel: string, text: string): CssModel {
     if (buffer === '') bufferStart = i
     buffer += ch
   }
-  flushDeclaration(buffer, lineOf(text, bufferStart))
+  flushDeclaration(buffer, bufferStart)
 
   return { rel, rules, vars, varRefs, comments, selectors }
 }

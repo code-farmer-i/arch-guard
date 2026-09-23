@@ -1,4 +1,4 @@
 import { App } from './App'
+import { router } from './router'
 
-document.body.append('ready')
-export { App }
+export { App, router }

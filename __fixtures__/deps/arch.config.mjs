@@ -14,4 +14,6 @@ export default {
       },
     }),
   ],
+
+  overrides: { enable: ['P01', 'P02', 'P03', 'P06', 'P08'] },
 }

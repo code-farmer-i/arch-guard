@@ -38,6 +38,35 @@ const finding = (
   ...(global ? { global: true } : {}),
 })
 
+/**
+ * S03 文件必须落在某个槽位：域根目录只许 `routes.tsx`（`*.d.ts` 例外）。
+ *
+ * 与 S01 的分工：S01 管「src 下的目录白名单 + 角色表互斥完备」，S03 把「域根不放散件」
+ * 这一条单独拎出来给更明确的提示，所以 S01 会跳过域根文件，避免同一处报两遍。
+ */
+export const domainRootOnlyRoutes: Rule = {
+  id: 'S03',
+  domain: 'structure',
+  level: 'L1',
+  severity: 'error',
+  title: '域根目录只许 routes.tsx',
+  hint: '域内按槽位组织（views/ components/ hooks/ model/ lib/）；散件说明还没落位',
+  run: (ctx) => {
+    const modulesRoot = `${ctx.config.srcRoot}/modules`
+    const out: Finding[] = []
+    for (const rel of [...ctx.scan.missing, ...ctx.scan.ambiguous.map((entry) => entry.rel)]) {
+      if (!rel.startsWith(`${modulesRoot}/`)) continue
+      const rest = rel.slice(modulesRoot.length + 1)
+      const segments = rest.split('/')
+      // 域根下的文件：modules/<域>/<file>
+      if (segments.length !== 2) continue
+      if (segments[1] === 'routes.tsx' || rel.endsWith('.d.ts')) continue
+      out.push(finding('S03', rel, 1, `域根目录只许 routes.tsx，出现了 ${segments[1]}`))
+    }
+    return out
+  },
+}
+
 /** S01 角色表互斥完备：每个文件必须恰好命中一个角色 */
 export const roleTableComplete: Rule = {
   id: 'S01',
@@ -48,7 +77,12 @@ export const roleTableComplete: Rule = {
   hint: '按 PARADIGM.md 的目录契约把文件放到对应槽位',
   run: (ctx) => {
     const out: Finding[] = []
+    const modulesRoot = `${ctx.config.srcRoot}/modules`
+    /** 域根下的散件由 S03 专门报，S01 跳过以免同一处报两遍 */
+    const isDomainRootFile = (rel: string): boolean =>
+      rel.startsWith(`${modulesRoot}/`) && rel.slice(modulesRoot.length + 1).split('/').length === 2
     for (const rel of ctx.scan.missing) {
+      if (isDomainRootFile(rel)) continue
       out.push(finding('S01', rel, 1, '文件不在目录契约内（未命中任何角色）', undefined, true))
     }
     for (const entry of ctx.scan.ambiguous) {
@@ -320,6 +354,7 @@ export const sizeLimits: Rule = {
 }
 
 export const structureRules: Rule[] = [
+  domainRootOnlyRoutes,
   parseFailClosed,
   roleTableComplete,
   maxDepth,

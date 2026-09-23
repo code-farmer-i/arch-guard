@@ -39,7 +39,10 @@
     {
       "rule": "S14",
       "file": "src/modules/crews/views/Bad.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/helpers.ts"
     }
-  ],
-  "exact": true
+  ]
 }

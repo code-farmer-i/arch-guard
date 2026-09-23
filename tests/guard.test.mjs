@@ -34,6 +34,7 @@ test('违规夹具：10 条违规全部报出，且没有多报', async () => {
     'S13 src/modules/crews/views/Bad.tsx',
     'S13 src/shared/lib/helpers.ts',
     'S14 src/modules/crews/views/Bad.tsx',
+    'S15 src/shared/lib/helpers.ts', // 该文件不可达（合成夹具里没有入口引用它）
   ])
   assert.equal(result.exitCode, 1)
 })

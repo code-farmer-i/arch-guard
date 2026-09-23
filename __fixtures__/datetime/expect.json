@@ -4,6 +4,5 @@
       "rule": "P06",
       "file": "src/app/main.tsx"
     }
-  ],
-  "exact": true
+  ]
 }

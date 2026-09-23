@@ -1,0 +1,96 @@
+{
+  "findings": [
+    {
+      "rule": "S03",
+      "file": "src/modules/crews/helper.ts"
+    },
+    {
+      "rule": "S04",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    },
+    {
+      "rule": "S05",
+      "file": "src/app/layouts/AppShell.tsx"
+    },
+    {
+      "rule": "S05",
+      "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "S05",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    },
+    {
+      "rule": "S06",
+      "file": "src/app/layouts/AppShell.tsx"
+    },
+    {
+      "rule": "S06",
+      "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "S06",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    },
+    {
+      "rule": "S07",
+      "file": "src/shared/api/a.ts"
+    },
+    {
+      "rule": "S07",
+      "file": "src/shared/lib/format.ts"
+    },
+    {
+      "rule": "S08",
+      "file": "src/shared/api/a.ts"
+    },
+    {
+      "rule": "S09",
+      "file": "src/app/layouts/AppShell.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/modules/chat/routes.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/modules/chat/views/ChatPage.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/modules/chat/views/OrphanPage.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/api/a.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/api/b.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/components/common/Card.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/format.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/leftover.ts"
+    },
+    {
+      "rule": "S17",
+      "file": "src/shared/components/ui/Card.tsx"
+    },
+    {
+      "rule": "S18",
+      "file": "src/shared/components/ui/Card.tsx"
+    },
+    {
+      "rule": "S18",
+      "file": "src/shared/lib/crewOnly.ts"
+    }
+  ]
+}

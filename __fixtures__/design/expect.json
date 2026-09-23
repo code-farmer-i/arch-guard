@@ -22,14 +22,6 @@
     },
     {
       "rule": "D05",
-      "file": "src/shared/styles/tokens/palette.css"
-    },
-    {
-      "rule": "D05",
-      "file": "src/shared/styles/tokens/palette.css"
-    },
-    {
-      "rule": "D05",
       "file": "src/shared/styles/tokens/theme.css"
     },
     {

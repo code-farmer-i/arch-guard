@@ -156,6 +156,7 @@ export function extractFacts(input: FactInput): Facts {
       end,
     })),
     hasJsx: false,
+    inlineStyles: [],
   }
 
   const visit = (node: ts.Node): void => {
@@ -282,6 +283,24 @@ export function extractFacts(input: FactInput): Facts {
         context: stringContext(node),
         prop: propNameOf(node),
       })
+    }
+    // JSX 内联样式：style={{ ... }} 的每个属性（D15 内联样式纪律用）
+    if (
+      ts.isJsxAttribute(node) &&
+      node.name.getText(sf) === 'style' &&
+      node.initializer &&
+      ts.isJsxExpression(node.initializer) &&
+      node.initializer.expression &&
+      ts.isObjectLiteralExpression(node.initializer.expression)
+    ) {
+      for (const property of node.initializer.expression.properties) {
+        if (!ts.isPropertyAssignment(property)) continue
+        facts.inlineStyles.push({
+          prop: property.name.getText(sf).replace(/['"]/g, ''),
+          value: property.initializer.getText(sf),
+          line: lineOf(sf, property.getStart(sf)),
+        })
+      }
     }
     if (ts.isJsxText(node)) {
       const value = node.text.trim()

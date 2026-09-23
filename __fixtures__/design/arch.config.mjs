@@ -11,5 +11,8 @@ export default {
       ],
     }),
   ],
-  overrides: { ignore: ['arch.config.mjs', 'expect.json'] },
+  overrides: {
+    enable: ['D01', 'D02', 'D03', 'D04', 'D05', 'D06', 'D07', 'D08', 'D09', 'D10', 'D10b', 'D11'],
+    ignore: ['arch.config.mjs', 'expect.json'],
+  },
 }
