@@ -5,7 +5,16 @@ import { extractFacts } from '../es/engine/facts.js'
 import { reactRules } from '../es/packs/react/index.js'
 
 /** 造一个够用的规则上下文：只填被测规则真正会读的字段 */
-function makeContext({ files = {}, records, params = {}, adapters = {}, i18n, scan } = {}) {
+function makeContext({
+  files = {},
+  records,
+  params = {},
+  adapters = {},
+  i18n,
+  scan,
+  roles = [],
+  layout = { app: 'src/app', modules: 'src/modules', shared: 'src/shared' },
+} = {}) {
   const facts = new Map()
   for (const [rel, text] of Object.entries(files)) {
     facts.set(rel, extractFacts({ file: rel, rel, role: 'tool', text }))
@@ -25,7 +34,8 @@ function makeContext({ files = {}, records, params = {}, adapters = {}, i18n, sc
         exportsPerFile: 6,
         componentsPerFile: 3,
       },
-      layout: { app: 'src/app', modules: 'src/modules', shared: 'src/shared' },
+      layout,
+      roles,
       entries: [],
       ignore: [],
       aliases: {},
@@ -107,6 +117,20 @@ test('S01 / S03：提示要指路（闭集枚举只说"你错了"没用，要说
 
   const root = s01.run(makeContext({ scan: scanFor(['src/features/x.ts']) }))
   assert.match(root[0]?.hint ?? '', /app\/ modules\/ shared\//, '域外文件要指回三根')
+
+  // 库范式不说应用范式那套：layout.modules 为空时念出项目声明的目录表
+  const libCtx = makeContext({
+    scan: scanFor(['src/utils.ts']),
+    layout: { app: 'src', modules: '', shared: '' },
+    roles: [
+      { id: 'lib:entry', pattern: 'src/index.ts', layer: 10, slot: 'entry' },
+      { id: 'lib:shared', pattern: 'src/shared/**', layer: 1 },
+      { id: 'lib:pages', pattern: 'src/pages/**', layer: 5 },
+    ],
+  })
+  const libFinding = s01.run(libCtx)
+  assert.match(libFinding[0]?.hint ?? '', /shared \/ pages/, '库范式要念出声明过的目录表')
+  assert.doesNotMatch(libFinding[0]?.hint ?? '', /App\.tsx/, '库范式不该说 app 层那套')
 
   const s03Findings = s03.run(makeContext({ scan: scanFor(['src/modules/crews/types.ts']) }))
   assert.match(s03Findings[0]?.hint ?? '', /model\//, 'S03 对域根散件要指到 model/')
