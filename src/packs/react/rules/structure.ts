@@ -150,7 +150,14 @@ export const namingRules: Rule = {
       }
       // api 层允许 camelCase（queryKeys / queryClient 这类基础设施），只禁首字母大写与下划线
       if (record.role === 'shared:api' && (/^[A-Z]/.test(stem) || stem.includes('_'))) {
-        out.push(finding('S12', record.rel, 1, `api 文件名必须小写 camelCase（禁首字母大写与下划线）：${base}`))
+        out.push(
+          finding(
+            'S12',
+            record.rel,
+            1,
+            `api 文件名必须小写 camelCase（禁首字母大写与下划线）：${base}`,
+          ),
+        )
       }
       if (
         (record.role === 'shared:components:ui' || record.role === 'shared:components:common') &&
@@ -241,8 +248,9 @@ export const routesRequired: Rule = {
       }
       if (record.slot === 'views') {
         entry.hasViews = true
-        // 定位点优先用代码文件：域级发现落在 .module.css 上会让人找不到北
-        if (/\.tsx?$/.test(record.rel)) entry.sample = record.rel
+        // 定位点优先用**第一个**代码文件：域级发现落在 .module.css 上会让人找不到北，
+        // 但不能反复覆盖（否则定位点会随遍历顺序漂移，棘轮锚点也跟着漂）
+        if (/\.tsx?$/.test(record.rel) && !/\.tsx?$/.test(entry.sample)) entry.sample = record.rel
       }
       if (record.slot === 'routes') entry.hasRoutes = true
       domains.set(record.domain, entry)
