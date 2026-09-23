@@ -168,3 +168,31 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('run：--paths 接受绝对路径（IDE / lint 工具按文件传参的形态）', async () => {
+  const dir = makeProject()
+  try {
+    mkdirSync(join(dir, 'src/modules/demo'), { recursive: true })
+    writeFileSync(join(dir, 'src/modules/demo/helper.ts'), 'export const helper = 1\n')
+    const absolute = await runGuard({
+      cwd: dir,
+      rules: reactRules,
+      quiet: true,
+      paths: [join(dir, 'src/modules/demo/helper.ts')],
+    })
+    assert.deepEqual(
+      absolute.active.map((finding) => finding.file),
+      ['src/modules/demo/helper.ts'],
+      '绝对路径必须能匹配（否则静默假绿）',
+    )
+    const relativeRun = await runGuard({
+      cwd: dir,
+      rules: reactRules,
+      quiet: true,
+      paths: ['src/modules/demo/helper.ts'],
+    })
+    assert.equal(relativeRun.active.length, 1, '相对路径照常工作')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

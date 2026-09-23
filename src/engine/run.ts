@@ -94,6 +94,32 @@ function gitHeadTimeMs(root: string): number | null {
   }
 }
 
+/**
+ * `--paths` 的模式归一：绝对路径（含绝对 glob）换算成配置根相对路径；相对模式原样返回。
+ *
+ * 为什么要它：诊断/编辑器插件按文件传参时给绝对路径，而报告里的路径都是配置根相对的；
+ * 不换算就会全部过滤掉 —— 那是「假绿」，比报错危险。
+ */
+export function rootRelativePattern(pattern: string, root: string): string {
+  if (!pattern.startsWith('/')) return pattern
+  const real = (path: string): string => {
+    try {
+      return realpathSync(path)
+    } catch {
+      return path
+    }
+  }
+  const realRoot = real(root)
+  // 常见形态一：绝对路径直接以配置根开头（含 glob 也适用，因为是纯字符串剥离）
+  if (pattern === root) return ''
+  if (pattern.startsWith(`${root}/`)) return pattern.slice(root.length + 1)
+  if (pattern.startsWith(`${realRoot}/`)) return pattern.slice(realRoot.length + 1)
+  // 形态二：软链写法不同（/var vs /private/var）→ 只对通配符之前的前缀做 realpath 后算相对
+  const literal = pattern.replace(/[?*[\]].*$/, '')
+  const tail = pattern.slice(literal.length)
+  return `${relative(realRoot, real(literal)).split('\\').join('/')}${tail}`
+}
+
 /** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
 function gitChangedFiles(root: string, scope: string): { files: string[]; notice?: string } | null {
   const git = (args: string[]): string[] =>
@@ -328,8 +354,19 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const globalFindings = active.filter((finding) => finding.global).length
 
   if (options.paths && options.paths.length > 0) {
-    const matchers = options.paths.map(globToRegExp)
+    // `--paths` 同时接受配置根相对路径与**绝对路径**：IDE / 编辑器插件 / lint 工具按文件传参时
+    // 给的是绝对路径，不归一就会「一条都没匹配上」→ 静默假绿（门禁报通过，其实什么都没查）。
+    const matchers = options.paths.map((pattern) =>
+      globToRegExp(rootRelativePattern(pattern, config.root)),
+    )
+    const globalsBefore = active.filter((finding) => finding.global).length
     active = active.filter((finding) => matchers.some((matcher) => matcher.test(finding.file)))
+    const globalsAfter = active.filter((finding) => finding.global).length
+    if (globalsBefore > globalsAfter) {
+      notices.push(
+        `--paths 只报匹配的文件：本次另有 ${globalsBefore - globalsAfter} 条全局违规（架构级）被过滤，需全量运行才可见`,
+      )
+    }
   }
   if (options.severity) {
     active = active.filter((finding) => severityOf(finding, ruleIndex) === options.severity)
