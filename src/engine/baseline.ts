@@ -91,13 +91,16 @@ export function applyBaseline(
   baseline: BaselineFile,
   sourceOf: (rel: string) => string | undefined,
 ): BaselineSplit {
-  const remaining = new Map<string, BaselineEntry[]>()
+  const byKey = new Map<string, BaselineEntry[]>()
   for (const entry of baseline.entries) {
     const key = `${entry.rule}|${entry.file}`
-    const list = remaining.get(key) ?? []
+    const list = byKey.get(key) ?? []
     list.push(entry)
-    remaining.set(key, list)
+    byKey.set(key, list)
   }
+  /** 命中的条目（用于算过期豁免）；**不消耗**条目 —— 同一行可能有多条违规（如一行里两个内联样式），
+   *  它们共享同一个行文本锚点，消耗式匹配会让第二条永远无法豁免。 */
+  const used = new Set<BaselineEntry>()
 
   const active: Finding[] = []
   const exempted: { finding: Finding; entry: BaselineEntry }[] = []
@@ -105,18 +108,16 @@ export function applyBaseline(
   for (const finding of findings) {
     const candidate = anchorFor(finding, sourceOf)
     const key = `${candidate.rule}|${candidate.file}`
-    const list = remaining.get(key)
-    const index = list?.findIndex((entry) => entry.anchor === candidate.anchor) ?? -1
-    if (list && index >= 0) {
-      const entry = list[index] as BaselineEntry
-      list.splice(index, 1)
+    const entry = byKey.get(key)?.find((item) => item.anchor === candidate.anchor)
+    if (entry) {
+      used.add(entry)
       exempted.push({ finding, entry })
       continue
     }
     active.push(finding)
   }
 
-  const unused = [...remaining.values()].flat()
+  const unused = baseline.entries.filter((entry) => !used.has(entry))
   return { active, exempted, unused }
 }
 

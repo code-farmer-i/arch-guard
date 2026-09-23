@@ -94,7 +94,8 @@ export function parseCss(rel: string, text: string): CssModel {
     const ch = masked[i] as string
     if (ch === '{') {
       const selector = buffer.trim()
-      const line = lineOf(text, bufferStart)
+      // 行号按**首个非空白字符**算：bufferStart 落在上一行结尾时，直接算会少一行
+      const line = lineOf(text, bufferStart + (buffer.length - buffer.trimStart().length))
       buffer = ''
       current = { selector, line, declarations: [], vars: [] }
       if (selector) selectors.push({ selector, line })
@@ -140,14 +141,15 @@ export function findColorLiterals(text: string): { line: number; text: string }[
   return out
 }
 
+/** 归一化为 6 位小写（带不带 `#` 都接受；3 位缩写展开） */
 export function normalizeHex(hex: string): string {
-  const h = hex.toLowerCase()
-  return h.length === 3
-    ? h
+  const body = hex.trim().toLowerCase().replace(/^#/, '')
+  return body.length === 3
+    ? body
         .split('')
         .map((c) => c + c)
         .join('')
-    : h
+    : body
 }
 
 /* ---------------- 颜色求值与对比度（D07 用） ---------------- */
@@ -198,14 +200,20 @@ export function resolveColor(
     return { rgb: toRgb(value), alpha: 1 }
   }
   const mix = value.match(
-    /^color-mix\(in srgb,\s*var\((--[a-zA-Z0-9-]+)\)\s*([\d.]+)%,\s*(transparent|var\((--[a-zA-Z0-9-]+)\))\)$/,
+    /^color-mix\(in srgb,\s*(var\(--[a-zA-Z0-9-]+\)|#[0-9a-fA-F]{3,8})\s*([\d.]+)%,\s*(transparent|var\(--[a-zA-Z0-9-]+\)|#[0-9a-fA-F]{3,8})\)$/,
   )
   if (!mix) return null
-  const base = resolveColor(vars, mix[1] as string, depth + 1)
+  /** 操作数既可以是令牌引用，也可以是十六进制字面量 */
+  const operand = (raw: string): ResolvedColor | null => {
+    const ref = raw.match(/^var\((--[a-zA-Z0-9-]+)\)$/)
+    if (ref) return resolveColor(vars, ref[1] as string, depth + 1)
+    return { rgb: toRgb(raw), alpha: 1 }
+  }
+  const base = operand(mix[1] as string)
   if (!base) return null
   const ratio = Number(mix[2]) / 100
   if (mix[3] === 'transparent') return { rgb: base.rgb, alpha: ratio }
-  const other = resolveColor(vars, mix[4] as string, depth + 1)
+  const other = operand(mix[3] as string)
   if (!other || other.alpha !== 1) return null
   return {
     rgb: base.rgb.map((c, i) => Math.round(c * ratio + (other.rgb[i] as number) * (1 - ratio))) as [

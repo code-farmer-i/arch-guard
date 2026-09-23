@@ -86,9 +86,15 @@ test('portability：P1 非白名单依赖 / P2 宿主字面量 / P3 引擎布局
     join(dir, 'src/engine/a.ts'),
     "import lodash from 'lodash'\nconst host = 'superhive'\nconst p = 'src/app'\n",
   )
+  // 另一个文件专门放开发机绝对路径：P2 的绝对路径分支
+  writeFileSync(join(dir, 'src/engine/b.ts'), "const p = '/Users/someone/dev/app'\n")
   const result = checkPortability(dir)
   const rules = result.findings.map((finding) => finding.rule).sort()
   assert.deepEqual([...new Set(rules)], ['P1', 'P2', 'P3'])
+  assert.ok(
+    result.findings.some((finding) => finding.text.includes('绝对路径')),
+    '开发机绝对路径必须被单独点名（发布物里会泄漏）',
+  )
 })
 
 /* ---------------- 依赖策略 ---------------- */
