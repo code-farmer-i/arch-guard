@@ -1,6 +1,6 @@
 {
-  "name": "arch-guard",
-  "version": "0.1.0",
+  "name": "@arch-guard/core",
+  "version": "0.1.3",
   "description": "把架构写成可判定不变量的编码门禁：分层与边界、唯一出处、状态纪律、设计系统与魔法数字、文案、依赖、反退化",
   "type": "module",
   "license": "MIT",
@@ -17,6 +17,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/code-farmer-i/arch-guard.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "homepage": "https://github.com/code-farmer-i/arch-guard#readme",
   "bugs": {
@@ -71,6 +74,7 @@
     "typescript": ">=5.4.0 <7"
   },
   "scripts": {
+    "release": "pnpm build && pagoda-cli release",
     "build": "pagoda-cli build --notInstall",
     "dev": "pagoda-cli dev",
     "lint": "eslint .",
