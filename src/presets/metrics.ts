@@ -24,8 +24,16 @@ export interface CoverageOptions {
   pathRewrite?: [string, string][]
 }
 
+/** 测试治理：哪些文件必须有测试、门禁链路必须包含什么 */
+export interface TestGateOptions {
+  requireTestsFor?: string[]
+  testGlobs?: string[]
+  checkChain?: { script?: string; require?: string[] }
+}
+
 export interface MetricsOptions {
   coverage?: CoverageOptions
+  tests?: TestGateOptions
   /** 依赖预算：运行时/开发依赖数量上限（超过要解释，防依赖膨胀） */
   depsBudget?: { runtime?: number; dev?: number }
 }
@@ -44,6 +52,19 @@ export function metrics(options: MetricsOptions = {}): Preset {
     id: 'coverage',
     specVersion: '1',
     ...(options.coverage ? { coverage: options.coverage } : {}),
+    ...(options.tests
+      ? {
+          ...(options.tests.requireTestsFor
+            ? {
+                tests: {
+                  requireTestsFor: options.tests.requireTestsFor,
+                  ...(options.tests.testGlobs ? { testGlobs: options.tests.testGlobs } : {}),
+                },
+              }
+            : {}),
+          ...(options.tests.checkChain ? { checkChain: options.tests.checkChain } : {}),
+        }
+      : {}),
     ...(options.depsBudget ? { depsBudget: options.depsBudget } : {}),
   })
   return { adapters: { metrics: adapter } }

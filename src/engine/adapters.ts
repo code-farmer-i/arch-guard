@@ -57,7 +57,16 @@ const FACET_FIELDS: Record<string, string[]> = {
     'format',
     'examples',
   ],
-  metrics: ['facet', 'id', 'specVersion', 'coverage', 'depsBudget', 'examples'],
+  metrics: [
+    'facet',
+    'id',
+    'specVersion',
+    'coverage',
+    'tests',
+    'checkChain',
+    'depsBudget',
+    'examples',
+  ],
 }
 
 export const FACETS = Object.keys(FACET_FIELDS)

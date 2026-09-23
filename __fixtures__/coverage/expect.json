@@ -15,6 +15,18 @@
     {
       "rule": "M07",
       "file": "package.json"
+    },
+    {
+      "rule": "M08",
+      "file": "src/shared/lib/bad.ts"
+    },
+    {
+      "rule": "M08",
+      "file": "src/shared/lib/zero.ts"
+    },
+    {
+      "rule": "M09",
+      "file": "package.json"
     }
   ],
   "unitOnly": [

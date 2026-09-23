@@ -160,3 +160,79 @@ test('M02：配置的目录一个文件都没匹配时明确报出来（防配�
   assert.equal(findings.length, 1)
   assert.match(findings[0]?.text ?? '', /没有文件匹配/)
 })
+
+test('M08：该有测试的文件要么被测试 import，要么有同名配对测试', () => {
+  const source = (rel) => ({
+    rel,
+    abs: `/tmp/${rel}`,
+    role: 'shared:lib',
+    layer: 1,
+    domain: null,
+    slot: 'lib',
+    kind: 'ts',
+  })
+  const context = {
+    config: {
+      root: '/tmp/metrics',
+      params: {},
+      adapters: {
+        metrics: {
+          facet: 'metrics',
+          id: 'coverage',
+          tests: { requireTestsFor: ['src/engine/**'] },
+        },
+      },
+    },
+    records: [
+      source('src/engine/covered.ts'),
+      source('src/engine/pair.ts'),
+      source('src/engine/naked.ts'),
+      source('src/engine/ignored.tsx'),
+      source('tests/covered.test.ts'),
+      source('tests/pair.test.ts'),
+    ],
+    graph: { importers: new Map([['src/engine/covered.ts', new Set(['tests/covered.test.ts'])]]) },
+  }
+  const findings = ruleOf('M08').run(context)
+  assert.deepEqual(
+    findings.map((item) => item.file),
+    ['src/engine/naked.ts', 'src/engine/ignored.tsx'],
+    '被 import 的不报、同名配对的不报；requireTestsFor 之外的不管',
+  )
+})
+
+test('M09：check 链路没跑测试/覆盖率就报出来', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-chain-'))
+  try {
+    const write = (scripts) =>
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'x', scripts }))
+    const context = {
+      config: {
+        root: dir,
+        params: {},
+        adapters: {
+          metrics: {
+            facet: 'metrics',
+            id: 'coverage',
+            checkChain: { script: 'check', require: ['test', 'coverage'] },
+          },
+        },
+      },
+    }
+    write({ check: 'node tools/check.mjs' })
+    const missing = ruleOf('M09').run(context)
+    assert.equal(missing.length, 1)
+    assert.match(missing[0]?.text ?? '', /缺少：test \/ coverage/)
+
+    write({ check: 'run-s build test coverage guard' })
+    assert.deepEqual(ruleOf('M09').run(context), [], '链路齐全就不报')
+
+    write({ build: 'tsc' })
+    assert.match(ruleOf('M09').run(context)[0]?.text ?? '', /没有 check 脚本/)
+
+    // 没配 checkChain → 规则安静
+    assert.deepEqual(ruleOf('M09').run({ config: { root: dir, params: {}, adapters: {} } }), [])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

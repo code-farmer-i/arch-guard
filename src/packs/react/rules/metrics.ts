@@ -31,8 +31,15 @@ interface CoverageConfig {
   pathRewrite?: [string, string][]
 }
 
+interface TestGateConfig {
+  requireTestsFor?: string[]
+  testGlobs?: string[]
+}
+
 interface MetricsConfig {
   coverage?: CoverageConfig
+  tests?: TestGateConfig
+  checkChain?: { script?: string; require?: string[] }
   depsBudget?: { runtime?: number; dev?: number }
 }
 
@@ -297,6 +304,99 @@ export const depsBudget: Rule = {
   },
 }
 
+/* ---------------- M08 测试↔源配对（该有测试的地方有没有测试） ---------------- */
+
+export const requireTests: Rule = {
+  id: 'M08',
+  domain: 'metrics',
+  level: 'L3',
+  severity: 'error',
+  title: '该有测试的文件必须有测试',
+  hint: '命中 requireTestsFor 的文件要么被某个测试 import，要么存在同名配对的测试文件',
+  requires: ['metrics.tests'],
+  run: (ctx) => {
+    const spec = metricsOf(ctx).tests
+    if (!spec?.requireTestsFor || spec.requireTestsFor.length === 0) return []
+    const required = spec.requireTestsFor.map(globToRegExp)
+    const testGlobs = (spec.testGlobs ?? ['**/*.test.*', '**/*.spec.*', 'tests/**']).map(
+      globToRegExp,
+    )
+    const isTest = (rel: string): boolean => testGlobs.some((matcher) => matcher.test(rel))
+    const testFiles = new Set(
+      ctx.records.filter((record) => isTest(record.rel)).map((record) => record.rel),
+    )
+    // 同名配对：src/engine/run.ts ↔ tests/run.test.ts（按 stem 匹配）
+    const stems = new Set(
+      [...testFiles].map((rel) => {
+        const base = rel.split('/').pop() ?? ''
+        return base.replace(/\.(test|spec)\./, '.')
+      }),
+    )
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (isTest(record.rel)) continue
+      if (!required.some((matcher) => matcher.test(record.rel))) continue
+      const imported = [...(ctx.graph.importers.get(record.rel) ?? [])].some((importer) =>
+        testFiles.has(importer),
+      )
+      const base = record.rel.split('/').pop() ?? ''
+      if (imported || stems.has(base)) continue
+      out.push(
+        finding(
+          'M08',
+          record.rel,
+          1,
+          `没有被任何测试引用，也没有同名配对测试：${record.rel}`,
+          '补一个测试，或把这份实现移出 requireTestsFor 的范围（并在配置里说明理由）',
+        ),
+      )
+    }
+    return out
+  },
+}
+
+/* ---------------- M09 门禁链路自检（测试必须真的在门禁里跑） ---------------- */
+
+export const checkChain: Rule = {
+  id: 'M09',
+  domain: 'metrics',
+  level: 'L1',
+  severity: 'error',
+  title: '门禁链路必须真的跑测试与覆盖率',
+  hint: '这次会话踩过的坑：覆盖率一直在跑，但统计的是错的进程 —— 这类「门禁漏跑/跑错」只有门禁自己能查',
+  requires: ['metrics.checkChain'],
+  run: (ctx) => {
+    const spec = metricsOf(ctx).checkChain
+    if (!spec) return []
+    const scriptName = spec.script ?? 'check'
+    const requiredCmds = spec.require ?? ['test', 'coverage']
+    const path = `${ctx.config.root}/package.json`
+    let scripts: Record<string, string>
+    try {
+      scripts =
+        (JSON.parse(readFileSync(path, 'utf8')) as { scripts?: Record<string, string> }).scripts ??
+        {}
+    } catch {
+      return [finding('M09', 'package.json', 1, '读不到 package.json，无法确认门禁链路')]
+    }
+    const chain = scripts[scriptName]
+    if (chain === undefined) {
+      return [finding('M09', 'package.json', 1, `没有 ${scriptName} 脚本，无法确认门禁链路`)]
+    }
+    const missing = requiredCmds.filter((cmd) => !chain.includes(cmd))
+    if (missing.length === 0) return []
+    return [
+      finding(
+        'M09',
+        'package.json',
+        1,
+        `${scriptName} 链路里缺少：${missing.join(' / ')}`,
+        '把测试与覆盖率接进 check（例如 run-s test coverage 之后再看门禁）',
+      ),
+    ]
+  },
+}
+
 export const metricsRules: Rule[] = [
   coverageArtifact,
   coveragePerDir,
@@ -304,4 +404,6 @@ export const metricsRules: Rule[] = [
   coverageRatchet,
   changedFilesCovered,
   depsBudget,
+  requireTests,
+  checkChain,
 ]

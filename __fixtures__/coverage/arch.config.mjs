@@ -13,10 +13,14 @@ export default {
         mustCover: ['src/**'],
       },
       depsBudget: { runtime: 0 },
+      tests: {
+        requireTestsFor: ['src/shared/lib/**'],
+        checkChain: { script: 'check', require: ['test', 'coverage'] },
+      },
     }),
   ],
   overrides: {
-    enable: ['M02', 'M03', 'M04', 'M06', 'M07'],
+    enable: ['M02', 'M03', 'M04', 'M07', 'M08', 'M09'],
     ignore: ['arch.config.mjs', 'expect.json', 'coverage-summary.json', 'arch.coverage.json'],
   },
 }
