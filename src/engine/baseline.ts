@@ -6,7 +6,7 @@ import { anchorOf, sha1 } from './util.js'
 /**
  * 棘轮：豁免锚点 = 规则 + 文件 + 稳定签名。
  * - 单行违规 → 规范化行文本哈希（那行一改，豁免立即失效）
- * - 文件级 / 符号级 → 由规则给出 anchor（见 docs/SPEC.md §14.2 R5）
+ * - 文件级 / 符号级 → 由规则给出 anchor（锚点定义见 CONTEXT.md）
  */
 
 export interface BaselineEntry {

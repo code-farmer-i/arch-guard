@@ -1,6 +1,6 @@
 import type { Finding, Rule } from '../../../engine/types.js'
 
-/** S00 解析失败必须报错：fail-closed，绝不能静默失去检查（见 docs/SPEC.md §14.2 R2） */
+/** S00 解析失败必须报错：fail-closed —— 语法错误会让该文件失去全部检查，绝不能静默通过 */
 export const parseFailClosed: Rule = {
   id: 'S00',
   domain: 'structure',

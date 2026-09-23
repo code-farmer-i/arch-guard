@@ -19,8 +19,8 @@ export interface LoadedConfig {
 }
 
 const DEFAULT_THRESHOLDS: Thresholds = {
-  fileLines: 400,
-  viewLines: 320,
+  fileLines: 500,
+  viewLines: 500,
   functionLines: 150,
   exportsPerFile: 6,
   componentsPerFile: 3,

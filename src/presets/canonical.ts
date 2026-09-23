@@ -87,8 +87,8 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     srcRoot: src,
     naming: { hookPrefix: 'use', viewSuffix: 'Page', pageComponentSuffix: 'Page' },
     thresholds: {
-      fileLines: 400,
-      viewLines: 320,
+      fileLines: 500,
+      viewLines: 500,
       functionLines: 150,
       exportsPerFile: 6,
       componentsPerFile: 3,

@@ -139,3 +139,13 @@ test('cli：commander 注册了全部对外开关（防止重构时丢参数）'
     '--version',
   ])
 })
+
+test('阈值：默认 500 行，且可按项目覆盖', async () => {
+  const { config } = await loadConfig({ root: `${PACKAGE_ROOT}examples/minimal` })
+  assert.equal(config.thresholds.fileLines, 500)
+  assert.equal(config.thresholds.viewLines, 500)
+  assert.equal(config.thresholds.functionLines, 150)
+
+  const { config: tight } = await loadConfig({ root: `${PACKAGE_ROOT}__fixtures__/rules` })
+  assert.equal(tight.thresholds.fileLines, 40, '夹具覆盖了阈值')
+})

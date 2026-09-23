@@ -5,7 +5,7 @@ import type { Finding } from './types.js'
 import { readText, relOf, walk } from './util.js'
 
 /**
- * 本体自包含检查（见 docs/SPEC.md §15.2）：
+ * 本体自包含检查（见 README.md「本体自包含」）：
  * P1 只依赖 node:* / 白名单第三方 / 本体内相对路径
  * P2 不得出现宿主项目字面量（宿主名、绝对路径）
  * P3 引擎层不得假设项目布局（engine/** 不许出现 'src/' 这类字符串字面量）

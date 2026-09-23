@@ -1,7 +1,7 @@
 import type { Domain, Level, Rule, RuleContext, Severity, Finding } from './types.js'
 
 /**
- * 规则契约（见 docs/SPEC.md §14.4 E1）。
+ * 规则契约（错误码与域的对应关系见 PARADIGM.md §2：红线只落 L1–L3）。
  * 关键约束由代码强制，而不是写在校验文档里：
  *   - id 必须形如 S01 / D12 / H03（域字母 + 两位序号）
  *   - **error 级规则的判定等级只允许 L1–L3**（范式铁律：红线只落可判定等级）
