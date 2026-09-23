@@ -73,16 +73,21 @@ function collectComments(
   return out
 }
 
-function propNameOf(node: ts.Node): string | null {
-  const parent = node.parent as ts.Node | undefined
+/**
+ * 下面两个辅助函数**显式接收父节点**，而不是读 `node.parent`。
+ *
+ * 为什么：`createSourceFile(..., setParentNodes = true)` 会让 TS 给**每个**节点挂父指针，
+ * 而解析是 facts 提取的绝对大头；真正需要父节点的只有这里的几处。显式传参后，
+ * 解析就能按 DESIGN §6.1.1 写的那样用 `setParentNodes = false`。
+ */
+function propNameOf(parent: ts.Node | undefined, sf: ts.SourceFile): string | null {
   if (!parent) return null
-  if (ts.isPropertyAssignment(parent)) return parent.name.getText()
-  if (ts.isJsxAttribute(parent)) return parent.name.getText()
+  if (ts.isPropertyAssignment(parent)) return parent.name.getText(sf)
+  if (ts.isJsxAttribute(parent)) return parent.name.getText(sf)
   return null
 }
 
-function stringContext(node: ts.Node): string {
-  const parent = node.parent as ts.Node | undefined
+function stringContext(parent: ts.Node | undefined): string {
   if (!parent) return 'other'
   if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return 'module'
   if (ts.isCallExpression(parent)) return 'call-arg'
@@ -113,6 +118,15 @@ export interface FactInput {
   text: string
 }
 
+/**
+ * 事实模型（facts）是 parser ↔ 规则之间**唯一的契约**，因此只收「有规则在读」的字段。
+ *
+ * 收一堆没人读的字段不是"以后也许用得上"，而是每次全量解析都要付的真金白银：
+ * 早先为 H01（`any` / 非空断言）、H05（空 catch）、D15（内联样式）、C01（JSX 裸文本）
+ * 收集的 `anyNodes` / `nonNull` / `catches` / `inlineStyles` / `jsxText` 五组，
+ * 在那些规则委派给 eslint 之后就没有消费者了 —— 已删除（见 docs/ECOSYSTEM-AUDIT.md）。
+ * **要给新规则加字段：先让规则真的读它，再回这里收集。**
+ */
 export function extractFacts(input: FactInput): Facts {
   const { file, rel, role, text } = input
   const scriptKind = scriptKindOf(file)
@@ -120,7 +134,7 @@ export function extractFacts(input: FactInput): Facts {
     file,
     text,
     ts.ScriptTarget.Latest,
-    /* setParentNodes */ true,
+    /* setParentNodes */ false,
     scriptKind,
   ) as SourceFileWithDiagnostics
 
@@ -142,12 +156,8 @@ export function extractFacts(input: FactInput): Facts {
     imports: [],
     exports: [],
     strings: [],
-    jsxText: [],
     calls: [],
-    catches: [],
     functions: [],
-    anyNodes: [],
-    nonNull: [],
     comments: positioned.map(({ line, text: body, kind, pos, end }) => ({
       line,
       text: body,
@@ -156,10 +166,9 @@ export function extractFacts(input: FactInput): Facts {
       end,
     })),
     hasJsx: false,
-    inlineStyles: [],
   }
 
-  const visit = (node: ts.Node): void => {
+  const visit = (node: ts.Node, parent: ts.Node | undefined): void => {
     /* ---- import / re-export ---- */
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       facts.imports.push({
@@ -280,31 +289,9 @@ export function extractFacts(input: FactInput): Facts {
       facts.strings.push({
         value: node.text,
         line: lineOf(sf, node.getStart(sf)),
-        context: stringContext(node),
-        prop: propNameOf(node),
+        context: stringContext(parent),
+        prop: propNameOf(parent, sf),
       })
-    }
-    // JSX 内联样式：style={{ ... }} 的每个属性（D15 内联样式纪律用）
-    if (
-      ts.isJsxAttribute(node) &&
-      node.name.getText(sf) === 'style' &&
-      node.initializer &&
-      ts.isJsxExpression(node.initializer) &&
-      node.initializer.expression &&
-      ts.isObjectLiteralExpression(node.initializer.expression)
-    ) {
-      for (const property of node.initializer.expression.properties) {
-        if (!ts.isPropertyAssignment(property)) continue
-        facts.inlineStyles.push({
-          prop: property.name.getText(sf).replace(/['"]/g, ''),
-          value: property.initializer.getText(sf),
-          line: lineOf(sf, property.getStart(sf)),
-        })
-      }
-    }
-    if (ts.isJsxText(node)) {
-      const value = node.text.trim()
-      if (value) facts.jsxText.push({ value, line: lineOf(sf, node.getStart(sf)) })
     }
     if (
       !facts.hasJsx &&
@@ -331,18 +318,6 @@ export function extractFacts(input: FactInput): Facts {
       facts.calls.push({ callee: 'debugger', line: lineOf(sf, node.getStart(sf)) })
     }
 
-    /* ---- 异常吞咽 ---- */
-    if (ts.isCatchClause(node)) {
-      const start = node.getStart(sf)
-      const end = node.getEnd()
-      const hasComment = positioned.some((comment) => comment.pos >= start && comment.pos < end)
-      facts.catches.push({
-        line: lineOf(sf, start),
-        statements: node.block.statements.length,
-        hasComment,
-      })
-    }
-
     /* ---- 函数体量 ---- */
     let functionInfo: { name: string; start: number; end: number } | null = null
     if (ts.isFunctionDeclaration(node)) {
@@ -352,8 +327,7 @@ export function extractFacts(input: FactInput): Facts {
         end: node.getEnd(),
       }
     } else if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
-      const parent = node.parent as ts.Node | undefined
-      const name = parent && ts.isVariableDeclaration(parent) ? parent.name.getText() : '(fn)'
+      const name = parent && ts.isVariableDeclaration(parent) ? parent.name.getText(sf) : '(fn)'
       functionInfo = { name, start: node.getStart(sf), end: node.getEnd() }
     }
     if (functionInfo) {
@@ -372,15 +346,10 @@ export function extractFacts(input: FactInput): Facts {
       })
     }
 
-    /* ---- 类型逃生舱 ---- */
-    if (node.kind === ts.SyntaxKind.AnyKeyword)
-      facts.anyNodes.push({ line: lineOf(sf, node.getStart(sf)) })
-    if (ts.isNonNullExpression(node)) facts.nonNull.push({ line: lineOf(sf, node.getStart(sf)) })
-
-    ts.forEachChild(node, visit)
+    ts.forEachChild(node, (child) => visit(child, node))
   }
 
-  visit(sf)
+  visit(sf, undefined)
   return facts
 }
 

@@ -4,8 +4,10 @@ node_modules
 .arch-guard-cache/
 
 # 构建产物（pagoda-cli build 生成）
-es/
-lib/
+# **必须锚定到仓库根**：裸写 `lib/` 会连 `__fixtures__/*/src/shared/lib/` 一起吞掉，
+# 夹具文件于是从来没进过 git —— 干净克隆下 6 个夹具缺文件、门禁必红。
+/es/
+/lib/
 *.tsbuildinfo
 
 # 环境注入的 skills（不属于本包）

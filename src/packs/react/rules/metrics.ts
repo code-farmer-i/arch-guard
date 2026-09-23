@@ -123,12 +123,15 @@ export const coveragePerDir: Rule = {
     const limits = coverageOf(ctx).perDirMin ?? {}
     const report = ctx.metrics?.report
     if (!report || Object.keys(limits).length === 0) return []
+    // 发现项的文件一律用**配置根相对**的产物路径（与 M06 一致）：`report.path` 是绝对路径，
+    // 写进报告与棘轮基线后，换一台机器/CI 就对不上，直接变成假红。
+    const reportPath = ctx.metrics?.reportPath ?? report.path
     const out: Finding[] = []
     for (const [pattern, limit] of Object.entries(limits)) {
       const matcher = globToRegExp(pattern)
       const stats = aggregate(report, (rel) => matcher.test(rel))
       if (!stats) {
-        out.push(finding('M02', report.path, 1, `没有文件匹配 ${pattern}（配置写错？）`))
+        out.push(finding('M02', reportPath, 1, `没有文件匹配 ${pattern}（配置写错？）`))
         continue
       }
       const expected: PerDirMinEntry = typeof limit === 'number' ? { lines: limit } : limit
@@ -140,7 +143,7 @@ export const coveragePerDir: Rule = {
           out.push(
             finding(
               'M02',
-              report.path,
+              reportPath,
               1,
               `${pattern} 的${metric === 'lines' ? '行' : metric === 'branches' ? '分支' : '函数'}覆盖 ${actual.toFixed(2)}% < ${min}%（${stats.files} 个文件）`,
             ),
@@ -322,9 +325,9 @@ export const requireTests: Rule = {
       globToRegExp,
     )
     const isTest = (rel: string): boolean => testGlobs.some((matcher) => matcher.test(rel))
-    const testFiles = new Set(
-      ctx.records.filter((record) => isTest(record.rel)).map((record) => record.rel),
-    )
+    // 测试文件从**完整文件集**里找，而不是 `records`：测试通常放在契约扫描域之外
+    // （`tests/`、`e2e/`），它们没有角色、不进 records，但"是否有测试"必须看得见。
+    const testFiles = new Set(ctx.files.filter((rel) => isTest(rel)))
     // 同名配对：src/engine/run.ts ↔ tests/run.test.ts（按 stem 匹配）
     const stems = new Set(
       [...testFiles].map((rel) => {

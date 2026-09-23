@@ -1,5 +1,11 @@
 import { join } from 'node:path'
 
+import {
+  foreignExtensions,
+  frameworkSources,
+  resolveFramework,
+  supportedExtensions,
+} from '../data/framework-sources.js'
 import { TS_EXTENSIONS } from './facts.js'
 import type { Config, FileKind, FileRecord, RoleDescriptor } from './types.js'
 import { globToRegExp, relOf, walk } from './util.js'
@@ -41,6 +47,10 @@ export interface ScanResult {
   ambiguous: { rel: string; roles: string[] }[]
   ignored: string[]
   exempted: { rel: string; reason: string }[]
+  /** 契约扫描域之外的 ts/css：不参与角色判定，但**仍要解析**（角色记为 `(outside)`） */
+  outside: FileRecord[]
+  /** 当前框架包量不了的源码文件（如 react pack 遇到 `.vue`）—— S20 靠它把假绿变成报错 */
+  foreign: string[]
 }
 
 function kindOf(rel: string): FileKind {
@@ -56,10 +66,29 @@ function kindOf(rel: string): FileKind {
  */
 export function scanProject(config: Config): ScanResult {
   const { root } = config
-  const files = walk(root, {
+  /**
+   * 遍历时把**所有**框架的源码扩展名都收进来，再按当前 `metaFramework` 分流：
+   * 支持的正常走角色判定；别的框架的（如 react pack 遇到 `.vue`）进 `foreign`。
+   *
+   * 为什么要收而不是直接无视：扩展名不在白名单里的文件会被 walk 静默丢掉，
+   * 于是「本工具量不了这个项目」表现为「0 个文件 → ✔ 通过」—— 假绿比报错危险（S20）。
+   */
+  const framework = resolveFramework(config.metaFramework)
+  const supported = supportedExtensions(framework)
+  const foreign_ext = foreignExtensions(framework)
+  const allFrameworkExtensions = [...new Set(frameworkSources.flatMap((item) => item.extensions))]
+  const walked = walk(root, {
     skip: DEFAULT_SKIP,
-    extensions: [...TS_EXTENSIONS, ...CSS_EXTENSIONS, '.json', '.html'],
+    extensions: [...TS_EXTENSIONS, ...CSS_EXTENSIONS, '.json', '.html', ...allFrameworkExtensions],
   }).map((full) => relOf(root, full))
+
+  const foreign: string[] = []
+  const files = walked.filter((rel) => {
+    const ext = rel.slice(rel.lastIndexOf('.'))
+    if (supported.has(ext) || !foreign_ext.has(ext)) return true
+    foreign.push(rel)
+    return false
+  })
 
   const roles: CompiledRole[] = config.roles.map((descriptor) => ({
     ...descriptor,
@@ -67,12 +96,14 @@ export function scanProject(config: Config): ScanResult {
   }))
   const ignore = config.ignore.map(globToRegExp)
   const exempt = config.exempt.map((entry) => ({ ...entry, matcher: globToRegExp(entry.glob) }))
+  const include = config.include.map(globToRegExp)
 
   const records: FileRecord[] = []
   const missing: string[] = []
   const ambiguous: { rel: string; roles: string[] }[] = []
   const ignored: string[] = []
   const exempted: { rel: string; reason: string }[] = []
+  const outside: FileRecord[] = []
 
   for (const rel of files) {
     const exemptEntry = exempt.find((entry) => entry.matcher.test(rel))
@@ -87,6 +118,26 @@ export function scanProject(config: Config): ScanResult {
     // 只有代码与样式参与角色判定；json / html 等资源只进文件集（供图解析用）
     const fileKind = kindOf(rel)
     if (fileKind !== 'ts' && fileKind !== 'css') continue
+    /**
+     * 契约扫描域：域外的 ts/css **不参与角色判定，也不报「不在目录契约内」** ——
+     * vite.config.ts / e2e / scripts / 生成代码本来就不该被要求"落位"。
+     *
+     * 但它们**仍进 `outside` 并被解析**：import 边与「测试是独立可达根」都靠 facts，
+     * 少了它们，只被域外测试引用的 src 文件会被误判成孤儿（S15）。
+     * 领域外的一大片生成代码怎么省掉解析，见 .scratch/include-scope/spec.md 的非目标。
+     */
+    if (include.length > 0 && !include.some((matcher) => matcher.test(rel))) {
+      outside.push({
+        rel,
+        abs: join(root, rel),
+        role: '(outside)',
+        layer: 0,
+        domain: null,
+        slot: null,
+        kind: fileKind,
+      })
+      continue
+    }
     const hits: { descriptor: CompiledRole; captured: Record<string, string> }[] = []
     for (const descriptor of roles) {
       const match = rel.match(descriptor.regex)
@@ -122,5 +173,5 @@ export function scanProject(config: Config): ScanResult {
     })
   }
 
-  return { files, records, missing, ambiguous, ignored, exempted }
+  return { files, records, missing, ambiguous, ignored, exempted, outside, foreign }
 }

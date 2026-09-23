@@ -2,7 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { buildGraph, canonical, extractFacts, resolveSpecifier, scanProject } from '../es/index.js'
+import {
+  buildGraph,
+  canonical,
+  extractFacts,
+  loadConfig,
+  resolveSpecifier,
+  scanProject,
+} from '../es/index.js'
 
 const factsOf = (text, rel = 'src/a.ts') => extractFacts({ file: rel, rel, role: 'test', text })
 
@@ -62,7 +69,7 @@ test('scan：合规示例每个文件恰好一个角色，且有歧义/缺失时
     ignore: config.ignore ?? [],
     exempt: [],
     srcRoot: 'src',
-    naming: { hookPrefix: 'use', viewSuffix: 'Page', pageComponentSuffix: 'Page' },
+    naming: { hookPrefix: 'use', viewSuffix: 'Page' },
     thresholds: {
       fileLines: 400,
       viewLines: 320,
@@ -81,4 +88,37 @@ test('scan：合规示例每个文件恰好一个角色，且有歧义/缺失时
   assert.deepEqual(scan.missing, [])
   assert.deepEqual(scan.ambiguous, [])
   assert.ok(scan.records.length >= 4)
+})
+
+/* ---------------- 契约扫描域（include） ---------------- */
+
+test('scan：契约域外的文件不判角色，但仍进文件集（否则测试根接不上 → 假孤儿）', async () => {
+  const { config } = await loadConfig({ root: `${PACKAGE_ROOT}__fixtures__/include-scope` })
+  const scan = scanProject(config)
+  assert.deepEqual(config.include, ['src/**'])
+  assert.deepEqual(scan.missing, [], '域外文件不再进 missing —— 这是 2 万条假报的根因')
+  assert.ok(
+    scan.files.includes('vite.config.ts') && scan.files.includes('scripts/gen.ts'),
+    '域外文件仍留在文件集里（供 import 解析与测试可达根）',
+  )
+  assert.deepEqual(scan.outside.map((record) => record.rel).sort(), [
+    'scripts/gen.ts',
+    'tests/thing.test.ts',
+    'vite.config.ts',
+  ])
+  assert.ok(scan.outside.every((record) => record.role === '(outside)'))
+})
+
+test('scan：overrides.include 能把别的目录重新纳入契约', async () => {
+  const { config } = await loadConfig({ root: `${PACKAGE_ROOT}__fixtures__/include-custom` })
+  const scan = scanProject(config)
+  assert.deepEqual(scan.missing, ['scripts/gen.ts'], '纳入契约后它又要"落位"了')
+  assert.ok(
+    scan.outside.every((record) => record.rel !== 'scripts/gen.ts'),
+    '域外清单里不该再有它',
+  )
+  assert.ok(
+    scan.outside.some((record) => record.rel === 'vite.config.ts'),
+    '域外的仍域外',
+  )
 })

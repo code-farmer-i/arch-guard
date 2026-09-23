@@ -168,6 +168,8 @@ test('report：严重度统计与 JSON 形状', () => {
     rulesEnabled: 2,
     rulesTotal: 2,
     exemptedFiles: 0,
+    contractScope: [],
+    outsideContract: 0,
   })
   assert.equal(report.ok, false)
   assert.equal(report.errors, 1)

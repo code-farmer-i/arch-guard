@@ -1,0 +1,4 @@
+{
+  "findings": [{ "rule": "S01", "file": "scripts/gen.ts" }],
+  "exact": true
+}

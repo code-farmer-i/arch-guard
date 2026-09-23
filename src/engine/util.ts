@@ -130,6 +130,8 @@ export function mergePresets(presets: Preset[]): Preset {
     if (preset.enable) out.enable = preset.enable
     if (preset.entries) out.entries = [...(out.entries ?? []), ...preset.entries]
     if (preset.ignore) out.ignore = [...(out.ignore ?? []), ...preset.ignore]
+    if (preset.include) out.include = [...(out.include ?? []), ...preset.include]
+    if (preset.metaFramework) out.metaFramework = preset.metaFramework
     if (preset.exempt) out.exempt = [...(out.exempt ?? []), ...preset.exempt]
   }
   return out

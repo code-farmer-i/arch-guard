@@ -20,6 +20,10 @@ export interface ReportInput {
   rulesTotal: number
   /** 配置里 exempt 掉的文件数（豁免必须可见） */
   exemptedFiles: number
+  /** 契约扫描域（空 = 全树） */
+  contractScope: string[]
+  /** 扫描域之外、不参与目录契约判定的 ts/css 文件数 */
+  outsideContract: number
 }
 
 const DOMAIN_LABEL: Record<Domain, string> = {
@@ -102,6 +106,9 @@ export function renderSummary(input: ReportInput): void {
     `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
     `豁免 ${input.exemptedCount}`,
     input.exemptedFiles > 0 ? `配置豁免 ${input.exemptedFiles} 个文件` : null,
+    input.contractScope.length > 0
+      ? `扫描域 ${input.contractScope.join(',')}（域外 ${input.outsideContract} 个文件不判契约）`
+      : null,
     `${input.durationMs}ms`,
   ].filter(Boolean)
   out(color.dim(parts.join(' | ')))
@@ -117,6 +124,9 @@ export interface JsonReport {
   findings: (Finding & { domain?: Domain; level?: Level; severity: Severity })[]
   skipped: { rule: string; reason: string }[]
   exempted: number
+  /** 契约扫描域（空 = 全树），以及域外不判契约的文件数 */
+  contractScope: string[]
+  outsideContract: number
   durationMs: number
 }
 
@@ -138,6 +148,8 @@ export function toJsonReport(input: ReportInput): JsonReport {
     }),
     skipped: input.skipped,
     exempted: input.exemptedCount,
+    contractScope: input.contractScope,
+    outsideContract: input.outsideContract,
     durationMs: input.durationMs,
   }
 }

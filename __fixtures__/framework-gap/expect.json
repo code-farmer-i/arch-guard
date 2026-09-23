@@ -1,0 +1,4 @@
+{
+  "findings": [{ "rule": "S20", "file": "src/modules/crews/views/OldPage.vue" }],
+  "exact": true
+}

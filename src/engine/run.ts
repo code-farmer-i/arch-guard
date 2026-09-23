@@ -22,6 +22,7 @@ import {
   type ReportInput,
 } from './report.js'
 import { scanProject } from './scan.js'
+import type { Pack } from './pack.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { globToRegExp, readText } from './util.js'
 
@@ -44,7 +45,13 @@ export interface RunOptions {
   stats?: boolean
   /** 覆盖率产物路径（覆盖 metrics 适配器里的配置；门禁只读它，不跑测试） */
   coverageReport?: string
-  rules: Rule[]
+  /**
+   * 规则集。给了就直接用（程序化调用 / 单测）；不给就从配置的框架包取。
+   * CLI 走的是后者：规则集由 `packs` 决定，不再是硬编码数组。
+   */
+  rules?: Rule[]
+  /** 调用方（CLI）能提供的框架包：配置里没写 `packs` 时用它兜底 */
+  fallbackPacks?: Pack[]
   quiet?: boolean
 }
 
@@ -86,6 +93,8 @@ function gitHeadTimeMs(root: string): number | null {
   try {
     const seconds = execFileSync('git', ['-C', root, 'log', '-1', '--format=%ct'], {
       encoding: 'utf8',
+      // 同上：没有 git 时不能把 git 的报错透传到用户屏幕上
+      stdio: ['ignore', 'pipe', 'ignore'],
     }).trim()
     const value = Number.parseInt(seconds, 10)
     return Number.isFinite(value) ? value * 1000 : null
@@ -123,7 +132,12 @@ export function rootRelativePattern(pattern: string, root: string): string {
 /** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
 function gitChangedFiles(root: string, scope: string): { files: string[]; notice?: string } | null {
   const git = (args: string[]): string[] =>
-    execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' })
+    execFileSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+      // stderr 默认是透传的：在没有 git 的目录里，git 自己那句「致命错误」会打到用户屏幕上，
+      // 而这里本来就会 catch 掉并走「明确降级」分支 —— 噪音不该漏出去。
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean)
@@ -131,6 +145,7 @@ function gitChangedFiles(root: string, scope: string): { files: string[]; notice
     // 变更路径是相对**仓库根**的；配置根可能不是仓库根，必须换算，否则会路径对不上而假绿
     const top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], {
       encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
     }).trim()
     let raw: string[]
     if (scope === 'staged') raw = git(['diff', '--cached', '--name-only', '--find-renames', 'HEAD'])
@@ -173,18 +188,40 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const quiet = options.quiet === true
   const notices: string[] = []
 
-  const { config, notices: configNotices } = await loadConfig({
+  const {
+    config,
+    notices: configNotices,
+    packs,
+  } = await loadConfig({
     root: options.cwd,
     ...(options.configPath ? { configPath: options.configPath } : {}),
+    ...(options.fallbackPacks ? { fallbackPacks: options.fallbackPacks } : {}),
   })
   notices.push(...configNotices)
 
+  // 规则集：显式给的优先；否则由框架包决定（换 pack = 换整套规则，见 PARADIGM §11）
+  const rules = options.rules ?? packs.flatMap((pack) => pack.rules)
+  if (rules.length === 0) {
+    throw new Error(
+      '没有任何可跑的规则：配置里没有框架包，调用方也没给 rules\n' +
+        '（在 arch.config.mjs 里写 packs: [reactPack]，或让调用方传 fallbackPacks）',
+    )
+  }
+
   const scan = scanProject(config)
+  // 收窄扫描域是行为变更（域外文件不再报 S01），必须自述 —— 不许静默
+  if (config.include.length > 0) {
+    notices.push(
+      `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
+    )
+  }
   const texts = new Map<string, string>()
   const facts = new Map<string, Facts>()
   const cssTexts = new Map<string, string>()
 
-  for (const record of scan.records) {
+  // 契约域内的文件 + 域外文件（角色 `(outside)`）都要解析：
+  // 前者判定用，后者只为依赖图完整（测试作为可达根、跨域 import 边）。
+  for (const record of [...scan.records, ...scan.outside]) {
     try {
       const text = readText(record.abs)
       texts.set(record.rel, text)
@@ -215,7 +252,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   }
   const deps = readProjectDeps(config.root, graph.externals.keys())
 
-  const registry = createRegistry(options.rules, config, {
+  const registry = createRegistry(rules, config, {
     ...(options.only ? { only: options.only } : {}),
     ...(options.domain ? { domain: options.domain } : {}),
     ...(options.minLevel ? { minLevel: options.minLevel } : {}),
@@ -266,7 +303,13 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     facts,
     i18n,
     ...(metricsInfo ? { metrics: metricsInfo } : {}),
-    git: { changedFiles: changed?.files ?? null, headTimeMs: gitHeadTimeMs(config.root) },
+    git: {
+      changedFiles: changed?.files ?? null,
+      // 只有 metrics 域（M06 判覆盖率产物是否过期）会读 headTimeMs。
+      // 没有 metrics 适配器时就不该起 git 子进程：省一次 spawn，也避免在没有 git 的目录里
+      // 把 git 自己的「致命错误」打到用户的 stderr 上（execFileSync 的 stderr 默认透传）。
+      headTimeMs: metricsInfo ? gitHeadTimeMs(config.root) : null,
+    },
     graph,
     scan,
     deps,
@@ -299,7 +342,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       stats.push({ rule: rule.id, domain: rule.domain, ms: performance.now() - startedAt, hits: 1 })
     }
   }
-  const ruleIndex = new Map(options.rules.map((rule) => [rule.id, rule]))
+  const ruleIndex = new Map(rules.map((rule) => [rule.id, rule]))
   all.sort(
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule),
   )
@@ -392,8 +435,10 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     globalFindings,
     durationMs: Date.now() - started,
     rulesEnabled: registry.enabled.length,
-    rulesTotal: options.rules.length,
+    rulesTotal: rules.length,
     exemptedFiles: scan.exempted.length,
+    contractScope: config.include,
+    outsideContract: scan.outside.length,
   }
 
   if (!quiet) {

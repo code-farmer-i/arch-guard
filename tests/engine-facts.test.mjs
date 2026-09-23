@@ -67,34 +67,20 @@ const c = el['key']
   assert.equal(facts.strings.find((item) => item.value === 'key')?.context, 'element-access')
 })
 
-test('facts：JSX 文本、debugger、空 catch、any、非空断言', () => {
+test('facts：debugger 记进 calls、hasJsx 标记（裸文本/any/空 catch 已随委派删除）', () => {
   const facts = factsOf(
     `
 export function C(props: any) {
   const a = props.value!
   try { go() } catch { /* 忽略 */ }
-  try { go() } catch {}
   debugger
   return <div>裸文本</div>
 }
 `,
     'src/c.tsx',
   )
-  assert.deepEqual(
-    facts.jsxText.map((item) => item.value),
-    ['裸文本'],
-  )
-  assert.equal(facts.hasJsx, true)
   assert.ok(facts.calls.some((call) => call.callee === 'debugger'))
-  assert.equal(facts.anyNodes.length, 1)
-  assert.equal(facts.nonNull.length, 1)
-  assert.deepEqual(
-    facts.catches.map((item) => [item.statements, item.hasComment]),
-    [
-      [0, true],
-      [0, false],
-    ],
-  )
+  assert.equal(facts.hasJsx, true)
 })
 
 test('facts：函数体量与组件判定', () => {

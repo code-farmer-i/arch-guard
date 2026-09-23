@@ -3,6 +3,13 @@ import { pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
 
+import {
+  defaultFramework,
+  frameworkSourceOf,
+  frameworkSources,
+  implementedFrameworks,
+} from '../data/framework-sources.js'
+import type { Pack } from './pack.js'
 import type { Config, Preset, Thresholds } from './types.js'
 import { exists, mergePresets } from './util.js'
 
@@ -10,6 +17,11 @@ export interface RawProjectConfig {
   /** 配置格式版本；与本工具不匹配时显式报错 */
   specVersion?: string
   presets?: Preset[]
+  /**
+   * 框架包（**代码**，由宿主从本体 import 进来）。省略 = 用调用方给的回退包（CLI 给的是 react pack）。
+   * 一个项目只允许一个：换元框架是换 parser 与整套规则，不是叠加。
+   */
+  packs?: Pack[]
   /** 项目差异只写这里；与预设合并后即最终配置 */
   overrides?: Partial<Config>
 }
@@ -18,6 +30,8 @@ export interface LoadedConfig {
   config: Config
   notices: string[]
   path: string
+  /** 实际生效的框架包（恰好一个，或空数组 = 调用方直接给了规则集） */
+  packs: Pack[]
 }
 
 const DEFAULT_THRESHOLDS: Thresholds = {
@@ -31,7 +45,6 @@ const DEFAULT_THRESHOLDS: Thresholds = {
 const DEFAULT_NAMING = {
   hookPrefix: 'use',
   viewSuffix: 'Page',
-  pageComponentSuffix: 'Page',
 }
 
 let importCounter = 0
@@ -115,6 +128,11 @@ export const CONFIG_SPEC_VERSION = '1'
 export async function loadConfig(options: {
   root: string
   configPath?: string
+  /**
+   * 调用方（CLI）能提供的框架包。配置里写了 `packs` 就以配置为准；没写就用这个兜底。
+   * 引擎自己不认识任何 pack —— pack 是代码，依赖方向是 pack → 引擎，不能反过来。
+   */
+  fallbackPacks?: Pack[]
 }): Promise<LoadedConfig> {
   const { root } = options
   const path = options.configPath ? join(root, options.configPath) : join(root, 'arch.config.mjs')
@@ -139,6 +157,40 @@ export async function loadConfig(options: {
   const notices: string[] = []
   const preset = mergePresets(raw.presets ?? [])
   const overrides = raw.overrides ?? {}
+
+  /* ---- 框架包：恰好一个，且它与 metaFramework 只能有一处真相 ---- */
+  const packs = raw.packs ?? options.fallbackPacks ?? []
+  if (packs.length > 1) {
+    throw new Error(
+      `一个项目只允许一个框架包，配置里出现了 ${packs.map((pack) => pack.id).join(' / ')}\n` +
+        '（多框架混装要按框架分别建配置，见 docs/DESIGN.md §7.5）',
+    )
+  }
+  const pack = packs[0]
+  const declaredFramework = overrides.metaFramework
+  if (pack && declaredFramework !== undefined && declaredFramework !== pack.framework) {
+    throw new Error(
+      `metaFramework 与框架包不一致：配置写的是 ${declaredFramework}，包 ${pack.id} 实现的是 ${pack.framework}\n` +
+        '（这两处只能有一个真相；直接用包，或把 overrides.metaFramework 去掉）',
+    )
+  }
+  const metaFramework = declaredFramework ?? pack?.framework ?? defaultFramework
+  const framework = frameworkSourceOf(metaFramework)
+  // 认不出的取值、或「声明了某个框架却没有对应 pack」都必须 fail-closed：
+  // 否则「本工具量不了这个项目」会表现为「扫到 0 个文件 → ✔ 通过」的假绿。
+  if (!framework) {
+    throw new Error(
+      `未知的 metaFramework：${metaFramework}（已登记：${frameworkSources.map((item) => item.id).join(' / ')}）`,
+    )
+  }
+  if (!pack && !framework.implemented) {
+    throw new Error(
+      `本工具还没有 ${framework.id} 框架包（现在只有 ${implementedFrameworks().join(' / ')}）：` +
+        `拿它跑只会得到「0 个文件 → 通过」的假绿，所以这里直接拒绝，而不是静默通过\n` +
+        '（已经有 pack 的话，在 arch.config.mjs 里用 packs: [xxxPack] 声明它）',
+    )
+  }
+
   // 布局默认值属于预设（canonical），引擎不假设任何项目布局（见 §15.2 P3）
   const layout = overrides.layout ?? preset.layout
   if (!layout) {
@@ -165,6 +217,9 @@ export async function loadConfig(options: {
     params: { ...preset.params, ...overrides.params },
     entries,
     ignore: [...(preset.ignore ?? []), ...(overrides.ignore ?? [])],
+    // 契约扫描域：预设给默认（canonical / library 都收窄到 src），overrides 可覆盖；空 = 不限制
+    include: overrides.include ?? preset.include ?? [],
+    metaFramework,
     exempt: [...(preset.exempt ?? []), ...(overrides.exempt ?? [])],
     aliases,
     baselineFile: overrides.baselineFile ?? 'arch.baseline.json',
@@ -178,5 +233,5 @@ export async function loadConfig(options: {
   if (!exists(join(root, 'package.json')))
     notices.push('项目根没有 package.json：依赖类规则会被跳过')
 
-  return { config, notices, path }
+  return { config, notices, path, packs }
 }

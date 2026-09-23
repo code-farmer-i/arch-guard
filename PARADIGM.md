@@ -105,26 +105,41 @@ src/
 
 ### 6.4 唯一落点与反例
 
-| 要写的东西                           | 唯一落点                                                                           |
-| ------------------------------------ | ---------------------------------------------------------------------------------- |
-| 页面                                 | `modules/<域>/views/<名词>Page.tsx`（default 导出）                                |
-| 域内组件 / 哑基础件 / 业务中立组合件 | `modules/<域>/components/` / `shared/components/ui/` / `shared/components/common/` |
-| 跨域编排 / 域内编排                  | `shared/hooks/use<资源>.ts` / `modules/<域>/hooks/`                                |
-| 端点 / 契约类型 / query key          | `shared/api/<资源>.ts` / `types.ts` / `queryKeys.ts`                               |
-| 路由路径 / 路由分片                  | `shared/config/paths.ts` / `modules/<域>/routes.tsx`                               |
-| 持久化 key / 环境变量                | `shared/config/storage.ts` / `shared/config/env.ts`                                |
-| 文案                                 | `shared/i18n/locales/<lang>/<命名空间>.ts`                                         |
-| 组件私有样式                         | 同目录同名 `*.module.css`                                                          |
+| 要写的东西                           | 唯一落点                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| 页面                                 | `modules/<域>/views/<名词>Page.tsx`（default 导出）                                                      |
+| 域内组件 / 哑基础件 / 业务中立组合件 | `modules/<域>/components/` / `shared/components/ui/` / `shared/components/common/`                       |
+| 跨域编排 / 域内编排                  | `shared/hooks/use<资源>.ts` / `modules/<域>/hooks/`                                                      |
+| 端点 / 契约类型 / query key          | `shared/api/<资源>.ts` / `types.ts` / `queryKeys.ts`                                                     |
+| 路由路径 / 路由分片                  | `shared/config/paths.ts` / `modules/<域>/routes.tsx`                                                     |
+| 持久化 key / 环境变量                | `shared/config/storage.ts` / `shared/config/env.ts`                                                      |
+| 文案                                 | `shared/i18n/locales/<lang>/<命名空间>.ts`                                                               |
+| 组件私有样式                         | 同目录同名 `*.module.css`                                                                                |
+| 全局 Provider 套壳                   | `app/App.tsx`（一层层 `<XProvider>` 嵌套）；**provider 的配置对象各自回家**：api / theme / i18n / stores |
+| 全局 Provider 的配置对象             | `shared/api/`（queryClient）/ `shared/theme/` / `shared/i18n/` / `shared/stores/`                        |
 
-| 错误落点                            | 正确的家                                          | 为什么                      |
-| ----------------------------------- | ------------------------------------------------- | --------------------------- |
-| `src/utils/` `src/helpers/`         | `shared/lib`                                      | 顶层只有三根                |
-| `src/services/`                     | `shared/api`                                      | 传输只有一个家              |
-| `shared/components/<域>Panel.tsx`   | `modules/<域>/components/`                        | 带域语义的东西不许进 shared |
-| `modules/a/` 被 `modules/b/` import | 提升到 `shared/components/common` 或由 `app` 组合 | 域间零依赖                  |
-| 单域专用的 hook 放 `shared/hooks/`  | 下沉到该域                                        | 只有跨域复用才提升          |
-| `../..` 相对越级                    | 别名 `@/…`                                        | 一条 import 规则            |
-| 新目录 `src/features/`              | 不存在这个位置                                    | 目录白名单                  |
+| 错误落点                            | 正确的家                                          | 为什么                                       |
+| ----------------------------------- | ------------------------------------------------- | -------------------------------------------- |
+| `src/utils/` `src/helpers/`         | `shared/lib`                                      | 顶层只有三根                                 |
+| `src/services/`                     | `shared/api`                                      | 传输只有一个家                               |
+| `shared/components/<域>Panel.tsx`   | `modules/<域>/components/`                        | 带域语义的东西不许进 shared                  |
+| `modules/a/` 被 `modules/b/` import | 提升到 `shared/components/common` 或由 `app` 组合 | 域间零依赖                                   |
+| 单域专用的 hook 放 `shared/hooks/`  | 下沉到该域                                        | 只有跨域复用才提升                           |
+| `../..` 相对越级                    | 别名 `@/…`                                        | 一条 import 规则                             |
+| 新目录 `src/features/`              | 不存在这个位置                                    | 目录白名单                                   |
+| `app/providers.tsx`（React 习惯）   | 套壳写进 `app/App.tsx`，配置下沉 `shared/`        | app 是唯一全知层；范式不为框架习惯开角色口子 |
+
+### 6.5 契约扫描域（`include`）
+
+角色表回答「契约内怎么落位」，但**不回答「哪片树属于契约」**。`include`（配置根相对 glob）补上这一句：
+
+- 只有命中 `include` 的 ts/css 参与角色判定与逐文件规则；域外的 `vite.config.ts` / `e2e/` / `scripts/` / 生成代码
+  既不报「不在目录契约内」，也不被逐文件规则扫。
+- 域外文件**仍进依赖图**（照常解析，角色记为 `(outside)`）：import 边与「测试是独立可达根」都靠 facts，
+  少了它们，只被域外测试引用的文件会被误判成孤儿。
+- 预设给默认：`canonical()` / `library()` 都是 `[<srcRoot>/**]`；空数组 = 不限制（引擎默认）。
+- 与 D3「封闭枚举」不冲突：`include` 决定**哪片树**参与枚举，角色表决定枚举**怎么落位**，且 `include` 只能更粗。
+- 报告必须自述扫描域与域外文件数 —— 收窄扫描域是行为变更，不许静默。
 
 ## 7. 棘轮与豁免
 
@@ -181,6 +196,11 @@ src/
 | **适配器**      | 同一元框架内的库（组件库 / 数据层 / 路由 / 样式 / i18n） | **纯数据表**                                            |
 | **框架包 pack** | 元框架本身（React / Vue / Svelte）                       | **代码**：parser + 角色表变体 + 语言相关规则 + fixtures |
 
+**pack 怎么选**：宿主在 `arch.config.mjs` 里写 `packs: [reactPack]`；**一个项目只允许一个** ——
+换元框架是换 parser 与整套规则集，不是叠加。pack 自己声明 `framework`，它与配置里的 `metaFramework`
+只能有一处真相（两边都写且不一致直接报错）。调用方（CLI）只提供**兜底包**，
+引擎不认识任何 pack（依赖方向是 pack → 引擎，不能反过来）。
+
 ### 11.1 工程类型：应用范式 vs 库范式
 
 同一套引擎要量两类工程，而它们的目录契约本就不同：
@@ -195,6 +215,11 @@ src/
 **结论**：工程类型不是新概念，而是「预设贡献角色表 + 规则集」这一既有机制的第二次应用 —— 引擎一行没改，只是多了一份 `presets/library.ts`。这也解释了为什么不能让所有规则默认常开：**规则集必须跟着工程类型走。**
 
 **范式不变量不配置**：三根角色划分、唯一出处、依赖单向、无环、退路不留、目录白名单、红线只落 L1–L3、禁内联豁免。
+
+**跨框架的边界**：目录契约（三根拓扑、角色表、依赖方向、公开面、唯一出处）与框架无关，**整篇可搬**；
+parser 与语言相关规则属于 pack（换元框架 = 换 parser + 角色表变体 + 规则集变体）。
+由此得一条不变量：**当前 pack 量不了的源码形态必须显式报错** —— 认不出的 `metaFramework` 直接拒绝执行，
+项目里混进的 `.vue` / `.svelte` 由 S20 报出。「0 个文件 → 通过」是假绿，比报错危险。
 
 ## 12. 选型纪律：优先成熟开源方案
 

@@ -1,3 +1,4 @@
+import { resolveFramework } from '../../../data/framework-sources.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 /** S00 解析失败必须报错：fail-closed —— 语法错误会让该文件失去全部检查，绝不能静默通过 */
@@ -335,6 +336,94 @@ export const sizeLimits: Rule = {
   },
 }
 
+/**
+ * S19 导出宽度与单文件组件数：一个文件是一个单元。
+ *
+ * 为什么和 S16 分开：S16 量的是「行数」（任何工程类型都成立），S19 量的是「一个文件承担了几件事」——
+ * 它对**应用**成立，对**库**不成立：库的入口（`src/index.ts`）就是公开面，导出几十个符号是正确形态。
+ * 规则集必须跟着工程类型走（ADR-0003），所以 `canonical()` 默认开、`library()` 的启用名单里没有它。
+ */
+export const widthLimits: Rule = {
+  id: 'S19',
+  domain: 'structure',
+  level: 'L2',
+  severity: 'error',
+  title: '导出宽度与单文件组件数',
+  hint: '导出值太多说明这个文件承担了多件事；组件太多说明该拆成组件目录',
+  run: (ctx) => {
+    const { exportsPerFile, componentsPerFile } = ctx.config.thresholds
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.kind !== 'ts') continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      // 「导出值」不含类型：类型导出是契约，不是宽度
+      const values = facts.exports.filter((entry) => !entry.typeOnly)
+      if (values.length > exportsPerFile) {
+        out.push(
+          finding(
+            'S19',
+            record.rel,
+            values[0]?.line ?? 1,
+            `导出值 ${values.length} 个，超过上限 ${exportsPerFile}`,
+            '按职责拆文件',
+          ),
+        )
+      }
+      const components = facts.functions.filter((fn) => fn.isComponent)
+      if (components.length > componentsPerFile) {
+        out.push(
+          finding(
+            'S19',
+            record.rel,
+            components[0]?.line ?? 1,
+            `单文件组件 ${components.length} 个，超过上限 ${componentsPerFile}`,
+            '拆成 components/ 目录',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/**
+ * S20 框架包必须覆盖项目的源码形态：扫到当前 pack 量不了的源码文件就报错。
+ *
+ * 为什么是红线而不是提示：那些文件会被 walk 直接丢掉，于是「量不了」表现为
+ * 「0 个文件 → ✔ 通过」—— 假绿比报错危险。要么换 pack，要么把 `metaFramework` 配对。
+ */
+export const frameworkCoverage: Rule = {
+  id: 'S20',
+  domain: 'structure',
+  level: 'L1',
+  severity: 'error',
+  title: '框架包必须覆盖项目的源码形态',
+  hint: '这些文件不在当前框架包的处理范围内，会被静默跳过；换对应 pack，或把这些源码移出扫描范围',
+  run: (ctx) => {
+    if (ctx.scan.foreign.length === 0) return []
+    const kinds = new Map<string, number>()
+    for (const rel of ctx.scan.foreign) {
+      const ext = rel.slice(rel.lastIndexOf('.'))
+      kinds.set(ext, (kinds.get(ext) ?? 0) + 1)
+    }
+    const detail = [...kinds.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([ext, count]) => `${ext} × ${count}`)
+      .join('、')
+    return [
+      finding(
+        'S20',
+        ctx.scan.foreign[0] as string,
+        1,
+        `发现 ${ctx.scan.foreign.length} 个当前框架包（${resolveFramework(ctx.config.metaFramework)}）量不了的源码文件：${detail}`,
+        '本工具目前只有 react pack；要么换 pack，要么把这段源码移出扫描范围（ignore）',
+        true,
+      ),
+    ]
+  },
+}
+
 export const structureRules: Rule[] = [
   domainRootOnlyRoutes,
   parseFailClosed,
@@ -345,4 +434,6 @@ export const structureRules: Rule[] = [
   exportShape,
   routesRequired,
   sizeLimits,
+  widthLimits,
+  frameworkCoverage,
 ]

@@ -1,0 +1,7 @@
+{
+  "findings": [
+    { "rule": "S19", "file": "src/shared/lib/many.ts" },
+    { "rule": "S19", "file": "src/shared/components/ui/Multi.tsx" }
+  ],
+  "exact": true
+}

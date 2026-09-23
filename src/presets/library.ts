@@ -36,7 +36,7 @@ export function library(options: LibraryOptions = {}): Preset {
     roles: libraryRoleTable({ src }),
     layout: { app: src, modules: `${src}/packs`, shared: `${src}/engine` },
     srcRoot: src,
-    naming: { hookPrefix: 'use', viewSuffix: 'Page', pageComponentSuffix: 'Page' },
+    naming: { hookPrefix: 'use', viewSuffix: 'Page' },
     thresholds: {
       fileLines: 500,
       viewLines: 500,
@@ -45,6 +45,9 @@ export function library(options: LibraryOptions = {}): Preset {
       componentsPerFile: 3,
     },
     entries: [`${src}/index.ts`, `${src}/cli.ts`],
+    // 契约扫描域：本体的源码树只有 src；构建产物、示例宿主、夹具、工具配置都在域外，
+    // 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。
+    include: [`${src}/**`],
     ignore: [
       'arch.config.mjs',
       'arch.config.js',

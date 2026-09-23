@@ -15,7 +15,7 @@ test('夹具回归在测试进程内跑：每条规则的违规必报与合规�
   assert.equal(
     result.failures.length,
     0,
-    `夹具失败：\n${result.failures.map((item) => `  ${item.fixture}: ${item.reason}`).join('\n')}`,
+    `夹具失败：\n${result.failures.map((item) => `  ${item.fixture}: ${item.message}`).join('\n')}`,
   )
   assert.equal(result.passed, result.total)
 })

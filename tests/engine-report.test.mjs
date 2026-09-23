@@ -64,6 +64,8 @@ const baseInput = (overrides = {}) => ({
   rulesEnabled: 19,
   rulesTotal: 19,
   exemptedFiles: 0,
+  contractScope: ['src/**'],
+  outsideContract: 0,
   ...overrides,
 })
 

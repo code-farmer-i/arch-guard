@@ -31,6 +31,7 @@ export const reactRules: Rule[] = [
 
 export const reactPack = definePack({
   id: 'react',
+  framework: 'react',
   rules: reactRules,
   adapters: ['ui-kit', 'router', 'styles', 'i18n', 'data-layer'],
 })

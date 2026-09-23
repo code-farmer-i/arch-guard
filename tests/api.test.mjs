@@ -93,13 +93,23 @@ test('definePack：id 重复与空规则在定义时就报错（不等到运行�
     title: `t${id}`,
     run: () => [],
   })
-  const pack = definePack({ id: 'demo', rules: [rule('S01'), rule('S02')] })
+  const pack = definePack({ id: 'demo', framework: 'react', rules: [rule('S01'), rule('S02')] })
   assert.equal(pack.id, 'demo')
   assert.equal(Object.isFrozen(pack), true)
-  assert.throws(() => definePack({ id: '', rules: [rule('S01')] }), PackError)
-  assert.throws(() => definePack({ id: 'demo', rules: [] }), PackError)
+  assert.throws(() => definePack({ id: '', framework: 'react', rules: [rule('S01')] }), PackError)
+  assert.throws(() => definePack({ id: 'demo', framework: 'react', rules: [] }), PackError)
   assert.throws(
-    () => definePack({ id: 'demo', rules: [rule('S01'), { ...rule('S01'), title: '另一条' }] }),
+    () =>
+      definePack({
+        id: 'demo',
+        framework: 'react',
+        rules: [rule('S01'), { ...rule('S01'), title: '另一条' }],
+      }),
     /规则 id 重复/,
+  )
+  assert.throws(
+    () => definePack({ id: 'demo', rules: [rule('S01')] }),
+    /framework/,
+    '包必须声明它实现哪个元框架，否则换框架时会静默用错规则集',
   )
 })

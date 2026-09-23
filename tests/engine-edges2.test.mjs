@@ -41,6 +41,8 @@ test('report：基线里的失效豁免要单独提示（否则没人敢动基�
       rulesEnabled: 0,
       rulesTotal: 0,
       exemptedFiles: 0,
+      contractScope: [],
+      outsideContract: 0,
     }),
   )
   assert.match(text, /基线里有 1 条已失效的豁免/)

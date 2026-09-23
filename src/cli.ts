@@ -10,7 +10,7 @@ import { runGuard } from './engine/run.js'
 import { runSelfTest } from './engine/self-test.js'
 import type { Domain, Level, Severity } from './engine/types.js'
 import { color } from './engine/util.js'
-import { reactRules } from './packs/react/index.js'
+import { reactPack } from './packs/react/index.js'
 
 const LEVELS: Level[] = ['L1', 'L2', 'L3', 'L4']
 const DOMAINS: Record<string, Domain> = {
@@ -120,7 +120,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   const options = program.opts<CliOptions>()
 
   if (options.selfTest) {
-    const result = await runSelfTest(packageRoot, reactRules)
+    const result = await runSelfTest(packageRoot, reactPack.rules)
     if (result.failures.length > 0) {
       out(color.red(`✖ 夹具回归失败：${result.failures.length}/${result.total}`))
       for (const failure of result.failures) out(`  ${failure.fixture}: ${failure.message}`)
@@ -182,7 +182,8 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   try {
     const result = await runGuard({
       cwd: process.cwd(),
-      rules: reactRules,
+      // 规则集由框架包决定（配置里可写 packs: [...]）；CLI 只提供兜底的包
+      fallbackPacks: [reactPack],
       format: options.format as 'pretty' | 'json' | 'github',
       stats: options.stats === true,
       ...(options.coverageReport ? { coverageReport: options.coverageReport } : {}),

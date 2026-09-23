@@ -192,6 +192,15 @@ test('M08：该有测试的文件要么被测试 import，要么有同名配对�
       source('tests/pair.test.ts'),
     ],
     graph: { importers: new Map([['src/engine/covered.ts', new Set(['tests/covered.test.ts'])]]) },
+    // 测试文件从完整文件集里找（测试常在契约扫描域之外，没有角色、不进 records）
+    files: [
+      'src/engine/covered.ts',
+      'src/engine/pair.ts',
+      'src/engine/naked.ts',
+      'src/engine/ignored.tsx',
+      'tests/covered.test.ts',
+      'tests/pair.test.ts',
+    ],
   }
   const findings = ruleOf('M08').run(context)
   assert.deepEqual(

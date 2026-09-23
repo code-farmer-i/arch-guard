@@ -10,7 +10,7 @@ import { aliasesFromTsconfig, loadConfig } from '../es/engine/config.js'
 import { parseLocaleFile } from '../es/engine/i18n.js'
 import { describeTypeScriptProblem } from '../es/engine/ts-api.js'
 import { reactRules } from '../es/packs/react/index.js'
-import { runGuard } from '../es/index.js'
+import { reactPack, runGuard } from '../es/index.js'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const INDEX_URL = pathToFileURL(join(PACKAGE_ROOT, 'es/index.js')).href
@@ -53,6 +53,90 @@ test('config：找不到配置文件 / specVersion 不认识 / 缺 layout 都显
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('config：metaFramework 认不出 / 还没有 pack 时直接拒绝（防「0 文件 → 通过」的假绿）', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-fw-'))
+  try {
+    const write = (framework) =>
+      writeFileSync(
+        join(dir, 'arch.config.mjs'),
+        `import { canonical } from '${INDEX_URL}'\n` +
+          `export default { presets: [canonical()], overrides: { metaFramework: '${framework}' } }\n`,
+      )
+
+    write('nope')
+    await assert.rejects(() => loadConfig({ root: dir }), /未知的 metaFramework/)
+
+    write('vue')
+    await assert.rejects(() => loadConfig({ root: dir }), /还没有 vue 框架包/)
+
+    // 不写就是已实现的那个（react），必须能正常加载
+    writeFileSync(
+      join(dir, 'arch.config.mjs'),
+      `import { canonical } from '${INDEX_URL}'\nexport default { presets: [canonical()] }\n`,
+    )
+    const { config } = await loadConfig({ root: dir })
+    assert.equal(config.metaFramework, 'react')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('config：规则集由框架包决定，且 pack 与 metaFramework 只有一处真相', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-pack-'))
+  try {
+    const write = (body) => writeFileSync(join(dir, 'arch.config.mjs'), body)
+    const head = `import { canonical, reactPack } from '${INDEX_URL}'\n`
+
+    write(`${head}export default { presets: [canonical()], packs: [reactPack] }\n`)
+    const loaded = await loadConfig({ root: dir })
+    assert.equal(loaded.config.metaFramework, 'react', 'metaFramework 由包给出，不用再手写一遍')
+    assert.deepEqual(
+      loaded.packs.map((pack) => pack.id),
+      ['react'],
+    )
+    assert.ok(loaded.packs[0].rules.length > 0, '包自带规则集')
+
+    write(`${head}export default { presets: [canonical()], packs: [reactPack, reactPack] }\n`)
+    await assert.rejects(() => loadConfig({ root: dir }), /只允许一个框架包/)
+
+    write(
+      `${head}export default { presets: [canonical()], packs: [reactPack], ` +
+        `overrides: { metaFramework: 'vue' } }\n`,
+    )
+    await assert.rejects(() => loadConfig({ root: dir }), /不一致/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('runGuard：不给 rules 时用框架包（CLI 走的路），一个包都没有则明确报错', async () => {
+  const dir = makeProject()
+  try {
+    const result = await runGuard({ cwd: dir, fallbackPacks: [reactPack], quiet: true })
+    assert.equal(result.config.metaFramework, 'react')
+    assert.ok(result.stats.length > 0, '兜底包生效，规则真的跑了')
+
+    await assert.rejects(
+      () => runGuard({ cwd: dir, quiet: true }),
+      /没有任何可跑的规则/,
+      '没包又没 rules 时必须报错，而不是「跑 0 条规则 → 通过」',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('scan：当前 pack 量不了的源码（.vue）进 foreign，而不是被静默丢掉', async () => {
+  const { config } = await loadConfig({ root: `${PACKAGE_ROOT}__fixtures__/framework-gap` })
+  const { scanProject } = await import('../es/index.js')
+  const scan = scanProject(config)
+  assert.deepEqual(scan.foreign, ['src/modules/crews/views/OldPage.vue'])
+  assert.ok(
+    !scan.files.includes('src/modules/crews/views/OldPage.vue'),
+    '量不了的文件不该混进文件集参与图判定',
+  )
 })
 
 test('aliases：根 tsconfig 只有 references 时顺着引用链取 paths（Vite 官方模板形态）', () => {

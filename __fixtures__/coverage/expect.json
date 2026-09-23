@@ -2,7 +2,7 @@
   "findings": [
     {
       "rule": "M02",
-      "file": "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/coverage-summary.json"
+      "file": "coverage-summary.json"
     },
     {
       "rule": "M03",

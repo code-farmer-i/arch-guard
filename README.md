@@ -33,9 +33,18 @@ pnpm add -D arch-guard
 在项目根建 `arch.config.mjs`：
 
 ```js
-import { canonical, designSystem, copy, hygiene, uiKit, antdKit } from 'arch-guard/presets'
+import {
+  canonical,
+  designSystem,
+  copy,
+  hygiene,
+  uiKit,
+  antdKit,
+  reactPack,
+} from 'arch-guard/presets'
 
 export default {
+  packs: [reactPack], // 框架包（一个项目一个）：规则集由它决定
   presets: [
     canonical(), // 应用范式：三根拓扑 / 角色表 / 阈值
     // 库或 CLI 工具改用 library()：库角色表 + 库适用规则集（见 PARADIGM.md §11.1）
@@ -46,6 +55,7 @@ export default {
   ],
   overrides: {
     // 项目差异只写这里
+    // include: ['src/**'], // 契约扫描域（默认 = 源码根）；域外文件不判契约，但仍进依赖图
   },
 }
 ```

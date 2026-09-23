@@ -85,7 +85,7 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     roles: roleTable({ src, app, modules, shared }),
     layout: { app, modules, shared },
     srcRoot: src,
-    naming: { hookPrefix: 'use', viewSuffix: 'Page', pageComponentSuffix: 'Page' },
+    naming: { hookPrefix: 'use', viewSuffix: 'Page' },
     thresholds: {
       fileLines: 500,
       viewLines: 500,
@@ -108,6 +108,9 @@ export function canonical(options: CanonicalOptions = {}): Preset {
       [app]: 11,
     },
     entries: [`${app}/main.tsx`],
+    // 契约扫描域：只有 src 下的 ts/css 参与角色判定。域外（vite.config.ts / e2e / scripts /
+    // 生成代码）既不该被要求"落位"，也不该每次全量解析；但它们仍留在文件集里供 import 解析。
+    include: [`${src}/**`],
     // 门禁自身的配置文件不属于项目源码树
     ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json', '.agents/**'],
   }

@@ -31,11 +31,6 @@ export interface StringFact {
   prop: string | null
 }
 
-export interface JsxTextFact {
-  value: string
-  line: number
-}
-
 export interface CallFact {
   callee: string
   line: number
@@ -43,19 +38,6 @@ export interface CallFact {
   stringArg?: string
   /** 第一个参数是模板串时的静态前缀（t(`nav.${x}`) 里的 "nav."），动态键靠它判定「被用过」 */
   keyPrefix?: string
-}
-
-/** JSX 内联样式的一条声明：style={{ color: '#fff', margin: 8 }} */
-export interface InlineStyleFact {
-  prop: string
-  value: string
-  line: number
-}
-
-export interface CatchFact {
-  line: number
-  statements: number
-  hasComment: boolean
 }
 
 export interface FunctionFact {
@@ -79,6 +61,10 @@ export interface ParseErrorFact {
   message: string
 }
 
+/**
+ * 单个文件的事实模型。字段是**规则实际会读的**那些 —— 加字段前先确认有规则在读
+ * （见 `facts.ts` 里 `extractFacts` 的说明与 docs/ECOSYSTEM-AUDIT.md）。
+ */
 export interface Facts {
   file: string
   rel: string
@@ -88,15 +74,10 @@ export interface Facts {
   imports: ImportFact[]
   exports: ExportFact[]
   strings: StringFact[]
-  jsxText: JsxTextFact[]
   calls: CallFact[]
-  catches: CatchFact[]
   functions: FunctionFact[]
-  anyNodes: { line: number }[]
-  nonNull: { line: number }[]
   comments: CommentFact[]
   hasJsx: boolean
-  inlineStyles: InlineStyleFact[]
 }
 
 /* ---------------- 结构与角色 ---------------- */
@@ -133,7 +114,6 @@ export interface Thresholds {
 export interface NamingRules {
   hookPrefix: string
   viewSuffix: string
-  pageComponentSuffix: string
 }
 
 export interface ExemptEntry {
@@ -191,6 +171,10 @@ export interface Preset {
   layers?: Record<string, number>
   entries?: string[]
   ignore?: string[]
+  /** 契约扫描域：只有命中这些 glob 的 ts/css 参与角色判定（空 = 不限制） */
+  include?: string[]
+  /** 元框架标识（`react` / `vue` / …）：决定哪些源码扩展名归本 pack 管 */
+  metaFramework?: string
   exempt?: ExemptEntry[]
 }
 
@@ -207,6 +191,10 @@ export interface Config {
   params: Record<string, unknown>
   entries: string[]
   ignore: string[]
+  /** 契约扫描域（配置根相对 glob）；空 = 全树都参与契约判定 */
+  include: string[]
+  /** 元框架标识：当前 pack 负责哪些源码扩展名（见 src/data/framework-sources.ts） */
+  metaFramework: string
   exempt: ExemptEntry[]
   aliases: Record<string, string>
   baselineFile: string

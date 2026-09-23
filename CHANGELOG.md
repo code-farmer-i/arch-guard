@@ -2,6 +2,110 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [Unreleased]
+
+### Changed（框架包接进配置：规则集不再硬编码）
+
+- **`arch.config.mjs` 支持 `packs: [reactPack]`**：规则集由框架包给出，`cli.ts` 不再硬编码 `reactRules`，
+  只提供**兜底包**（引擎不认识任何 pack —— 依赖方向是 pack → 引擎）。
+- **`Pack` 新增必填 `framework`**：它实现哪个元框架。于是 `metaFramework` 与 pack 不再可能各写一份：
+  配了包就以包为准；两边都写且不一致直接报错。这消掉了上一版刚引入的「两处真相」。
+- **一个项目只允许一个包**：换元框架是换 parser 与整套规则集，不是叠加；多包直接报错并指向 DESIGN §7.5。
+- **没有任何包又没有 rules 时明确报错**，而不是「跑 0 条规则 → ✔ 通过」。
+- `runGuard` 的 `rules` 变为可选（程序化调用/单测显式给规则集的路径不变），新增 `fallbackPacks`。
+
+### Added（`metaFramework` + S20：非 React 项目不再假绿）
+
+- **新增配置轴 `metaFramework`**（默认 `react`），取值表在 `src/data/framework-sources.ts`（纯数据，引擎里不出现框架名）。
+  认不出的取值、或**还没有 pack** 的框架（`vue` / `svelte` / `astro`）一律 fail-closed 报错。
+- **为什么这是红线**：`.vue` / `.svelte` 本来根本不在扫描扩展名里（`walk` 只收 ts/tsx/js/jsx/mjs/cjs + css/scss/less + json/html），
+  于是拿 Vue 项目跑会得到「扫到 0 个文件 → **✔ 架构守卫通过**」—— 一行都没查还说通过了，正是本工具最反对的假绿。
+- **新增规则 `S20`（框架包必须覆盖项目的源码形态）**：项目里混进当前 pack 量不了的源码即报，
+  并列出 `扩展名 × 个数`。这些文件不会混进文件集参与图判定。
+- 新增夹具 `framework-gap`（`exact: true`：一个 canonical 工程 + 一个 `.vue` 页面 → 恰好一条 S20）。
+- 顺手补回 `__fixtures__/clean/src/shared/lib/format.ts`：`clean` 夹具的 `CrewsPage.tsx` 一直在 import 它，
+  但文件同样被 `.gitignore` 吞掉，留下一个悬空引用（不报错、所以没人发现）。
+
+### Added（S19 导出宽度与单文件组件数）
+
+- **新增 `S19`**：单文件导出值 > `exportsPerFile`（默认 6）或单文件组件数 > `componentsPerFile`（默认 3）即报。
+  「导出值」不计类型导出（类型是契约，不是宽度）。
+- **只属于应用范式**：`canonical()` 默认开（`enable: 'all'`）；`library()` 的启用名单里没有它 ——
+  库的入口 `src/index.ts` 就是公开面，导出几十个符号是正确形态（实测：按 error 直接落到库里会先把狗粮自己打红 9 个文件）。
+  这是 ADR-0003「规则集必须跟着工程类型走」的又一次应用。
+- 新增夹具 `width`（`exact: true`）：`shared/lib/many.ts` 7 个导出值、`shared/components/ui/Multi.tsx` 4 个组件，
+  两个文件都接进可达图以免顺带触发 S15。
+- 顺手修文档漂移：`DESIGN.md` §5.1 那句「已实现并带夹具的规则：…H01–H05」早已不准，
+  改为以 `reactRules` 为准的 49 条清单，并写明 `S08` / `S10` / `P03` / `P08` 是**委派**而非漏实现。
+
+### Changed（删掉没人读的配置旋钮）
+
+- **删掉 `naming.pageComponentSuffix`**：全仓 grep 没有任何规则读它（`hookPrefix` / `viewSuffix` 有），
+  属于「以为在管、其实没管」的假旋钮。`Thresholds.exportsPerFile` / `componentsPerFile` 这次补上了实现（见 S19）。
+
+### Changed（范式补一条：全局 Provider 装配放哪）
+
+- `PARADIGM.md` §6.4 唯一落点表新增两行，并把 React 习惯的 `app/providers.tsx` 写进反例表：
+  **套壳写进 `app/App.tsx`，provider 的配置对象各自回家**（queryClient→`shared/api`、theme→`shared/theme`、
+  i18n→`shared/i18n`、store→`shared/stores`）。
+  不为此给角色表开通用口子 —— app 层仍是封闭枚举，`App.tsx` 只留几十行嵌套，也撞不到 S16 的 500 行。
+
+### Added（契约扫描域 `include`）· 行为变更
+
+- **新增 `include`**（配置根相对的 glob 列表，[规格](./.scratch/include-scope/spec.md)）：只有命中它的 ts/css 参与角色判定与逐文件规则。
+  域外的 `vite.config.ts` / `e2e/` / `scripts/` / 生成代码**不再被报「不在目录契约内」**。
+  实测把 2 万个生成文件放进项目：**20000 条 error → 0**。
+- **`canonical()` / `library()` 默认 `include = [<srcRoot>/**]`**（行为变更：域外文件不再进 `missing`）。
+  `overrides.include` 可覆盖，空数组 = 不限制（引擎默认）。报告摘要与 notice 会自述扫描域与域外文件数，不静默。
+- 域外文件**照常解析**（角色记为 `(outside)`）：import 边与「测试是独立可达根」都靠 facts，
+  少了它们，只被域外测试引用的 src 文件会被误判成孤儿（S15）。这条是夹具当场抓出来的。
+- `M08`（该有测试的文件）改从**完整文件集**找测试文件：测试常放在契约域之外（`tests/`），
+  它们没有角色、不进 `records`，但「有没有测试」必须看得见。
+- 新增夹具 `include-scope`（默认域外不报，`exact: true` 锁零发现项）与 `include-custom`（`overrides.include` 把 `scripts/**` 纳回契约 → 重新报 S01）。
+
+### Changed（性能：解析热路径瘦身，实测 −20%）
+
+基准：`canonical() + hygiene()` 合成宿主，3043 个 ts 文件 / 21.5 万行，全量运行。
+
+- **`createSourceFile` 改用 `setParentNodes: false`**（`docs/DESIGN.md` §6.1.1 本来就写的是 false，代码写成了 true）。
+  只有 3 处需要父节点（字符串字面量的上下文、`prop` 名、箭头函数的变量名），改为在遍历时**显式传参**，
+  不再让 TS 给每个节点都挂父指针。累计 **5.75s → 4.63s**。
+- **删掉 5 组零消费者的 facts 字段**：`jsxText` / `catches` / `inlineStyles` / `anyNodes` / `nonNull`。
+  对应的 H01（`any` / 非空断言）、H05（空 catch）、D15（内联样式）、C01（JSX 裸文本）早已
+  [委派给 eslint 并从规则集删除](./docs/ECOSYSTEM-AUDIT.md)，收集代码却留了下来 —— 每次全量解析都在为没人读的字段付钱。
+  `Facts` 类型与 `__fixtures__` 的断言同步收缩，并在 `extractFacts` 上写明「加字段前先确认有规则在读」。
+- 两部分合计 **5.75s → 4.63s（−20%）**，峰值内存 277MB → 264MB。
+
+### Fixed
+
+- **没有 git 时不再把 git 自己的报错透传到用户屏幕**（`致命错误：不是 git 仓库…`）：`execFileSync` 的 stderr 默认透传，
+  而三处 git 调用本来就 `catch` 掉走「明确降级」分支。改为 `stdio: ['ignore','pipe','ignore']`；
+  另外 `headTimeMs`（只有 M06 会读）改成**配了 metrics 适配器才算**，没配就不起子进程。
+  测试输出里的该类噪音 14 处 → 0。
+- **`.gitignore` 的 `lib/` / `es/` 未锚定仓库根**，把 `__fixtures__/*/src/shared/lib/**` 一并吞掉：
+  夹具文件从来没进过 git，干净克隆下 6 个夹具缺文件、自检与 2 个测试恒失败。已改为 `/lib/` `/es/`，
+  并**补齐了全部 14 个缺失文件**（见下）。`pnpm self-test` 恢复 **17/17**，测试 **131 通过 / 0 失败**。
+- **`M02` 的发现项改用配置根相对路径**（原来是覆盖率产物的绝对路径 `report.path`，与 M06 不一致）：
+  绝对路径写进报告与棘轮基线后，换机器/换 CI 必然对不上 —— 这是真·假红来源。
+  夹具里那两处机器相关数据（`coverage-summary.json` 的键、`expect.json` 里 M02 的 `file`）同步改成相对路径。
+- `tests/fixtures.test.mjs` 读的是不存在的 `item.reason`（`runSelfTest` 给的字段是 `message`），
+  导致夹具失败原因一直打印成 `undefined` —— 夹具回归红的时候看不见为什么红。
+
+### 补齐的夹具（曾被 `.gitignore` 吞掉，按 `expect.json` 的期望重建）
+
+`violations` / `adapters` / `graph` / `hygiene-context` / `rules` / `coverage` 六组共 14 个文件：
+
+| 夹具              | 补回的文件                                                    | 触发的规则      |
+| ----------------- | ------------------------------------------------------------- | --------------- |
+| `violations`      | `src/shared/lib/helpers.ts`（barrel + default 导出 + 孤儿）   | S11 / S13 / S15 |
+| `adapters`        | `src/shared/lib/helpers.ts`（弱指纹 + `debounce` 命名指纹）   | P07 / S15       |
+| `graph`           | `format.ts`（lib 反向依赖 api）、`leftover.ts`、`crewOnly.ts` | S07 / S15 / S18 |
+| `hygiene-context` | `datetime.ts`、`fixtures.ts`、`timers.ts`（孤儿）             | S15             |
+| `rules`           | `big.ts`（49 行 > 夹具阈值 40）                               | S16             |
+| `coverage`        | `good.ts`、`bad.ts`、`zero.ts`                                | M02 / M03 / M08 |
+
+> 这些文件是**按 `expect.json` 的期望反推重建**的，不是原作者的原始内容；原作者若手上有原件，可以直接覆盖比对。
+
 ## [0.2.3] - 2026-09-23
 
 ### Changed（依赖策略：能力表不再隐式开启 P01）· 行为变更

@@ -13,7 +13,7 @@
       "pct": 46.7
     }
   },
-  "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/src/shared/lib/good.ts": {
+  "src/shared/lib/good.ts": {
     "lines": {
       "pct": 100
     },
@@ -27,7 +27,7 @@
       "pct": 100
     }
   },
-  "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/src/shared/lib/bad.ts": {
+  "src/shared/lib/bad.ts": {
     "lines": {
       "pct": 40
     },
@@ -41,7 +41,7 @@
       "pct": 40
     }
   },
-  "/Users/ksen/项目/个人项目/arch-guard/__fixtures__/coverage/src/shared/lib/zero.ts": {
+  "src/shared/lib/zero.ts": {
     "lines": {
       "pct": 0
     },
