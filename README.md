@@ -108,8 +108,9 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 pnpm build                     # pagoda-cli 构建（es/ ESM + lib/ CJS + d.ts）
 pnpm typecheck                 # tsc --noEmit
 pnpm lint                      # eslint（禁 any / 非空断言 / console）
-pnpm test                      # node --test（引擎 API + 夹具端到端，64 项）
+pnpm test                      # node --test（引擎 API + 夹具端到端，67 项）
 pnpm coverage                  # 覆盖率报告（Node 内置，无额外依赖）
+pnpm check                     # ★ 提交前的完整门禁：build + 类型 + lint + 格式 + 测试 + 三项自检
 pnpm self-test                 # 夹具回归：每条规则违规必报 × 合规不报
 pnpm self-check-portability    # P1 / P2 / P3
 pnpm guard:sample              # 拿 examples/minimal 当宿主跑一遍

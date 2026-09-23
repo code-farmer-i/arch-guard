@@ -13,10 +13,11 @@
 ## 提交前
 
 ```bash
-pnpm check    # 夹具回归 + 本体自包含（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设）
-pnpm test     # 引擎 API + 夹具端到端
-pnpm lint     # eslint：禁 any、禁非空断言、console 只许在 src/engine/output.ts
+pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint → format → test → coverage
+              #   → 夹具回归 → 本体自包含(P1/P2/P3) → 示例宿主 → 狗粮(自己查自己)
 ```
+
+本仓库**不使用托管 CI**：门禁就是 `pnpm check`，谁提交谁在本地跑。所以别跳过它 —— 它同时承担 Node 22.18 与 24 的兼容性检查（`nvm exec 22.18.0 pnpm check`）。
 
 两个不查文档就会踩的点：
 
