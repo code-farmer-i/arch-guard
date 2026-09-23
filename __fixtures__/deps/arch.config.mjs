@@ -15,5 +15,6 @@ export default {
     }),
   ],
 
-  overrides: { enable: ['P01', 'P02', 'P03', 'P06', 'P08'] },
+  // P03（幽灵依赖）/ P08（声明但未使用）按 docs/DESIGN.md §4.9 委派给 knip · depcheck，本体不实现
+  overrides: { enable: ['P01', 'P02', 'P06'] },
 }

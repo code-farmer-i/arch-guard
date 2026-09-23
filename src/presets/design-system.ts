@@ -44,6 +44,13 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
   const styleDir = options.styleDir ?? 'src/shared/styles'
   return {
     params: {
+      /**
+       * 显式标记「项目声明了设计系统」。D21 靠它把两种情况分开：
+       * - 没加这个预设 → D 域安静空转（项目本来就不做设计系统，不该被吵）
+       * - 加了但路径指空 → 报出来（否则门禁显示"通过"，其实 D 域一条都没查）
+       * 光看其余参数分不出来：`designParams()` 带内置默认路径。
+       */
+      designSystemDeclared: true,
       tokenPrefix,
       spacing: options.spacing ?? '--spacing',
       themes: options.themes ?? ['dark', 'light'],

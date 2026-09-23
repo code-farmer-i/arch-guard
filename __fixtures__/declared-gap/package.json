@@ -1,0 +1,9 @@
+{
+  "name": "declared-gap-fixture",
+  "private": true,
+  "dependencies": {
+    "antd": "^5.0.0",
+    "@ant-design/icons": "^5.0.0",
+    "@ant-design/x": "^2.0.0"
+  }
+}

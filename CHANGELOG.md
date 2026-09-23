@@ -4,6 +4,34 @@
 
 ## [Unreleased]
 
+### Added（P11：组件库适配表声明了却零使用）
+
+- **`P11`**：声明了 `uiKit(antdKit())`，但项目里既没 import 它声明的任何包、也没有任何 vendor 选择器/变量
+  → warn。此时 D10 / D10b / P05 / H06 全在空转，门禁却显示"通过"。
+  与 P04 的分工：**P04 管「声明了要装、装了要登记」（清单一致性，error）；P11 管「装了要真的用得上」（事实存在性，warn）**。
+  `uiKit(none())`（`packages: []`）能力不存在 → 规则不注册，不会给不用组件库的项目添噪音。
+- `declared-gap` 夹具扩成三面齐活：`copy()` 零资源 + `designSystem()` 零路径 + `uiKit()` 零使用 → 恰好三条 warn。
+
+### Added（C07 / D21：声明了能力面却零事实，不再静默空转）
+
+- **`C07`**：加了 `copy()` 但 `resourceDir` 下一个文案文件都没有 → warn。
+  能力协商只保证「**没声明**就不注册」；声明了却没有对应事实时，C02–C06 会安静地遍历空集合、
+  门禁显示"通过" —— 这正是「以为在跑、其实没跑」。
+- **`D21`**：加了 `designSystem()` 但 `paletteFile` / `tokenDir` 零匹配 → warn。
+  靠 `params.designSystemDeclared` 显式标记把「没声明设计系统」（应当安静）与「声明的路径写歪了」
+  （必须报）分开 —— `designParams()` 带内置默认路径，光看参数分不出来。
+- 新增夹具 `declared-gap`（`exact: true`）：两处路径都指空，恰好两条 warn。
+- 顺带澄清：**`P03` / `P08` 按 DESIGN §4.9 委派给 knip · depcheck，本体不实现** ——
+  `__fixtures__/deps` 的 `enable` 里还点着它们、README 与 DESIGN §16.5 说它们"已落地"，都已改正。
+
+### Fixed（`designSystem()` 的配置根本没生效）
+
+- **`designParams()` 只展开 `DEFAULTS`，从未把宿主的参数盖上去**，于是 `tokenPrefix` / `spacing` /
+  `styleDir` / `tokenDir` / `vendorDir` / `paletteFile` / `themeFile` / `storageFile` 八个字段的配置
+  **全部被静默忽略**：D03 这类规则照默认路径找不到文件，就静默 `return []`，门禁还显示"通过"。
+  现在逐字段解析（可配清单在代码里可见），并把不相关的 `params` 键挡在 `DesignParams` 之外。
+  这是 D21 能报出正确路径的前提。
+
 ### Added（facts 持久缓存：重复运行 ≈5×）
 
 - 新增 `src/engine/facts-cache.ts`：把每个文件的解析结果（facts）按 **rel + role + 内容 sha1** 缓存到磁盘，

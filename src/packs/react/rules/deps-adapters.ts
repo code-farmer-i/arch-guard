@@ -215,4 +215,59 @@ export const wheelSuspected: Rule = createRule({
   },
 })
 
-export const adapterRules: Rule[] = [adapterDepsConsistent, iconSourceSingle, wheelSuspected]
+/* ---------------- P11 适配表声明的库必须真的被用 ---------------- */
+
+/**
+ * 声明了 ui-kit 适配表（如 `antdKit()`），但项目里既没 import 它声明的任何包、也没有任何 vendor
+ * 选择器/变量 → D10 / D10b / P05 / H06 全在空转，而门禁显示"通过"。
+ *
+ * 与 P04 的分工：P04 管「声明了要装、装了要登记」（清单一致性，error）；
+ * P11 管「装了要真的用得上」（事实存在性，warn）。同族的还有 C07（i18n 零资源）与 D21（设计系统零路径）。
+ */
+export const adapterActuallyUsed: Rule = createRule({
+  id: 'P11',
+  domain: 'deps',
+  level: 'L2',
+  severity: 'warn',
+  title: '适配表声明的库必须真的被用',
+  requires: ['uiKit.packages'],
+  hint: '确认 uiKit() 配的是不是本项目真在用的库；不用组件库就用 uiKit(none())，相关规则会进 skipped 明列而不是空转',
+  run: (ctx) => {
+    const adapter = Object.values(ctx.config.adapters).find((item) => item.facet === 'ui-kit') as
+      | { id: string; packages?: string[]; vendorSelectors?: string[]; vendorVars?: string[] }
+      | undefined
+    const packages = adapter?.packages ?? []
+    if (packages.length === 0) return []
+    // ① TS 侧：有没有 import 它声明的包
+    if (packages.some((pkg) => ctx.graph.externals.has(pkg))) return []
+    // ② CSS 侧：有没有出现它声明的 vendor 选择器 / 变量前缀（有项目只在样式里用组件库）
+    const patterns = [...(adapter?.vendorSelectors ?? []), ...(adapter?.vendorVars ?? [])]
+    const usedInCss =
+      patterns.length > 0 &&
+      patterns.some((pattern) => {
+        const regex = new RegExp(pattern)
+        return ctx.records.some((record) => {
+          if (record.kind !== 'css') return false
+          const text = ctx.sourceOf(record.rel)
+          return text !== undefined && regex.test(text)
+        })
+      })
+    if (usedInCss) return []
+    return [
+      finding(
+        'P11',
+        'package.json',
+        1,
+        `适配表声明了 ${packages.join('、')}，但全项目零使用：D10 / D10b / P05 / H06 这几条等于没跑`,
+        '确认 uiKit() 配的是不是本项目真在用的库；不用组件库就用 uiKit(none())',
+      ),
+    ]
+  },
+})
+
+export const adapterRules: Rule[] = [
+  adapterDepsConsistent,
+  iconSourceSingle,
+  wheelSuspected,
+  adapterActuallyUsed,
+]

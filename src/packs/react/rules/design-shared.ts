@@ -43,10 +43,28 @@ const DEFAULTS: Omit<
   storageFile: 'src/shared/config/storage.ts',
 }
 
+/**
+ * 解析设计系统参数：**项目在 `designSystem()` 里写的值必须盖过默认值**。
+ *
+ * 这里曾经只展开 `DEFAULTS`、没把 `ctx.config.params` 里的路径盖上去，于是
+ * `tokenPrefix` / `spacing` / `styleDir` / `tokenDir` / `vendorDir` / `paletteFile` /
+ * `themeFile` / `storageFile` 八个字段的配置**全部被静默忽略**：规则照默认路径去找，
+ * 什么也找不到，还显示"通过"。字段逐条列出而不是 `...params`，是为了让这份可配清单可见 ——
+ * 顺带避免把 `params` 里别的键（semanticSlots、deps 的 allow 等）漏进 DesignParams。
+ */
 export function designParams(ctx: RuleContext): DesignParams {
   const p = ctx.config.params as Partial<DesignParams>
+  const pick = <K extends keyof typeof DEFAULTS>(key: K): (typeof DEFAULTS)[K] =>
+    (p[key] as (typeof DEFAULTS)[K] | undefined) ?? DEFAULTS[key]
   return {
-    ...DEFAULTS,
+    tokenPrefix: pick('tokenPrefix'),
+    spacing: pick('spacing'),
+    styleDir: pick('styleDir'),
+    tokenDir: pick('tokenDir'),
+    vendorDir: pick('vendorDir'),
+    paletteFile: pick('paletteFile'),
+    themeFile: pick('themeFile'),
+    storageFile: pick('storageFile'),
     themes: p.themes ?? ['dark', 'light'],
     htmlKeys: p.htmlKeys ?? ['theme'],
     contrastPairs: p.contrastPairs ?? [],

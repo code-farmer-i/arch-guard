@@ -193,6 +193,45 @@ export const themeTwinBlocks: Rule = {
   },
 }
 
+/* ---------------- D21 声明了设计系统却零匹配 ---------------- */
+
+/**
+ * 加了 `designSystem()`，但它指向的位置一个 CSS 都没匹配上 → 整片设计系统规则等于没跑。
+ *
+ * 为什么需要它：D03 找不到 palette 文件时是**静默 `return []`**，而 `designParams()` 又带内置默认路径，
+ * 所以「没声明设计系统」和「声明的路径写歪了」从参数上分不出来。用 `designSystemDeclared`
+ * 这个显式标记把两者分开：只有真的声明过才检查，不做设计系统的项目一条噪音都不会多。
+ */
+export const declaredDesignSystem: Rule = {
+  id: 'D21',
+  domain: 'design',
+  level: 'L1',
+  severity: 'warn',
+  title: '声明了设计系统就必须真有令牌文件',
+  hint: '确认 designSystem() 里的 styleDir / tokenDir / paletteFile 写对了；确实没有设计系统就把这个预设去掉',
+  run: (ctx) => {
+    if (ctx.config.params.designSystemDeclared !== true) return []
+    const params = designParams(ctx)
+    const files = cssFiles(ctx)
+    const missing: string[] = []
+    if (!files.some((file) => file.rel === params.paletteFile)) {
+      missing.push(`色板 ${params.paletteFile}`)
+    }
+    if (!files.some((file) => file.rel.startsWith(`${params.tokenDir}/`))) {
+      missing.push(`令牌目录 ${params.tokenDir}/`)
+    }
+    if (missing.length === 0) return []
+    return [
+      finding(
+        'D21',
+        params.paletteFile,
+        1,
+        `声明了设计系统，但这些位置零匹配：${missing.join('、')} —— D 域这部分规则等于没跑`,
+      ),
+    ]
+  },
+}
+
 /* ---------------- 注册 ---------------- */
 
 export const designTokenRules: Rule[] = [
@@ -201,4 +240,5 @@ export const designTokenRules: Rule[] = [
   tokenRefsClosed,
   noDeadTokens,
   themeTwinBlocks,
+  declaredDesignSystem,
 ]

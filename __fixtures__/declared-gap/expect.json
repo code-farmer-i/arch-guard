@@ -1,0 +1,17 @@
+{
+  "findings": [
+    {
+      "rule": "C07",
+      "file": "src/i18n/locales"
+    },
+    {
+      "rule": "D21",
+      "file": "src/styles/tokens/palette.css"
+    },
+    {
+      "rule": "P11",
+      "file": "package.json"
+    }
+  ],
+  "exact": true
+}

@@ -253,6 +253,38 @@ export const noDeadKeys: Rule = {
   },
 }
 
+/* ---------------- C07 声明了 i18n 却零资源 ---------------- */
+
+/**
+ * 声明了 i18n 能力（`copy()`），但 `resourceDir` 下一个文案文件都没有 → 整片 C 域等于没跑。
+ *
+ * 为什么必须报：能力协商只保证「**没声明**就不注册」；声明了却没有任何对应事实时，
+ * C02–C06 会安静地遍历空集合，门禁显示"通过" —— 这正是「以为在跑、其实没跑」。
+ * 同族的设计是 P08（登记库必须真的被用），但它按 docs/DESIGN.md §4.9 委派给了 knip，
+ * 所以 i18n 这一面由 C 域自己把洞补上。
+ */
+export const i18nResourcesExist: Rule = {
+  id: 'C07',
+  domain: 'copy',
+  level: 'L1',
+  severity: 'warn',
+  title: '声明了 i18n 就必须真有文案资源',
+  requires: ['i18n.resourceDir'],
+  hint: '确认 copy() 里的 resourceDir 写对了；项目确实不用 i18n 就把 copy() 预设去掉（去掉后 C 域会进 skipped 明列）',
+  run: (ctx) => {
+    const index = ctx.i18n
+    if (!index || index.files.length > 0) return []
+    return [
+      finding(
+        'C07',
+        index.resourceDir,
+        1,
+        `声明了 i18n（resourceDir=${index.resourceDir}），但一个文案文件都没有：C 域这几条规则等于没跑`,
+      ),
+    ]
+  },
+}
+
 export const copyRules: Rule[] = [
   // C01 裸文案委派给 eslint-plugin-i18next 的 no-literal-string（它只有这一条规则：
   // **不做**键存在性与未使用键，所以 C02 / C06 由我们自己实现 —— 见 docs/ECOSYSTEM-AUDIT.md）
@@ -261,4 +293,5 @@ export const copyRules: Rule[] = [
   oneNamespacePerFile,
   shardsAggregated,
   noDeadKeys,
+  i18nResourcesExist,
 ]
