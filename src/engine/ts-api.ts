@@ -10,25 +10,30 @@ import { createRequire } from 'node:module'
 
 const SUPPORTED_RANGE = '>=5.4 <7'
 
-function installedVersion(): string {
+/** 读已安装的 typescript 版本；读不到就返回未知（可注入，便于测异常分支） */
+export function installedVersion(read: () => string = defaultVersionReader): string {
   try {
-    const require = createRequire(import.meta.url)
-    const pkg = require('typescript/package.json') as { version?: string }
-    return pkg.version ?? '未知'
+    return read()
   } catch {
     return '未知'
   }
 }
 
+function defaultVersionReader(): string {
+  const require = createRequire(import.meta.url)
+  const pkg = require('typescript/package.json') as { version?: string }
+  return pkg.version ?? '未知'
+}
+
 /** 纯函数：返回问题描述；没问题返回 null（便于单测，不依赖真实 typescript） */
-export function describeTypeScriptProblem(api: unknown): string | null {
+export function describeTypeScriptProblem(api: unknown, version?: string): string | null {
   if (!api || typeof api !== 'object') return 'typescript 模块没有导出任何东西'
   const candidate = api as { createSourceFile?: unknown; ScriptKind?: unknown }
   const missing: string[] = []
   if (typeof candidate.createSourceFile !== 'function') missing.push('createSourceFile')
   if (!candidate.ScriptKind) missing.push('ScriptKind')
   if (missing.length === 0) return null
-  return `当前 typescript（${installedVersion()}）不提供编译器 API：${missing.join(' / ')}`
+  return `当前 typescript（${version ?? installedVersion()}）不提供编译器 API：${missing.join(' / ')}`
 }
 
 export function assertTypeScriptApi(api: unknown): void {

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { join, relative, resolve } from 'node:path'
+import { realpathSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
 import { applyBaseline, entriesFromFindings, loadBaseline, saveBaseline } from './baseline.js'
 import { loadConfig } from './config.js'
@@ -87,8 +88,23 @@ function gitChangedFiles(root: string, scope: string): { files: string[]; notice
     } else {
       return null
     }
-    const files = raw.map((path) => relative(root, join(top, path)).split('\\').join('/'))
-    return top === resolve(root)
+    // macOS 上 /var 与 /private/var 是同一目录的两种写法（CI 容器里也常见 /tmp 软链）：
+    // 不先 realpath 就做 relative 会算出 `../../..`，变更路径与文件全都对不上 → **假绿**。
+    const real = (path: string): string => {
+      try {
+        return realpathSync(path)
+      } catch {
+        return path
+      }
+    }
+    const realRoot = real(root)
+    const realTop = real(top)
+    const files = raw.map((path) =>
+      relative(realRoot, real(join(realTop, path)))
+        .split('\\')
+        .join('/'),
+    )
+    return realTop === realRoot
       ? { files }
       : { files, notice: `仓库根是 ${top}，变更路径已换算到配置根` }
   } catch {

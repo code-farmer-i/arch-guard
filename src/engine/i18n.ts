@@ -33,7 +33,11 @@ const lineOf = (sf: ts.SourceFile, pos: number): number =>
 const keyTextOf = (name: ts.PropertyName, sf: ts.SourceFile): string => {
   if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name))
     return name.text
-  return name.getText(sf).replace(/['"]/g, '')
+  // 计算属性名（`[key]`）：取表达式文本并去掉方括号，读起来仍是能用作键名的形式
+  return name
+    .getText(sf)
+    .replace(/^\[|\]$/g, '')
+    .replace(/['"]/g, '')
 }
 
 function collectKeys(

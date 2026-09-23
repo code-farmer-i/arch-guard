@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readFileSync, realpathSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { Command, CommanderError } from 'commander'
@@ -44,11 +44,9 @@ interface CliOptions {
   selfCheckPortability?: boolean
 }
 
-function packageVersion(): string {
+function packageVersion(root = fileURLToPath(new URL('..', import.meta.url))): string {
   try {
-    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-      version?: string
-    }
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version?: string }
     return pkg.version ?? '0.0.0'
   } catch {
     return '0.0.0'
@@ -56,12 +54,12 @@ function packageVersion(): string {
 }
 
 /** 输出全部经 output.ts 唯一出口（cli 自身不直接写 stdout） */
-export function createProgram(): Command {
+export function createProgram(version: string = packageVersion()): Command {
   const program = new Command()
   program
     .name('arch-guard')
     .description('架构门禁：把架构写成可判定不变量的编码检查')
-    .version(packageVersion(), '-v, --version')
+    .version(version, '-v, --version')
     .option('--config <path>', '配置文件路径', 'arch.config.mjs')
     .option('--scope <mode>', '检测范围：full | changed | staged | since:<ref>', 'full')
     .option('--paths <globs>', '只报告匹配路径（逗号分隔）')
@@ -93,9 +91,14 @@ export function createProgram(): Command {
   return program
 }
 
-export async function run(argv: string[]): Promise<number> {
-  const packageRoot = fileURLToPath(new URL('..', import.meta.url))
-  const program = createProgram()
+/**
+ * CLI 主流程（可注入 `packageRoot`：自检与本体自包含检查要能对**临时副本**跑，
+ * 这样失败分支也能在同进程里被测到，而不是只能 spawn 子进程 —— 子进程的执行不会被
+ * 父进程的覆盖率统计合并）。
+ */
+export async function run(argv: string[], hooks: { packageRoot?: string } = {}): Promise<number> {
+  const packageRoot = hooks.packageRoot ?? fileURLToPath(new URL('..', import.meta.url))
+  const program = createProgram(packageVersion(packageRoot))
   program.exitOverride()
   program.configureOutput({
     writeOut: (text) => out(text.replace(/\n$/, '')),
@@ -232,9 +235,24 @@ async function verifyDeps(configPath: string | undefined): Promise<number> {
 
 // 直接调用（node es/cli.js）时自执行；被 bin/arch-guard.mjs import 时不重复执行。
 // 不用顶层 await —— 顶层 await 会让 CJS 产物无法生成（esbuild 限制）。
-const invokedAsScript =
-  process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-if (invokedAsScript) {
+/**
+ * 判断是不是「直接跑这个文件」。必须 realpath 后比较：
+ * macOS 的 `/tmp`→`/private/tmp`（以及任何软链路径）会让 argv[1] 与 import.meta.url
+ * 字面上不同，那样 CLI 会**静默什么都不做且退出 0** —— 比报错更糟。
+ */
+function invokedAsScript(): boolean {
+  const entry = process.argv[1]
+  if (entry === undefined) return false
+  const real = (path: string): string => {
+    try {
+      return realpathSync(path)
+    } catch {
+      return path
+    }
+  }
+  return real(resolve(entry)) === real(fileURLToPath(import.meta.url))
+}
+if (invokedAsScript()) {
   void run(process.argv.slice(2)).then((code) => {
     process.exitCode = code
   })

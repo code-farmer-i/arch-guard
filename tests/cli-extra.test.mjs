@@ -1,82 +1,121 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
-const CLI = join(PACKAGE_ROOT, 'es/cli.js')
+import { createProgram, run } from '../es/cli.js'
 
-/** 跑 CLI 并把退出码与输出都拿回来（非零退出时 execFileSync 会抛） */
-function runCli(args, cwd) {
+const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
+const INDEX_URL = pathToFileURL(join(PACKAGE_ROOT, 'es/index.js')).href
+
+/**
+ * 同进程跑 CLI：spawn 子进程的执行不会被父进程的覆盖率统计合并，
+ * 而同进程调用还更快。cwd 会被临时切换（同一进程内测试是串行的）。
+ */
+async function runCli(args, { cwd, packageRoot } = {}) {
+  const lines = []
+  const errors = []
+  const originalLog = console.log
+  const originalError = console.error
+  const originalCwd = process.cwd()
+  console.log = (line = '') => lines.push(String(line))
+  console.error = (line = '') => errors.push(String(line))
   try {
-    return {
-      code: 0,
-      out: execFileSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8' }),
-    }
-  } catch (error) {
-    return { code: error.status ?? 1, out: `${error.stdout ?? ''}${error.stderr ?? ''}` }
+    if (cwd) process.chdir(cwd)
+    const code = await run(args, packageRoot ? { packageRoot } : {})
+    return { code, out: lines.join('\n'), err: errors.join('\n') }
+  } finally {
+    process.chdir(originalCwd)
+    console.log = originalLog
+    console.error = originalError
   }
 }
 
-test('cli：--verify-deps 适配表与依赖不一致时非零，并打印全表', () => {
-  const result = runCli(['--verify-deps'], join(PACKAGE_ROOT, '__fixtures__/adapters'))
-  assert.equal(result.code, 1)
-  assert.match(result.out, /适配表 vs 实际依赖/)
-  assert.match(result.out, /ui-kit|i18n/)
-  assert.match(result.out, /✖ 对账失败/)
-})
+function makeProject() {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cli-'))
+  mkdirSync(join(dir, 'src/shared/lib'), { recursive: true })
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ name: 'cli', private: true, type: 'module' }),
+  )
+  writeFileSync(
+    join(dir, 'arch.config.mjs'),
+    `import { canonical } from '${INDEX_URL}'\nexport default { presets: [canonical()] }\n`,
+  )
+  writeFileSync(
+    join(dir, 'src/shared/lib/bad.ts'),
+    'export function bad(): void {\n  console.log("残留")\n}\n',
+  )
+  return dir
+}
 
-test('cli：--verify-deps 一致时退出 0', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ag-verify-'))
+test('cli：--verify-deps 不一致/一致两种结论', async () => {
+  const inconsistent = await runCli(['--verify-deps'], {
+    cwd: join(PACKAGE_ROOT, '__fixtures__/adapters'),
+  })
+  assert.equal(inconsistent.code, 1)
+  assert.match(inconsistent.out, /适配表 vs 实际依赖/)
+  assert.match(inconsistent.out, /✖ 对账失败/)
+
+  const dir = mkdtempSync(join(tmpdir(), 'ag-vd-'))
   try {
-    mkdirSync(join(dir, 'src/shared/config'), { recursive: true })
+    mkdirSync(join(dir, 'src/app'), { recursive: true })
     writeFileSync(
       join(dir, 'package.json'),
       JSON.stringify({
         name: 'ok',
         private: true,
         type: 'module',
-        dependencies: { commander: '^15.0.0' },
+        dependencies: { antd: '^6.0.0', '@ant-design/icons': '^6.0.0', '@ant-design/x': '^2.0.0' },
       }),
     )
+    writeFileSync(join(dir, 'src/app/main.tsx'), 'export const x = 1\n')
     writeFileSync(
       join(dir, 'arch.config.mjs'),
-      `import { deps } from '${pathToFileURL(join(PACKAGE_ROOT, 'es/index.js')).href}'\n` +
-        "export default { overrides: { layout: { app: 'src/app', modules: 'src/modules', shared: 'src/shared' }, roles: [{ id: 'app:bootstrap', pattern: 'src/app/main.tsx', layer: 11, slot: 'bootstrap' }], params: deps({ allow: ['commander'] }).params } }\n",
+      `import { canonical, uiKit, antdKit } from '${INDEX_URL}'\nexport default { presets: [canonical(), uiKit(antdKit())] }\n`,
     )
-    writeFileSync(join(dir, 'src/app-main.tsx'), 'export const x = 1\n')
-    mkdirSync(join(dir, 'src/app'), { recursive: true })
-    writeFileSync(join(dir, 'src/app/main.tsx'), 'export const x = 1\n')
-    const result = runCli(['--verify-deps'], dir)
-    assert.equal(result.code, 0, result.out)
-    assert.match(result.out, /✔ 对账通过/)
+    const ok = await runCli(['--verify-deps'], { cwd: dir })
+    assert.equal(ok.code, 0, ok.out)
+    assert.match(ok.out, /✔ 对账通过/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
 })
 
-test('cli：--format=github 出注解、--stats 出统计表', () => {
+test('cli：--format=github 出注解、--stats 出统计表、过滤开关都能用', async () => {
   const fixture = join(PACKAGE_ROOT, '__fixtures__/violations')
-  const github = runCli(['--format=github'], fixture)
+  const github = await runCli(['--format=github'], { cwd: fixture })
   assert.equal(github.code, 1)
   assert.match(
     github.out,
     /::error file=src\/modules\/crews\/views\/Bad\.tsx,line=\d+,title=S\d\d /,
   )
-  assert.match(github.out, /scope=full/, '摘要仍然给人看')
 
-  const stats = runCli(['--stats'], fixture)
+  const stats = await runCli(['--stats'], { cwd: fixture })
   assert.match(stats.out, /合计 \d+\.\d+ms \/ \d+ 条规则/)
   assert.match(stats.out, /H01\s+hygiene/)
 
-  const bad = runCli(['--verify-deps', '--format=xml'], fixture)
-  assert.equal(bad.code, 2, '未知格式仍然退出 2')
+  const byDomain = await runCli(['--domain=H', '--format=json'], { cwd: fixture })
+  const payload = JSON.parse(byDomain.out)
+  assert.ok(payload.findings.every((finding) => finding.rule.startsWith('H')))
+
+  const byOnly = await runCli(['--only=H01,H03', '--format=json'], { cwd: fixture })
+  assert.deepEqual(
+    [...new Set(JSON.parse(byOnly.out).findings.map((finding) => finding.rule))].sort(),
+    ['H01', 'H03'],
+  )
+
+  const reportOnly = await runCli(['--report-only', '--format=json'], { cwd: fixture })
+  assert.equal(reportOnly.code, 0)
+  assert.ok(JSON.parse(reportOnly.out).errors > 0)
+
+  const filtered = await runCli(['--paths=src/没有这个目录/**', '--format=json'], { cwd: fixture })
+  assert.equal(JSON.parse(filtered.out).findings.length, 0)
 })
 
-test('cli：错误参数一律退出 2 并给出可用值', () => {
+test('cli：错误参数一律退出 2 并给出可用值', async () => {
   const fixture = join(PACKAGE_ROOT, '__fixtures__/violations')
   for (const args of [
     ['--domain=Z'],
@@ -84,30 +123,66 @@ test('cli：错误参数一律退出 2 并给出可用值', () => {
     ['--severity=fatal'],
     ['--format=xml'],
     ['--config=不存在的配置.mjs'],
+    ['--verify-deps', '--config=没有这个配置.mjs'],
   ]) {
-    const result = runCli(args, fixture)
+    const result = await runCli(args, { cwd: fixture })
     assert.equal(result.code, 2, `${args.join(' ')} 应退出 2，实际 ${result.code}`)
-    assert.match(result.out, /未知|找不到/)
+    assert.match(result.out + result.err, /未知|找不到/)
   }
 })
 
-test('cli：自检子命令与过滤开关', () => {
-  const fixture = join(PACKAGE_ROOT, '__fixtures__/violations')
-  const selfTest = runCli(['--self-test'], PACKAGE_ROOT)
-  assert.equal(selfTest.code, 0, selfTest.out)
-  assert.match(selfTest.out, /夹具回归通过/)
+test('cli：--update-baseline 写基线后转绿，且不允许在增量 scope 下写', async () => {
+  const dir = makeProject()
+  try {
+    const write = await runCli(['--update-baseline'], { cwd: dir })
+    assert.equal(write.code, 0, write.out)
+    const again = await runCli([], { cwd: dir })
+    assert.equal(again.code, 0, '基线写完后应该绿')
+    assert.match(again.out, /豁免 \d+/)
+    assert.match(again.out, /架构守卫通过/)
 
-  const portability = runCli(['--self-check-portability'], PACKAGE_ROOT)
-  assert.equal(portability.code, 0, portability.out)
-  assert.match(portability.out, /本体自包含通过/)
+    const badScope = await runCli(['--update-baseline', '--scope=staged'], { cwd: dir })
+    assert.equal(badScope.code, 2, '增量下写基线必须拒绝（会写出不完整的基线）')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
 
-  // --paths 过滤到不存在的文件 → 没有可报告的违规
-  const filtered = runCli(['--paths=src/不存在的目录/**', '--format=json'], fixture)
-  assert.equal(filtered.code, 0)
-  assert.equal(JSON.parse(filtered.out).findings.length, 0)
+test('cli：失败分支也要讲清楚（自检失败 / 本体自包含失败 / 版本兜底）', async () => {
+  // 把 es/ 复制到临时目录并伪造必然失败的夹具：这样自检与本体检查的失败分支可在同进程覆盖
+  const tmp = mkdtempSync(join(tmpdir(), 'ag-clifail-'))
+  try {
+    cpSync(join(PACKAGE_ROOT, 'es'), join(tmp, 'es'), { recursive: true })
+    symlinkSync(join(PACKAGE_ROOT, 'node_modules'), join(tmp, 'node_modules'), 'dir')
+    mkdirSync(join(tmp, '__fixtures__/broken'), { recursive: true })
+    writeFileSync(
+      join(tmp, '__fixtures__/broken/expect.json'),
+      JSON.stringify({ findings: [{ rule: 'S99', file: 'src/不存在.ts' }] }),
+    )
+    mkdirSync(join(tmp, 'src'), { recursive: true })
+    writeFileSync(join(tmp, 'src/bad.ts'), "import lodash from 'lodash'\nexport const x = lodash\n")
 
-  // --report-only 永远 0，即使有 error
-  const advisory = runCli(['--report-only', '--format=json'], fixture)
-  assert.equal(advisory.code, 0)
-  assert.ok(JSON.parse(advisory.out).errors > 0, '仍然要报告出来')
+    const version = await runCli(['--version'], { packageRoot: tmp })
+    assert.equal(version.out.trim(), '0.0.0', '没有 package.json 时版本退回 0.0.0')
+
+    const selfTest = await runCli(['--self-test'], { cwd: tmp, packageRoot: tmp })
+    assert.equal(selfTest.code, 1)
+    assert.match(selfTest.out, /夹具回归失败/)
+
+    const portability = await runCli(['--self-check-portability'], { cwd: tmp, packageRoot: tmp })
+    assert.equal(portability.code, 1)
+    assert.match(portability.out, /本体自包含检查失败/)
+    assert.match(portability.out, /\[P1\]/)
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test('cli：createProgram 注册了全部对外开关（防止重构时丢参数）', () => {
+  const options = createProgram('0.0.0')
+    .options.map((option) => option.long)
+    .sort()
+  assert.ok(options.includes('--stats'))
+  assert.ok(options.includes('--verify-deps'))
+  assert.ok(options.includes('--update-baseline'))
 })

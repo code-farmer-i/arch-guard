@@ -30,20 +30,22 @@ export const BASELINE_SPEC_VERSION = '1'
 
 export function loadBaseline(path: string): BaselineFile {
   if (!existsSync(path)) return { ...EMPTY_BASELINE, entries: [] }
+  let parsed: BaselineFile
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as BaselineFile
-    if (parsed.specVersion !== undefined && parsed.specVersion !== BASELINE_SPEC_VERSION) {
-      throw new Error(
-        `基线 specVersion 不支持：${parsed.specVersion}（本工具是 ${BASELINE_SPEC_VERSION}）；请重新生成基线`,
-      )
-    }
-    return {
-      version: parsed.version ?? 1,
-      specVersion: BASELINE_SPEC_VERSION,
-      entries: parsed.entries ?? [],
-    }
+    parsed = JSON.parse(readFileSync(path, 'utf8')) as BaselineFile
   } catch {
     throw new Error(`基线文件无法解析：${path}（应当是 arch-guard 生成的 JSON）`)
+  }
+  // 版本检查放在解析之外：否则会被上面的 catch 吞成「无法解析」，用户不知道该怎么办
+  if (parsed.specVersion !== undefined && parsed.specVersion !== BASELINE_SPEC_VERSION) {
+    throw new Error(
+      `基线 specVersion 不支持：${parsed.specVersion}（本工具是 ${BASELINE_SPEC_VERSION}）；请重新生成基线`,
+    )
+  }
+  return {
+    version: parsed.version ?? 1,
+    specVersion: BASELINE_SPEC_VERSION,
+    entries: parsed.entries ?? [],
   }
 }
 
