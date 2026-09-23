@@ -1,0 +1,4 @@
+# pnpm 11：允许运行构建脚本的依赖（esbuild / watcher 需要 postinstall 拉二进制）
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true

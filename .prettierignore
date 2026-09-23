@@ -1,0 +1,7 @@
+node_modules
+es
+lib
+coverage
+__fixtures__
+examples
+pnpm-lock.yaml

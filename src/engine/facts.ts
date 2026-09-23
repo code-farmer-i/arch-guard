@@ -1,0 +1,293 @@
+import ts from 'typescript'
+
+import type { CommentFact, Facts, FileRecord } from './types.js'
+
+/**
+ * 事实模型（facts）：引擎里**唯一**接触 TS AST 的地方。
+ * 规则只消费这里产出的纯 JSON —— 换 parser 只需重写本文件（见 docs/SPEC.md §6.1.1）。
+ */
+
+interface SourceFileWithDiagnostics extends ts.SourceFile {
+  parseDiagnostics?: ts.Diagnostic[]
+}
+
+const SCRIPT_KIND: Record<string, ts.ScriptKind> = {
+  '.ts': ts.ScriptKind.TS,
+  '.tsx': ts.ScriptKind.TSX,
+  '.mts': ts.ScriptKind.TS,
+  '.cts': ts.ScriptKind.TS,
+  '.js': ts.ScriptKind.JS,
+  '.jsx': ts.ScriptKind.JSX,
+  '.mjs': ts.ScriptKind.JS,
+  '.cjs': ts.ScriptKind.JS,
+}
+
+export const TS_EXTENSIONS: string[] = Object.keys(SCRIPT_KIND)
+
+const lineOf = (sf: ts.SourceFile, pos: number): number => sf.getLineAndCharacterOfPosition(pos).line + 1
+
+function scriptKindOf(file: string): ts.ScriptKind {
+  const dot = file.lastIndexOf('.')
+  return SCRIPT_KIND[file.slice(dot)] ?? ts.ScriptKind.TS
+}
+
+interface PositionedComment extends CommentFact {
+  pos: number
+}
+
+/** 注释：走 TS 的 comment range API，避免正则把字符串里的 // 当注释 */
+function collectComments(sf: ts.SourceFile, text: string): PositionedComment[] {
+  const out: PositionedComment[] = []
+  const seen = new Set<string>()
+  const push = (ranges: readonly ts.CommentRange[] | undefined, kind: string): void => {
+    for (const range of ranges ?? []) {
+      const key = `${range.pos}:${range.end}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({ pos: range.pos, line: lineOf(sf, range.pos), text: text.slice(range.pos, range.end), kind })
+    }
+  }
+  const visit = (node: ts.Node): void => {
+    push(ts.getLeadingCommentRanges(text, node.pos), 'leading')
+    push(ts.getTrailingCommentRanges(text, node.end), 'trailing')
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  push(ts.getLeadingCommentRanges(text, sf.endOfFileToken.pos), 'eof')
+  return out.sort((a, b) => a.line - b.line)
+}
+
+function propNameOf(node: ts.Node): string | null {
+  const parent = node.parent as ts.Node | undefined
+  if (!parent) return null
+  if (ts.isPropertyAssignment(parent)) return parent.name.getText()
+  if (ts.isJsxAttribute(parent)) return parent.name.getText()
+  return null
+}
+
+function stringContext(node: ts.Node): string {
+  const parent = node.parent as ts.Node | undefined
+  if (!parent) return 'other'
+  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return 'module'
+  if (ts.isCallExpression(parent)) return 'call-arg'
+  if (ts.isJsxAttribute(parent)) return 'jsx-attr'
+  if (ts.isPropertyAssignment(parent)) return 'property-value'
+  if (ts.isElementAccessExpression(parent)) return 'element-access'
+  return 'other'
+}
+
+function containsJsx(node: ts.Node): boolean {
+  let found = false
+  const visit = (n: ts.Node): void => {
+    if (found) return
+    if (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n)) {
+      found = true
+      return
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(node)
+  return found
+}
+
+export interface FactInput {
+  file: string
+  rel: string
+  role: string
+  text: string
+}
+
+export function extractFacts(input: FactInput): Facts {
+  const { file, rel, role, text } = input
+  const sf = ts.createSourceFile(
+    file,
+    text,
+    ts.ScriptTarget.Latest,
+    /* setParentNodes */ true,
+    scriptKindOf(file),
+  ) as SourceFileWithDiagnostics
+
+  const positioned = collectComments(sf, text)
+  const facts: Facts = {
+    file,
+    rel,
+    role,
+    lineCount: text.split('\n').length,
+    parseErrors: (sf.parseDiagnostics ?? []).map((diagnostic) => ({
+      line: diagnostic.start === undefined ? 1 : lineOf(sf, diagnostic.start),
+      message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+    })),
+    imports: [],
+    exports: [],
+    strings: [],
+    jsxText: [],
+    calls: [],
+    catches: [],
+    functions: [],
+    anyNodes: [],
+    nonNull: [],
+    comments: positioned.map(({ line, text: body, kind }) => ({ line, text: body, kind })),
+    hasJsx: false,
+  }
+
+  const visit = (node: ts.Node): void => {
+    /* ---- import / re-export ---- */
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      facts.imports.push({
+        spec: node.moduleSpecifier.text,
+        line: lineOf(sf, node.getStart(sf)),
+        typeOnly: node.importClause?.isTypeOnly === true,
+        dynamic: false,
+      })
+    } else if (ts.isExportDeclaration(node)) {
+      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        facts.imports.push({
+          spec: node.moduleSpecifier.text,
+          line: lineOf(sf, node.getStart(sf)),
+          typeOnly: node.isTypeOnly,
+          dynamic: false,
+        })
+      }
+      const start = lineOf(sf, node.getStart(sf))
+      if (!node.exportClause) {
+        facts.exports.push({ name: '*', kind: 're-export', isStar: true, isDefault: false, typeOnly: node.isTypeOnly, line: start })
+      } else if (ts.isNamespaceExport(node.exportClause)) {
+        facts.exports.push({ name: node.exportClause.name.text, kind: 're-export', isStar: false, isDefault: false, typeOnly: node.isTypeOnly, line: start })
+      } else {
+        for (const element of node.exportClause.elements) {
+          facts.exports.push({
+            name: element.name.text,
+            kind: 're-export',
+            isStar: false,
+            isDefault: false,
+            typeOnly: node.isTypeOnly || element.isTypeOnly,
+            line: lineOf(sf, element.getStart(sf)),
+          })
+        }
+      }
+    } else if (ts.isExportAssignment(node)) {
+      facts.exports.push({
+        name: 'default',
+        kind: 'assignment',
+        isStar: false,
+        isDefault: true,
+        typeOnly: false,
+        line: lineOf(sf, node.getStart(sf)),
+        declared: true,
+      })
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const argument = node.arguments[0]
+      if (argument && ts.isStringLiteral(argument)) {
+        facts.imports.push({ spec: argument.text, line: lineOf(sf, node.getStart(sf)), typeOnly: false, dynamic: true })
+      }
+    }
+
+    /* ---- 声明型导出 ---- */
+    const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined
+    const isExported = modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
+    const isDefaultKeyword = modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) === true
+    if (isExported || isDefaultKeyword) {
+      let kind = 'const'
+      let name = 'default'
+      if (ts.isFunctionDeclaration(node)) {
+        kind = 'function'
+        name = node.name?.text ?? 'default'
+      } else if (ts.isClassDeclaration(node)) {
+        kind = 'class'
+        name = node.name?.text ?? 'default'
+      } else if (ts.isInterfaceDeclaration(node)) {
+        kind = 'interface'
+        name = node.name.text
+      } else if (ts.isTypeAliasDeclaration(node)) {
+        kind = 'type'
+        name = node.name.text
+      } else if (ts.isEnumDeclaration(node)) {
+        kind = 'enum'
+        name = node.name.text
+      } else if (ts.isVariableStatement(node)) {
+        const declaration = node.declarationList.declarations[0]
+        const initializer = declaration?.initializer
+        kind = initializer && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) ? 'arrow' : 'const'
+        name = declaration?.name && ts.isIdentifier(declaration.name) ? declaration.name.text : 'default'
+      }
+      facts.exports.push({
+        name,
+        kind,
+        isStar: false,
+        isDefault: isDefaultKeyword || name === 'default',
+        typeOnly: kind === 'type' || kind === 'interface',
+        line: lineOf(sf, node.getStart(sf)),
+        declared: true,
+      })
+    }
+
+    /* ---- 字面量 ---- */
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      facts.strings.push({
+        value: node.text,
+        line: lineOf(sf, node.getStart(sf)),
+        context: stringContext(node),
+        prop: propNameOf(node),
+      })
+    }
+    if (ts.isJsxText(node)) {
+      const value = node.text.trim()
+      if (value) facts.jsxText.push({ value, line: lineOf(sf, node.getStart(sf)) })
+    }
+    if (!facts.hasJsx && (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node))) facts.hasJsx = true
+
+    /* ---- 调用 / debugger ---- */
+    if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
+      const callee = node.expression.getText(sf)
+      if (callee.includes('.')) facts.calls.push({ callee, line: lineOf(sf, node.getStart(sf)) })
+    }
+    if (node.kind === ts.SyntaxKind.DebuggerStatement) {
+      facts.calls.push({ callee: 'debugger', line: lineOf(sf, node.getStart(sf)) })
+    }
+
+    /* ---- 异常吞咽 ---- */
+    if (ts.isCatchClause(node)) {
+      const start = node.getStart(sf)
+      const end = node.getEnd()
+      const hasComment = positioned.some((comment) => comment.pos >= start && comment.pos < end)
+      facts.catches.push({
+        line: lineOf(sf, start),
+        statements: node.block.statements.length,
+        hasComment,
+      })
+    }
+
+    /* ---- 函数体量 ---- */
+    let functionInfo: { name: string; start: number; end: number } | null = null
+    if (ts.isFunctionDeclaration(node)) {
+      functionInfo = { name: node.name?.text ?? '(anonymous)', start: node.getStart(sf), end: node.getEnd() }
+    } else if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+      const parent = node.parent as ts.Node | undefined
+      const name = parent && ts.isVariableDeclaration(parent) ? parent.name.getText() : '(fn)'
+      functionInfo = { name, start: node.getStart(sf), end: node.getEnd() }
+    }
+    if (functionInfo) {
+      const body = ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) ? node.body : undefined
+      facts.functions.push({
+        name: functionInfo.name,
+        line: lineOf(sf, functionInfo.start),
+        lines: lineOf(sf, functionInfo.end) - lineOf(sf, functionInfo.start) + 1,
+        isComponent: /^[A-Z]/.test(functionInfo.name) && body !== undefined && ts.isBlock(body) ? containsJsx(body) : false,
+      })
+    }
+
+    /* ---- 类型逃生舱 ---- */
+    if (node.kind === ts.SyntaxKind.AnyKeyword) facts.anyNodes.push({ line: lineOf(sf, node.getStart(sf)) })
+    if (ts.isNonNullExpression(node)) facts.nonNull.push({ line: lineOf(sf, node.getStart(sf)) })
+
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sf)
+  return facts
+}
+
+/** 供其它模块把 FileRecord 转成事实输入 */
+export function factInputOf(record: FileRecord, text: string): FactInput {
+  return { file: record.abs, rel: record.rel, role: record.role, text }
+}

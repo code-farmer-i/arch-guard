@@ -1,0 +1,45 @@
+{
+  "findings": [
+    {
+      "rule": "H01",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "H03",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "H04",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "S01",
+      "file": "src/orphans/thing.ts"
+    },
+    {
+      "rule": "S10",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "S11",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "S12",
+      "file": "src/modules/crews/views/Bad.tsx"
+    },
+    {
+      "rule": "S13",
+      "file": "src/modules/crews/views/Bad.tsx"
+    },
+    {
+      "rule": "S13",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "S14",
+      "file": "src/modules/crews/views/Bad.tsx"
+    }
+  ],
+  "exact": true
+}

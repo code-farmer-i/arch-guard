@@ -1,0 +1,115 @@
+import { join } from 'node:path'
+
+import { TS_EXTENSIONS } from './facts.js'
+import type { Config, FileKind, FileRecord, RoleDescriptor } from './types.js'
+import { globToRegExp, relOf, walk } from './util.js'
+
+export const CSS_EXTENSIONS = ['.css', '.scss', '.less']
+
+const SLOT = '__AG_SLOT__'
+
+interface CompiledRole extends RoleDescriptor {
+  regex: RegExp
+  names: string[]
+}
+
+/** `{name}` 占位成单段捕获（用于域目录），其余交给 globToRegExp */
+function compile(pattern: string): { regex: RegExp; names: string[] } {
+  const names: string[] = []
+  const normalized = pattern.replace(/\{([a-zA-Z0-9_]+)\}/g, (_full, name: string) => {
+    names.push(name)
+    return SLOT
+  })
+  const { source } = globToRegExp(normalized)
+  return { regex: new RegExp(source.split(SLOT).join('([^/]+)')), names }
+}
+
+const DEFAULT_SKIP = new Set(['node_modules', 'dist', 'build', 'coverage', '.git', '.turbo', '.arch-guard-cache'])
+
+export interface ScanResult {
+  files: string[]
+  records: FileRecord[]
+  missing: string[]
+  ambiguous: { rel: string; roles: string[] }[]
+  ignored: string[]
+  exempted: { rel: string; reason: string }[]
+}
+
+function kindOf(rel: string): FileKind {
+  if (/\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(rel)) return 'ts'
+  if (CSS_EXTENSIONS.some((ext) => rel.endsWith(ext))) return 'css'
+  if (rel.endsWith('.json')) return 'json'
+  return 'other'
+}
+
+/**
+ * 扫出「文件 + 角色」。
+ * 每个文件必须**恰好命中一个角色**（0 个 = 无处安放；≥1 个 = 歧义）—— 结构自检的基础。
+ */
+export function scanProject(config: Config): ScanResult {
+  const { root } = config
+  const files = walk(root, {
+    skip: DEFAULT_SKIP,
+    extensions: [...TS_EXTENSIONS, ...CSS_EXTENSIONS, '.json', '.html'],
+  }).map((full) => relOf(root, full))
+
+  const roles: CompiledRole[] = config.roles.map((descriptor) => ({ ...descriptor, ...compile(descriptor.pattern) }))
+  const ignore = config.ignore.map(globToRegExp)
+  const exempt = config.exempt.map((entry) => ({ ...entry, matcher: globToRegExp(entry.glob) }))
+
+  const records: FileRecord[] = []
+  const missing: string[] = []
+  const ambiguous: { rel: string; roles: string[] }[] = []
+  const ignored: string[] = []
+  const exempted: { rel: string; reason: string }[] = []
+
+  for (const rel of files) {
+    const exemptEntry = exempt.find((entry) => entry.matcher.test(rel))
+    if (exemptEntry) {
+      exempted.push({ rel, reason: exemptEntry.reason ?? '' })
+      continue
+    }
+    if (ignore.some((regex) => regex.test(rel))) {
+      ignored.push(rel)
+      continue
+    }
+    // 只有代码与样式参与角色判定；json / html 等资源只进文件集（供图解析用）
+    const fileKind = kindOf(rel)
+    if (fileKind !== 'ts' && fileKind !== 'css') continue
+    const hits: { descriptor: CompiledRole; captured: Record<string, string> }[] = []
+    for (const descriptor of roles) {
+      const match = rel.match(descriptor.regex)
+      if (!match) continue
+      const captured: Record<string, string> = {}
+      descriptor.names.forEach((name, index) => {
+        captured[name] = match[index + 1] ?? ''
+      })
+      if (descriptor.exclusive === true) {
+        hits.length = 0
+        hits.push({ descriptor, captured })
+        break
+      }
+      hits.push({ descriptor, captured })
+    }
+    if (hits.length === 0) {
+      missing.push(rel)
+      continue
+    }
+    if (hits.length > 1) {
+      ambiguous.push({ rel, roles: hits.map((hit) => hit.descriptor.id) })
+      continue
+    }
+    const hit = hits[0] as { descriptor: CompiledRole; captured: Record<string, string> }
+    records.push({
+      rel,
+      abs: join(root, rel),
+      role: hit.descriptor.id,
+      layer: hit.descriptor.layer,
+      domain: hit.captured.domain ?? null,
+      slot: hit.descriptor.slot ?? null,
+      kind: kindOf(rel),
+    })
+  }
+
+  return { files, records, missing, ambiguous, ignored, exempted }
+}

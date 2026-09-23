@@ -1,0 +1,90 @@
+{
+  "name": "arch-guard",
+  "version": "0.1.0",
+  "description": "把架构写成可判定不变量的编码门禁：分层与边界、唯一出处、状态纪律、设计系统与魔法数字、文案、依赖、反退化",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "lint",
+    "architecture",
+    "guardrail",
+    "ai-agent",
+    "vibe-coding",
+    "conventions",
+    "static-analysis"
+  ],
+  "module": "./es/index.js",
+  "types": "./es/index.d.ts",
+  "bin": {
+    "arch-guard": "./bin/arch-guard.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./es/index.d.ts",
+      "import": "./es/index.js"
+    },
+    "./presets": {
+      "types": "./es/presets/index.d.ts",
+      "import": "./es/presets/index.js"
+    },
+    "./presets/*": {
+      "types": "./es/presets/*.d.ts",
+      "import": "./es/presets/*.js"
+    },
+    "./ui-kits/*": {
+      "types": "./es/presets/ui-kits/*.d.ts",
+      "import": "./es/presets/ui-kits/*.js"
+    },
+    "./packs/*": {
+      "types": "./es/packs/*.d.ts",
+      "import": "./es/packs/*.js"
+    },
+    "./data/*": {
+      "types": "./es/data/*.d.ts",
+      "import": "./es/data/*.js"
+    }
+  },
+  "files": [
+    "es",
+    "bin",
+    "PARADIGM.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.4.0"
+  },
+  "scripts": {
+    "build": "pagoda-cli build --notInstall",
+    "dev": "pagoda-cli dev",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "self-test": "node es/cli.js --self-test",
+    "self-check-portability": "node es/cli.js --self-check-portability",
+    "check": "node es/cli.js --self-test && node es/cli.js --self-check-portability",
+    "test": "node --test tests/*.test.mjs",
+    "guard:sample": "cd examples/minimal && node ../../es/cli.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@pagoda-cli/core": "^1.0.23",
+    "@types/node": "^26.6.2",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.8",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1"
+  },
+  "packageManager": "pnpm@11.21.0",
+  "dependencies": {
+    "commander": "^15.0.0"
+  }
+}

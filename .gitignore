@@ -1,0 +1,9 @@
+node_modules
+.DS_Store
+*.log
+.arch-guard-cache/
+
+# 构建产物（pagoda-cli build 生成）
+es/
+lib/
+*.tsbuildinfo
