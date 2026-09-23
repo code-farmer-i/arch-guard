@@ -26,5 +26,5 @@ export function copy(options: CopyOptions = {}): Preset {
     resourceDir: options.resourceDir ?? 'src/shared/i18n/locales',
     languages: options.languages ?? [],
   })
-  return { adapters: { i18n: adapter } }
+  return { enable: ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'], adapters: { i18n: adapter } }
 }

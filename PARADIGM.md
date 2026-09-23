@@ -255,6 +255,12 @@ src/
 不给目录表就只认入口，其余文件以 S01「无处安放」报出来（封闭枚举对库同样成立）。
 本仓库自己也用同一份预设，只是把自己的目录表写出来（`data: 1, engine: 2, packs: 4, presets: 4`）。
 
+**预设各自贡献自己的规则集，并取并集。** 域预设（设计系统 / 文案 / 依赖 / 度量 / 反退化）声明"我贡献哪几条"，
+应用范式声明 `enable: 'all'`，库范式给白名单；**任一预设说 `all`，结果就是 `all`**。
+要减掉某条用 `disable`（预设与 `overrides` 都取并集）。这样组合是加法：
+`library({ modules }) + designSystem() + copy() + deps()` 自然得到"库规则 + D 域 + C 域 + P 域"，
+不会像"后者覆盖前者"那样把某一边的域整块静默关掉。
+
 **布局只有一处真相：`layout`。** 规则读 `layout.modules` / `layout.shared` 判断域根与共享根，
 **不许再自己拼 `${srcRoot}/modules`** —— 拼死过一次：`canonical({ modules: 'src/features' })` 时角色表跟着变了，
 图规则却还在查 `src/modules`，查不到就静默空转，跨域引用私有 views 一条都不报（假绿）。

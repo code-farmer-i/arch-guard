@@ -43,15 +43,51 @@ test('锚点：对格式不敏感，对内容敏感', () => {
   assert.equal(anchorOf(undefined), anchorOf(''))
 })
 
-test('mergePresets：数组拼接、对象合并、enable 后者覆盖', () => {
+test('mergePresets：数组拼接、对象浅合并；enable / disable 都取并集', () => {
   const merged = mergePresets([
     { ignore: ['a'], layout: { app: 'src/app', modules: 'm', shared: 's' }, enable: ['S01'] },
-    { ignore: ['b'], layout: { app: 'x/app' }, enable: ['S02'] },
+    { ignore: ['b'], layout: { app: 'x/app' }, enable: ['S02', 'S01'], disable: ['S11'] },
   ])
   assert.deepEqual(merged.ignore, ['a', 'b'])
-  assert.deepEqual(merged.enable, ['S02'])
+  // 并集（不是后者覆盖）—— 否则 `library() + designSystem()` 会把后者的域整块关掉
+  assert.deepEqual(merged.enable, ['S01', 'S02'])
+  assert.deepEqual(merged.disable, ['S11'])
   assert.equal(merged.layout?.app, 'x/app')
   assert.equal(merged.layout?.modules, 'm')
+
+  // 任一预设说 'all' → 结果就是 'all'（应用范式就是这么声明的）
+  const withAll = mergePresets([{ enable: 'all' }, { enable: ['H06'] }])
+  assert.equal(withAll.enable, 'all')
+  const allFirst = mergePresets([{ enable: ['H06'] }, { enable: 'all' }])
+  assert.equal(allFirst.enable, 'all')
+})
+
+test('预设贡献规则集：并集起来正好覆盖各域已实现的规则（防"加了规则没挂进预设"）', async () => {
+  const { reactRules, canonical, designSystem, copy, deps, metrics, hygiene } =
+    await import('../es/index.js')
+  const byDomain = new Map()
+  for (const rule of reactRules) {
+    const list = byDomain.get(rule.domain) ?? []
+    list.push(rule.id)
+    byDomain.set(rule.domain, list)
+  }
+  const declared = (preset, domain) => {
+    const list = preset.enable
+    assert.ok(Array.isArray(list), '域预设必须显式声明 enable 列表')
+    assert.deepEqual(
+      [...list].sort(),
+      [...(byDomain.get(domain) ?? [])].sort(),
+      `${domain} 域预设的 enable 与实际实现的规则不一致`,
+    )
+  }
+  declared(designSystem(), 'design')
+  declared(copy(), 'copy')
+  declared(deps(), 'deps')
+  declared(metrics(), 'metrics')
+  declared(hygiene(), 'hygiene')
+  // 应用范式默认全开；库范式是白名单（并集时仍只贡献它列出的那些）
+  assert.equal(canonical().enable, 'all')
+  assert.ok(Array.isArray((await import('../es/index.js')).library().enable))
 })
 
 /* ---------------- 棘轮 ---------------- */

@@ -166,7 +166,14 @@ export interface Preset {
   naming?: Partial<NamingRules>
   thresholds?: Partial<Thresholds>
   adapters?: Record<string, Adapter>
+  /**
+   * 本预设**贡献**的规则。多个预设是**并集**（相加），不是后者覆盖前者 ——
+   * 否则 `library() + designSystem()` 这种组合会把后者贡献的域静默关掉。
+   * `'all'` 表示"全部注册的规则"，与任何列表并集仍是 `'all'`。
+   */
   enable?: string[] | 'all'
+  /** 本预设**排除**的规则（并从所有预设的 disable 取并集） */
+  disable?: string[]
   params?: Record<string, unknown>
   entries?: string[]
   ignore?: string[]
@@ -186,6 +193,8 @@ export interface Config {
   thresholds: Thresholds
   adapters: Record<string, Adapter>
   enable: string[] | 'all'
+  /** 显式排除的规则：`enable` 求完之后再减掉 */
+  disable: string[]
   params: Record<string, unknown>
   entries: string[]
   ignore: string[]

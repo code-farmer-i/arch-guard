@@ -35,7 +35,8 @@ export function createRegistry(
 ): RegistryResult {
   const all = new Map(rules.map((rule) => [rule.id, rule]))
   const enable = config.enable
-  const requested = enable === 'all' ? [...all.keys()] : enable
+  const disabled = new Set(config.disable ?? [])
+  const requested = (enable === 'all' ? [...all.keys()] : enable).filter((id) => !disabled.has(id))
   const unknownEnabled = requested.filter((id) => !all.has(id))
 
   const enabled: Rule[] = []

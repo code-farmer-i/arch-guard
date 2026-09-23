@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### Fixed（`enable` 取并集 + `disable` 减法：预设组合不再静默关域）
+
+- **`enable` 从"后者覆盖前者"改成"并集"**：多个预设各自声明自己贡献哪几条规则，组合是加法。
+  旧行为的真实后果：`library({ modules }) + designSystem() + copy() + deps()` 只启用 **10/53** 条 ——
+  D/C/M 域被静默关掉，宿主必须手抄一份 40 个 id 的并集才跑得起来（FSD 配方就是这么被逼出来的）。
+- **各域预设补上"贡献声明"**：`designSystem()` → D 12 条 · `copy()` → C 6 条 · `deps()` → P 7 条 ·
+  `metrics()` → M 8 条 · `hygiene()` → H06；`canonical()` 显式声明 `enable: 'all'`（应用范式默认全开）。
+  并新增守卫测试：每个域预设的 enable 列表必须**等于**该域已实现的规则集，防止"加了规则没挂进预设"。
+- **新增 `disable`**（预设与 `overrides` 都取并集）：`enable` 求完之后再减 —— 例如 FSD 宿主想保留具名导出时
+  `overrides: { disable: ['S11'] }`。
+- `overrides.enable` 语义不变：仍是"我全都要自己定"的整体替换开关。
+- 文档同步：[ALTERNATIVES.md](./docs/ALTERNATIVES.md) §3.3 的 FSD 配方去掉了 40 个 id 的并集、§3.4 的阻塞点标为已修；
+  PARADIGM §11.1 补上"预设各贡献规则集并取并集"的语义。
+
 ### Added（`docs/ALTERNATIVES.md`：替代组合与竞品盘点）
 
 - 新增一份整体版生态审计（[ECOSYSTEM-AUDIT](./docs/ECOSYSTEM-AUDIT.md) 的补充）：

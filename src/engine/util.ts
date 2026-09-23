@@ -134,7 +134,11 @@ export function mergePresets(presets: Preset[]): Preset {
     if (preset.thresholds) out.thresholds = { ...out.thresholds, ...preset.thresholds }
     if (preset.adapters) out.adapters = { ...out.adapters, ...preset.adapters }
     if (preset.params) out.params = { ...out.params, ...preset.params }
-    if (preset.enable) out.enable = preset.enable
+    // enable 是**并集**：预设各自声明"我贡献哪几条"。任一预设说 'all' → 结果就是 'all'。
+    // （旧实现是后者覆盖前者，于是 `library() + designSystem()` 会把 D 域整块静默关掉。）
+    if (preset.enable === 'all' || out.enable === 'all') out.enable = 'all'
+    else if (preset.enable) out.enable = [...new Set([...(out.enable ?? []), ...preset.enable])]
+    if (preset.disable) out.disable = [...new Set([...(out.disable ?? []), ...preset.disable])]
     if (preset.entries) out.entries = [...(out.entries ?? []), ...preset.entries]
     if (preset.ignore) out.ignore = [...(out.ignore ?? []), ...preset.ignore]
     if (preset.include) out.include = [...(out.include ?? []), ...preset.include]

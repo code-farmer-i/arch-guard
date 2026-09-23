@@ -67,5 +67,8 @@ export function metrics(options: MetricsOptions = {}): Preset {
       : {}),
     ...(options.depsBudget ? { depsBudget: options.depsBudget } : {}),
   })
-  return { adapters: { metrics: adapter } }
+  return {
+    enable: ['M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09'],
+    adapters: { metrics: adapter },
+  }
 }

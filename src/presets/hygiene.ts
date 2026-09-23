@@ -6,6 +6,8 @@ import type { Preset } from '../engine/types.js'
  */
 export function hygiene(): Preset {
   return {
+    // H01–H05 已委派给 eslint（见 docs/ECOSYSTEM-AUDIT.md），本体只实现 H06
+    enable: ['H06'],
     thresholds: { functionLines: 150 },
   }
 }

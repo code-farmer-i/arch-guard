@@ -43,6 +43,8 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
   const tokenPrefix = options.tokenPrefix ?? '--sh'
   const styleDir = options.styleDir ?? 'src/shared/styles'
   return {
+    // 本预设贡献 D 域（多个预设之间是**并集**，见 Preset.enable 的说明）
+    enable: ['D03', 'D04', 'D05', 'D06', 'D07', 'D08', 'D10', 'D10b', 'D11', 'D16', 'D17', 'D21'],
     params: {
       /**
        * 显式标记「项目声明了设计系统」。D21 靠它把两种情况分开：
@@ -109,6 +111,7 @@ export interface DepsOptions {
 
 export function deps(options: DepsOptions = {}): Preset {
   return {
+    enable: ['P01', 'P02', 'P04', 'P05', 'P06', 'P07', 'P11'],
     params: {
       // 默认两条都为空：**预设不替项目做选型决定**。
       // 项目要么用 allow（fail-closed，推荐），要么用 deny（只表达少数硬禁令），不必两者都维护。

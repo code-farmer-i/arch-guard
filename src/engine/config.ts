@@ -212,7 +212,9 @@ export async function loadConfig(options: {
     naming: { ...DEFAULT_NAMING, ...preset.naming, ...overrides.naming },
     thresholds: { ...DEFAULT_THRESHOLDS, ...preset.thresholds, ...overrides.thresholds },
     adapters: { ...preset.adapters, ...overrides.adapters },
+    // `overrides.enable` 仍是"我全都要自己定"的总开关（整体替换）；预设之间是并集（见 mergePresets）
     enable: overrides.enable ?? preset.enable ?? 'all',
+    disable: [...new Set([...(preset.disable ?? []), ...(overrides.disable ?? [])])],
     params: { ...preset.params, ...overrides.params },
     entries,
     ignore: [...(preset.ignore ?? []), ...(overrides.ignore ?? [])],
