@@ -7,6 +7,7 @@ import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { extractFacts, factInputOf } from './facts.js'
 import { buildGraph } from './graph.js'
+import { collectI18n } from './i18n.js'
 import { json } from './output.js'
 import { createRegistry } from './registry.js'
 import {
@@ -129,10 +130,19 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     ...(options.minLevel ? { minLevel: options.minLevel } : {}),
   })
 
+  const i18n = collectI18n({
+    records: scan.records,
+    sourceOf,
+    resourceDir: String(
+      (config.adapters.i18n as { resourceDir?: string } | undefined)?.resourceDir ?? '',
+    ),
+  })
+
   const ctx: RuleContext = {
     config,
     records: scan.records,
     facts,
+    i18n,
     graph,
     scan,
     deps,

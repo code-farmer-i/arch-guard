@@ -296,7 +296,17 @@ export function extractFacts(input: FactInput): Facts {
     /* ---- 调用 / debugger ---- */
     if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
       // 记录**所有**调用：裸调用（alert/confirm/prompt）也要能被 H03 看见
-      facts.calls.push({ callee: node.expression.getText(sf), line: lineOf(sf, node.getStart(sf)) })
+      const first = node.arguments?.[0]
+      const prefixOf = (arg: ts.Expression | undefined): string | undefined => {
+        if (!arg || !ts.isTemplateExpression(arg)) return undefined
+        return arg.head.text || undefined
+      }
+      facts.calls.push({
+        callee: node.expression.getText(sf),
+        line: lineOf(sf, node.getStart(sf)),
+        ...(first && ts.isStringLiteralLike(first) ? { stringArg: first.text } : {}),
+        ...(prefixOf(first) ? { keyPrefix: prefixOf(first) as string } : {}),
+      })
     }
     if (node.kind === ts.SyntaxKind.DebuggerStatement) {
       facts.calls.push({ callee: 'debugger', line: lineOf(sf, node.getStart(sf)) })

@@ -1,5 +1,6 @@
 import type { Rule } from '../../engine/types.js'
 
+import { copyRules } from './rules/copy.js'
 import { depsRules } from './rules/deps.js'
 import { designTokenRules } from './rules/design-tokens.js'
 import { designVendorRules } from './rules/design-vendor.js'
@@ -19,6 +20,7 @@ export const reactRules: Rule[] = [
   ...structureRules,
   ...designTokenRules,
   ...designVendorRules,
+  ...copyRules,
   ...depsRules,
   ...hygieneRules,
 ]

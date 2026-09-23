@@ -91,21 +91,6 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
   }
 }
 
-/** 文案预设：资源目录、语言集 */
-export interface CopyOptions {
-  resourceDir?: string
-  languages?: string[]
-}
-
-export function copy(options: CopyOptions = {}): Preset {
-  return {
-    params: {
-      resourceDir: options.resourceDir ?? 'src/shared/i18n/locales',
-      languages: options.languages ?? [],
-    },
-  }
-}
-
 export interface DepsOptions {
   /** fail-closed 白名单：声明后，任何未登记的运行时依赖都报错（P01） */
   allow?: string[]

@@ -1,0 +1,56 @@
+{
+  "findings": [
+    {
+      "rule": "C01",
+      "file": "src/shared/components/ui/Bad.tsx"
+    },
+    {
+      "rule": "C02",
+      "file": "src/shared/components/ui/Bad.tsx"
+    },
+    {
+      "rule": "C03",
+      "file": "src/shared/i18n/locales/en/index.ts"
+    },
+    {
+      "rule": "C03",
+      "file": "src/shared/i18n/locales/en/index.ts"
+    },
+    {
+      "rule": "C04",
+      "file": "src/shared/i18n/locales/zh-CN/mixed.ts"
+    },
+    {
+      "rule": "C05",
+      "file": "src/shared/i18n/locales/en/common.ts"
+    },
+    {
+      "rule": "C05",
+      "file": "src/shared/i18n/locales/zh-CN/mixed.ts"
+    },
+    {
+      "rule": "C06",
+      "file": "src/shared/i18n/locales/en/common.ts"
+    },
+    {
+      "rule": "C06",
+      "file": "src/shared/i18n/locales/en/common.ts"
+    },
+    {
+      "rule": "C06",
+      "file": "src/shared/i18n/locales/zh-CN/common.ts"
+    },
+    {
+      "rule": "C06",
+      "file": "src/shared/i18n/locales/zh-CN/common.ts"
+    },
+    {
+      "rule": "C06",
+      "file": "src/shared/i18n/locales/zh-CN/mixed.ts"
+    },
+    {
+      "rule": "C06",
+      "file": "src/shared/i18n/locales/zh-CN/nav.ts"
+    }
+  ]
+}

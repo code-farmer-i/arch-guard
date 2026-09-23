@@ -47,7 +47,8 @@ export {
 
 export { canonical, roleTable } from './presets/canonical.js'
 export { library, libraryRoleTable } from './presets/library.js'
-export { designSystem, copy, deps } from './presets/design-system.js'
+export { designSystem, deps } from './presets/design-system.js'
+export { copy } from './presets/copy.js'
 export { hygiene } from './presets/hygiene.js'
 export { uiKit, antdKit, noneKit } from './presets/index.js'
 

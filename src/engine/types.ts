@@ -39,6 +39,10 @@ export interface JsxTextFact {
 export interface CallFact {
   callee: string
   line: number
+  /** 第一个字符串字面量参数（t('nav.crews') 里的 nav.crews）；没有则缺省 */
+  stringArg?: string
+  /** 第一个参数是模板串时的静态前缀（t(`nav.${x}`) 里的 "nav."），动态键靠它判定「被用过」 */
+  keyPrefix?: string
 }
 
 export interface CatchFact {
@@ -230,6 +234,8 @@ export interface RuleContext {
   deps: import('./deps.js').ProjectDeps
   /** 依赖策略：allow / deny / capabilities */
   policy: import('./deps.js').DepsPolicy
+  /** i18n 资源索引（文案域规则用；未配置资源目录时为空） */
+  i18n?: import('./i18n.js').I18nIndex
   files: string[]
   /** 按 rel 读原始文本（规则需要行文本算锚点时用） */
   sourceOf: (rel: string) => string | undefined

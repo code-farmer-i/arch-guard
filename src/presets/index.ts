@@ -2,14 +2,8 @@ import type { Preset, Adapter } from '../engine/types.js'
 
 export { canonical, roleTable, type CanonicalOptions } from './canonical.js'
 export { library, libraryRoleTable, type LibraryOptions } from './library.js'
-export {
-  designSystem,
-  copy,
-  deps,
-  type DesignSystemOptions,
-  type CopyOptions,
-  type DepsOptions,
-} from './design-system.js'
+export { designSystem, deps, type DesignSystemOptions, type DepsOptions } from './design-system.js'
+export { copy, type CopyOptions } from './copy.js'
 export { hygiene } from './hygiene.js'
 export { antdKit } from './ui-kits/antd.js'
 export { noneKit } from './ui-kits/none.js'
