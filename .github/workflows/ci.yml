@@ -8,7 +8,10 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      # 两个 Node 版本各自报结论：一个失败不取消另一个（否则被取消的 job 看起来也像失败）
+      fail-fast: false
       matrix:
         node: ['22.18.0', '24']
     steps:
@@ -23,7 +26,18 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm build
-      - run: pnpm test
+      # 测试失败时把失败行提升为 check 注解 —— 注解可被 API 读取，日志不行
+      - name: Test
+        run: |
+          set +e
+          pnpm test 2>&1 | tee /tmp/test.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            grep -E "^not ok|AssertionError|Error|✖" /tmp/test.log | head -8 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi
+          exit "$code"
       # 覆盖率报告（Node 内置，无额外依赖）
       - run: pnpm coverage
       # 夹具回归：每条规则「违规必报 × 合规不报」

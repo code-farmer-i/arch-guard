@@ -5,3 +5,4 @@ coverage
 __fixtures__
 examples
 pnpm-lock.yaml
+.pnpm-store
