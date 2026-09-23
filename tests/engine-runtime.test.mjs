@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -157,4 +157,10 @@ test('阈值：默认 500 行，且可按项目覆盖', async () => {
 
   const { config: tight } = await loadConfig({ root: `${PACKAGE_ROOT}__fixtures__/rules` })
   assert.equal(tight.thresholds.fileLines, 40, '夹具覆盖了阈值')
+})
+
+test('manifest：运行时依赖不得被误删（commander 只在 es/ 里被 import，漏装即运行时崩溃）', () => {
+  const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'))
+  assert.deepEqual(Object.keys(pkg.dependencies ?? {}), ['commander'], '运行时依赖清单被改动过？')
+  assert.equal(pkg.peerDependencies.typescript, '>=5.4.0 <7', 'peer 范围必须排除 typescript@7')
 })
