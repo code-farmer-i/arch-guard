@@ -13,6 +13,15 @@
     "conventions",
     "static-analysis"
   ],
+  "author": "ksen",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/code-farmer-i/arch-guard.git"
+  },
+  "homepage": "https://github.com/code-farmer-i/arch-guard#readme",
+  "bugs": {
+    "url": "https://github.com/code-farmer-i/arch-guard/issues"
+  },
   "module": "./es/index.js",
   "types": "./es/index.d.ts",
   "bin": {
@@ -85,9 +94,5 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.1"
   },
-  "packageManager": "pnpm@11.21.0",
-  "dependencies": {
-    "commander": "^15.0.0"
-  },
-  "author": "ksen"
+  "packageManager": "pnpm@11.21.0"
 }
