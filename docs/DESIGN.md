@@ -362,6 +362,11 @@ ctx = {
 
 ### 6.8 检测范围（scope）：全量与增量
 
+> **实现状态**：facts 持久缓存已落地（`src/engine/facts-cache.ts`）。单文件键 = `rel + role + 内容 sha1`；
+> 整份缓存的键 = `FACTS_CACHE_SPEC` + TypeScript 版本。缓存位置跟随 Vite 的策略：
+> 有 `node_modules` 就写 `node_modules/.arch-guard-cache/facts.json.gz`，否则退回项目根 `.arch-guard-cache/`。
+> 实测 3043 文件 / 21.5 万行：冷跑 5.88s → 热跑 1.22s。`--no-cache` 可关。
+
 **（1）总原则：scope 过滤「报告」，不过滤「正确性」**
 
 | 谓词类型       | 例子                                                               | 能否局部判定               |

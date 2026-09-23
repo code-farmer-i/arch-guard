@@ -1,5 +1,4 @@
-import { execFileSync } from 'node:child_process'
-import { realpathSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { aggregate, readCoverageReport, type CoverageReport } from './coverage.js'
 import { join, relative } from 'node:path'
 
@@ -8,6 +7,7 @@ import { loadConfig } from './config.js'
 import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { extractFacts, factInputOf } from './facts.js'
+import { disabledFactsCache, openFactsCache } from './facts-cache.js'
 import { buildGraph } from './graph.js'
 import { collectI18n } from './i18n.js'
 import { json, out } from './output.js'
@@ -24,6 +24,7 @@ import {
 import { scanProject } from './scan.js'
 import type { Pack } from './pack.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
+import { gitChangedFiles, gitHeadTimeMs, rootRelativePattern } from './git.js'
 import { globToRegExp, readText } from './util.js'
 
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
@@ -52,6 +53,8 @@ export interface RunOptions {
   rules?: Rule[]
   /** 调用方（CLI）能提供的框架包：配置里没写 `packs` 时用它兜底 */
   fallbackPacks?: Pack[]
+  /** facts 持久缓存（默认开）；`false` = 每轮全量解析 */
+  cache?: boolean
   quiet?: boolean
 }
 
@@ -65,6 +68,8 @@ export interface RuleStat {
 
 export interface RunResult {
   exitCode: number
+  /** facts 缓存命中情况（`cache: false` 时恒为 0/文件数） */
+  cache: { hits: number; misses: number }
   config: Config
   all: Finding[]
   active: Finding[]
@@ -85,101 +90,6 @@ function coverageTotals(report: CoverageReport): {
     lines: stats?.lines ?? 0,
     branches: stats?.branches ?? 0,
     functions: stats?.functions ?? 0,
-  }
-}
-
-/** 最近一次提交的时间（M06 用来判「覆盖率产物是不是过期的」）；没有 git 或没有提交时返回 null */
-function gitHeadTimeMs(root: string): number | null {
-  try {
-    const seconds = execFileSync('git', ['-C', root, 'log', '-1', '--format=%ct'], {
-      encoding: 'utf8',
-      // 同上：没有 git 时不能把 git 的报错透传到用户屏幕上
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    const value = Number.parseInt(seconds, 10)
-    return Number.isFinite(value) ? value * 1000 : null
-  } catch {
-    return null
-  }
-}
-
-/**
- * `--paths` 的模式归一：绝对路径（含绝对 glob）换算成配置根相对路径；相对模式原样返回。
- *
- * 为什么要它：诊断/编辑器插件按文件传参时给绝对路径，而报告里的路径都是配置根相对的；
- * 不换算就会全部过滤掉 —— 那是「假绿」，比报错危险。
- */
-export function rootRelativePattern(pattern: string, root: string): string {
-  if (!pattern.startsWith('/')) return pattern
-  const real = (path: string): string => {
-    try {
-      return realpathSync(path)
-    } catch {
-      return path
-    }
-  }
-  const realRoot = real(root)
-  // 常见形态一：绝对路径直接以配置根开头（含 glob 也适用，因为是纯字符串剥离）
-  if (pattern === root) return ''
-  if (pattern.startsWith(`${root}/`)) return pattern.slice(root.length + 1)
-  if (pattern.startsWith(`${realRoot}/`)) return pattern.slice(realRoot.length + 1)
-  // 形态二：软链写法不同（/var vs /private/var）→ 只对通配符之前的前缀做 realpath 后算相对
-  const literal = pattern.replace(/[?*[\]].*$/, '')
-  const tail = pattern.slice(literal.length)
-  return `${relative(realRoot, real(literal)).split('\\').join('/')}${tail}`
-}
-
-/** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
-function gitChangedFiles(root: string, scope: string): { files: string[]; notice?: string } | null {
-  const git = (args: string[]): string[] =>
-    execFileSync('git', ['-C', root, ...args], {
-      encoding: 'utf8',
-      // stderr 默认是透传的：在没有 git 的目录里，git 自己那句「致命错误」会打到用户屏幕上，
-      // 而这里本来就会 catch 掉并走「明确降级」分支 —— 噪音不该漏出去。
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-  try {
-    // 变更路径是相对**仓库根**的；配置根可能不是仓库根，必须换算，否则会路径对不上而假绿
-    const top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    let raw: string[]
-    if (scope === 'staged') raw = git(['diff', '--cached', '--name-only', '--find-renames', 'HEAD'])
-    else if (scope === 'changed') {
-      raw = [
-        ...git(['diff', '--name-only', '--find-renames', 'HEAD']),
-        ...git(['ls-files', '--others', '--exclude-standard']),
-      ]
-    } else if (scope.startsWith('since:')) {
-      raw = git(['diff', '--name-only', '--find-renames', `${scope.slice('since:'.length)}...HEAD`])
-    } else {
-      return null
-    }
-    // macOS 上 /var 与 /private/var 是同一目录的两种写法（CI 容器里也常见 /tmp 软链）：
-    // 不先 realpath 就做 relative 会算出 `../../..`，变更路径与文件全都对不上 → **假绿**。
-    const real = (path: string): string => {
-      try {
-        return realpathSync(path)
-      } catch {
-        return path
-      }
-    }
-    const realRoot = real(root)
-    const realTop = real(top)
-    const files = raw.map((path) =>
-      relative(realRoot, real(join(realTop, path)))
-        .split('\\')
-        .join('/'),
-    )
-    return realTop === realRoot
-      ? { files }
-      : { files, notice: `仓库根是 ${top}，变更路径已换算到配置根` }
-  } catch {
-    return null
   }
 }
 
@@ -219,17 +129,43 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const facts = new Map<string, Facts>()
   const cssTexts = new Map<string, string>()
 
+  // facts 缓存：解析结果只由「文件内容 + rel + role」决定，可以跨进程复用（见 facts-cache.ts）
+  const cache =
+    options.cache === false
+      ? disabledFactsCache()
+      : openFactsCache(config.root, (m) => notices.push(m))
+
   // 契约域内的文件 + 域外文件（角色 `(outside)`）都要解析：
   // 前者判定用，后者只为依赖图完整（测试作为可达根、跨域 import 边）。
   for (const record of [...scan.records, ...scan.outside]) {
     try {
       const text = readText(record.abs)
       texts.set(record.rel, text)
-      if (record.kind === 'ts') facts.set(record.rel, extractFacts(factInputOf(record, text)))
-      else if (record.kind === 'css') cssTexts.set(record.rel, text)
+      if (record.kind === 'ts') {
+        const cached = cache.get(record, text)
+        if (cached) {
+          // 绝对路径不进缓存语义（换机器/换目录后必须刷新），其余字段都由内容决定
+          cached.file = record.abs
+          facts.set(record.rel, cached)
+        } else {
+          const extracted = extractFacts(factInputOf(record, text))
+          facts.set(record.rel, extracted)
+          cache.set(record, text, extracted)
+        }
+      } else if (record.kind === 'css') cssTexts.set(record.rel, text)
     } catch (error) {
       notices.push(`读取失败：${record.rel}（${(error as Error).message}）`)
     }
+  }
+  cache.save()
+  const cacheStats = cache.stats()
+  if (options.cache !== false && cacheStats.hits + cacheStats.misses > 0) {
+    // 命中数必须自述：不然「缓存到底有没有生效、写在哪」只能靠猜
+    const where = cacheStats.path === null ? '(未落盘)' : relative(config.root, cacheStats.path)
+    notices.push(
+      `facts 缓存 ${where}：命中 ${cacheStats.hits}/${cacheStats.hits + cacheStats.misses}` +
+        (cacheStats.hits > 0 ? '（省下的就是解析）' : '（首次或缓存作废，本轮全量解析）'),
+    )
   }
 
   const graph = buildGraph({ config, files: scan.files, facts, cssTexts })
@@ -462,6 +398,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   return {
     exitCode,
     config,
+    cache: { hits: cacheStats.hits, misses: cacheStats.misses },
     all,
     active,
     scope,

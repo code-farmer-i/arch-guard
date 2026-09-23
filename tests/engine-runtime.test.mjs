@@ -135,6 +135,7 @@ test('cli：commander 注册了全部对外开关（防止重构时丢参数）'
     '--format',
     '--local-only',
     '--min-level',
+    '--no-cache',
     '--only',
     '--paths',
     '--report-only',

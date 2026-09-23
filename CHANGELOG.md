@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### Added（facts 持久缓存：重复运行 ≈5×）
+
+- 新增 `src/engine/facts-cache.ts`：把每个文件的解析结果（facts）按 **rel + role + 内容 sha1** 缓存到磁盘，
+  下一轮没变的文件直接读缓存、不再解析。整份缓存的键是 `FACTS_CACHE_SPEC` + TypeScript 版本 ——
+  事实模型或解析器换了就整体作废。图与全局谓词**不在缓存里**，每轮照旧从 facts 重建（保住「scope 只过滤报告」的语义）。
+- **实测**（3043 个 ts 文件 / 21.5 万行）：冷跑 5.88s → 热跑 **1.22s（4.8×）**；
+  26k 个**小**文件仓库 4.0s → 3.1s（−23%，文件越小解析越便宜，缓存能省的自然越少）。
+- **缓存写在哪**：跟 Vite 同一策略 —— 有 `node_modules` 就写 `node_modules/.arch-guard-cache/facts.json.gz`
+  （天然被 git 忽略、`rm -rf node_modules` 顺手带走），没有 `node_modules`（PnP / monorepo 子包）则退回项目根 `.arch-guard-cache/`。
+- 每次运行自述**命中数与路径**；`--no-cache` 关掉；缓存损坏 / 版本不符 → 整份作废并说明原因；
+  写不进去（只读盘、权限）只提示、不影响判定 —— 缓存是加速手段，不是正确性依赖。
+- 7 条测试锁住：全命中、**改内容必重算（防假绿）**、role 变化重算、损坏与版本不符作废、
+  `--no-cache`、`node_modules` 位置、落盘内容带 spec + ts 版本。
+
 ### Changed（框架包接进配置：规则集不再硬编码）
 
 - **`arch.config.mjs` 支持 `packs: [reactPack]`**：规则集由框架包给出，`cli.ts` 不再硬编码 `reactRules`，

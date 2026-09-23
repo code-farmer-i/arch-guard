@@ -38,6 +38,7 @@ interface CliOptions {
   severity?: string
   format: string
   stats?: boolean
+  cache?: boolean
   verifyDeps?: boolean
   coverageReport?: string
   updateBaseline?: boolean
@@ -72,6 +73,7 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--severity <severity>', '只报告指定严重度：error | warn')
     .option('--format <format>', '输出格式：pretty | json | github（CI 注解）', 'pretty')
     .option('--stats', '打印每条规则的耗时与命中数（排查「为什么这么慢」）')
+    .option('--no-cache', '不做 facts 持久缓存（每轮全量解析；排查缓存相关问题时用）')
     .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
     .option('--coverage-report <path>', '覆盖率产物路径（覆盖 metrics 适配器里的配置）')
     .option('--update-baseline', '把当前全部违规写入基线（只能在全量 scope 下）')
@@ -184,6 +186,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
       cwd: process.cwd(),
       // 规则集由框架包决定（配置里可写 packs: [...]）；CLI 只提供兜底的包
       fallbackPacks: [reactPack],
+      cache: options.cache !== false,
       format: options.format as 'pretty' | 'json' | 'github',
       stats: options.stats === true,
       ...(options.coverageReport ? { coverageReport: options.coverageReport } : {}),
