@@ -49,7 +49,7 @@ export interface RunResult {
   durationMs: number
 }
 
-/** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/SPEC.md §6.8） */
+/** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
 function gitChangedFiles(root: string, scope: string): { files: string[]; notice?: string } | null {
   const git = (args: string[]): string[] =>
     execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' })

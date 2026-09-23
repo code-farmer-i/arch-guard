@@ -28,3 +28,7 @@ Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.
 - **Frontier**: scan `.scratch/<effort>/issues/` for files that are open, unblocked, and unclaimed; first by number wins.
 - **Claim**: set `Status: claimed` and save before any work.
 - **Resolve**: append the answer under an `## Answer` heading, set `Status: resolved`, then append a context pointer (gist + link) to the map's Decisions-so-far in `map.md`.
+
+## What is not a spec
+
+Persistent reference docs are **not** specs and never live in `.scratch/`: `CONTEXT.md` (vocabulary), `docs/adr/` (decisions), `docs/DESIGN.md` (how the system is built). The name `spec.md` is reserved for `.scratch/<feature-slug>/spec.md`.

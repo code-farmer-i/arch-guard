@@ -1,7 +1,7 @@
 # 架构门禁范式（PARADIGM）
 
 > 这份文档是**规约本身**，不是某个项目的说明。换仓库时整篇可搬，只需要替换 `arch.config.mjs` 与实例说明。
-> 完整设计与理由见 [`docs/SPEC.md`](./docs/SPEC.md)。
+> 完整设计与理由见 [`docs/DESIGN.md`](./docs/DESIGN.md)。
 
 ## 0. 一句话
 

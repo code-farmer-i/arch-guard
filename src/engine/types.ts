@@ -1,6 +1,6 @@
 /**
  * 规则面向的契约：事实模型、配置、规则与发现项。
- * 规则只依赖这里定义的结构，不依赖任何 parser 或框架（见 docs/SPEC.md §6.1.1）。
+ * 规则只依赖这里定义的结构，不依赖任何 parser 或框架（见 docs/DESIGN.md §6.1.1）。
  */
 
 export type FileKind = 'ts' | 'css' | 'json' | 'other'
@@ -241,7 +241,7 @@ export interface Rule {
   level: Level
   severity: Severity
   title: string
-  /** 能力依赖：未声明的能力对应规则不注册（见 docs/SPEC.md §7.4） */
+  /** 能力依赖：未声明的能力对应规则不注册（见 docs/DESIGN.md §7.4） */
   requires?: string[]
   hint?: string
   run: (ctx: RuleContext) => Finding[]

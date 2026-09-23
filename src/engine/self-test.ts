@@ -6,7 +6,7 @@ import type { Rule } from './types.js'
 
 /**
  * 夹具回归：每条规则一对「违规必报 × 合规不报」样例。
- * 规则改一次就必须有回归，否则会悄悄失效（见 docs/SPEC.md §6.7）。
+ * 规则改一次就必须有回归，否则会悄悄失效（见 docs/DESIGN.md §6.7）。
  */
 
 export interface FixtureExpectation {

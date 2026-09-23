@@ -4,7 +4,7 @@ import type { CommentFact, Facts, FileRecord } from './types.js'
 
 /**
  * 事实模型（facts）：引擎里**唯一**接触 TS AST 的地方。
- * 规则只消费这里产出的纯 JSON —— 换 parser 只需重写本文件（见 docs/SPEC.md §6.1.1）。
+ * 规则只消费这里产出的纯 JSON —— 换 parser 只需重写本文件（见 docs/DESIGN.md §6.1.1）。
  */
 
 interface SourceFileWithDiagnostics extends ts.SourceFile {

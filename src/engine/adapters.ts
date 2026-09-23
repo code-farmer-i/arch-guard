@@ -1,7 +1,7 @@
 import type { Adapter, AdapterExamples } from './types.js'
 
 /**
- * 适配器 = 数据，不是插件（见 docs/SPEC.md §7.4）。
+ * 适配器 = 数据，不是插件（见 docs/DESIGN.md §7.4）。
  * 这里只做「声明校验」：字段白名单、类型、正则可编译性、样例完整性。
  * 引擎从不反向调用适配器。
  */
