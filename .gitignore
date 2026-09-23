@@ -11,3 +11,6 @@ lib/
 # 环境注入的 skills（不属于本包）
 .agents/
 skills-lock.json
+
+# 打包产物（npm pack）
+*.tgz
