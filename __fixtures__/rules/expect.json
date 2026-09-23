@@ -22,7 +22,7 @@
     },
     {
       "rule": "S02",
-      "file": "src/modules/demo/views/nested/DeepPage.tsx"
+      "file": "src/modules/demo/views/nested/deeper/DeepPage.tsx"
     },
     {
       "rule": "S12",

@@ -77,7 +77,9 @@ export const maxDepth: Rule = {
   hint: '域内固定七个槽位，槽位下不许再建目录；域变大了就拆成更多域',
   run: (ctx) => {
     const prefix = `${ctx.config.srcRoot}/`
-    const max = 3
+    // 默认 4：范式里 shared/i18n/locales/<lang>/<ns>.ts 本身就是 4 层；
+    // 上限防的是「随手往下挖目录」，不是精确等于 3。可用 params.maxDepth 覆盖。
+    const max = Number(ctx.config.params.maxDepth ?? 4)
     const out: Finding[] = []
     for (const record of ctx.records) {
       if (!record.rel.startsWith(prefix)) continue
