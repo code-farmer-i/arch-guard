@@ -18,7 +18,11 @@ npx arch-guard --list-rules                     # 本工具当前规则清单
 
 见 [`DESIGN.md` §4.9 委派清单](./DESIGN.md)：单文件语法卫生（any / console / debugger / 空 catch / 未完成标记）、
 假异步与随机、硬编码地址、假数据、文件与函数行数、`../` 越级、依赖环、孤儿文件、幽灵依赖与未使用依赖、
-颜色字面量、`!important`、长度/层级/时长白名单、文案键存在性与死键 —— 合计 19 组约束，去向在 §4.9 表里逐条列出。
+颜色字面量、`!important`、长度/层级/时长白名单、JSX 裸文案 —— 逐条去向在 §4.9 表里列出。
+
+> **修订：文案键的对账没有被委派出去。** `eslint-plugin-i18next` 只有 `no-literal-string` 一条规则
+> （`Object.keys(plugin.rules)` 实测），不做键存在性与未使用键；当初按「插件能顶 C01 · C02 · C06」删掉
+> 后两条，是把插件能力估大了。C02 / C06 已恢复实现（见 §4 表）。
 
 **实测记录**：同一份代码上，eslint 与旧版本工具的 7 条发现**同行同类**（`no-console`↔H03、
 `no-explicit-any`↔H01、`no-non-null-assertion`↔H01、`no-debugger`↔H03、`no-empty`↔H05、
@@ -91,8 +95,9 @@ npx arch-guard --list-rules                     # 本工具当前规则清单
 | 候选                      | 等价实现                                                                                                        | 建议                                                 |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `H02` 禁 `eslint-disable` | `eslint-plugin-eslint-comments` 的 `no-restricted-disable` + `--report-unused-disable-directives`（零项目数据） | **删除**（按判定规则属完全重复）                     |
-| `D15` 内联样式纪律        | `no-magic-numbers`（实测能抓 `style={{ margin: 8 }}`）+ `no-restricted-syntax` 选择器抓内联颜色（零数据）       | **删除**                                             |
+| `D15` 内联样式纪律        | `no-restricted-syntax` 选择器抓 `style={{ … }}` 里的裸数字与颜色字面量（零项目数据）。**注意 `no-magic-numbers` 不行**：ESLint 默认 `detectObjects: false`，对象字面量里的值它不管；oxlint 的同名规则没有该选项（且处于 nursery），实测对 `style={{ margin: 8 }}` 0 命中       | **删除**（宿主改用 `no-restricted-syntax` 落地）       |
 | `D02` 色板只放色板令牌    | stylelint `custom-property-pattern` + `overrides`（一个 pattern）                                               | **删除**                                             |
+| `C02` / `C06` 键存在性与死键 | **没有等价实现**：`eslint-plugin-i18next` 只有 `no-literal-string`（不做键对账），别的生态工具也不碰"这个键有没有人用" | **恢复实现**（当初按插件能力删除属误判）             |
 | `D18` 组件只消费语义令牌  | stylelint `declaration-property-value-disallowed-list`（一个 token 前缀）                                       | **删除**                                             |
 | `D04` 引用闭合            | `stylelint-value-no-unknown-custom-properties` 只查文件内                                                       | 保留（我们是跨文件令牌图）                           |
 | `M02`–`M05`               | vitest glob/perFile 阈值、`diff-cover`、社区 ratchet 工具                                                       | 保留但**默认不启用**，仅当宿主运行器没有对应能力时开 |

@@ -9,8 +9,8 @@
 - **design 域 12 条规则（D01–D11 + D10b）**：颜色唯一出处、色板只放色板令牌、色值唯一、令牌引用闭合、
   无死令牌、明暗双份齐全、对比度基线（WCAG + 半透明合成）、storage key 与 index.html 一致、禁 `!important`、
   组件库选择器只许在 vendor、vendor 目录反向封闭、无框架残留。
-- **copy 域 6 条规则（C01–C06）**：JSX 裸文案、文案键必须存在、多语言键一致、一文件一命名空间、
-  分片必须被聚合入口引用、无死键（warn）。
+- **copy 域 C02–C06**：文案键必须存在、多语言键一致、一文件一命名空间、分片必须被聚合入口引用、无死键（warn）。
+  C01（JSX 裸文案）委派给 `eslint-plugin-i18next` 的 `no-literal-string`。
 - **CSS 结构化解析器**（`src/engine/css.ts`）：注释遮罩、块与选择器、自定义属性定义/引用、颜色求值与对比度。
 - **i18n 资源索引**（`src/engine/i18n.ts`）：用 TS 解析器把 `locales/<lang>/<ns>.ts` 解析成键路径。
 - `copy()` 预设改以 **i18n 适配器**声明能力（`requires: ['i18n.resourceDir']`），未声明时规则出现在 `skipped` 而不是静默失能。
@@ -90,6 +90,17 @@
 
 - **D 域在 superhive 实测与旧 `check-theme` 结论一致**（0 条），旧脚本标记 `@deprecated` 并写明退役条件。
 - `designSystem()` 的对比度基线默认**留空**：token 名是项目专有数据，预设不替项目做决定。
+
+### Fixed（第三轮：审计修正）
+
+- **`C02` / `C06` 恢复实现**：`t()` 的键存在性与死键检查回到本体，上面「删除 `C02`（键存在）、`C06`（死键）」
+  那一条随之作废。删除理由写的是「`eslint-plugin-i18next` 能覆盖」，但实测该插件只有 `no-literal-string`
+  一条规则（`Object.keys(plugin.rules)`），`no-missing-keys` / `no-unused-keys` 根本不存在 ——
+  于是键拼错（界面直接显示键名）与死键成了没人守的两件事。
+- 文档同步更正：`docs/ECOSYSTEM-AUDIT.md` §1 / §4（补一行 C02 / C06 的交叉判定）、
+  `docs/DESIGN.md` §4.9（C01 的委派对象只有 `no-literal-string`）与 §14（D / C 域的落地状态）。
+- `library()` 预设去掉指向已删除规则的 `H02`，自身 `pnpm guard:self` 不再报「配置里启用了不存在的规则」。
+- 规则总数 46 → **48**（C02 / C06 回归）；上面几处「精简到 42 / 44 条」是更早的旧账，实际以 `--stats` 为准。
 
 ## [0.1.0] - 2026-09-23
 

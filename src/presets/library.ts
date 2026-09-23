@@ -60,6 +60,6 @@ export function library(options: LibraryOptions = {}): Preset {
       'pagoda.config.mjs',
       'eslint.config.mjs',
     ],
-    enable: ['S00', 'S01', 'S02', 'S11', 'S12', 'S13', 'S16', 'P01', 'P02', 'P06', 'H02'],
+    enable: ['S00', 'S01', 'S02', 'S11', 'S12', 'S13', 'S16', 'P01', 'P02', 'P06'],
   }
 }

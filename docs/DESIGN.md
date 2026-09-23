@@ -96,7 +96,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | 颜色字面量只在色板                              | D01             | stylelint `color-no-hex` + `overrides`                                            |
 | `!important`                                    | D09             | stylelint `declaration-no-important`                                              |
 | 长度 / z-index / 时长白名单                     | D12–D14         | stylelint `declaration-property-value-allowed-list`                               |
-| JSX 裸文案 / 文案键存在 / 死键                  | C01 · C02 · C06 | `eslint-plugin-i18next`（或 `no-restricted-syntax` 的 CJK 选择器）                |
+| JSX 裸文案                                    | C01             | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
 
 **代价（必须知道）**：委派之后，**宿主没有对应工具就等于失去这层覆盖**。所以接入清单里要一起做：
 装 eslint（含 typescript-eslint）、stylelint、knip，并在 `pnpm lint` 链路里跑起来。
@@ -692,8 +692,8 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 | R4   | 豁免只有 `exempt` 白名单与基线两条通道，缺「有理由 + 有期限」的结构化例外                                                                                                                                                                            | 正当的永久例外会被记成"存量债"，语义腐败                    |
 | R6   | 有 `exempt`，但没有「生成代码必须带 `@generated` 标记」的可证伪要求                                                                                                                                                                                  | 豁免可以被随意扩大                                          |
 | E2   | 适配器面清单（facet）仍硬编码在引擎里（已支持 i18n 面；新增面仍要动引擎）                                                                                                                                                                            | 加一个新面要动引擎                                          |
-| D 域 | **12 条已落地**（D01–D11 + D10b：颜色唯一出处 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / !important / vendor 边界 / 框架残留）；**D12–D18 未实现**（魔法数字三族、内联样式纪律、样式落点、CSS Module 双向契约、组件样式只消费语义令牌） | 魔法数字与 CSS Module 契约目前只有 spec，没有门禁           |
-| C 域 | **6 条已落地**（C01–C06：裸文案 / 键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键）                                                                                                                                                         | 动态键（`t(\`ns.${x}\`)`）只按静态前缀放行，不做求值        |
+| D 域 | **11 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（stylelint 的值白名单 + eslint 的 `no-restricted-syntax`，见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖                                |
+| C 域 | **5 条已落地**（C02–C06：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键）；C01 裸文案委派给 `eslint-plugin-i18next` | 动态键（`t(\`ns.${x}\`)`）只按静态前缀放行，不做求值                               |
 | P07  | 弱指纹 + 命名指纹的「疑似自造轮子」判定未实现（见 `.scratch/wheel-detection/spec.md`）                                                                                                                                                               | 自研 `debounce` / `deepClone` 抓不到                        |
 | —    | `--verify-deps`（联网查 npm 成熟度）未实现                                                                                                                                                                                                           | 新增依赖的成熟度只能靠人评审                                |
 

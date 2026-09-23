@@ -1,4 +1,4 @@
-import type { Finding, Rule } from '../../../engine/types.js'
+import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 const finding = (
   rule: string,
@@ -121,9 +121,142 @@ export const shardsAggregated: Rule = {
   },
 }
 
+/* ---------------- 共用：翻译调用的判定与「键被引用」的证据 ---------------- */
+
+interface I18nAdapterData {
+  fn?: string
+  hook?: string
+}
+
+/** i18n 适配器里登记的函数名 / hook 名（适配器是数据，规则只读它） */
+function i18nAdapterData(ctx: RuleContext): I18nAdapterData {
+  return (Object.values(ctx.config.adapters).find((item) => item.facet === 'i18n') ??
+    {}) as I18nAdapterData
+}
+
+/** 是不是翻译调用：`t(…)` / `i18n.t(…)`（适配器只登记一个函数名，允许带对象前缀） */
+const isTranslationCallee = (callee: string, fn: string): boolean =>
+  callee === fn || callee.endsWith(`.${fn}`)
+
+/**
+ * 文件级命名空间提示：`const { t } = useTranslation('nav')` 之后 `t('crews')` 指的是 `nav.crews`。
+ * 不做作用域分析（那要绑定解析），按**文件**取第一个 hook 调用的字面量参数 —— 一个文件里
+ * 换命名空间的写法在正常代码里几乎不存在，误判风险远小于"整片键被当成不存在"。
+ */
+function namespaceHints(ctx: RuleContext, hook: string): Map<string, string> {
+  const hints = new Map<string, string>()
+  for (const record of ctx.records) {
+    const facts = ctx.facts.get(record.rel)
+    if (!facts) continue
+    for (const call of facts.calls) {
+      if (call.callee !== hook && !call.callee.endsWith(`.${hook}`)) continue
+      if (call.stringArg) hints.set(record.rel, call.stringArg)
+    }
+  }
+  return hints
+}
+
+/** 一个调用点上的键候选：`ns:key`（i18next 显式命名空间）与命名空间式调用都要能对上 */
+function keyCandidates(raw: string, namespaceHint: string | undefined): string[] {
+  const out: string[] = []
+  const colon = raw.indexOf(':')
+  if (colon > 0) out.push(`${raw.slice(0, colon)}.${raw.slice(colon + 1)}`)
+  out.push(raw)
+  // i18next 的默认命名空间叫 translation；它不是分片文件名，不参与拼接
+  if (namespaceHint && namespaceHint !== 'translation') out.push(`${namespaceHint}.${raw}`)
+  return out
+}
+
+/* ---------------- C02 每个 t() 的键必须存在 ---------------- */
+
+export const keysExist: Rule = {
+  id: 'C02',
+  domain: 'copy',
+  level: 'L3',
+  severity: 'error',
+  title: 't() 的键必须存在',
+  requires: ['i18n.resourceDir'],
+  hint: '键拼错时界面直接把键名显示给用户；补进 locales，或改回正确的键',
+  run: (ctx) => {
+    const index = ctx.i18n
+    if (!index || index.files.length === 0) return []
+    const adapter = i18nAdapterData(ctx)
+    const fn = adapter.fn ?? 't'
+    const hints = namespaceHints(ctx, adapter.hook ?? 'useTranslation')
+    // 键集合取**全部语言的并集**：只缺某一门语言是 C03 的活（它按并集逐语言比对），两个域不重复报同一件事
+    const known = new Set(index.files.flatMap((file) => file.keys.map((key) => key.path)))
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      // locales 自己不是调用点：资源文件里的字面量是**值**，不是对键的引用
+      if (record.rel.startsWith(`${index.resourceDir}/`)) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const call of facts.calls) {
+        if (!isTranslationCallee(call.callee, fn)) continue
+        // 动态键（`t(`ns.${x}`)`）不做求值，只按前缀放行；没有字面量参数的调用无法判定
+        if (!call.stringArg) continue
+        const hit = keyCandidates(call.stringArg, hints.get(record.rel)).some((key) => known.has(key))
+        if (hit) continue
+        out.push(finding('C02', record.rel, call.line, `文案键不存在：${call.stringArg}`))
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- C06 无死键 ---------------- */
+
+export const noDeadKeys: Rule = {
+  id: 'C06',
+  domain: 'copy',
+  level: 'L3',
+  severity: 'warn',
+  title: '无死键',
+  requires: ['i18n.resourceDir'],
+  hint: '没人引用的键会一直沉在资源里，改文案时也看不出来它已经下线；确认不用就删掉，别留在"以后可能用"',
+  run: (ctx) => {
+    const index = ctx.i18n
+    if (!index || index.files.length === 0) return []
+    const adapter = i18nAdapterData(ctx)
+    const fn = adapter.fn ?? 't'
+    const hints = namespaceHints(ctx, adapter.hook ?? 'useTranslation')
+    const used = new Set<string>()
+    const prefixes: string[] = []
+    for (const record of ctx.records) {
+      if (record.rel.startsWith(`${index.resourceDir}/`)) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      // 1) 与键同值的**任何**字面量都算引用：`labelKey: 'common.theme.dark'` 这类常量表是现实写法，
+      //    只认 t() 的直接参数会把它们全判成死键（这也是不做绑定解析的代价，靠这条兜住）
+      for (const item of facts.strings) used.add(item.value)
+      for (const call of facts.calls) {
+        if (!isTranslationCallee(call.callee, fn)) continue
+        if (call.stringArg) {
+          for (const key of keyCandidates(call.stringArg, hints.get(record.rel))) used.add(key)
+        }
+        // 2) 动态键（模板串）按静态前缀放行：`t(`nav.${x}`)` 之后 nav.* 不算死
+        if (call.keyPrefix) prefixes.push(call.keyPrefix)
+      }
+    }
+    const out: Finding[] = []
+    for (const file of index.files) {
+      if (file.isEntry) continue // 聚合入口自己的键没有意义（见 i18n.ts 的说明）
+      for (const key of file.keys) {
+        if (used.has(key.path)) continue
+        if (prefixes.some((prefix) => key.path.startsWith(prefix))) continue
+        out.push(finding('C06', file.rel, key.line, `死键：${key.path}`))
+      }
+    }
+    return out
+  },
+}
+
 export const copyRules: Rule[] = [
-  // 裸文案 / 键存在 / 死键委派给 eslint-plugin-i18next（或 no-restricted-syntax 选择器）
+  // C01 裸文案委派给 eslint-plugin-i18next 的 no-literal-string（它只有这一条规则：
+  // **不做**键存在性与未使用键，所以 C02 / C06 由我们自己实现 —— 见 docs/ECOSYSTEM-AUDIT.md）
+  keysExist,
   languageParity,
   oneNamespacePerFile,
   shardsAggregated,
+  noDeadKeys,
 ]
