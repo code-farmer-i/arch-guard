@@ -155,32 +155,6 @@ export const sharedLinearOrder: Rule = {
   },
 }
 
-/* ---------------- S08 全图无环 ---------------- */
-
-export const noCycles: Rule = {
-  id: 'S08',
-  domain: 'structure',
-  level: 'L3',
-  severity: 'error',
-  title: '依赖图无环',
-  hint: '环会让初始化顺序变得不可推理；拆出被双方依赖的那部分下沉一层',
-  run: (ctx) => {
-    const out: Finding[] = []
-    for (const cycle of ctx.graph.cycles) {
-      const head = cycle[0] ?? ''
-      out.push(
-        finding(
-          'S08',
-          head,
-          1,
-          `依赖环：${cycle.slice(0, 5).join(' → ')}${cycle.length > 5 ? ' → …' : ''}`,
-        ),
-      )
-    }
-    return out
-  },
-}
-
 /* ---------------- S09 layouts 不得 import modules ---------------- */
 
 export const layoutsDoNotImportModules: Rule = {
@@ -341,7 +315,7 @@ export const structureGraphRules: Rule[] = [
   crossDomainViaRoutes,
   viewsArePrivate,
   sharedLinearOrder,
-  noCycles,
+  // 依赖环委派给 import/no-cycle 或 dependency-cruiser 的 no-circular（纯图属性，不需要角色表）
   layoutsDoNotImportModules,
   reachability,
   duplicateExportNames,

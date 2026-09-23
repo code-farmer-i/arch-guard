@@ -1,33 +1,7 @@
-import { findColorLiterals, normalizeHex } from '../../../engine/css.js'
+import { normalizeHex } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
-import { cssFiles, designParams, finding, isTokenFile, maskTs, tryRead } from './design-shared.js'
-
-/* ---------------- D01 颜色字面量的唯一出处 ---------------- */
-
-export const colorLiteralOwner: Rule = {
-  id: 'D01',
-  domain: 'design',
-  level: 'L2',
-  severity: 'error',
-  title: '颜色字面量只在色板',
-  hint: '颜色只写 var(--sh-alias-*)；换色改 palette.css / theme.css',
-  run: (ctx) => {
-    const params = designParams(ctx)
-    const out: Finding[] = []
-    for (const record of ctx.records) {
-      if (record.rel === params.paletteFile) continue
-      if (record.kind !== 'ts' && record.kind !== 'css') continue
-      const raw = ctx.sourceOf(record.rel)
-      if (!raw) continue
-      const text = record.kind === 'ts' ? maskTs(raw, ctx.facts.get(record.rel)) : raw
-      for (const hit of findColorLiterals(text)) {
-        out.push(finding('D01', record.rel, hit.line, `写死颜色：${hit.text.slice(0, 50)}`))
-      }
-    }
-    return out
-  },
-}
+import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-shared.js'
 
 /* ---------------- D02 色板只放色板令牌 ---------------- */
 
@@ -242,7 +216,7 @@ export const themeTwinBlocks: Rule = {
 /* ---------------- 注册 ---------------- */
 
 export const designTokenRules: Rule[] = [
-  colorLiteralOwner,
+  // 颜色字面量委派给 stylelint（color-no-hex + overrides 给色板开口）
   paletteOnlyTokens,
   paletteColorUnique,
   tokenRefsClosed,

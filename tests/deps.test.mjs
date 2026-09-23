@@ -67,9 +67,8 @@ test('P 域：违规夹具报出四条 error 与一条 warn', async () => {
   assert.deepEqual([...byRule.entries()].sort(), [
     ['P01', 1], // left-pad 未登记
     ['P02', 1], // axios 被禁用
-    ['P03', 1], // some-undeclared-pkg 幽灵依赖
     ['P06', 1], // 手搓 process.argv，且没在用登记的 commander
-    ['P08', 1], // 登记了 commander 却零引用（warn）
+    // 幽灵依赖（P03）与「登记但未使用」（P08）已委派给 knip / depcheck
   ])
 })
 

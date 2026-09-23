@@ -95,16 +95,16 @@ test('cli：--format=github 出注解、--stats 出统计表、过滤开关都�
 
   const stats = await runCli(['--stats'], { cwd: fixture })
   assert.match(stats.out, /合计 \d+\.\d+ms \/ \d+ 条规则/)
-  assert.match(stats.out, /H01\s+hygiene/)
+  assert.match(stats.out, /S12\s+structure/)
 
   const byDomain = await runCli(['--domain=H', '--format=json'], { cwd: fixture })
   const payload = JSON.parse(byDomain.out)
   assert.ok(payload.findings.every((finding) => finding.rule.startsWith('H')))
 
-  const byOnly = await runCli(['--only=H01,H03', '--format=json'], { cwd: fixture })
+  const byOnly = await runCli(['--only=S12,S13', '--format=json'], { cwd: fixture })
   assert.deepEqual(
     [...new Set(JSON.parse(byOnly.out).findings.map((finding) => finding.rule))].sort(),
-    ['H01', 'H03'],
+    ['S12', 'S13'],
   )
 
   const reportOnly = await runCli(['--report-only', '--format=json'], { cwd: fixture })

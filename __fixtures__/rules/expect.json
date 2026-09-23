@@ -1,23 +1,7 @@
 {
   "findings": [
     {
-      "rule": "H01",
-      "file": "src/shared/lib/hygiene.ts"
-    },
-    {
       "rule": "H02",
-      "file": "src/shared/lib/hygiene.ts"
-    },
-    {
-      "rule": "H03",
-      "file": "src/shared/lib/hygiene.ts"
-    },
-    {
-      "rule": "H04",
-      "file": "src/shared/lib/hygiene.ts"
-    },
-    {
-      "rule": "H05",
       "file": "src/shared/lib/hygiene.ts"
     },
     {

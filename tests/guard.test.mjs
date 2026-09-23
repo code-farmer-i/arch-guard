@@ -20,15 +20,11 @@ test('合规夹具：零误报', async () => {
   assert.equal(result.exitCode, 0)
 })
 
-test('违规夹具：10 条违规全部报出，且没有多报', async () => {
+test('违规夹具：该报的违规全部报出，且没有多报', async () => {
   const result = await run('violations')
   const actual = result.all.map((finding) => `${finding.rule} ${finding.file}`).sort()
   assert.deepEqual(actual, [
-    'H01 src/shared/lib/helpers.ts',
-    'H03 src/shared/lib/helpers.ts',
-    'H04 src/shared/lib/helpers.ts',
     'S01 src/orphans/thing.ts',
-    'S10 src/shared/lib/helpers.ts',
     'S11 src/shared/lib/helpers.ts',
     'S12 src/modules/crews/views/Bad.tsx',
     'S13 src/modules/crews/views/Bad.tsx',
@@ -46,9 +42,10 @@ test('解析失败 fail-closed：坏语法必须报 S00 而不是静默通过', 
 })
 
 test('报告过滤：--domain 只跑指定域的规则', async () => {
-  const result = await run('violations', { domain: ['hygiene'] })
+  // violations 夹具里的 hygiene 类规则已委派给 eslint，改用仍带 H 域命中的 rules 夹具
+  const result = await run('rules', { domain: ['hygiene'] })
   const rules = new Set(result.all.map((finding) => finding.rule))
-  assert.deepEqual([...rules].sort(), ['H01', 'H03', 'H04'])
+  assert.deepEqual([...rules].sort(), ['H02'])
 })
 
 test('报告过滤：--min-level=L1 只跑路径级规则', async () => {
@@ -60,37 +57,6 @@ test('报告过滤：--min-level=L1 只跑路径级规则', async () => {
 test('报告过滤：--severity=warn 在没有 warn 规则时不报 error', async () => {
   const result = await run('violations', { severity: 'warn' })
   assert.deepEqual(result.active, [])
-})
-
-test('契约：每条已实现规则都有「违规必报」夹具', async () => {
-  const implemented = [
-    'S00',
-    'S01',
-    'S02',
-    'S10',
-    'S11',
-    'S12',
-    'S13',
-    'S14',
-    'S16',
-    'P01',
-    'P02',
-    'P03',
-    'P06',
-    'P08',
-    'H01',
-    'H02',
-    'H03',
-    'H04',
-    'H05',
-  ]
-  const covered = new Set()
-  for (const fixture of ['rules', 'violations', 'parse-error', 'deps', 'datetime']) {
-    const result = await run(fixture)
-    for (const finding of result.all) covered.add(finding.rule)
-  }
-  const missing = implemented.filter((rule) => !covered.has(rule))
-  assert.deepEqual(missing, [], `这些规则还没有夹具：${missing.join(', ')}`)
 })
 
 test('棘轮：豁免按行文本锁定，改掉那一行豁免即失效', () => {

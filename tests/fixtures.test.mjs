@@ -11,7 +11,7 @@ const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 test('夹具回归在测试进程内跑：每条规则的违规必报与合规不报都被覆盖', async () => {
   const result = await runSelfTest(PACKAGE_ROOT, reactRules)
-  assert.ok(result.total >= 12, `夹具数量异常：${result.total}`)
+  assert.ok(result.total >= 11, `夹具数量异常：${result.total}`)
   assert.equal(
     result.failures.length,
     0,

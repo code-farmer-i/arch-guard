@@ -1,16 +1,28 @@
 {
   "findings": [
-    { "rule": "H06", "file": "src/app/main.tsx" },
-    { "rule": "H06", "file": "src/app/main.tsx" },
-    { "rule": "H06", "file": "src/app/main.tsx" },
-    { "rule": "H07", "file": "src/shared/lib/timers.ts" },
-    { "rule": "H07", "file": "src/shared/lib/timers.ts" },
-    { "rule": "H08", "file": "src/shared/api/client.ts" },
-    { "rule": "H08", "file": "src/shared/api/client.ts" },
-    { "rule": "H09", "file": "src/shared/lib/fixtures.ts" },
-    { "rule": "H09", "file": "src/shared/lib/fixtures.ts" },
-    { "rule": "H10", "file": "src/shared/lib/datetime.ts" },
-    { "rule": "H10", "file": "src/shared/lib/datetime.ts" },
-    { "rule": "H10", "file": "src/shared/lib/datetime.ts" }
+    {
+      "rule": "H06",
+      "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/api/client.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/config/env.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/datetime.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/fixtures.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/timers.ts"
+    }
   ]
 }

@@ -76,6 +76,32 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 本仓库自己的角色表实现见 `src/presets/canonical.ts`（应用）与 `src/presets/library.ts`（库）。
 
+## 4.9 委派清单（与 lint 生态不交叉）
+
+判定标准：**纯语法/纯图属性、且不需要项目专有数据的约束，一律委派**；只有需要「角色表 / 适配器 /
+能力表」这类项目数据的约束才由本工具实现。
+
+| 已委派的约束                                    | 原规则          | 交给谁                                                                            |
+| ----------------------------------------------- | --------------- | --------------------------------------------------------------------------------- |
+| `any` / 非空断言 / ts 注释逃生舱                | H01             | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment` |
+| console / debugger / alert                      | H03             | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                          |
+| 未完成标记（TODO 等）                           | H04             | `no-warning-comments`                                                             |
+| 空 catch / 空块                                 | H05             | `no-empty`                                                                        |
+| 假异步、`Math.random`、硬编码地址、假数据字面量 | H07–H09         | `no-restricted-syntax` / `no-restricted-properties` 选择器                        |
+| 文件行数 / 函数行数                             | S16             | `max-lines` · `max-lines-per-function`                                            |
+| 相对越级 `../`                                  | S10             | `no-restricted-imports`                                                           |
+| 依赖环                                          | S08             | `import/no-cycle` · dependency-cruiser `no-circular`                              |
+| 孤儿文件                                        | S15（部分）     | dependency-cruiser `no-orphans`                                                   |
+| 幽灵依赖 / 声明但未使用                         | P03 · P08       | `knip` · `depcheck`                                                               |
+| 颜色字面量只在色板                              | D01             | stylelint `color-no-hex` + `overrides`                                            |
+| `!important`                                    | D09             | stylelint `declaration-no-important`                                              |
+| 长度 / z-index / 时长白名单                     | D12–D14         | stylelint `declaration-property-value-allowed-list`                               |
+| JSX 裸文案 / 文案键存在 / 死键                  | C01 · C02 · C06 | `eslint-plugin-i18next`（或 `no-restricted-syntax` 的 CJK 选择器）                |
+
+**代价（必须知道）**：委派之后，**宿主没有对应工具就等于失去这层覆盖**。所以接入清单里要一起做：
+装 eslint（含 typescript-eslint）、stylelint、knip，并在 `pnpm lint` 链路里跑起来。
+本工具只保证「架构与契约」那一半。
+
 ## 5. 规则清单
 
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。

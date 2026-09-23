@@ -96,31 +96,6 @@ export const storageKeyTwins: Rule = {
   },
 }
 
-/* ---------------- D09 禁 !important ---------------- */
-
-export const noImportant: Rule = {
-  id: 'D09',
-  domain: 'design',
-  level: 'L2',
-  severity: 'error',
-  title: '禁 !important',
-  hint: '覆盖不动先查组件 token 是否有对应变量；!important 会把层叠关系彻底搞死',
-  run: (ctx) =>
-    ctx.records
-      .filter((record) => record.kind === 'css')
-      .flatMap((record) => {
-        const text = ctx.sourceOf(record.rel) ?? ''
-        const masked = text.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '))
-        return masked
-          .split('\n')
-          .map((line, index) => ({ line: index + 1, text: line }))
-          .filter((item) => /!important/.test(item.text))
-          .map((item) =>
-            finding('D09', record.rel, item.line, `!important：${item.text.trim().slice(0, 40)}`),
-          )
-      }),
-}
-
 /* ---------------- D10 / D10b vendor 边界 ---------------- */
 
 function vendorPatterns(ctx: RuleContext): { selectors: RegExp[]; vars: RegExp[] } | null {
@@ -263,7 +238,7 @@ export const noFrameworkLeftovers: Rule = {
 export const designVendorRules: Rule[] = [
   contrastBaseline,
   storageKeyTwins,
-  noImportant,
+  // !important 委派给 stylelint declaration-no-important
   vendorSelectorsConfined,
   vendorDirClosed,
   noFrameworkLeftovers,

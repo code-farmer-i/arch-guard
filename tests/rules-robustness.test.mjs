@@ -76,5 +76,5 @@ test('规则契约：id 唯一、都有 title/hint、error 级必须在 L1–L3'
     }
     assert.equal(typeof rule.run, 'function')
   }
-  assert.ok(reactRules.length >= 62, `规则数不应该低于 62，实际 ${reactRules.length}`)
+  assert.ok(reactRules.length >= 40, `规则数不应该低于 40，实际 ${reactRules.length}`)
 })

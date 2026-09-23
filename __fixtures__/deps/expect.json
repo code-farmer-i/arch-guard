@@ -9,16 +9,8 @@
       "file": "package.json"
     },
     {
-      "rule": "P03",
-      "file": "package.json"
-    },
-    {
       "rule": "P06",
       "file": "src/app/main.tsx"
-    },
-    {
-      "rule": "P08",
-      "file": "package.json"
     }
   ]
 }

@@ -1,8 +1,20 @@
 {
   "findings": [
-    { "rule": "P04", "file": "package.json" },
-    { "rule": "P04", "file": "package.json" },
-    { "rule": "P05", "file": "src/app/main.tsx" },
-    { "rule": "P07", "file": "src/shared/lib/helpers.ts" }
+    {
+      "rule": "P04",
+      "file": "package.json"
+    },
+    {
+      "rule": "P05",
+      "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "P07",
+      "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "S15",
+      "file": "src/shared/lib/helpers.ts"
+    }
   ]
 }

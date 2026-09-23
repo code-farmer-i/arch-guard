@@ -82,7 +82,7 @@ test('report：按域分组、带修法、标注全局违规', () => {
             hint: '放到槽位里',
             global: true,
           },
-          { rule: 'H03', file: 'src/b.ts', line: 2, text: '调试残留' },
+          { rule: 'H02', file: 'src/b.ts', line: 2, text: '禁用注释' },
         ],
       }),
     ),
@@ -92,14 +92,14 @@ test('report：按域分组、带修法、标注全局违规', () => {
   assert.match(text, /\[S01\]/)
   assert.match(text, /→ 放到槽位里/)
   assert.match(text, /（全局）/)
-  assert.match(text, /\[H03\]/)
+  assert.match(text, /\[H02\]/)
 })
 
 test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线', () => {
   const text = capture(() =>
     renderSummary(
       baseInput({
-        findings: [{ rule: 'H03', file: 'a.ts', line: 1, text: 'x' }],
+        findings: [{ rule: 'H02', file: 'a.ts', line: 1, text: 'x' }],
         scope: 'staged',
         scopeFiles: 3,
         globalFindings: 1,
@@ -199,7 +199,7 @@ test('run：--update-baseline 写入基线，第二次运行即被豁免', async
     const first = await runGuard({ cwd: dir, rules: reactRules, quiet: true, updateBaseline: true })
     assert.equal(first.exitCode, 0, '写入基线后本轮不报')
     const baseline = JSON.parse(readFileSync(join(dir, 'arch.baseline.json'), 'utf8'))
-    assert.ok(baseline.entries.length >= 10)
+    assert.ok(baseline.entries.length >= 5, '委派了一批规则后条目变少')
 
     const second = await runGuard({ cwd: dir, rules: reactRules, quiet: true })
     assert.equal(second.active.length, 0, '存量违规被豁免')

@@ -127,24 +127,6 @@ export const maxDepth: Rule = {
   },
 }
 
-/** S10 禁相对越级：跨目录一律走别名 */
-export const noParentImport: Rule = {
-  id: 'S10',
-  domain: 'structure',
-  level: 'L2',
-  severity: 'error',
-  title: '禁相对越级导入',
-  hint: '跨目录用别名（如 @/shared/...），同目录用 ./',
-  run: (ctx) =>
-    ctx.records.flatMap((record) => {
-      const facts = ctx.facts.get(record.rel)
-      if (!facts) return []
-      return facts.imports
-        .filter((entry) => entry.spec.startsWith('../'))
-        .map((entry) => finding('S10', record.rel, entry.line, `相对越级导入：${entry.spec}`))
-    }),
-}
-
 /** S11 禁 barrel：`export *` 会把真实依赖藏起来，使依赖图不可判定 */
 export const noBarrel: Rule = {
   id: 'S11',
@@ -358,7 +340,6 @@ export const structureRules: Rule[] = [
   parseFailClosed,
   roleTableComplete,
   maxDepth,
-  noParentImport,
   noBarrel,
   namingRules,
   exportShape,

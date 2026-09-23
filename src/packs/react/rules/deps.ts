@@ -71,20 +71,6 @@ export const depsDenied: Rule = {
   },
 }
 
-/** P03 幽灵依赖：import 了却没在任何 dependencies 段声明 */
-export const phantomDeps: Rule = {
-  id: 'P03',
-  domain: 'deps',
-  level: 'L3',
-  severity: 'error',
-  title: '幽灵依赖',
-  hint: '要么把它写进 package.json，要么删掉这个 import（依赖能跑起来只是运气）',
-  run: (ctx) =>
-    (ctx.deps.hasManifest ? ctx.deps.phantom : []).map((name) =>
-      finding('P03', 'package.json', 1, `import 了未声明的包：${name}`, undefined, true),
-    ),
-}
-
 interface FingerprintHit {
   file: string
   line: number
@@ -183,41 +169,9 @@ export const capabilityPreferred: Rule = {
   },
 }
 
-/** P08 登记库必须真的被用：能力首选方案已声明却零引用（死依赖） */
-export const capabilityUnused: Rule = {
-  id: 'P08',
-  domain: 'deps',
-  level: 'L3',
-  severity: 'warn',
-  title: '登记方案未被使用',
-  hint: '要么用起来，要么从能力表里去掉',
-  run: (ctx) => {
-    if (!ctx.deps.hasManifest) return []
-    const out: Finding[] = []
-    for (const [capability, preferred] of Object.entries(ctx.policy.capabilities)) {
-      const entry = wheelFingerprints.find((item) => item.capability === capability)
-      if (entry?.platform === true) continue
-      if (!ctx.deps.declared.has(preferred)) continue
-      if (ctx.deps.imported.has(preferred)) continue
-      out.push(
-        finding(
-          'P08',
-          'package.json',
-          1,
-          `能力 ${capability} 登记了 ${preferred}，但全项目没有任何引用`,
-          entry?.hint,
-          true,
-        ),
-      )
-    }
-    return out
-  },
-}
-
 export const depsRules: Rule[] = [
   depsAllowlist,
   depsDenied,
-  phantomDeps,
+  // 幽灵依赖与「登记但未使用」委派给 knip / depcheck
   capabilityPreferred,
-  capabilityUnused,
 ]

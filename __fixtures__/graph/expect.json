@@ -41,10 +41,6 @@
       "file": "src/shared/lib/format.ts"
     },
     {
-      "rule": "S08",
-      "file": "src/shared/api/a.ts"
-    },
-    {
       "rule": "S09",
       "file": "src/app/layouts/AppShell.tsx"
     },

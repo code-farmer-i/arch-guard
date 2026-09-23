@@ -1,10 +1,6 @@
 {
   "findings": [
     {
-      "rule": "D01",
-      "file": "src/shared/components/ui/Bad.module.css"
-    },
-    {
       "rule": "D02",
       "file": "src/shared/styles/tokens/palette.css"
     },
@@ -35,10 +31,6 @@
     {
       "rule": "D08",
       "file": "index.html"
-    },
-    {
-      "rule": "D09",
-      "file": "src/shared/components/ui/Bad.module.css"
     },
     {
       "rule": "D10",

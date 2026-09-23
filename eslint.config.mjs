@@ -43,11 +43,18 @@ export default tseslint.config(
       },
     },
     rules: {
-      // 与门禁自身红线一致（狗粮）：禁 any、禁非空断言、禁 ts 注释逃生舱
+      // 单文件语法卫生（狗粮）：这些原先是门禁的 H 域 / S16 规则，现已委派给 lint，
+      // 所以配置在这里 —— 门禁只做 lint 生态做不到的跨文件契约与架构红线。
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/ban-ts-comment': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-empty': 'error',
+      'no-warning-comments': ['error', { terms: ['todo', 'fixme', 'xxx'], location: 'anywhere' }],
+      'max-lines': ['error', { max: 500, skipBlankLines: false, skipComments: false }],
+      // 本体的 AST 访问器（facts.ts）与编排函数（run.ts）天然偏长，
+      // 这里只拦失控增长；真要拆分见 docs/DESIGN.md 的已知缺口。
+      'max-lines-per-function': ['error', { max: 300, skipBlankLines: true, skipComments: true }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-var': 'error',
     },

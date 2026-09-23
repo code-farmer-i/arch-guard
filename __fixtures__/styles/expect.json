@@ -1,18 +1,6 @@
 {
   "findings": [
     {
-      "rule": "D12",
-      "file": "src/shared/components/ui/Bad.module.css"
-    },
-    {
-      "rule": "D13",
-      "file": "src/shared/components/ui/Bad.module.css"
-    },
-    {
-      "rule": "D14",
-      "file": "src/shared/components/ui/Bad.module.css"
-    },
-    {
       "rule": "D15",
       "file": "src/shared/components/ui/Bad.tsx"
     },
