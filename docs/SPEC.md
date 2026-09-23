@@ -1,5 +1,9 @@
 # 架构门禁 arch-guard 完整方案
 
+> **本文是设计文档（从 superhive 仓库迁出）。** 在本仓库里，「本体」= 仓库根本身；
+> 文中 `tools/arch-guard/` 对应本仓库根，`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
+> 面向使用者的规约见 [PARADIGM.md](../PARADIGM.md)，快速上手见 [README.md](../README.md)。
+
 Status: draft（待拍板）
 作用域：通用范式 + 通用引擎；superhive 是其第一个实例
 
@@ -9,11 +13,11 @@ Status: draft（待拍板）
 
 形态是三层分离：
 
-| 层 | 内容 | 可搬运性 |
-|---|---|---|
-| 通用范式 | 三条公理 + 10 个检测原语 + 4 张表 + 棘轮机制 | 写在 `tools/arch-guard/PARADIGM.md`，整篇可搬 |
-| 通用引擎 | `tools/arch-guard/`，解析 / 建图 / 规则 / 报告 | **零项目字面量**，整目录可搬 |
-| 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明） | 每个仓库一份，约 60 行 |
+| 层       | 内容                                                 | 可搬运性                                      |
+| -------- | ---------------------------------------------------- | --------------------------------------------- |
+| 通用范式 | 三条公理 + 10 个检测原语 + 4 张表 + 棘轮机制         | 写在 `tools/arch-guard/PARADIGM.md`，整篇可搬 |
+| 通用引擎 | `tools/arch-guard/`，解析 / 建图 / 规则 / 报告       | **零项目字面量**，整目录可搬                  |
+| 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明） | 每个仓库一份，约 60 行                        |
 
 **红线只落在可判定等级 L1–L3**；L5 语义判断一律不写进红线，只列在「门禁管不到」清单里，保证零误报。
 
@@ -23,12 +27,12 @@ Status: draft（待拍板）
 
 ### 1.1 分工
 
-| 工具 | 管什么 |
-|---|---|
-| oxlint / eslint | 语法正确性、Hooks 规则、React 约定 |
-| tsc | 类型正确性 |
+| 工具                     | 管什么                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| oxlint / eslint          | 语法正确性、Hooks 规则、React 约定                                                             |
+| tsc                      | 类型正确性                                                                                     |
 | **arch-guard（本方案）** | **分层与边界、唯一出处、状态纪律、结构与命名、反退化、设计系统与魔法数字、文案契约、依赖选型** |
-| 人 / review | 域划分是否合理、抽象是否重复、命名是否恰当、该不该拆 |
+| 人 / review              | 域划分是否合理、抽象是否重复、命名是否恰当、该不该拆                                           |
 
 `scripts/check-theme.mjs`（`lint:theme`）的能力**并入 design 域**，旧脚本退役（见 §9.2）。
 
@@ -43,13 +47,13 @@ Status: draft（待拍板）
 
 ## 2. 门禁的可判定性模型
 
-| 等级 | 依赖的信息 | 能判定的事 | 可信度 | 成本 |
-|---|---|---|---|---|
-| **L1 路径** | 路径字符串 | 目录白名单、深度、槽位、命名、文件配对 | 100% | 极低 |
-| **L2 单文件 AST** | 一个文件 | import 前缀、导出形态、字面量与上下文、语法红线、体积 | ~100% | 低 |
-| **L3 文件图** | import 图 | 依赖方向、域隔离、公开面、可达性、唯一出处、死物 | ~100% | 中 |
-| **L4 类型** | tsc Program | 类型级契约 | 高 | 高（3–10s）|
-| **L5 语义** | 人的理解 | 「是否业务中立」「命名好不好」「该不该拆」 | **判不了** | — |
+| 等级              | 依赖的信息  | 能判定的事                                            | 可信度     | 成本        |
+| ----------------- | ----------- | ----------------------------------------------------- | ---------- | ----------- |
+| **L1 路径**       | 路径字符串  | 目录白名单、深度、槽位、命名、文件配对                | 100%       | 极低        |
+| **L2 单文件 AST** | 一个文件    | import 前缀、导出形态、字面量与上下文、语法红线、体积 | ~100%      | 低          |
+| **L3 文件图**     | import 图   | 依赖方向、域隔离、公开面、可达性、唯一出处、死物      | ~100%      | 中          |
+| **L4 类型**       | tsc Program | 类型级契约                                            | 高         | 高（3–10s） |
+| **L5 语义**       | 人的理解    | 「是否业务中立」「命名好不好」「该不该拆」            | **判不了** | —           |
 
 **铁律：error 级红线只准落在 L1–L3。** L4 单独用 `--type-aware` 开关，不进默认路径。L5 不写。
 
@@ -65,18 +69,18 @@ Status: draft（待拍板）
 
 ### 3.2 十个检测原语
 
-| # | 原语 | 回答的问题 |
-|---|---|---|
-| 1 | `forbidDependency` | 谁不许依赖谁（层 / 模块 / 第三方包）|
-| 2 | `requireEntryPoint` | 这个模块的公开面是什么 |
-| 3 | `exclusiveOwner` | 这个能力 / 形态只许在哪出现 |
-| 4 | `mustReference` | 别处必须引用常量 / 令牌，不许复写字面量 |
-| 5 | `twinDeclaration` | 必须同步的多份声明是否一致 |
-| 6 | `referenceIntegrity` | 定义↔引用闭合：无悬空、无死物 |
-| 7 | `onlyComponentIn` | 某能力只许挂在指定位置 |
-| 8 | `forbidSyntax` | 语法 / 形态红线 |
-| 9 | `limit` | 体积与接口宽度 |
-| 10 | `metric` | 数值断言（内置求值器：WCAG 对比度等）|
+| #   | 原语                 | 回答的问题                              |
+| --- | -------------------- | --------------------------------------- |
+| 1   | `forbidDependency`   | 谁不许依赖谁（层 / 模块 / 第三方包）    |
+| 2   | `requireEntryPoint`  | 这个模块的公开面是什么                  |
+| 3   | `exclusiveOwner`     | 这个能力 / 形态只许在哪出现             |
+| 4   | `mustReference`      | 别处必须引用常量 / 令牌，不许复写字面量 |
+| 5   | `twinDeclaration`    | 必须同步的多份声明是否一致              |
+| 6   | `referenceIntegrity` | 定义↔引用闭合：无悬空、无死物           |
+| 7   | `onlyComponentIn`    | 某能力只许挂在指定位置                  |
+| 8   | `forbidSyntax`       | 语法 / 形态红线                         |
+| 9   | `limit`              | 体积与接口宽度                          |
+| 10  | `metric`             | 数值断言（内置求值器：WCAG 对比度等）   |
 
 外加两个图能力：`reachability`（无孤儿）、`cycles`（无环）。
 
@@ -101,13 +105,13 @@ Status: draft（待拍板）
 
 ### 3.5 五条门禁友好设计律
 
-| 律 | 内容 |
-|---|---|
-| D1 路径即角色 | 角色由路径唯一确定，不必读内容 |
+| 律                    | 内容                                                              |
+| --------------------- | ----------------------------------------------------------------- |
+| D1 路径即角色         | 角色由路径唯一确定，不必读内容                                    |
 | D2 槽位按依赖档位定义 | 槽位的定义是「能依赖什么 / 能导出什么」，不是「放什么语义的东西」 |
-| D3 封闭枚举 | 合法路径形态穷举，未登记即红（白名单 > 黑名单）|
-| D4 契约同构配对 | 必须同步的 N 份声明放同一目录、命名同构 |
-| D5 图必须可读 | 禁 barrel/`export *`、禁 `../`、别名统一 |
+| D3 封闭枚举           | 合法路径形态穷举，未登记即红（白名单 > 黑名单）                   |
+| D4 契约同构配对       | 必须同步的 N 份声明放同一目录、命名同构                           |
+| D5 图必须可读         | 禁 barrel/`export *`、禁 `../`、别名统一                          |
 
 ### 3.6 形式化判据
 
@@ -190,17 +194,17 @@ public/                                原样发布的静态文件
 
 只许向**层号 ≤ 自己**的层 import；同级允许；全图禁环。
 
-| 层号 | 目录 | 职责 |
-|---|---|---|
-| 0 | `styles` `assets` | 无代码依赖 |
-| 1 | `lib` | 纯函数，无副作用、无项目语义 |
-| 2 | `config` | 项目常量：环境 / 路径 / 持久化 / 导航 |
-| 3 | `i18n` | 文案资源与初始化 |
-| 4 | `api` | 契约与传输（禁 React / antd / stores / UI）|
-| 5 | `stores` | 客户端状态快照（api 仅 `import type`）|
-| 6 | `theme` | 主题装配与令牌解析 |
-| 7 | `hooks` | 跨域编排 |
-| 8 | `components` | 通用 UI |
+| 层号 | 目录              | 职责                                        |
+| ---- | ----------------- | ------------------------------------------- |
+| 0    | `styles` `assets` | 无代码依赖                                  |
+| 1    | `lib`             | 纯函数，无副作用、无项目语义                |
+| 2    | `config`          | 项目常量：环境 / 路径 / 持久化 / 导航       |
+| 3    | `i18n`            | 文案资源与初始化                            |
+| 4    | `api`             | 契约与传输（禁 React / antd / stores / UI） |
+| 5    | `stores`          | 客户端状态快照（api 仅 `import type`）      |
+| 6    | `theme`           | 主题装配与令牌解析                          |
+| 7    | `hooks`           | 跨域编排                                    |
+| 8    | `components`      | 通用 UI                                     |
 
 ### 4.4 域模块契约
 
@@ -212,74 +216,74 @@ public/                                原样发布的静态文件
 
 ### 4.5 槽位判定键表（= 角色表的判据）
 
-| 槽位 | 允许导出形态（L2） | 依赖档位（L3） | 等级 |
-|---|---|---|---|
-| `app/main.tsx` `App.tsx` | 挂载副作用 / 组件 | 一切 | L1+L3 |
-| `app/router/**` | `router` / 组件 | 只许 layouts、guards、各域 `routes` | L1+L3 |
-| `app/layouts/**` | 组件 | **禁 `modules/**`** | L2+L3 |
-| `modules/<域>/routes.tsx` | 导出 `*Routes: RouteObject[]` | 同域 + `shared/**` | L2+L3 |
-| `modules/<域>/views/*.tsx` | **default export 组件**，名 `*Page` | 同域 + `shared/**` | L2+L3 |
-| `modules/<域>/components/**` | 组件（PascalCase）| 同域 + `shared/**` | L2+L3 |
-| `modules/<域>/hooks/**` | 只导出 `use*` 函数 | 同域 + `shared/**` | L2+L3 |
-| `modules/<域>/model/**` | 只导出 `type`/`interface`/字面量 `const` | 同域 + `shared/**` | L2 |
-| `modules/<域>/lib/**` | 只导出函数，禁 JSX | 同域 + `shared/**` | L2 |
-| `modules/<域>/assets/**` | 非代码（扩展名白名单）| 无 | L1 |
-| `shared/styles/**` | 非代码 | 无 | L1 |
-| `shared/lib/**` | 只导出函数 | 零项目内部依赖 | L2+L3 |
-| `shared/config/**` | 常量 / 纯函数 | 只许 `shared/lib` | L2+L3 |
-| `shared/i18n/index.ts` | i18n 实例 + 资源聚合 | `lib`、`config`、locales | L3 |
-| `shared/i18n/locales/<lang>/<ns>.ts` | **default export 对象，顶层键 = 文件名** | 无 | L1+L2 |
-| `shared/api/**` | 端点函数 / 类型 / keys | `config`、`lib`；禁 React / antd / stores / UI | L2+L3 |
-| `shared/stores/**` | 导出 `use*Store` | `config`、`lib`；api 仅 type | L2+L3 |
-| `shared/theme/**` | 组件 / 函数 | `stores`、`config`、`lib`、`styles` | L3 |
-| `shared/hooks/**` | 只导出 `use*` 函数 | `api`、`stores`、`config`、`lib` | L2+L3 |
-| `shared/components/ui/**` | 组件 | **禁 `hooks`/`stores`/`api`** | L2+L3 |
-| `shared/components/common/**` | 组件 | 允许 `hooks`/`stores`；禁 `api` 值 | L2+L3 |
-| `**/*.test.ts(x)` | 测试 | 豁免图规则 | L1 |
-| `src/*.d.ts` | 全局声明 | 无 | L1 |
+| 槽位                                 | 允许导出形态（L2）                       | 依赖档位（L3）                                 | 等级  |
+| ------------------------------------ | ---------------------------------------- | ---------------------------------------------- | ----- |
+| `app/main.tsx` `App.tsx`             | 挂载副作用 / 组件                        | 一切                                           | L1+L3 |
+| `app/router/**`                      | `router` / 组件                          | 只许 layouts、guards、各域 `routes`            | L1+L3 |
+| `app/layouts/**`                     | 组件                                     | **禁 `modules/**`**                            | L2+L3 |
+| `modules/<域>/routes.tsx`            | 导出 `*Routes: RouteObject[]`            | 同域 + `shared/**`                             | L2+L3 |
+| `modules/<域>/views/*.tsx`           | **default export 组件**，名 `*Page`      | 同域 + `shared/**`                             | L2+L3 |
+| `modules/<域>/components/**`         | 组件（PascalCase）                       | 同域 + `shared/**`                             | L2+L3 |
+| `modules/<域>/hooks/**`              | 只导出 `use*` 函数                       | 同域 + `shared/**`                             | L2+L3 |
+| `modules/<域>/model/**`              | 只导出 `type`/`interface`/字面量 `const` | 同域 + `shared/**`                             | L2    |
+| `modules/<域>/lib/**`                | 只导出函数，禁 JSX                       | 同域 + `shared/**`                             | L2    |
+| `modules/<域>/assets/**`             | 非代码（扩展名白名单）                   | 无                                             | L1    |
+| `shared/styles/**`                   | 非代码                                   | 无                                             | L1    |
+| `shared/lib/**`                      | 只导出函数                               | 零项目内部依赖                                 | L2+L3 |
+| `shared/config/**`                   | 常量 / 纯函数                            | 只许 `shared/lib`                              | L2+L3 |
+| `shared/i18n/index.ts`               | i18n 实例 + 资源聚合                     | `lib`、`config`、locales                       | L3    |
+| `shared/i18n/locales/<lang>/<ns>.ts` | **default export 对象，顶层键 = 文件名** | 无                                             | L1+L2 |
+| `shared/api/**`                      | 端点函数 / 类型 / keys                   | `config`、`lib`；禁 React / antd / stores / UI | L2+L3 |
+| `shared/stores/**`                   | 导出 `use*Store`                         | `config`、`lib`；api 仅 type                   | L2+L3 |
+| `shared/theme/**`                    | 组件 / 函数                              | `stores`、`config`、`lib`、`styles`            | L3    |
+| `shared/hooks/**`                    | 只导出 `use*` 函数                       | `api`、`stores`、`config`、`lib`               | L2+L3 |
+| `shared/components/ui/**`            | 组件                                     | **禁 `hooks`/`stores`/`api`**                  | L2+L3 |
+| `shared/components/common/**`        | 组件                                     | 允许 `hooks`/`stores`；禁 `api` 值             | L2+L3 |
+| `**/*.test.ts(x)`                    | 测试                                     | 豁免图规则                                     | L1    |
+| `src/*.d.ts`                         | 全局声明                                 | 无                                             | L1    |
 
 ### 4.6 唯一落点表与反例表
 
-| 要写的东西 | 唯一落点 |
-|---|---|
-| 页面 | `modules/<域>/views/<名词>Page.tsx` |
+| 要写的东西                       | 唯一落点                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| 页面                             | `modules/<域>/views/<名词>Page.tsx`                                                |
 | 域内组件 / 哑基础件 / 中立组合件 | `modules/<域>/components/` / `shared/components/ui/` / `shared/components/common/` |
-| 跨域编排 / 域内编排 | `shared/hooks/use<资源>.ts` / `modules/<域>/hooks/` |
-| 端点封装 / 契约类型 / query key | `shared/api/<资源>.ts` / `types.ts` / `queryKeys.ts` |
-| 域内类型常量 / 域内纯函数 | `modules/<域>/model/` / `modules/<域>/lib/` |
-| 路由路径 / 路由分片 | `shared/config/paths.ts` / `modules/<域>/routes.tsx` |
-| 持久化 key / 环境变量 | `shared/config/storage.ts` / `shared/config/env.ts` |
-| 文案 | `shared/i18n/locales/<lang>/<命名空间>.ts` |
-| 颜色 / 语义令牌 / 第三方映射 | `shared/styles/tokens/palette.css` / `theme.css` / `vendor/*` |
-| 组件私有样式 | 同目录同名 `.module.css` |
-| 客户端 UI 状态 | `shared/stores/<名词>.ts` → `use<名词>Store` |
-| 测试 | 同目录同名 `*.test.ts(x)` |
+| 跨域编排 / 域内编排              | `shared/hooks/use<资源>.ts` / `modules/<域>/hooks/`                                |
+| 端点封装 / 契约类型 / query key  | `shared/api/<资源>.ts` / `types.ts` / `queryKeys.ts`                               |
+| 域内类型常量 / 域内纯函数        | `modules/<域>/model/` / `modules/<域>/lib/`                                        |
+| 路由路径 / 路由分片              | `shared/config/paths.ts` / `modules/<域>/routes.tsx`                               |
+| 持久化 key / 环境变量            | `shared/config/storage.ts` / `shared/config/env.ts`                                |
+| 文案                             | `shared/i18n/locales/<lang>/<命名空间>.ts`                                         |
+| 颜色 / 语义令牌 / 第三方映射     | `shared/styles/tokens/palette.css` / `theme.css` / `vendor/*`                      |
+| 组件私有样式                     | 同目录同名 `.module.css`                                                           |
+| 客户端 UI 状态                   | `shared/stores/<名词>.ts` → `use<名词>Store`                                       |
+| 测试                             | 同目录同名 `*.test.ts(x)`                                                          |
 
-| 错误落点 | 正确的家 | 为什么 |
-|---|---|---|
-| `src/utils/` `src/helpers/` | `shared/lib` | 顶层只有三根 |
-| `src/services/` | `shared/api` | 传输只有一个家 |
-| `src/types.ts` | `shared/api/types.ts` 或域内 `model/` | 类型跟着拥有者走 |
-| `shared/components/<域>Panel.tsx` | `modules/<域>/components/` | 带域语义的东西不许进 shared |
-| `modules/a/` 被 `modules/b/` import | 提升到 `shared/components/common` 或由 `app` 组合 | 域间零依赖 |
-| `shared/hooks/useCrewX.ts`（只服务一个域）| `modules/crews/hooks/` | 单域编排不下沉 shared |
-| `modules/crews/api.ts` | `shared/api/crews.ts` | 传输层唯一 |
-| `shared/components/ui/×` 里用 hooks/stores | 挪 `shared/components/common/` | `ui/` 必须哑（依赖档位可判）|
-| `modules/crews/styles.css` | 组件同名 `.module.css` | 样式唯一出处 |
-| `../..` 相对越级 | `@/…` | 一条 import 规则 |
-| 新目录 `src/features/` | 不存在这个位置 | 目录白名单 |
+| 错误落点                                   | 正确的家                                          | 为什么                       |
+| ------------------------------------------ | ------------------------------------------------- | ---------------------------- |
+| `src/utils/` `src/helpers/`                | `shared/lib`                                      | 顶层只有三根                 |
+| `src/services/`                            | `shared/api`                                      | 传输只有一个家               |
+| `src/types.ts`                             | `shared/api/types.ts` 或域内 `model/`             | 类型跟着拥有者走             |
+| `shared/components/<域>Panel.tsx`          | `modules/<域>/components/`                        | 带域语义的东西不许进 shared  |
+| `modules/a/` 被 `modules/b/` import        | 提升到 `shared/components/common` 或由 `app` 组合 | 域间零依赖                   |
+| `shared/hooks/useCrewX.ts`（只服务一个域） | `modules/crews/hooks/`                            | 单域编排不下沉 shared        |
+| `modules/crews/api.ts`                     | `shared/api/crews.ts`                             | 传输层唯一                   |
+| `shared/components/ui/×` 里用 hooks/stores | 挪 `shared/components/common/`                    | `ui/` 必须哑（依赖档位可判） |
+| `modules/crews/styles.css`                 | 组件同名 `.module.css`                            | 样式唯一出处                 |
+| `../..` 相对越级                           | `@/…`                                             | 一条 import 规则             |
+| 新目录 `src/features/`                     | 不存在这个位置                                    | 目录白名单                   |
 
 ### 4.7 命名契约
 
-| 类别 | 规则 |
-|---|---|
-| 目录 | 全小写单词/复数；禁下划线、大写、中文；域名 = 后端资源族名（对齐 `CONTEXT.md`）|
-| 组件文件 | `PascalCase.tsx`；页面 `*Page.tsx` |
-| 非组件 TS | `camelCase.ts`；hook 必须 `use*.ts` |
-| 端点文件 | 资源名：`crews.ts`、`toolEndpoints.ts` |
-| store | `<名词>.ts` 且导出 `use<名词>Store` |
-| 样式 | 与组件同名同目录 `*.module.css`；类名 camelCase |
-| 测试 | `*.test.ts(x)` 与源文件同目录 |
+| 类别      | 规则                                                                            |
+| --------- | ------------------------------------------------------------------------------- |
+| 目录      | 全小写单词/复数；禁下划线、大写、中文；域名 = 后端资源族名（对齐 `CONTEXT.md`） |
+| 组件文件  | `PascalCase.tsx`；页面 `*Page.tsx`                                              |
+| 非组件 TS | `camelCase.ts`；hook 必须 `use*.ts`                                             |
+| 端点文件  | 资源名：`crews.ts`、`toolEndpoints.ts`                                          |
+| store     | `<名词>.ts` 且导出 `use<名词>Store`                                             |
+| 样式      | 与组件同名同目录 `*.module.css`；类名 camelCase                                 |
+| 测试      | `*.test.ts(x)` 与源文件同目录                                                   |
 
 ---
 
@@ -290,67 +294,67 @@ public/                                原样发布的静态文件
 
 ### 5.1 结构与边界（S）
 
-| ID | 红线 | 判据 | 等级 | 级别 |
-|---|---|---|---|---|
-| S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内 | 目录白名单 | L1 | error |
-| S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套 | 路径 | L1 | error |
-| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）| 路径 | L1 | error |
-| S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方 | import 前缀 | L3 | error |
-| S05 | 域外只许 `import '@/modules/<域>/routes'` | 图 | L3 | error |
-| S06 | `views/` 对域外私有 | 图 | L3 | error |
-| S07 | `shared` 线性层序 | 图 | L3 | error |
-| S08 | 全图无环 | 图 DFS | L3 | error |
-| S09 | `app/layouts` 不得 import `modules/**` | 图 | L3 | error |
-| S10 | 禁相对越级 `../` | import 前缀 | L2 | error |
-| S11 | 禁 barrel / `export *` | AST | L2 | error |
-| S12 | 命名契约（目录/文件/导出名，§4.7）| 路径 + AST | L1+L2 | error |
-| S13 | 导出形态契约（§4.5）| AST | L2 | error |
-| S14 | 有 `views/` 必须有 `routes.tsx` | 路径 | L1 | error |
-| S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用 | 可达性 | L3 | error |
-| S16 | 体积：文件 ≤400 / 视图与组件 ≤320 / 单组件函数 ≤150 / 单文件导出值 ≤6 / 单文件组件数 ≤3 | AST 计数 | L2 | error/warn |
-| S17 | 同一导出名在两处定义（防复制粘贴实现）| AST | L2 | warn |
-| S18 | `shared` 里的项只被一个域使用 → 应下沉域内 | 图入度来源 | L3 | warn |
+| ID  | 红线                                                                                    | 判据        | 等级  | 级别       |
+| --- | --------------------------------------------------------------------------------------- | ----------- | ----- | ---------- |
+| S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内                 | 目录白名单  | L1    | error      |
+| S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套                                             | 路径        | L1    | error      |
+| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）                                           | 路径        | L1    | error      |
+| S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方                           | import 前缀 | L3    | error      |
+| S05 | 域外只许 `import '@/modules/<域>/routes'`                                               | 图          | L3    | error      |
+| S06 | `views/` 对域外私有                                                                     | 图          | L3    | error      |
+| S07 | `shared` 线性层序                                                                       | 图          | L3    | error      |
+| S08 | 全图无环                                                                                | 图 DFS      | L3    | error      |
+| S09 | `app/layouts` 不得 import `modules/**`                                                  | 图          | L3    | error      |
+| S10 | 禁相对越级 `../`                                                                        | import 前缀 | L2    | error      |
+| S11 | 禁 barrel / `export *`                                                                  | AST         | L2    | error      |
+| S12 | 命名契约（目录/文件/导出名，§4.7）                                                      | 路径 + AST  | L1+L2 | error      |
+| S13 | 导出形态契约（§4.5）                                                                    | AST         | L2    | error      |
+| S14 | 有 `views/` 必须有 `routes.tsx`                                                         | 路径        | L1    | error      |
+| S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用        | 可达性      | L3    | error      |
+| S16 | 体积：文件 ≤400 / 视图与组件 ≤320 / 单组件函数 ≤150 / 单文件导出值 ≤6 / 单文件组件数 ≤3 | AST 计数    | L2    | error/warn |
+| S17 | 同一导出名在两处定义（防复制粘贴实现）                                                  | AST         | L2    | warn       |
+| S18 | `shared` 里的项只被一个域使用 → 应下沉域内                                              | 图入度来源  | L3    | warn       |
 
 ### 5.2 设计系统与魔法数字（D）
 
-| ID | 红线 | 判据 | 等级 | 级别 |
-|---|---|---|---|---|
-| D01 | 颜色字面量只在 `tokens/palette.css` | AST + CSS | L2 | error |
-| D02 | palette 只放 `--sh-static-*` | CSS | L2 | error |
-| D03 | 同一色值只写一次 | CSS | L2 | error |
-| D04 | 令牌引用闭合（无悬空 `var()`）| 令牌图 | L3 | error |
-| D05 | 无死令牌 | 令牌图 | L3 | error |
-| D06 | 明暗两套令牌名一致 | CSS | L2 | error |
-| D07 | 对比度基线（正文 4.5 / 弱文字 3.0 / 主按钮 4.2 / 链接 4.0 / 状态与 Tooltip 4.5）| `metric` 数值 | L2+数值 | error |
-| D08 | storage key 与 `index.html` 内联脚本一致 | twinDeclaration | L1+L2 | error |
-| D09 | 禁 `!important` | CSS/AST | L2 | error |
-| D10 | **组件库选择器只许在 vendor 目录**：适配表声明的选择器前缀与变量前缀（如 antd 的 `.ant-*` / `--ant-*`）只许出现在 `styles/vendor/**` | 适配表 + 路径 + CSS | L1 | error |
-| D10b | **vendor 目录反向封闭**：`styles/vendor/**` 里只许出现适配表声明的选择器 / 变量前缀，禁业务类名 | 适配表 + CSS | L1 | error |
-| D11 | **无框架残留**：命中「已知组件库指纹」但不在本项目适配表内 → 报错；`.vue` / `@apply` / `dark:` 变体属通用禁用语法 | 指纹表 + 适配表 | L2 | error |
-| D12 | **魔法数字·长度**：间距/尺寸/圆角/字号/边框必须走刻度令牌 | AST + CSS 属性上下文 | L2 | error |
-| D13 | **魔法数字·层级**：`z-index` 必须令牌 | L2 | error |
-| D14 | **魔法数字·时长**：动效时长必须令牌或常量 | L2 | error |
-| D15 | 内联样式纪律：禁颜色属性、禁裸数字与 `px/rem/em` | AST JSX | L2 | error |
-| D16 | 自研样式只在 `*.module.css` | 路径 | L1 | error |
-| D17 | CSS Module 双向契约（`styles.X` 有定义 / 类被引用 / module.css 被同名组件 import）| CSS ↔ AST | L2 | error |
-| D18 | 组件样式只消费语义令牌（禁直接引 `--sh-static-*`）| CSS | L2 | error |
-| D19 | 同一 `(属性, 数值)` 跨 ≥3 文件重复 → 提示提取令牌 | AST + CSS | L2 | warn（默认关）|
-| D20 | 请求策略与业务阈值数字必须有家（登记后生效）| AST 上下文 | L2 | error（默认关）|
+| ID   | 红线                                                                                                                                 | 判据                 | 等级    | 级别            |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------- | --------------- |
+| D01  | 颜色字面量只在 `tokens/palette.css`                                                                                                  | AST + CSS            | L2      | error           |
+| D02  | palette 只放 `--sh-static-*`                                                                                                         | CSS                  | L2      | error           |
+| D03  | 同一色值只写一次                                                                                                                     | CSS                  | L2      | error           |
+| D04  | 令牌引用闭合（无悬空 `var()`）                                                                                                       | 令牌图               | L3      | error           |
+| D05  | 无死令牌                                                                                                                             | 令牌图               | L3      | error           |
+| D06  | 明暗两套令牌名一致                                                                                                                   | CSS                  | L2      | error           |
+| D07  | 对比度基线（正文 4.5 / 弱文字 3.0 / 主按钮 4.2 / 链接 4.0 / 状态与 Tooltip 4.5）                                                     | `metric` 数值        | L2+数值 | error           |
+| D08  | storage key 与 `index.html` 内联脚本一致                                                                                             | twinDeclaration      | L1+L2   | error           |
+| D09  | 禁 `!important`                                                                                                                      | CSS/AST              | L2      | error           |
+| D10  | **组件库选择器只许在 vendor 目录**：适配表声明的选择器前缀与变量前缀（如 antd 的 `.ant-*` / `--ant-*`）只许出现在 `styles/vendor/**` | 适配表 + 路径 + CSS  | L1      | error           |
+| D10b | **vendor 目录反向封闭**：`styles/vendor/**` 里只许出现适配表声明的选择器 / 变量前缀，禁业务类名                                      | 适配表 + CSS         | L1      | error           |
+| D11  | **无框架残留**：命中「已知组件库指纹」但不在本项目适配表内 → 报错；`.vue` / `@apply` / `dark:` 变体属通用禁用语法                    | 指纹表 + 适配表      | L2      | error           |
+| D12  | **魔法数字·长度**：间距/尺寸/圆角/字号/边框必须走刻度令牌                                                                            | AST + CSS 属性上下文 | L2      | error           |
+| D13  | **魔法数字·层级**：`z-index` 必须令牌                                                                                                | L2                   | error   |
+| D14  | **魔法数字·时长**：动效时长必须令牌或常量                                                                                            | L2                   | error   |
+| D15  | 内联样式纪律：禁颜色属性、禁裸数字与 `px/rem/em`                                                                                     | AST JSX              | L2      | error           |
+| D16  | 自研样式只在 `*.module.css`                                                                                                          | 路径                 | L1      | error           |
+| D17  | CSS Module 双向契约（`styles.X` 有定义 / 类被引用 / module.css 被同名组件 import）                                                   | CSS ↔ AST            | L2      | error           |
+| D18  | 组件样式只消费语义令牌（禁直接引 `--sh-static-*`）                                                                                   | CSS                  | L2      | error           |
+| D19  | 同一 `(属性, 数值)` 跨 ≥3 文件重复 → 提示提取令牌                                                                                    | AST + CSS            | L2      | warn（默认关）  |
+| D20  | 请求策略与业务阈值数字必须有家（登记后生效）                                                                                         | AST 上下文           | L2      | error（默认关） |
 
 **魔法数字语义域登记表**（D12–D14 / D20 的配置形态）：
 
-| 语义域 | 触发形态 | 唯一出处 |
-|---|---|---|
-| 间距 / 尺寸 | CSS 长度出现在 `padding/margin/gap/width/height/inset/top…` | `--spacing` / `--size-*` |
-| 圆角 | `border-radius` 长度 | `--radius-*` |
-| 字号 / 行高 | `font-size` / `line-height` 长度 | `--text-*` / `--leading-*` |
-| 边框宽度 | `border: 1px` / `border-*-width` | `--border-width-*`（`1px` 例外可配）|
-| 层级 | `z-index` / `zIndex` | `--z-*` |
-| 动效时长 | `transition/animation-duration`、JS `setTimeout/setInterval` | `--motion-*` / `shared/config` |
-| 内联尺寸 | JSX `style={{}}` 裸数字与 `'12px'` | 令牌或 CSS Module |
-| 请求策略 | `staleTime/gcTime/retry/pageSize/timeout` | `shared/config` 命名常量 |
-| 业务阈值 | 域内登记的比较值 / 上限 | `modules/<域>/model/` |
-| 协议码 | 与 `.status` / 错误码比较的数字 | `shared/api` 语义常量 |
+| 语义域      | 触发形态                                                     | 唯一出处                             |
+| ----------- | ------------------------------------------------------------ | ------------------------------------ |
+| 间距 / 尺寸 | CSS 长度出现在 `padding/margin/gap/width/height/inset/top…`  | `--spacing` / `--size-*`             |
+| 圆角        | `border-radius` 长度                                         | `--radius-*`                         |
+| 字号 / 行高 | `font-size` / `line-height` 长度                             | `--text-*` / `--leading-*`           |
+| 边框宽度    | `border: 1px` / `border-*-width`                             | `--border-width-*`（`1px` 例外可配） |
+| 层级        | `z-index` / `zIndex`                                         | `--z-*`                              |
+| 动效时长    | `transition/animation-duration`、JS `setTimeout/setInterval` | `--motion-*` / `shared/config`       |
+| 内联尺寸    | JSX `style={{}}` 裸数字与 `'12px'`                           | 令牌或 CSS Module                    |
+| 请求策略    | `staleTime/gcTime/retry/pageSize/timeout`                    | `shared/config` 命名常量             |
+| 业务阈值    | 域内登记的比较值 / 上限                                      | `modules/<域>/model/`                |
+| 协议码      | 与 `.status` / 错误码比较的数字                              | `shared/api` 语义常量                |
 
 **自解释数字豁免**：`0`、`1`、百分比、无单位比例（`line-height`/`opacity`/`scale`/`aspect-ratio`）、属性级例外（`order`、`grid` 计数、未定义权重刻度时的 `font-weight`）、**`calc(var(--spacing) * N)` 这类带令牌的表达式**（逃生舱即令牌本身）。
 
@@ -358,39 +362,39 @@ public/                                原样发布的静态文件
 
 ### 5.3 文案（C）
 
-| ID | 红线 | 判据 | 等级 | 级别 |
-|---|---|---|---|---|
-| C01 | **JSX 裸文本禁止**：文本节点只许表达式（`{t(...)}`）；当源语言含 CJK 时，非 locales 文件禁中文字面量 | AST JSXText + 字符串 | L2 | error |
-| C02 | 每个 `t('k')` 的 key 必须中英都存在 | locales 索引 | L3 | error |
-| C03 | 两份语言目录同构（文件集合一致 + 逐文件键一致）| 目录配对 | L1+L2 | error |
-| C04 | 一文件一顶层命名空间，键前缀 = 文件名 | AST + 路径 | L1+L2 | error |
-| C05 | locales 文件必须被 `i18n/index` 聚合 | 图 | L3 | error |
-| C06 | 无死键（未被 `t()` 引用）| 引用完整性 | L3 | warn |
+| ID  | 红线                                                                                                 | 判据                 | 等级  | 级别  |
+| --- | ---------------------------------------------------------------------------------------------------- | -------------------- | ----- | ----- |
+| C01 | **JSX 裸文本禁止**：文本节点只许表达式（`{t(...)}`）；当源语言含 CJK 时，非 locales 文件禁中文字面量 | AST JSXText + 字符串 | L2    | error |
+| C02 | 每个 `t('k')` 的 key 必须中英都存在                                                                  | locales 索引         | L3    | error |
+| C03 | 两份语言目录同构（文件集合一致 + 逐文件键一致）                                                      | 目录配对             | L1+L2 | error |
+| C04 | 一文件一顶层命名空间，键前缀 = 文件名                                                                | AST + 路径           | L1+L2 | error |
+| C05 | locales 文件必须被 `i18n/index` 聚合                                                                 | 图                   | L3    | error |
+| C06 | 无死键（未被 `t()` 引用）                                                                            | 引用完整性           | L3    | warn  |
 
 ### 5.4 依赖（P）
 
-| ID | 红线 | 判据 | 等级 | 级别 |
-|---|---|---|---|---|
-| P01 | `dependencies` 必须在选型白名单内（对齐 `AGENTS.md` 选型表）| `package.json` | L1 | error |
-| P02 | 明确禁用库（axios/ky/swr/redux/mobx/jotai/react-hook-form/tailwind/styled-components…）| `package.json` | L1 | error |
-| P04 | **适配表与实际依赖一致**：适配表声明的包必须在 `dependencies` 里；反向，装了适配表之外的组件库即报错 | 适配表 + `package.json` | L1 | error |
-| P05 | **图标来源唯一**：图标 import 只许来自适配表登记的图标包 | 适配表 + AST | L2 | error |
-| P03 | 幽灵依赖：import 了未声明的包 | 图 + `package.json` | L3 | error |
+| ID  | 红线                                                                                                 | 判据                    | 等级 | 级别  |
+| --- | ---------------------------------------------------------------------------------------------------- | ----------------------- | ---- | ----- |
+| P01 | `dependencies` 必须在选型白名单内（对齐 `AGENTS.md` 选型表）                                         | `package.json`          | L1   | error |
+| P02 | 明确禁用库（axios/ky/swr/redux/mobx/jotai/react-hook-form/tailwind/styled-components…）              | `package.json`          | L1   | error |
+| P04 | **适配表与实际依赖一致**：适配表声明的包必须在 `dependencies` 里；反向，装了适配表之外的组件库即报错 | 适配表 + `package.json` | L1   | error |
+| P05 | **图标来源唯一**：图标 import 只许来自适配表登记的图标包                                             | 适配表 + AST            | L2   | error |
+| P03 | 幽灵依赖：import 了未声明的包                                                                        | 图 + `package.json`     | L3   | error |
 
 ### 5.5 反退化（H）
 
-| ID | 红线 | 判据 | 等级 | 级别 |
-|---|---|---|---|---|
-| H01 | 类型逃生舱：`any` / `as any` / 非空断言 / `@ts-expect-error` / `@ts-nocheck` | AST | L2 | error |
-| H02 | suppression 注释：`eslint-disable` / `oxlint-disable` / `@ts-ignore` | 注释扫描 | L2 | error |
-| H03 | 调试残留：`console.*` / `debugger` / `alert` / `confirm` / `prompt` | AST | L2 | error |
-| H04 | 未完成标记：`TODO` / `FIXME` / `XXX` / `HACK` / `WIP` / `not implemented` / `暂未实现` / `待实现` | 注释 + AST | L2 | error |
-| H05 | 吞异常：空 catch、`.catch(() => {})` | AST | L2 | error |
-| H06 | **脱离上下文的全局 API**：适配表登记的全局 API（`message.*` / `notification.*` / `Modal.confirm`…）必须走上下文内用法 | 适配表 + AST | L2 | error |
-| H07 | 假异步与随机：`setTimeout` 模拟请求、`Math.random()` | AST | L2 | error |
-| H08 | 硬编码地址：`http(s)://`、`localhost`、`127.0.0.1`（除 `shared/config/env.ts`）| AST | L2 | error |
-| H09 | 静默假数据：`mock`/`fake`/`dummy`/`lorem` 字面量 | AST | L2 | warn |
-| H10 | 手搓时间格式化（`toLocale*String` / `Intl.DateTimeFormat`）→ 用 dayjs | AST | L2 | warn |
+| ID  | 红线                                                                                                                  | 判据         | 等级 | 级别  |
+| --- | --------------------------------------------------------------------------------------------------------------------- | ------------ | ---- | ----- |
+| H01 | 类型逃生舱：`any` / `as any` / 非空断言 / `@ts-expect-error` / `@ts-nocheck`                                          | AST          | L2   | error |
+| H02 | suppression 注释：`eslint-disable` / `oxlint-disable` / `@ts-ignore`                                                  | 注释扫描     | L2   | error |
+| H03 | 调试残留：`console.*` / `debugger` / `alert` / `confirm` / `prompt`                                                   | AST          | L2   | error |
+| H04 | 未完成标记：`TODO` / `FIXME` / `XXX` / `HACK` / `WIP` / `not implemented` / `暂未实现` / `待实现`                     | 注释 + AST   | L2   | error |
+| H05 | 吞异常：空 catch、`.catch(() => {})`                                                                                  | AST          | L2   | error |
+| H06 | **脱离上下文的全局 API**：适配表登记的全局 API（`message.*` / `notification.*` / `Modal.confirm`…）必须走上下文内用法 | 适配表 + AST | L2   | error |
+| H07 | 假异步与随机：`setTimeout` 模拟请求、`Math.random()`                                                                  | AST          | L2   | error |
+| H08 | 硬编码地址：`http(s)://`、`localhost`、`127.0.0.1`（除 `shared/config/env.ts`）                                       | AST          | L2   | error |
+| H09 | 静默假数据：`mock`/`fake`/`dummy`/`lorem` 字面量                                                                      | AST          | L2   | warn  |
+| H10 | 手搓时间格式化（`toLocale*String` / `Intl.DateTimeFormat`）→ 用 dayjs                                                 | AST          | L2   | warn  |
 
 ### 5.6 severity 划分原则，以及门禁不做的事
 
@@ -410,36 +414,36 @@ public/                                原样发布的静态文件
 
 ### 6.1 机制分工
 
-| 规则族 | 机制 | 理由 |
-|---|---|---|
-| 导入 / 依赖方向 / 公开面 / 环 / 可达 | TS AST + 自建 resolver → 文件图 | 要区分 import 与字符串同文本 |
-| 导出形态 | TS AST（`ExportDeclaration`、modifiers、declaration kind）| 正则判不出 `export *` |
-| 字面量唯一出处（颜色/数字/路由/storage/env）| TS AST + CSS 扫描器，**带上下文**（属性名、参数键）| `padding: 12px` vs 注释同理 |
-| 中文明文 | AST 字符串节点 + `JSXText` | 注释天然不算（本仓库注释全中文）|
-| 类型逃生舱 / 调试残留 / 空 catch / 内联样式 | AST 节点种类 | 正则分不清 `Company`/`many`/`!x`/`!=`/`as any` |
-| 体积 | AST 起止位置 + 导出计数 | 需精确行范围 |
-| CSS 令牌 / 长度 / `!important` / `.ant-*` / hex | 自带 CSS 结构化扫描器 | 要区分属性名/值/注释 |
-| CSS Module 双向契约 | CSS 类名集合 ↔ AST `styles.X` | 两侧都要结构化结果 |
-| 明暗令牌 / 引用闭合 / 死令牌 | CSS 变量引用图（第二张图）| 可达性算法 |
-| 对比度 | 令牌解析 + 求值（沿用旧守卫实现）| 数值计算 |
-| 目录白名单 / 深度 / 槽位 / 命名 / 配对 | 路径正则 | 这里正则 100% 正确 |
-| TODO / suppression | 注释正则 | AST 不保留注释节点 |
-| 依赖选型 | `JSON.parse` + 白名单 | — |
+| 规则族                                          | 机制                                                       | 理由                                           |
+| ----------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------- |
+| 导入 / 依赖方向 / 公开面 / 环 / 可达            | TS AST + 自建 resolver → 文件图                            | 要区分 import 与字符串同文本                   |
+| 导出形态                                        | TS AST（`ExportDeclaration`、modifiers、declaration kind） | 正则判不出 `export *`                          |
+| 字面量唯一出处（颜色/数字/路由/storage/env）    | TS AST + CSS 扫描器，**带上下文**（属性名、参数键）        | `padding: 12px` vs 注释同理                    |
+| 中文明文                                        | AST 字符串节点 + `JSXText`                                 | 注释天然不算（本仓库注释全中文）               |
+| 类型逃生舱 / 调试残留 / 空 catch / 内联样式     | AST 节点种类                                               | 正则分不清 `Company`/`many`/`!x`/`!=`/`as any` |
+| 体积                                            | AST 起止位置 + 导出计数                                    | 需精确行范围                                   |
+| CSS 令牌 / 长度 / `!important` / `.ant-*` / hex | 自带 CSS 结构化扫描器                                      | 要区分属性名/值/注释                           |
+| CSS Module 双向契约                             | CSS 类名集合 ↔ AST `styles.X`                              | 两侧都要结构化结果                             |
+| 明暗令牌 / 引用闭合 / 死令牌                    | CSS 变量引用图（第二张图）                                 | 可达性算法                                     |
+| 对比度                                          | 令牌解析 + 求值（沿用旧守卫实现）                          | 数值计算                                       |
+| 目录白名单 / 深度 / 槽位 / 命名 / 配对          | 路径正则                                                   | 这里正则 100% 正确                             |
+| TODO / suppression                              | 注释正则                                                   | AST 不保留注释节点                             |
+| 依赖选型                                        | `JSON.parse` + 白名单                                      | —                                              |
 
 ### 6.1.1 解析后端：TypeScript Compiler API（parser-only）
 
 **选型**：`ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, /* setParentNodes */ false, ts.ScriptKind.TSX)` —— **只 parse，不建 Program、不做类型检查**。
 
-| 候选 | 新增依赖 | 速度 | 结论 |
-|---|---|---|---|
-| **TS Compiler API（选中）** | 无（TS 仓库本就有）| 快 | 唯一同时满足「零新增依赖 + TS/TSX 全语法 + 可搬运」|
-| `@typescript-eslint/typescript-estree` | 有 | 中 | 多出 scope 分析；我们刻意不依赖类型信息（L4 另开）|
-| `@babel/parser` | 有 | 中 | 注释附着更好，但多一套语法插件矩阵 |
-| `oxc-parser` | 有（native）| 极快 | 引入 native 依赖与多平台二进制，破坏「整目录复制」|
-| `swc` / `esbuild` | 有 | 极快 | AST API 不公开 / 不为规则设计 |
-| `acorn` + 插件 | 有（多个）| 快 | TS/JSX 需自行组合，维护成本高 |
-| `tree-sitter` | 有（native）| 极快 | 容错好，但引入查询语言生态 |
-| 纯正则 | 无 | 极快 | 已在 §6.1 排除 |
+| 候选                                   | 新增依赖            | 速度 | 结论                                                |
+| -------------------------------------- | ------------------- | ---- | --------------------------------------------------- |
+| **TS Compiler API（选中）**            | 无（TS 仓库本就有） | 快   | 唯一同时满足「零新增依赖 + TS/TSX 全语法 + 可搬运」 |
+| `@typescript-eslint/typescript-estree` | 有                  | 中   | 多出 scope 分析；我们刻意不依赖类型信息（L4 另开）  |
+| `@babel/parser`                        | 有                  | 中   | 注释附着更好，但多一套语法插件矩阵                  |
+| `oxc-parser`                           | 有（native）        | 极快 | 引入 native 依赖与多平台二进制，破坏「整目录复制」  |
+| `swc` / `esbuild`                      | 有                  | 极快 | AST API 不公开 / 不为规则设计                       |
+| `acorn` + 插件                         | 有（多个）          | 快   | TS/JSX 需自行组合，维护成本高                       |
+| `tree-sitter`                          | 有（native）        | 极快 | 容错好，但引入查询语言生态                          |
+| 纯正则                                 | 无                  | 极快 | 已在 §6.1 排除                                      |
 
 **关键边界：规则不消费 TS AST。** `node.mjs` 把 AST 归一成**事实模型（facts）**，规则只读 facts：
 
@@ -460,7 +464,6 @@ f = {
 **一个实现坑（与 R2 相关）**：fail-closed 需要语法诊断，而 `createSourceFile` 的诊断挂在**非公开字段**（`parseDiagnostics`）。两条路：① 用 `ts.transpileModule({ reportDiagnostics: true })` 只取语法诊断（公开 API）；② 用内部字段 + TypeScript 版本区间断言。**无论哪条，都必须有 fixtures 覆盖「坏语法文件必须报错」**，否则 R2 落不了地。
 
 **性能**：parser-only 约「100 文件 <300ms、1k 文件 ~1s」量级；配合 R7 的缓存与 `--changed` 可进开发环。撞性能墙时换 oxc 的代价 = 重写事实提取，不动规则。
-
 
 ### 6.2 目录与模块职责
 
@@ -492,8 +495,7 @@ arch.config.mjs    项目实例（约 60 行）
 ```js
 export function noBarrel(ctx) {
   return ctx.tsFiles.flatMap((f) =>
-    f.exports.filter((e) => e.isStar)
-      .map((e) => f.report('S11', e.node, '禁 barrel 再导出')),
+    f.exports.filter((e) => e.isStar).map((e) => f.report('S11', e.node, '禁 barrel 再导出')),
   )
 }
 ```
@@ -540,13 +542,13 @@ ctx = {
 
 **（1）总原则：scope 过滤「报告」，不过滤「正确性」**
 
-| 谓词类型 | 例子 | 能否局部判定 |
-|---|---|---|
-| 单文件形态 | H01 `any`、S12 命名、D15 内联样式、S16 体积 | ✅ 可 |
-| 单文件依赖出边 | S04 域内前缀、S10 `../`、S11 barrel | ✅ 可（只需本文件 import）|
-| **全图谓词** | S05 域隔离、S07 层序、S08 无环、S15 可达/孤儿、S18 shared 单域独占 | ❌ 必须全量图 |
-| **全局唯一性** | D03 色值唯一、D05 死令牌、C03 双份同构、C06 死键、S17 重复导出名 | ❌ 必须全量 |
-| **角色表完备** | S01–S03 | ❌ 必须全量 |
+| 谓词类型       | 例子                                                               | 能否局部判定               |
+| -------------- | ------------------------------------------------------------------ | -------------------------- |
+| 单文件形态     | H01 `any`、S12 命名、D15 内联样式、S16 体积                        | ✅ 可                      |
+| 单文件依赖出边 | S04 域内前缀、S10 `../`、S11 barrel                                | ✅ 可（只需本文件 import） |
+| **全图谓词**   | S05 域隔离、S07 层序、S08 无环、S15 可达/孤儿、S18 shared 单域独占 | ❌ 必须全量图              |
+| **全局唯一性** | D03 色值唯一、D05 死令牌、C03 双份同构、C06 死键、S17 重复导出名   | ❌ 必须全量                |
+| **角色表完备** | S01–S03                                                            | ❌ 必须全量                |
 
 **推论：`--changed` ≠「只解析变更文件」。** 正确分层是 **facts 按文件缓存，图与全局谓词每轮重建**：
 
@@ -561,15 +563,15 @@ ctx = {
 
 **（2）范围维度总表**
 
-| 维度 | 取值 | 过滤什么 | 典型用法 |
-|---|---|---|---|
-| `--scope` | `full`（默认）/ `changed` / `staged` / `since:<ref>` | 报告 | CI=full；pre-commit=`staged`；agent 迭代=`changed` |
-| `--paths <glob>` | 路径 | 报告 | 只跑某个域 |
-| `--domain <S\|D\|C\|P\|H>` | 域 | 规则集 | 只看设计系统 |
-| `--only <ID>` | 规则 | 规则集 | 调一条规则 |
-| `--min-level <L1\|L2\|L3>` | 判定等级 | 规则集 | 快速档（只跑 L1）|
-| `--severity <error\|warn>` | 严重度 | 报告 | 只看硬红线 |
-| `--format <pretty\|json\|github>` | — | 输出 | agent 消费 / CI 注解 |
+| 维度                              | 取值                                                 | 过滤什么 | 典型用法                                           |
+| --------------------------------- | ---------------------------------------------------- | -------- | -------------------------------------------------- |
+| `--scope`                         | `full`（默认）/ `changed` / `staged` / `since:<ref>` | 报告     | CI=full；pre-commit=`staged`；agent 迭代=`changed` |
+| `--paths <glob>`                  | 路径                                                 | 报告     | 只跑某个域                                         |
+| `--domain <S\|D\|C\|P\|H>`        | 域                                                   | 规则集   | 只看设计系统                                       |
+| `--only <ID>`                     | 规则                                                 | 规则集   | 调一条规则                                         |
+| `--min-level <L1\|L2\|L3>`        | 判定等级                                             | 规则集   | 快速档（只跑 L1）                                  |
+| `--severity <error\|warn>`        | 严重度                                               | 报告     | 只看硬红线                                         |
+| `--format <pretty\|json\|github>` | —                                                    | 输出     | agent 消费 / CI 注解                               |
 
 **（3）安全语义（决定门禁可不可信）**
 
@@ -584,14 +586,14 @@ ctx = {
 
 **（4）退出码**
 
-| 场景 | 退出码 |
-|---|---|
-| full，有 error | 非零 |
-| changed，变更文件有 error | 非零 |
-| changed，仅全局 error（默认）| 非零 |
+| 场景                          | 退出码             |
+| ----------------------------- | ------------------ |
+| full，有 error                | 非零               |
+| changed，变更文件有 error     | 非零               |
+| changed，仅全局 error（默认） | 非零               |
 | `--local-only` 且有全局 error | 零，但打印跳过条数 |
-| `--report-only` | 零，仅警告 |
-| 引擎 / 解析异常 | **永远非零**（R2）|
+| `--report-only`               | 零，仅警告         |
+| 引擎 / 解析异常               | **永远非零**（R2） |
 
 **（5）配置形态**
 
@@ -607,15 +609,23 @@ scope: { default: 'full', preCommit: 'staged', devLoop: 'changed', ci: 'full' }
 
 ```js
 // arch.config.mjs —— 唯一导入面（抽取成包时只改这一行，见 §15.4）
-import { canonical, designSystem, copy, deps, hygiene, uiKit, antdKit } from './tools/arch-guard/index.mjs'
+import {
+  canonical,
+  designSystem,
+  copy,
+  deps,
+  hygiene,
+  uiKit,
+  antdKit,
+} from './tools/arch-guard/index.mjs'
 
 export default {
   presets: [
-    canonical(),                                   // 三根拓扑、角色表、命名、体积阈值
+    canonical(), // 三根拓扑、角色表、命名、体积阈值
     designSystem({ tokenPrefix: '--sh', spacing: '--spacing', themes: ['dark', 'light'] }),
     copy({ locales: 'shared/i18n/locales', languages: ['zh-CN', 'en'] }),
     deps({ deny: ['axios', 'swr', 'redux', 'mobx', 'react-hook-form'] }),
-    uiKit(antdKit()),                              // ← 换库 / 不用库只改这一行（见 §7.1）
+    uiKit(antdKit()), // ← 换库 / 不用库只改这一行（见 §7.1）
     hygiene(),
   ],
   layout: { app: 'src/app', modules: 'src/modules', shared: 'src/shared' }, // 默认即范式
@@ -634,17 +644,17 @@ export default {
 
 **适配器契约** —— 每个字段驱动哪条规则：
 
-| 字段 | 含义 | 驱动的规则 |
-|---|---|---|
-| `id` | 适配器标识 | 报告与文档 |
-| `packages` | 该库允许出现在 `dependencies` 的包名 | P01 白名单、P04 一致性 |
-| `icons.from` | 允许的图标来源包（唯一）| P05 |
-| `vendorSelectors` | 该库的 DOM 选择器前缀（如 `\.ant-`）| D10 / D10b |
-| `vendorVars` | 该库的 CSS 变量前缀（如 `^--ant-`）| D10 / D10b |
-| `detachedApis` | 脱离上下文的全局 API 与替代写法 | H06 |
-| `styleProps` | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`）| D15 |
-| `themeIntegration` | 库主题映射的落点（CSS 目录 + JS 文件）| exclusiveOwner（S03 落点 + D10 边界）|
-| `policy`（可选）| 组件来源阶梯、覆盖阶梯的文本 | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
+| 字段               | 含义                                                    | 驱动的规则                               |
+| ------------------ | ------------------------------------------------------- | ---------------------------------------- |
+| `id`               | 适配器标识                                              | 报告与文档                               |
+| `packages`         | 该库允许出现在 `dependencies` 的包名                    | P01 白名单、P04 一致性                   |
+| `icons.from`       | 允许的图标来源包（唯一）                                | P05                                      |
+| `vendorSelectors`  | 该库的 DOM 选择器前缀（如 `\.ant-`）                    | D10 / D10b                               |
+| `vendorVars`       | 该库的 CSS 变量前缀（如 `^--ant-`）                     | D10 / D10b                               |
+| `detachedApis`     | 脱离上下文的全局 API 与替代写法                         | H06                                      |
+| `styleProps`       | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`） | D15                                      |
+| `themeIntegration` | 库主题映射的落点（CSS 目录 + JS 文件）                  | exclusiveOwner（S03 落点 + D10 边界）    |
+| `policy`（可选）   | 组件来源阶梯、覆盖阶梯的文本                            | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
 
 ```js
 // presets/ui-kits/antd.mjs —— 约 30 行，这就是"换框架"的全部成本
@@ -655,14 +665,31 @@ export default () => ({
   vendorSelectors: ['\\.ant-'],
   vendorVars: ['^--ant-'],
   detachedApis: [
-    { from: ['antd'], members: ['message', 'notification'], call: true, suggest: 'App.useApp() 取 message/notification' },
-    { from: ['antd'], members: ['Modal'], call: true, member: 'confirm', suggest: '<Modal /> 或 App.useApp() 的 modal' },
+    {
+      from: ['antd'],
+      members: ['message', 'notification'],
+      call: true,
+      suggest: 'App.useApp() 取 message/notification',
+    },
+    {
+      from: ['antd'],
+      members: ['Modal'],
+      call: true,
+      member: 'confirm',
+      suggest: '<Modal /> 或 App.useApp() 的 modal',
+    },
   ],
   styleProps: ['style'],
   themeIntegration: { css: 'shared/styles/vendor', js: ['shared/theme/antdTheme.ts'] },
   policy: {
     componentLadder: ['antd', '@ant-design/x', 'shared/components/ui', '一次性内联'],
-    overrideLadder: ['theme.components', 'vendor/antd-vars.css', '作用域变量', 'CSS Module', 'inline style'],
+    overrideLadder: [
+      'theme.components',
+      'vendor/antd-vars.css',
+      '作用域变量',
+      'CSS Module',
+      'inline style',
+    ],
   },
 })
 ```
@@ -685,24 +712,24 @@ export default () => ({
 
 **（1）可替换面总表**
 
-| # | 可替换面 | 现在写死在哪 | 换掉后崩什么 | Tier |
-|---|---|---|---|---|
-| 1 | UI 组件库 | §7.1 适配表 ✅ | — | 已做 |
-| 2 | **数据层** | B3 Query 挂载点、C2 副作用禁取数、C3 mutation 必须失效缓存、S13 `use*Store` | 换 SWR / Jotai / Redux / Pinia / Vue Query → 规则识别不到触发点 | T1 |
-| 3 | **路由模式与出口** | 域公开面 = `routes.tsx`、paths 唯一出处、S15 routes 必被聚合 | Next / Remix / Nuxt 文件路由没有 `routes.tsx` | T1 |
-| 4 | **样式方案** | D16 自研样式只在 `*.module.css`、D17 双向契约 | Tailwind 下 `@apply` 从「禁令」变「常态」；CSS-in-JS 没有 class 契约 | T1 |
-| 5 | **i18n 形态** | C 域全部按 `t('key')` + 两份 TS 嵌套对象 | `<FormattedMessage id>`、扁平 JSON、ICU 复数规则 | T1 |
-| 6 | 网络客户端 | B1 检测 `fetch / XHR / EventSource` | 项目合法用 axios → B1 失去触发点 | T2 |
-| 7 | 令牌来源 | D01–D07 全走 CSS 自定义属性 | 令牌在 TS 对象（`theme.ts` / Style Dictionary）→ 扫描器读不到 | T2 |
-| 8 | 主题机制 | `data-theme` 属性 + storage key | class 切换、`prefers-color-scheme` 媒体查询 | T2 |
-| 9 | 装配与入口 | D08 校验 `index.html`；可达性入口 = `main.tsx` | Next / Nuxt 没有 HTML 模板 | T2 |
-| 10 | 测试框架与布局 | `*.test.ts(x)` co-located 且豁免可达性 | Jest `__tests__/`、Playwright `e2e/` → 孤儿文件误报 | T2 |
-| 11 | 命名契约 | `*Page.tsx`、`use*`、`use*Store` | 项目用 `*.view.tsx` / 自定义 hook 前缀 | T2 |
-| 12 | 导出风格 | views 必须 default export | 全 named export 的项目 | T2 |
-| 13 | 硬编码文案判定 | 中文字符检测 | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关） | T2 已缓解 |
-| 14 | 依赖选型表 | P01「对齐 AGENTS.md 选型表」＝**两处真相** | 表改了、config 没改 → 漂移 | T1（见 §7.3）|
-| 15 | 时间库 | H10 建议 dayjs | date-fns / Temporal | T3 |
-| 16 | 包管理器 / monorepo | 单包 + pnpm 锁文件 | monorepo 需要多实例配置 | 范围外 |
+| #   | 可替换面            | 现在写死在哪                                                                | 换掉后崩什么                                                         | Tier          |
+| --- | ------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------- |
+| 1   | UI 组件库           | §7.1 适配表 ✅                                                              | —                                                                    | 已做          |
+| 2   | **数据层**          | B3 Query 挂载点、C2 副作用禁取数、C3 mutation 必须失效缓存、S13 `use*Store` | 换 SWR / Jotai / Redux / Pinia / Vue Query → 规则识别不到触发点      | T1            |
+| 3   | **路由模式与出口**  | 域公开面 = `routes.tsx`、paths 唯一出处、S15 routes 必被聚合                | Next / Remix / Nuxt 文件路由没有 `routes.tsx`                        | T1            |
+| 4   | **样式方案**        | D16 自研样式只在 `*.module.css`、D17 双向契约                               | Tailwind 下 `@apply` 从「禁令」变「常态」；CSS-in-JS 没有 class 契约 | T1            |
+| 5   | **i18n 形态**       | C 域全部按 `t('key')` + 两份 TS 嵌套对象                                    | `<FormattedMessage id>`、扁平 JSON、ICU 复数规则                     | T1            |
+| 6   | 网络客户端          | B1 检测 `fetch / XHR / EventSource`                                         | 项目合法用 axios → B1 失去触发点                                     | T2            |
+| 7   | 令牌来源            | D01–D07 全走 CSS 自定义属性                                                 | 令牌在 TS 对象（`theme.ts` / Style Dictionary）→ 扫描器读不到        | T2            |
+| 8   | 主题机制            | `data-theme` 属性 + storage key                                             | class 切换、`prefers-color-scheme` 媒体查询                          | T2            |
+| 9   | 装配与入口          | D08 校验 `index.html`；可达性入口 = `main.tsx`                              | Next / Nuxt 没有 HTML 模板                                           | T2            |
+| 10  | 测试框架与布局      | `*.test.ts(x)` co-located 且豁免可达性                                      | Jest `__tests__/`、Playwright `e2e/` → 孤儿文件误报                  | T2            |
+| 11  | 命名契约            | `*Page.tsx`、`use*`、`use*Store`                                            | 项目用 `*.view.tsx` / 自定义 hook 前缀                               | T2            |
+| 12  | 导出风格            | views 必须 default export                                                   | 全 named export 的项目                                               | T2            |
+| 13  | 硬编码文案判定      | 中文字符检测                                                                | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关）    | T2 已缓解     |
+| 14  | 依赖选型表          | P01「对齐 AGENTS.md 选型表」＝**两处真相**                                  | 表改了、config 没改 → 漂移                                           | T1（见 §7.3） |
+| 15  | 时间库              | H10 建议 dayjs                                                              | date-fns / Temporal                                                  | T3            |
+| 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                          | monorepo 需要多实例配置                                              | 范围外        |
 
 **（2）统一适配器契约**
 
@@ -720,13 +747,13 @@ T2 的适配器留同名目录与加载点，v1 只给默认值（默认值 = �
 
 **（3）范式不变量（明确不配置）**
 
-| 不变量 | 为什么不能配 |
-|---|---|
-| 三根角色划分（装配 / 业务 / 共享）| 路径可映射，**角色不可省**；省了就没有「一句话 import 规则」 |
-| 唯一出处、依赖单向、无环、退路不留 | 三条公理本身 |
-| 目录白名单 / 深度 / 槽位封闭 | 结构不可被发明 |
-| 域间零依赖、公开面唯一入口 | 模块化的定义 |
-| 红线只落 L1–L3、禁内联豁免 | 零误报与不可绕过性的保证 |
+| 不变量                             | 为什么不能配                                                 |
+| ---------------------------------- | ------------------------------------------------------------ |
+| 三根角色划分（装配 / 业务 / 共享） | 路径可映射，**角色不可省**；省了就没有「一句话 import 规则」 |
+| 唯一出处、依赖单向、无环、退路不留 | 三条公理本身                                                 |
+| 目录白名单 / 深度 / 槽位封闭       | 结构不可被发明                                               |
+| 域间零依赖、公开面唯一入口         | 模块化的定义                                                 |
+| 红线只落 L1–L3、禁内联豁免         | 零误报与不可绕过性的保证                                     |
 
 **（4）v1 明确不支持（不假装「配置即可」）**：元框架 Vue / Svelte；文件路由（Next / Remix / Nuxt）下的域结构规则；monorepo 多包；CSS-in-JS；TS 对象令牌；JS-only 项目。每项在文档里写「不支持」而不是「可配置」。
 
@@ -744,10 +771,10 @@ P01 依赖白名单与 `AGENTS.md` 选型表不能各写一份；目录契约与
 
 **（1）三条腿**
 
-| 方向 | 机制 |
-|---|---|
-| 适配器 → 引擎 | 工厂函数返回**纯数据对象**，经 `defineAdapter(面, spec)` 校验并冻结 |
-| 适配器 → 规则 | 规则只读 `ctx.adapters.<面>`，不读 raw config |
+| 方向          | 机制                                                                          |
+| ------------- | ----------------------------------------------------------------------------- |
+| 适配器 → 引擎 | 工厂函数返回**纯数据对象**，经 `defineAdapter(面, spec)` 校验并冻结           |
+| 适配器 → 规则 | 规则只读 `ctx.adapters.<面>`，不读 raw config                                 |
 | 引擎 → 适配器 | **不存在**：无回调、无 hook、无生命周期；适配器不能执行项目代码、不碰文件系统 |
 
 **（2）能力协商（「未声明即不注册」的实现）**
@@ -759,7 +786,7 @@ P01 依赖白名单与 `AGENTS.md` 选型表不能各写一份；目录契约与
 export const vendorSelectorConfined = {
   id: 'D10',
   requires: ['uiKit.vendorSelectors'],
-  run: (ctx) => use(ctx.adapters.uiKit.vendorSelectors, /* … */),
+  run: (ctx) => use(ctx.adapters.uiKit.vendorSelectors /* … */),
 }
 ```
 
@@ -773,13 +800,13 @@ const skipped = RULES.filter((r) => !enabled.includes(r))
 
 **（3）`defineAdapter` 的校验（专治静默失能）**
 
-| 校验 | 挡住的失败模式 |
-|---|---|
-| 字段白名单，未知字段即报错 | 拼错 `vendorSelector`（少个 s）不会静默不生效 |
-| 类型 + 正则可编译性 | 非法正则不进入引擎 |
-| 冲突检测：两个适配器声明同前缀 | antd 与 element 同时声明 `.ant-` |
-| 一致性：声明的结构与项目事实对齐（运行时）| `routers.mode='code-based'` 但没有 `routes.tsx`；`packages` 不在 `package.json`（P04）|
-| `specVersion` 兼容性 | 搬到别的仓库后契约不兼容 |
+| 校验                                       | 挡住的失败模式                                                                         |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 字段白名单，未知字段即报错                 | 拼错 `vendorSelector`（少个 s）不会静默不生效                                          |
+| 类型 + 正则可编译性                        | 非法正则不进入引擎                                                                     |
+| 冲突检测：两个适配器声明同前缀             | antd 与 element 同时声明 `.ant-`                                                       |
+| 一致性：声明的结构与项目事实对齐（运行时） | `routers.mode='code-based'` 但没有 `routes.tsx`；`packages` 不在 `package.json`（P04） |
+| `specVersion` 兼容性                       | 搬到别的仓库后契约不兼容                                                               |
 
 **（4）适配器自带样例（可证伪）**
 
@@ -805,11 +832,11 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 换 Vue 不是「再加一个适配器」—— 元框架（React ↔ Vue ↔ Svelte）比适配器高一层，因为**换元框架要换 parser 和规则集**。三层职责：
 
-| 层 | 换什么 | 形态 | 举例 |
-|---|---|---|---|
-| **配置** | 项目专有事实 | 数据表 | 路径、令牌前缀、阈值、白名单 |
-| **适配器** | 同一元框架内的库 | **纯数据表**（§7.4）| antd ↔ MUI、Zustand ↔ Jotai、CSS Modules ↔ Tailwind、i18next ↔ vue-i18n |
-| **框架包 pack** | 元框架本身 | **代码**（随引擎分发、经评审、带 fixtures）| React pack（v1 唯一）、Vue pack、Svelte pack |
+| 层              | 换什么           | 形态                                        | 举例                                                                    |
+| --------------- | ---------------- | ------------------------------------------- | ----------------------------------------------------------------------- |
+| **配置**        | 项目专有事实     | 数据表                                      | 路径、令牌前缀、阈值、白名单                                            |
+| **适配器**      | 同一元框架内的库 | **纯数据表**（§7.4）                        | antd ↔ MUI、Zustand ↔ Jotai、CSS Modules ↔ Tailwind、i18next ↔ vue-i18n |
+| **框架包 pack** | 元框架本身       | **代码**（随引擎分发、经评审、带 fixtures） | React pack（v1 唯一）、Vue pack、Svelte pack                            |
 
 **pack 的职责**（决定「换元框架」的边界）：
 
@@ -828,30 +855,30 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 **本体（`tools/arch-guard/`，可整体抽取）**
 
-| 交付物 | 说明 | 规模估计 |
-|---|---|---|
-| `package.json` | 包清单：`private: true`、零 `dependencies`、`peerDependencies: typescript`、`bin`、`exports` | ~30 行 |
-| `index.mjs` | CLI 入口 + **唯一导入面**（re-export 预设 / 适配器 / data）| ~80 行 |
-| `src/**` | 引擎：scan / resolve / node / facts / graph / adapters / registry / baseline / report / self-test / render-docs | ~2000 行 |
-| `packs/react/**` | React 框架包：parser / 角色表变体 / 语言相关规则 / fixtures | ~400 行 |
-| `presets/**` | 五个域预设 + T1 适配器（`ui-kits/{antd,none}`、`data-layers/{tanstack-query}`、`routers/{react-router}`、`styles/{css-modules}`、`i18n/{i18next}`）+ T2 默认值目录 | ~250 行 + 5×30 行 |
-| `data/kit-fingerprints.mjs` | 已知组件库指纹（纯数据）| ~60 行 |
-| `__fixtures__/**` | 规则回归样例（违规必报 × 合规不报）| ~40 个文件 |
-| `PARADIGM.md` | **通用范式规范：跟本体走**（抽取时一起搬）| ~250 行 |
-| `README.md` | 接入说明 + 抽取清单 + 自包含不变式（P1–P3）| ~80 行 |
+| 交付物                      | 说明                                                                                                                                                               | 规模估计          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| `package.json`              | 包清单：`private: true`、零 `dependencies`、`peerDependencies: typescript`、`bin`、`exports`                                                                       | ~30 行            |
+| `index.mjs`                 | CLI 入口 + **唯一导入面**（re-export 预设 / 适配器 / data）                                                                                                        | ~80 行            |
+| `src/**`                    | 引擎：scan / resolve / node / facts / graph / adapters / registry / baseline / report / self-test / render-docs                                                    | ~2000 行          |
+| `packs/react/**`            | React 框架包：parser / 角色表变体 / 语言相关规则 / fixtures                                                                                                        | ~400 行           |
+| `presets/**`                | 五个域预设 + T1 适配器（`ui-kits/{antd,none}`、`data-layers/{tanstack-query}`、`routers/{react-router}`、`styles/{css-modules}`、`i18n/{i18next}`）+ T2 默认值目录 | ~250 行 + 5×30 行 |
+| `data/kit-fingerprints.mjs` | 已知组件库指纹（纯数据）                                                                                                                                           | ~60 行            |
+| `__fixtures__/**`           | 规则回归样例（违规必报 × 合规不报）                                                                                                                                | ~40 个文件        |
+| `PARADIGM.md`               | **通用范式规范：跟本体走**（抽取时一起搬）                                                                                                                         | ~250 行           |
+| `README.md`                 | 接入说明 + 抽取清单 + 自包含不变式（P1–P3）                                                                                                                        | ~80 行            |
 
 **项目实例（留在仓库，不进本体）**
 
-| 交付物 | 说明 | 规模估计 |
-|---|---|---|
-| `arch.config.mjs` | superhive 实例，唯一 import 面（约 60 行）| ~60 行 |
-| `arch.baseline.json` | 存量豁免（生成）| — |
-| `ARCHITECTURE.md` | 本项目实例：目录契约、规则表、怎么跑 | ~200 行 |
-| `docs/adr/0004-architecture-guard.md` | 决策记录（为何可判定性优先）| ~60 行 |
-| `AGENTS.md` 更新 | 提交前检查 + 指向 `ARCHITECTURE.md` | 小改 |
-| `package.json` | `lint:guard` / `guard:dev` 接线；**移除 `lint:theme`** | 小改 |
-| `.agents/skills/ui-style/SKILL.md` | 修掉过时的 kebab-case，指向新守卫 | 小改 |
-| `scripts/check-theme.mjs` | **删除**（能力并入 design 域）| — |
+| 交付物                                | 说明                                                   | 规模估计 |
+| ------------------------------------- | ------------------------------------------------------ | -------- |
+| `arch.config.mjs`                     | superhive 实例，唯一 import 面（约 60 行）             | ~60 行   |
+| `arch.baseline.json`                  | 存量豁免（生成）                                       | —        |
+| `ARCHITECTURE.md`                     | 本项目实例：目录契约、规则表、怎么跑                   | ~200 行  |
+| `docs/adr/0004-architecture-guard.md` | 决策记录（为何可判定性优先）                           | ~60 行   |
+| `AGENTS.md` 更新                      | 提交前检查 + 指向 `ARCHITECTURE.md`                    | 小改     |
+| `package.json`                        | `lint:guard` / `guard:dev` 接线；**移除 `lint:theme`** | 小改     |
+| `.agents/skills/ui-style/SKILL.md`    | 修掉过时的 kebab-case，指向新守卫                      | 小改     |
+| `scripts/check-theme.mjs`             | **删除**（能力并入 design 域）                         | —        |
 
 ---
 
@@ -859,28 +886,28 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 ### 9.1 结构迁移
 
-| 迁移项 | 内容 |
-|---|---|
+| 迁移项   | 内容                                                                                                                                                                                                                                                                                                                                                  |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 三根拓扑 | `@/api`→`@/shared/api`、`@/components`→`@/shared/components`、`@/hooks`→`@/shared/hooks`、`@/stores`→`@/shared/stores`、`@/theme`→`@/shared/theme`、`@/i18n`→`@/shared/i18n`、`@/config`→`@/shared/config`、`@/lib`→`@/shared/lib`、`@/assets/*.css`→`@/shared/styles/*`、`@/router`→`@/app/router`、`@/layouts`→`@/app/layouts`、`App/main`→`@/app/` |
-| 规模 | 别名 import **116 行 / 38 文件**；`@/modules/*` 零改动；4 处 `../` 消除（机械 codemod + 全量 type-check）|
-| 路由分片 | 新增 `modules/<域>/routes.tsx`；`app/router/index.tsx` 降为 ~15 行聚合 |
-| 唯一出处 | 新增 `shared/config/{paths,storage,env}.ts`；storage key 从 stores/theme/i18n 三处收敛 |
-| i18n | 改为「一命名空间一文件」，两份语言目录同构 |
-| 样式 | `assets/*.css` → `shared/styles/{tokens,vendor}`；`shared/components/ui` 收紧为哑件（`SpaceSwitcher` 等挪 `common/`）|
+| 规模     | 别名 import **116 行 / 38 文件**；`@/modules/*` 零改动；4 处 `../` 消除（机械 codemod + 全量 type-check）                                                                                                                                                                                                                                             |
+| 路由分片 | 新增 `modules/<域>/routes.tsx`；`app/router/index.tsx` 降为 ~15 行聚合                                                                                                                                                                                                                                                                                |
+| 唯一出处 | 新增 `shared/config/{paths,storage,env}.ts`；storage key 从 stores/theme/i18n 三处收敛                                                                                                                                                                                                                                                                |
+| i18n     | 改为「一命名空间一文件」，两份语言目录同构                                                                                                                                                                                                                                                                                                            |
+| 样式     | `assets/*.css` → `shared/styles/{tokens,vendor}`；`shared/components/ui` 收紧为哑件（`SpaceSwitcher` 等挪 `common/`）                                                                                                                                                                                                                                 |
 
 ### 9.2 与旧 `check-theme.mjs` 的对照（零覆盖损失）
 
-| 旧检查 | 新规则 |
-|---|---|
-| 写死颜色 | D01 |
-| 色板唯一出处 / 色值唯一 | D02 / D03 |
-| 引用完整 / 无死令牌 | D04 / D05 |
-| 双主题齐全 | D06 |
-| 对比度基线 | D07 |
-| storage key 一致（index.html）| D08 |
+| 旧检查                                | 新规则    |
+| ------------------------------------- | --------- |
+| 写死颜色                              | D01       |
+| 色板唯一出处 / 色值唯一               | D02 / D03 |
+| 引用完整 / 无死令牌                   | D04 / D05 |
+| 双主题齐全                            | D06       |
+| 对比度基线                            | D07       |
+| storage key 一致（index.html）        | D08       |
 | 禁 `!important` / `.ant-*` 只许两文件 | D09 / D10 |
-| 无框架残留 | D11 + P02 |
-| 中英键一致 / `THEME_MODES` 键 | C03 / C02 |
+| 无框架残留                            | D11 + P02 |
+| 中英键一致 / `THEME_MODES` 键         | C03 / C02 |
 
 **顺带新增覆盖**（旧守卫没查、ui-style 写了但没人执行的）：D12–D15（长度/层级/时长/内联尺寸的魔法数字）、D16（自研样式只在 module.css）、D17（CSS Module 双向契约）、D18（只消费语义令牌）、C01（中文明文）、C02/C06（键存在与死键）。
 
@@ -900,15 +927,15 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 ## 10. 分期
 
-| 阶段 | 内容 | 完成标志 |
-|---|---|---|
-| P0 骨架 | `scan/resolve/node/parse/graph/ctx` + 角色表互斥完备自检 + self-test 框架 + 引擎零项目字面量自检 + UI 组件库适配器加载 + 指纹表 | 在 superhive 上跑通空规则集，耗时 <300ms |
-| P1 L1 规则 | S01–S03、S10、S12、S14、D10、D16、P01–P02、命名与配对 | 违规样例被拦，合规样例不报 |
-| P2 L2 规则 | S11、S13、S16–S17、D01–D03、D06、D09、D11–D15、D17–D18、C01、C04、H01–H10 | 同上 + fixtures 齐全 |
-| P3 L3 规则 | S04–S09、S15、S18、D04–D05、C02–C03、C05–C06、P03 | 依赖图规则全绿 |
-| P4 design 域整合 | 迁移旧守卫 11 条 + 对比度 metric + `--domain=design` 等价验证 | 旧守卫与新守卫结论逐条一致 |
-| P5 接线与迁移 | `lint:guard` 接入、baseline、文档、三根拓扑 codemod、（可选）结构迁移 | `pnpm lint` + `pnpm type-check` 全绿 |
-| P6 可搬运验证 | 引擎复制到最小样例工程跑通并拦住违规 | 样例工程零配置通过，违规被拦 |
+| 阶段             | 内容                                                                                                                            | 完成标志                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| P0 骨架          | `scan/resolve/node/parse/graph/ctx` + 角色表互斥完备自检 + self-test 框架 + 引擎零项目字面量自检 + UI 组件库适配器加载 + 指纹表 | 在 superhive 上跑通空规则集，耗时 <300ms |
+| P1 L1 规则       | S01–S03、S10、S12、S14、D10、D16、P01–P02、命名与配对                                                                           | 违规样例被拦，合规样例不报               |
+| P2 L2 规则       | S11、S13、S16–S17、D01–D03、D06、D09、D11–D15、D17–D18、C01、C04、H01–H10                                                       | 同上 + fixtures 齐全                     |
+| P3 L3 规则       | S04–S09、S15、S18、D04–D05、C02–C03、C05–C06、P03                                                                               | 依赖图规则全绿                           |
+| P4 design 域整合 | 迁移旧守卫 11 条 + 对比度 metric + `--domain=design` 等价验证                                                                   | 旧守卫与新守卫结论逐条一致               |
+| P5 接线与迁移    | `lint:guard` 接入、baseline、文档、三根拓扑 codemod、（可选）结构迁移                                                           | `pnpm lint` + `pnpm type-check` 全绿     |
+| P6 可搬运验证    | 引擎复制到最小样例工程跑通并拦住违规                                                                                            | 样例工程零配置通过，违规被拦             |
 
 ---
 
@@ -926,31 +953,31 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 ## 12. 风险与取舍
 
-| 风险 | 应对 |
-|---|---|
-| 误报毁掉门禁公信力 | 红线只落 L1–L3；每条规则有 fixtures；不确定的降 warn 或不写 |
-| 迁移面大（三根拓扑 116 import）| 机械 codemod + type-check 全量验证；或退成「平铺但同样严格」（代价：域内 import 规则从一句话变回矩阵）|
-| CSS 扫描器覆盖面 | v1 声明支持范围（注释、@规则、块、变量、composes）；超范围（嵌套、`@layer`、CSS-in-JS）走 postcss 适配器 |
-| 规则太严 → 大家刷 baseline | baseline 行哈希 + 只减不增 + 过期条目 warning + diff 必审 |
-| 门禁自身维护成本 | fixtures + 三条元自检，规则改动必须有回归 |
-| 门禁与文档漂移 | 约定即配置：人读 `ARCHITECTURE.md`，机读 `arch.config.mjs`，同源生成 |
+| 风险                            | 应对                                                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 误报毁掉门禁公信力              | 红线只落 L1–L3；每条规则有 fixtures；不确定的降 warn 或不写                                              |
+| 迁移面大（三根拓扑 116 import） | 机械 codemod + type-check 全量验证；或退成「平铺但同样严格」（代价：域内 import 规则从一句话变回矩阵）   |
+| CSS 扫描器覆盖面                | v1 声明支持范围（注释、@规则、块、变量、composes）；超范围（嵌套、`@layer`、CSS-in-JS）走 postcss 适配器 |
+| 规则太严 → 大家刷 baseline      | baseline 行哈希 + 只减不增 + 过期条目 warning + diff 必审                                                |
+| 门禁自身维护成本                | fixtures + 三条元自检，规则改动必须有回归                                                                |
+| 门禁与文档漂移                  | 约定即配置：人读 `ARCHITECTURE.md`，机读 `arch.config.mjs`，同源生成                                     |
 
 ---
 
 ## 13. 待拍板
 
-| # | 问题 | 我的建议 |
-|---|---|---|
-| 1 | 目录拓扑：三根 `app/modules/shared` / 平铺但严格 | 三根（域内 import 规则塌缩成一句话）|
-| 2 | i18n：分片（一命名空间一文件）/ 维持两文件 | 分片（「键属于谁」才能在 L1 判定）|
-| 3 | `check-theme.mjs`：退役并入 / 双跑一段时间 | 退役并入（双跑会让 design 域跑两遍）|
-| 4 | 存量：baseline 棘轮 / 直接修完 | 棘轮（规则不迁就现状，欠债可见可清偿）|
-| 5 | 本轮范围：只交付引擎+配置+文档+baseline / 连结构迁移一起做 | 先交引擎与接线，结构迁移单独一轮（codemod 风险独立评审）|
-| 6 | 是否发 npm 包 | **先做成「可抽取的包形态」**：本体独立在 `tools/arch-guard/`、自带 `package.json`（private）、出口唯一导入面，抽取时只改 config 一行（见 §15）；暂不发布 |
-| 7 | 组件库适配器：只做 `antd` + `none`，还是连 `mui`/`element` 骨架一起给 | 先做 `antd` + `none`（契约已固定，换库 30 行）；骨架按需补 |
-| 8 | 元框架：v1 只 React，还是现在就要 Vue / Svelte；若只 React，是否**现在**就把 pack 边界划出来 | 只 React，但 v1 就划 pack 边界（多约 1 天，将来加 Vue 是加法而非重写，见 §7.5）|
-| 9 | 适配器范围：只做 uiKit / T1 五个 / T1+T2 全给 | T1 五个（uiKit、数据层、路由、样式、i18n）—— 不做的话「可搬运」是假的；T2 留目录与默认值，不阻塞 |
-| 10 | 文档同源：`--render-docs` 管理块 + `--check-docs` CI 校验 / 全手写文档 | 管理块（选型表、目录契约、规则清单都从配置渲染，漂移变红线）|
+| #   | 问题                                                                                         | 我的建议                                                                                                                                                 |
+| --- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 目录拓扑：三根 `app/modules/shared` / 平铺但严格                                             | 三根（域内 import 规则塌缩成一句话）                                                                                                                     |
+| 2   | i18n：分片（一命名空间一文件）/ 维持两文件                                                   | 分片（「键属于谁」才能在 L1 判定）                                                                                                                       |
+| 3   | `check-theme.mjs`：退役并入 / 双跑一段时间                                                   | 退役并入（双跑会让 design 域跑两遍）                                                                                                                     |
+| 4   | 存量：baseline 棘轮 / 直接修完                                                               | 棘轮（规则不迁就现状，欠债可见可清偿）                                                                                                                   |
+| 5   | 本轮范围：只交付引擎+配置+文档+baseline / 连结构迁移一起做                                   | 先交引擎与接线，结构迁移单独一轮（codemod 风险独立评审）                                                                                                 |
+| 6   | 是否发 npm 包                                                                                | **先做成「可抽取的包形态」**：本体独立在 `tools/arch-guard/`、自带 `package.json`（private）、出口唯一导入面，抽取时只改 config 一行（见 §15）；暂不发布 |
+| 7   | 组件库适配器：只做 `antd` + `none`，还是连 `mui`/`element` 骨架一起给                        | 先做 `antd` + `none`（契约已固定，换库 30 行）；骨架按需补                                                                                               |
+| 8   | 元框架：v1 只 React，还是现在就要 Vue / Svelte；若只 React，是否**现在**就把 pack 边界划出来 | 只 React，但 v1 就划 pack 边界（多约 1 天，将来加 Vue 是加法而非重写，见 §7.5）                                                                          |
+| 9   | 适配器范围：只做 uiKit / T1 五个 / T1+T2 全给                                                | T1 五个（uiKit、数据层、路由、样式、i18n）—— 不做的话「可搬运」是假的；T2 留目录与默认值，不阻塞                                                         |
+| 10  | 文档同源：`--render-docs` 管理块 + `--check-docs` CI 校验 / 全手写文档                       | 管理块（选型表、目录契约、规则清单都从配置渲染，漂移变红线）                                                                                             |
 
 ---
 
@@ -964,36 +991,36 @@ Status: 2026-09-23 审核，共 18 项 —— P0 必修 5（R1–R5）、健壮�
 
 ### 14.2 P0 必修（不修则上线即出事）
 
-| ID | 缺陷 | 后果 | 修法 |
-|---|---|---|---|
-| **R1** | **跨域组合没有合法落点**：S05/S06 规定域外只能 import `routes.tsx`，§4.6 又说跨域「由 app 组合」，但 app 也只能 import `routes.tsx` | 真实需求（如 `SessionsPage` 同时要 chat 与 crews）无合法位置 → 逼出绕过：组合逻辑塞进 `shared/components/common`，shared 长成隐形模块层，域边界从内部烂掉 | **域公开面 = `routes.tsx` + `index.ts`**（显式对外契约，禁 `export *`、受体积与导出面上限约束）；跨域组合一律发生在 `app/`；`index.ts` 只许被 `app/**` 引用，域间仍零依赖 |
-| **R2** | **解析失败会静默失去全部检查** | 解析异常若被 catch 后跳过，该文件不受任何规则检查，门禁照样报绿 | **fail closed**：解析失败即文件级 error；引擎自身异常 exit≠0；禁止「跳过并继续」 |
-| **R3** | **与 `pnpm lint` 的 fixer 相互作用**：`run-s "lint:*"` 内含 `oxlint --fix` / `eslint --fix`，而 baseline 锚点是行文本哈希 | fixer 顺手格式化一行 → 豁免失效 → 整仓爆红 | ① 分阶段：`lint` = `run-s lint:fixers lint:guard`（guard 不与 fixer 混跑）；② 锚点改用格式化不敏感的规范化哈希 |
-| **R4** | **豁免通道缺「正当例外」出口**：只有 config 白名单（粗到整文件）与 baseline（语义=存量债）| 合法永久例外（全局错误边界的 `console.error`、第三方类型 bug 的 `@ts-expect-error`）只能塞 baseline → 把「有意为之」记成「欠债」，review 分不清且「只减不增」永远减不掉 | **加第三通道：结构性例外** = 内联注释 + 强制 `reason` + 到期时间；门禁统计并列出每个 PR 新增例外数。把「禁内联豁免」改为「内联豁免必须带理由与期限、且被计数」 |
-| **R5** | **行哈希锚点对多行/文件级违规不成立** | S16（文件 400 行）、S15（孤儿文件）、D05（死令牌）、C06（死键）没有「那一行」| 按规则定义锚点形态：单行→规范化行哈希；文件级→路径 + 违规签名（导出名集合 / 规模档位）；符号级→符号名（令牌名 / 键名）|
+| ID     | 缺陷                                                                                                                                | 后果                                                                                                                                                                    | 修法                                                                                                                                                                      |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **R1** | **跨域组合没有合法落点**：S05/S06 规定域外只能 import `routes.tsx`，§4.6 又说跨域「由 app 组合」，但 app 也只能 import `routes.tsx` | 真实需求（如 `SessionsPage` 同时要 chat 与 crews）无合法位置 → 逼出绕过：组合逻辑塞进 `shared/components/common`，shared 长成隐形模块层，域边界从内部烂掉               | **域公开面 = `routes.tsx` + `index.ts`**（显式对外契约，禁 `export *`、受体积与导出面上限约束）；跨域组合一律发生在 `app/`；`index.ts` 只许被 `app/**` 引用，域间仍零依赖 |
+| **R2** | **解析失败会静默失去全部检查**                                                                                                      | 解析异常若被 catch 后跳过，该文件不受任何规则检查，门禁照样报绿                                                                                                         | **fail closed**：解析失败即文件级 error；引擎自身异常 exit≠0；禁止「跳过并继续」                                                                                          |
+| **R3** | **与 `pnpm lint` 的 fixer 相互作用**：`run-s "lint:*"` 内含 `oxlint --fix` / `eslint --fix`，而 baseline 锚点是行文本哈希           | fixer 顺手格式化一行 → 豁免失效 → 整仓爆红                                                                                                                              | ① 分阶段：`lint` = `run-s lint:fixers lint:guard`（guard 不与 fixer 混跑）；② 锚点改用格式化不敏感的规范化哈希                                                            |
+| **R4** | **豁免通道缺「正当例外」出口**：只有 config 白名单（粗到整文件）与 baseline（语义=存量债）                                          | 合法永久例外（全局错误边界的 `console.error`、第三方类型 bug 的 `@ts-expect-error`）只能塞 baseline → 把「有意为之」记成「欠债」，review 分不清且「只减不增」永远减不掉 | **加第三通道：结构性例外** = 内联注释 + 强制 `reason` + 到期时间；门禁统计并列出每个 PR 新增例外数。把「禁内联豁免」改为「内联豁免必须带理由与期限、且被计数」            |
+| **R5** | **行哈希锚点对多行/文件级违规不成立**                                                                                               | S16（文件 400 行）、S15（孤儿文件）、D05（死令牌）、C06（死键）没有「那一行」                                                                                           | 按规则定义锚点形态：单行→规范化行哈希；文件级→路径 + 违规签名（导出名集合 / 规模档位）；符号级→符号名（令牌名 / 键名）                                                    |
 
 ### 14.3 健壮性缺口
 
-| ID | 缺口 | 后果 | 修法 |
-|---|---|---|---|
-| R6 | 无**豁免域**（生成代码 / 三方 / e2e / 迁移脚本）| 接进第一条生成的 API 代码就把门禁推翻 | `exempt: [{ glob, reason, rules }]` + 生成物必须带 `@generated` 标记（可证伪）|
-| R7 | 无增量与缓存；`run-s lint:*` 每轮全量 | 开发环变慢 → 门禁被关掉 | **已设计见 §6.8**：facts 按文件缓存（键含规则集/配置/ts/适配器版本），图与全局谓词每轮重建；`--changed` / `--staged` / `--since` / `--local-only`；CI 必须 full |
-| R8 | 别名两处来源（tsconfig `paths` vs vite `alias`）| 图解析静默失败 → 孤儿误报/漏报 | 别名唯一出处 + `--check-aliases` |
-| R9 | **规则谓词未全部可执行**（「字面量 const」「纯函数」）| 实现时各写各的 → 误报 | 元规则：每条规则必须给出可执行判据；形容词不许进规则表 |
-| R10 | 引擎自身不在守卫范围内 | 引擎腐化无人管 | 用同一套守卫跑 `tools/arch-guard/**`（自用配置）|
-| R11 | `shared/components/common` 允许 `import type` 契约类型 | 业务语义进 shared，域边界被侵蚀 | 收紧：`common/` 禁 import `shared/api/types` |
-| R12 | 文档生成块的合并冲突与手改成本 | CI 报错难懂、多 agent 冲突 | 只对易漂移小块（选型 / 阈值）生成，其余手写 + 弱校验（引用 ID 存在）|
+| ID  | 缺口                                                   | 后果                                  | 修法                                                                                                                                                            |
+| --- | ------------------------------------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R6  | 无**豁免域**（生成代码 / 三方 / e2e / 迁移脚本）       | 接进第一条生成的 API 代码就把门禁推翻 | `exempt: [{ glob, reason, rules }]` + 生成物必须带 `@generated` 标记（可证伪）                                                                                  |
+| R7  | 无增量与缓存；`run-s lint:*` 每轮全量                  | 开发环变慢 → 门禁被关掉               | **已设计见 §6.8**：facts 按文件缓存（键含规则集/配置/ts/适配器版本），图与全局谓词每轮重建；`--changed` / `--staged` / `--since` / `--local-only`；CI 必须 full |
+| R8  | 别名两处来源（tsconfig `paths` vs vite `alias`）       | 图解析静默失败 → 孤儿误报/漏报        | 别名唯一出处 + `--check-aliases`                                                                                                                                |
+| R9  | **规则谓词未全部可执行**（「字面量 const」「纯函数」） | 实现时各写各的 → 误报                 | 元规则：每条规则必须给出可执行判据；形容词不许进规则表                                                                                                          |
+| R10 | 引擎自身不在守卫范围内                                 | 引擎腐化无人管                        | 用同一套守卫跑 `tools/arch-guard/**`（自用配置）                                                                                                                |
+| R11 | `shared/components/common` 允许 `import type` 契约类型 | 业务语义进 shared，域边界被侵蚀       | 收紧：`common/` 禁 import `shared/api/types`                                                                                                                    |
+| R12 | 文档生成块的合并冲突与手改成本                         | CI 报错难懂、多 agent 冲突            | 只对易漂移小块（选型 / 阈值）生成，其余手写 + 弱校验（引用 ID 存在）                                                                                            |
 
 ### 14.4 可扩展性缺口
 
-| ID | 缺口 | 修法 |
-|---|---|---|
-| E1 | **规则注册契约未定义**（id / domain / level / severity / requires / docs / hint / fixtures）| `defineRule()` + registry 校验：唯一 id、**error 必须 L1–L3**（把核心原则从散文变成代码）、必须有 fixtures 与修法提示 |
-| E2 | 适配器面清单硬编码在引擎 | 面表数据化：`facets.mjs` 声明 `{ name, schema, capabilities }`，加面 = 加一个文件 |
-| E3 | pack 只有职责描述、**没有接口** | 定义 `definePack()` 契约，用 React pack 验证，留 stub pack 做契约测试 |
-| E4 | 只有适配器有 `specVersion` | config / baseline / 规则集 都带版本；不兼容给 codemod 提示而非静默行为变化 |
-| E5 | 无规则退役机制 | `--stats`（每条规则命中数）+ `since`；长期零命中 → warning 提议退役 |
-| E6 | 无机器可读输出、无按需检查 | `--format=json`（供 agent 消费）+ `--changed` |
+| ID  | 缺口                                                                                         | 修法                                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| E1  | **规则注册契约未定义**（id / domain / level / severity / requires / docs / hint / fixtures） | `defineRule()` + registry 校验：唯一 id、**error 必须 L1–L3**（把核心原则从散文变成代码）、必须有 fixtures 与修法提示 |
+| E2  | 适配器面清单硬编码在引擎                                                                     | 面表数据化：`facets.mjs` 声明 `{ name, schema, capabilities }`，加面 = 加一个文件                                     |
+| E3  | pack 只有职责描述、**没有接口**                                                              | 定义 `definePack()` 契约，用 React pack 验证，留 stub pack 做契约测试                                                 |
+| E4  | 只有适配器有 `specVersion`                                                                   | config / baseline / 规则集 都带版本；不兼容给 codemod 提示而非静默行为变化                                            |
+| E5  | 无规则退役机制                                                                               | `--stats`（每条规则命中数）+ `since`；长期零命中 → warning 提议退役                                                   |
+| E6  | 无机器可读输出、无按需检查                                                                   | `--format=json`（供 agent 消费）+ `--changed`                                                                         |
 
 ### 14.5 诚实边界
 
@@ -1036,11 +1063,11 @@ docs/adr/0004-architecture-guard.md← 项目决策记录
 
 ### 15.2 本体自包含：三条可机检的不变式
 
-| ID | 不变式 | 判据 |
-|---|---|---|
-| **P1** | 本体只许 import `node:*`、`typescript`、本体目录内的相对路径 | 本体 import 图；出现 `@/…`、`../..` 出目录、或任何其他第三方包即 error |
-| **P2** | 本体不得出现项目字面量（项目路径、令牌前缀、语言 ID、域名词、组件库名）| 字符串扫描 + 白名单（组件库名只许在 `presets/ui-kits/*`，指纹只许在 `data/**`）|
-| **P3** | 本体只通过 `--config` + `cwd` 获得项目事实 | 代码里不得硬编码 `arch.config.mjs` / `tsconfig.json` / `package.json` 路径 |
+| ID     | 不变式                                                                  | 判据                                                                            |
+| ------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **P1** | 本体只许 import `node:*`、`typescript`、本体目录内的相对路径            | 本体 import 图；出现 `@/…`、`../..` 出目录、或任何其他第三方包即 error          |
+| **P2** | 本体不得出现项目字面量（项目路径、令牌前缀、语言 ID、域名词、组件库名） | 字符串扫描 + 白名单（组件库名只许在 `presets/ui-kits/*`，指纹只许在 `data/**`） |
+| **P3** | 本体只通过 `--config` + `cwd` 获得项目事实                              | 代码里不得硬编码 `arch.config.mjs` / `tsconfig.json` / `package.json` 路径      |
 
 由 `--self-check-portability` 执行，纳入 `--self-test` 与 CI。**这三条是"可抽包"从口号变成事实的关键。**
 
@@ -1058,8 +1085,17 @@ config 只从唯一导入面取东西：
 
 ```js
 // 现在（本仓库内）
-import { canonical, designSystem, copy, deps, hygiene, uiKit, antdKit } from './tools/arch-guard/index.mjs'
+import {
+  canonical,
+  designSystem,
+  copy,
+  deps,
+  hygiene,
+  uiKit,
+  antdKit,
+} from './tools/arch-guard/index.mjs'
 ```
+
 ```js
 // 抽取后（只改 specifier）
 import { canonical, designSystem, copy, deps, hygiene, uiKit, antdKit } from '@arch-guard/core'

@@ -1,6 +1,6 @@
 ---
 name: publish-styles
-description: "当用户需要配置组件库的样式预处理器（Less/Sass）、设置基础样式（Base CSS）、处理样式依赖顺序或配置 PostCSS 时使用。"
+description: '当用户需要配置组件库的样式预处理器（Less/Sass）、设置基础样式（Base CSS）、处理样式依赖顺序或配置 PostCSS 时使用。'
 ---
 
 # 样式处理与构建
@@ -21,7 +21,7 @@ Pagoda CLI 提供了完善的样式处理流水线，支持多种 CSS 预处理�
 CLI 默认使用 Less 作为预处理器。如果需要更改为 Sass/SCSS 或纯 CSS，请在 `pagoda.config.mjs` 中配置：
 
 ```javascript
-import { defineConfig } from '@pagoda-cli/core';
+import { defineConfig } from '@pagoda-cli/core'
 
 export default defineConfig({
   build: {
@@ -29,7 +29,7 @@ export default defineConfig({
       preprocessor: 'scss', // 可选值: 'less' | 'scss' | 'sass' | 'css'
     },
   },
-});
+})
 ```
 
 ### 2. 配置基础样式 (Base Style)
@@ -43,7 +43,7 @@ export default defineConfig({
       base: 'style/common/base.less', // 相对 src 目录的路径
     },
   },
-});
+})
 ```
 
 **基础样式文件结构示例：**
@@ -68,7 +68,7 @@ module.exports = {
     },
     // 可添加其他插件，如 tailwindcss 等
   },
-};
+}
 ```
 
 ## 构建产物与样式依赖
@@ -107,14 +107,16 @@ export default defineConfig({
       'element-plus': {
         styleResolver: {
           // 基础样式路径
-          base: ({ esModule }) => `element-plus/${esModule ? 'es' : 'lib'}/components/base/style/css`,
+          base: ({ esModule }) =>
+            `element-plus/${esModule ? 'es' : 'lib'}/components/base/style/css`,
           // 组件样式路径
-          component: (name, { esModule }) => `element-plus/${esModule ? 'es' : 'lib'}/components/${name}/style/css`,
+          component: (name, { esModule }) =>
+            `element-plus/${esModule ? 'es' : 'lib'}/components/${name}/style/css`,
         },
       },
     },
   },
-});
+})
 ```
 
 **Vant 组件库配置：**
@@ -124,7 +126,7 @@ export default defineConfig({
 export default defineConfig({
   build: {
     thirdPartyComponents: {
-      'vant': {
+      vant: {
         styleResolver: {
           base: () => 'vant/lib/index.css',
           component: (name) => `vant/lib/${name}/style`,
@@ -132,7 +134,7 @@ export default defineConfig({
       },
     },
   },
-});
+})
 ```
 
 ## 最佳实践与注意事项
@@ -141,12 +143,15 @@ export default defineConfig({
    ```vue
    <style lang="less">
    @import '@/style/variables.less';
-   .my-btn { color: @primary-color; }
+   .my-btn {
+     color: @primary-color;
+   }
    </style>
    ```
 2. **样式隔离**：强烈建议在组件开发中使用 `<style scoped>` 或 `<style module>` 防止样式污染。
 
    **CSS Modules 用法**：使用 `<style module>` 后，类名会通过 `$style` 对象访问：
+
    ```vue
    <template>
      <button :class="$style.button">
@@ -176,11 +181,11 @@ module.exports = {
       {
         libraryName: 'my-component-library',
         libraryDirectory: 'es',
-        style: true,  // 自动加载对应组件的样式文件
+        style: true, // 自动加载对应组件的样式文件
       },
     ],
   ],
-};
+}
 ```
 
 ## 常见问题
@@ -191,7 +196,7 @@ A: 在 `site/desktop/style.js`（或 `site/mobile/style.js`）中导入全局样
 
 ```js
 // site/desktop/style.js
-import './style/global.scss';
+import './style/global.scss'
 ```
 
 此文件中的样式会应用到整个文档站。

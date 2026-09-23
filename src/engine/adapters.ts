@@ -21,10 +21,42 @@ const FACET_FIELDS: Record<string, string[]> = {
     'policy',
     'examples',
   ],
-  'data-layer': ['facet', 'id', 'specVersion', 'packages', 'serverState', 'clientState', 'examples'],
-  router: ['facet', 'id', 'specVersion', 'packages', 'mode', 'navigateHooks', 'linkComponent', 'pathProp', 'routesFile', 'pathsModule', 'examples'],
+  'data-layer': [
+    'facet',
+    'id',
+    'specVersion',
+    'packages',
+    'serverState',
+    'clientState',
+    'examples',
+  ],
+  router: [
+    'facet',
+    'id',
+    'specVersion',
+    'packages',
+    'mode',
+    'navigateHooks',
+    'linkComponent',
+    'pathProp',
+    'routesFile',
+    'pathsModule',
+    'examples',
+  ],
   styles: ['facet', 'id', 'specVersion', 'kind', 'modulePattern', 'classAccess', 'examples'],
-  i18n: ['facet', 'id', 'specVersion', 'packages', 'from', 'hook', 'fn', 'resourceDir', 'languages', 'format', 'examples'],
+  i18n: [
+    'facet',
+    'id',
+    'specVersion',
+    'packages',
+    'from',
+    'hook',
+    'fn',
+    'resourceDir',
+    'languages',
+    'format',
+    'examples',
+  ],
 }
 
 export const FACETS = Object.keys(FACET_FIELDS)
@@ -64,7 +96,11 @@ function validatePatterns(value: unknown, field: string, facet: string): void {
   }
 }
 
-function validateExamples(examples: AdapterExamples | undefined, facet: string, spec: Record<string, unknown>): void {
+function validateExamples(
+  examples: AdapterExamples | undefined,
+  facet: string,
+  spec: Record<string, unknown>,
+): void {
   if (!examples) return
   for (const [field, value] of Object.entries(examples)) {
     const sample = value as { hit?: unknown; miss?: unknown }
@@ -77,12 +113,16 @@ function validateExamples(examples: AdapterExamples | undefined, facet: string, 
     const regexes = (patterns as string[]).map((pattern) => new RegExp(pattern))
     for (const sampleText of sample.hit as string[]) {
       if (!regexes.some((regex) => regex.test(sampleText))) {
-        throw new AdapterError(`[${facet}] examples.${field}.hit 与声明不符：${sampleText} 未被任何 pattern 命中`)
+        throw new AdapterError(
+          `[${facet}] examples.${field}.hit 与声明不符：${sampleText} 未被任何 pattern 命中`,
+        )
       }
     }
     for (const sampleText of sample.miss as string[]) {
       if (regexes.some((regex) => regex.test(sampleText))) {
-        throw new AdapterError(`[${facet}] examples.${field}.miss 与声明不符：${sampleText} 被 pattern 命中了`)
+        throw new AdapterError(
+          `[${facet}] examples.${field}.miss 与声明不符：${sampleText} 被 pattern 命中了`,
+        )
       }
     }
   }
@@ -94,16 +134,22 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
   if (!allowed) throw new AdapterError(`未知适配器面：${facet}（可用：${FACETS.join(', ')}）`)
   const unknown = Object.keys(spec).filter((key) => !allowed.includes(key))
   if (unknown.length > 0) {
-    throw new AdapterError(`[${facet}] 未知字段：${unknown.join(', ')}（允许：${allowed.join(', ')}）`)
+    throw new AdapterError(
+      `[${facet}] 未知字段：${unknown.join(', ')}（允许：${allowed.join(', ')}）`,
+    )
   }
-  if (typeof spec.id !== 'string' || spec.id.length === 0) throw new AdapterError(`[${facet}] 缺少 id`)
+  if (typeof spec.id !== 'string' || spec.id.length === 0)
+    throw new AdapterError(`[${facet}] 缺少 id`)
   if (spec.packages !== undefined) assertStringArray(spec.packages, 'packages', facet)
-  if (spec.vendorSelectors !== undefined) validatePatterns(spec.vendorSelectors, 'vendorSelectors', facet)
+  if (spec.vendorSelectors !== undefined)
+    validatePatterns(spec.vendorSelectors, 'vendorSelectors', facet)
   if (spec.vendorVars !== undefined) validatePatterns(spec.vendorVars, 'vendorVars', facet)
-  if (spec.modulePattern !== undefined) validatePatterns([spec.modulePattern], 'modulePattern', facet)
+  if (spec.modulePattern !== undefined)
+    validatePatterns([spec.modulePattern], 'modulePattern', facet)
   if (spec.styleProps !== undefined) assertStringArray(spec.styleProps, 'styleProps', facet)
   if (spec.detachedApis !== undefined) {
-    if (!Array.isArray(spec.detachedApis)) throw new AdapterError(`[${facet}] detachedApis 必须是数组`)
+    if (!Array.isArray(spec.detachedApis))
+      throw new AdapterError(`[${facet}] detachedApis 必须是数组`)
     for (const entry of spec.detachedApis as { from?: unknown; members?: unknown }[]) {
       if (!Array.isArray(entry.from) || !Array.isArray(entry.members)) {
         throw new AdapterError(`[${facet}] detachedApis 每项必须带 from[] 与 members[]`)

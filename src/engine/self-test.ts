@@ -54,7 +54,8 @@ export async function runSelfTest(packageRoot: string, rules: Rule[]): Promise<S
     const expectedSet = new Set(expected.map((entry) => `${entry.rule} ${entry.file}`))
     const actualSet = new Set(actual)
     const missing = [...expectedSet].filter((entry) => !actualSet.has(entry))
-    const extra = expectation.exact === true ? [...actualSet].filter((entry) => !expectedSet.has(entry)) : []
+    const extra =
+      expectation.exact === true ? [...actualSet].filter((entry) => !expectedSet.has(entry)) : []
 
     if (missing.length > 0 || extra.length > 0) {
       const parts: string[] = []

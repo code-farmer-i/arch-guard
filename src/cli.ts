@@ -72,7 +72,10 @@ export function createProgram(): Command {
     .option('--report-only', '只报告，不因 error 退出非零')
     .option('--local-only', 'scope 非全量时允许跳过不可归属的全局违规')
     .option('--self-test', '跑夹具回归（每条规则违规必报 × 合规不报）')
-    .option('--self-check-portability', '检查本体自包含（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设）')
+    .option(
+      '--self-check-portability',
+      '检查本体自包含（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设）',
+    )
     .addHelpText(
       'after',
       `
@@ -119,11 +122,20 @@ export async function run(argv: string[]): Promise<number> {
   if (options.selfCheckPortability) {
     const result = checkPortability(packageRoot)
     if (result.findings.length > 0) {
-      out(color.red(`✖ 本体自包含检查失败：${result.findings.length} 处（检查了 ${result.checked} 个文件）`))
-      for (const item of result.findings) out(`  ${item.file}:${item.line} [${item.rule}] ${item.text}`)
+      out(
+        color.red(
+          `✖ 本体自包含检查失败：${result.findings.length} 处（检查了 ${result.checked} 个文件）`,
+        ),
+      )
+      for (const item of result.findings)
+        out(`  ${item.file}:${item.line} [${item.rule}] ${item.text}`)
       return 1
     }
-    out(color.green(`✔ 本体自包含通过（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设），检查了 ${result.checked} 个文件`))
+    out(
+      color.green(
+        `✔ 本体自包含通过（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设），检查了 ${result.checked} 个文件`,
+      ),
+    )
     return 0
   }
 
@@ -178,7 +190,8 @@ export async function run(argv: string[]): Promise<number> {
 
 // 直接调用（node es/cli.js）时自执行；被 bin/arch-guard.mjs import 时不重复执行。
 // 不用顶层 await —— 顶层 await 会让 CJS 产物无法生成（esbuild 限制）。
-const invokedAsScript = process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+const invokedAsScript =
+  process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 if (invokedAsScript) {
   void run(process.argv.slice(2)).then((code) => {
     process.exitCode = code

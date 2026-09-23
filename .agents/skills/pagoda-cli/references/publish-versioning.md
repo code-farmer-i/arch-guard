@@ -1,6 +1,6 @@
 ---
 name: publish-versioning
-description: "当用户需要发布组件库新版本、管理语义化版本号（如 alpha/beta/rc）、自动生成 CHANGELOG 或在 CI/CD 环境中配置自动发布流程时使用。"
+description: '当用户需要发布组件库新版本、管理语义化版本号（如 alpha/beta/rc）、自动生成 CHANGELOG 或在 CI/CD 环境中配置自动发布流程时使用。'
 ---
 
 # 版本管理与发布流程
@@ -26,6 +26,7 @@ pagoda-cli release
 ```
 
 **Git Tag 命名规则**：
+
 - 单包仓库：`v{version}`（如 `v1.0.0`）
 - Monorepo 子包：`{pkgName}@v{version}`（如 `@pagoda/cli@v1.0.0`）
 
@@ -33,11 +34,11 @@ pagoda-cli release
 
 支持三种预发布类型：
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
+| 类型    | 说明       | 示例            |
+| ------- | ---------- | --------------- |
 | `alpha` | 内部测试版 | `1.0.0-alpha.0` |
-| `beta` | 公开测试版 | `1.0.0-beta.0` |
-| `rc` | 候选发布版 | `1.0.0-rc.0` |
+| `beta`  | 公开测试版 | `1.0.0-beta.0`  |
+| `rc`    | 候选发布版 | `1.0.0-rc.0`    |
 
 当需要发布测试版时，通过 `--tag` 指定 npm 的发布标签（如 beta/rc），这会防止用户使用 `npm install` 默认下载到测试版。
 
@@ -62,26 +63,24 @@ pagoda-cli release --tag rc
 // pagoda.config.mjs
 export default defineConfig({
   hooks: {
-    beforeRelease: [
-      'npm run test',
-      'npm run changelog',
-    ],
+    beforeRelease: ['npm run test', 'npm run changelog'],
   },
-});
+})
 ```
 
 支持的模板变量：
+
 - `${name}` - 包名
 - `${version}` - 发布版本号
 
 ### 4. NPM Tag 与版本安装
 
-| Tag | 说明 |
-|-----|------|
+| Tag      | 说明               |
+| -------- | ------------------ |
 | `latest` | 最新稳定版（默认） |
-| `beta` | 最新测试版 |
-| `rc` | 最新候选版 |
-| `next` | 下一版本 |
+| `beta`   | 最新测试版         |
+| `rc`     | 最新候选版         |
+| `next`   | 下一版本           |
 
 安装不同 Tag 版本：
 
@@ -135,18 +134,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build
         run: npm run build
-      
+
       - name: Publish to NPM
         # 注意：在 CI 环境中通常直接使用 npm publish，而将版本号和 tag 的创建留在本地执行
         run: npm publish
@@ -157,6 +156,7 @@ jobs:
 ## 发布失败与版本回退
 
 如果发布过程中出现网络或权限错误导致失败：
+
 1. **本地回滚**：CLI 会尝试自动回滚 `package.json` 中的版本号。如果创建了错误的 Git 标签，可删除：
    ```bash
    # 删除本地标签

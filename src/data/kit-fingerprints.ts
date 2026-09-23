@@ -11,17 +11,67 @@ export interface KitFingerprint {
 }
 
 export const kitFingerprints: KitFingerprint[] = [
-  { id: 'antd', packages: ['antd', '@ant-design/icons', '@ant-design/x'], selectorPrefixes: ['\\.ant-'], varPrefixes: ['^--ant-'] },
-  { id: 'element-plus', packages: ['element-plus'], selectorPrefixes: ['\\.el-'], varPrefixes: ['^--el-'] },
-  { id: 'mantine', packages: ['@mantine/core'], selectorPrefixes: ['\\.mantine-'], varPrefixes: ['^--mantine-'] },
-  { id: 'chakra', packages: ['@chakra-ui/react'], selectorPrefixes: ['\\.chakra-'], varPrefixes: ['^--chakra-'] },
-  { id: 'arco', packages: ['@arco-design/web-react', '@arco-design/web-vue'], selectorPrefixes: ['\\.arco-'], varPrefixes: ['^--arco-'] },
-  { id: 'semi', packages: ['@douyinfe/semi-ui'], selectorPrefixes: ['\\.semi-'], varPrefixes: ['^--semi-'] },
+  {
+    id: 'antd',
+    packages: ['antd', '@ant-design/icons', '@ant-design/x'],
+    selectorPrefixes: ['\\.ant-'],
+    varPrefixes: ['^--ant-'],
+  },
+  {
+    id: 'element-plus',
+    packages: ['element-plus'],
+    selectorPrefixes: ['\\.el-'],
+    varPrefixes: ['^--el-'],
+  },
+  {
+    id: 'mantine',
+    packages: ['@mantine/core'],
+    selectorPrefixes: ['\\.mantine-'],
+    varPrefixes: ['^--mantine-'],
+  },
+  {
+    id: 'chakra',
+    packages: ['@chakra-ui/react'],
+    selectorPrefixes: ['\\.chakra-'],
+    varPrefixes: ['^--chakra-'],
+  },
+  {
+    id: 'arco',
+    packages: ['@arco-design/web-react', '@arco-design/web-vue'],
+    selectorPrefixes: ['\\.arco-'],
+    varPrefixes: ['^--arco-'],
+  },
+  {
+    id: 'semi',
+    packages: ['@douyinfe/semi-ui'],
+    selectorPrefixes: ['\\.semi-'],
+    varPrefixes: ['^--semi-'],
+  },
   { id: 'naive', packages: ['naive-ui'], selectorPrefixes: ['\\.n-'], varPrefixes: ['^--n-'] },
-  { id: 'mui', packages: ['@mui/material', '@material-ui/core'], selectorPrefixes: ['\\.Mui[A-Z]', '\\.Mui-'], varPrefixes: ['^--mui-'] },
-  { id: 'bootstrap', packages: ['bootstrap', 'react-bootstrap'], selectorPrefixes: ['\\.(btn|card|navbar|container)-'], varPrefixes: ['^--bs-'] },
-  { id: 'tailwind', packages: ['tailwindcss'], selectorPrefixes: ['\\.(flex|grid|p-|m-|text-)'], varPrefixes: ['^--tw-'] },
-  { id: 'styled-components', packages: ['styled-components', '@emotion/styled'], selectorPrefixes: [], varPrefixes: [] },
+  {
+    id: 'mui',
+    packages: ['@mui/material', '@material-ui/core'],
+    selectorPrefixes: ['\\.Mui[A-Z]', '\\.Mui-'],
+    varPrefixes: ['^--mui-'],
+  },
+  {
+    id: 'bootstrap',
+    packages: ['bootstrap', 'react-bootstrap'],
+    selectorPrefixes: ['\\.(btn|card|navbar|container)-'],
+    varPrefixes: ['^--bs-'],
+  },
+  {
+    id: 'tailwind',
+    packages: ['tailwindcss'],
+    selectorPrefixes: ['\\.(flex|grid|p-|m-|text-)'],
+    varPrefixes: ['^--tw-'],
+  },
+  {
+    id: 'styled-components',
+    packages: ['styled-components', '@emotion/styled'],
+    selectorPrefixes: [],
+    varPrefixes: [],
+  },
   { id: 'vue', packages: ['vue', 'vue-router', 'pinia'], selectorPrefixes: [], varPrefixes: [] },
 ]
 

@@ -1,6 +1,6 @@
 ---
 name: publish-modes-formats
-description: "当用户需要决定项目的构建模式（组件库模式 vs 类库模式），配置全局初始化逻辑（`setup.ts`），或了解 ESM、CJS、UMD 产物格式及对应的 `package.json` 配置时使用。"
+description: '当用户需要决定项目的构建模式（组件库模式 vs 类库模式），配置全局初始化逻辑（`setup.ts`），或了解 ESM、CJS、UMD 产物格式及对应的 `package.json` 配置时使用。'
 ---
 
 # 构建模式与产物格式
@@ -19,10 +19,11 @@ CLI 提供两种构建模式：`components`（组件库模式，默认）和 `li
 // pagoda.config.mjs
 export default defineConfig({
   build: { mode: 'components' }, // 默认即为 components
-});
+})
 ```
 
 **核心特性**：
+
 - 自动扫描 `src/` 目录，生成组件的注册入口（包含 `install` 方法）。
 - 自动处理和提取组件的 CSS/Less/Sass 样式。
 - 解析 Markdown 生成用于 IDE 提示的 `web-types.json`。
@@ -32,33 +33,35 @@ export default defineConfig({
 
 ```typescript
 // src/setup.ts
-export * from './helper/utils'; // 额外导出的辅助函数
+export * from './helper/utils' // 额外导出的辅助函数
 
 export default {
   install(app, options) {
     // 注册全局属性或指令
-    app.config.globalProperties.$myConfig = options;
+    app.config.globalProperties.$myConfig = options
   },
-};
+}
 ```
+
 CLI 会自动将此逻辑集成到最终生成的入口文件中。
 
 **工作原理**：CLI 构建时，如果检测到 `setup.ts`，会在自动生成的入口文件 `install` 方法中首先调用 `packageSetup.install(app, options)`，并将其所有导出通过 `export * from './setup'` 重新导出。
 
 **组件识别规则**：CLI 通过以下规则自动扫描 `src/` 目录识别组件：
+
 1. 目录下存在 `index.js`、`index.ts`、`index.vue` 等入口文件
 2. 入口文件包含 `export default`、`export { default }` 或 `defineOptions`
 
 ```ts
 // src/Button/index.ts - 会被识别为组件
-import Button from './index.vue';
-import type { App } from 'vue';
+import Button from './index.vue'
+import type { App } from 'vue'
 
 Button.install = (app: App) => {
-  app.component(Button.name, Button);
-};
+  app.component(Button.name, Button)
+}
 
-export default Button;
+export default Button
 ```
 
 ### 2. 类库模式 (lib)
@@ -69,10 +72,11 @@ export default Button;
 // pagoda.config.mjs
 export default defineConfig({
   build: { mode: 'lib' },
-});
+})
 ```
 
 **核心特性**：
+
 - 跳过 Vue 组件入口生成、样式处理和 Web Types 生成。
 
 ## 产物格式 (Output Formats)
@@ -90,7 +94,7 @@ export default defineConfig({
 ```javascript
 export default defineConfig({
   name: 'my-awesome-lib', // UMD 全局变量将为 window.MyAwesomeLib
-});
+})
 ```
 
 如果不需要 UMD 产物以加快构建速度，可以禁用：
@@ -98,7 +102,7 @@ export default defineConfig({
 ```javascript
 export default defineConfig({
   build: { umd: false },
-});
+})
 ```
 
 ### 自定义文件后缀 (extensions)
@@ -109,11 +113,11 @@ export default defineConfig({
 export default defineConfig({
   build: {
     extensions: {
-      esm: '.mjs',  // ESM 使用 .mjs
-      cjs: '.cjs',  // CJS 使用 .cjs
+      esm: '.mjs', // ESM 使用 .mjs
+      cjs: '.cjs', // CJS 使用 .cjs
     },
   },
-});
+})
 ```
 
 产物结构：
@@ -136,7 +140,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
-});
+})
 ```
 
 产物中会生成对应的 `.map` 文件（如 `my-lib.js.map`、`my-lib.min.js.map`）。
@@ -156,10 +160,7 @@ export default defineConfig({
   "types": "es/index.d.ts",
   "unpkg": "lib/my-component-library.min.js",
   "jsdelivr": "lib/my-component-library.min.js",
-  "files": [
-    "es",
-    "lib"
-  ],
+  "files": ["es", "lib"],
   "exports": {
     ".": {
       "types": "./es/index.d.ts",
@@ -171,10 +172,7 @@ export default defineConfig({
     "./lib/*": "./lib/*",
     "./style.css": "./lib/index.css"
   },
-  "sideEffects": [
-    "**/*.css",
-    "**/*.vue"
-  ]
+  "sideEffects": ["**/*.css", "**/*.vue"]
 }
 ```
 

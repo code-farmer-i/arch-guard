@@ -1,6 +1,6 @@
 ---
 name: advanced-typescript-ide
-description: "当用户需要在组件库项目中配置或解决 TypeScript 相关的类型推导、类型声明（`.d.ts`）自动生成，以及完善 IDE 类型提示时使用。"
+description: '当用户需要在组件库项目中配置或解决 TypeScript 相关的类型推导、类型声明（`.d.ts`）自动生成，以及完善 IDE 类型提示时使用。'
 ---
 
 # TypeScript 支持与 IDE 提示
@@ -44,6 +44,7 @@ Pagoda CLI 提供开箱即用的 TypeScript 支持。为了确保组件库的使
 ```
 
 **关键字段说明：**
+
 - `target: "ESNext"` 与 `module: "ESNext"` 保证输出最新的 ES 语法
 - `moduleResolution: "bundler"` 适配现代打包器（Vite/esbuild）的模块解析
 - `paths` 别名 `"@/*": ["./src/*"]` 允许在项目中使用 `@/Button` 导入组件
@@ -76,39 +77,39 @@ Pagoda CLI 提供开箱即用的 TypeScript 支持。为了确保组件库的使
 ```vue
 <!-- src/Button/index.vue -->
 <script setup lang="ts">
-import type { ButtonProps } from './types';
+import type { ButtonProps } from './types'
 
 const props = withDefaults(defineProps<ButtonProps>(), {
   type: 'default',
   size: 'medium',
   disabled: false,
-});
+})
 </script>
 ```
 
 ```typescript
 // src/Button/types.ts
 export interface ButtonProps {
-  type?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
-  size?: 'small' | 'medium' | 'large';
-  disabled?: boolean;
+  type?: 'default' | 'primary' | 'success' | 'warning' | 'danger'
+  size?: 'small' | 'medium' | 'large'
+  disabled?: boolean
 }
 
 export interface ButtonInstance {
-  props: ButtonProps;
-  focus: () => void;
-  blur: () => void;
+  props: ButtonProps
+  focus: () => void
+  blur: () => void
 }
 ```
 
 ```typescript
 // src/Button/index.ts
-import Button from './index.vue';
-import type { ButtonProps, ButtonInstance } from './types';
+import Button from './index.vue'
+import type { ButtonProps, ButtonInstance } from './types'
 
 // 显式导出组件及其类型
-export { Button, type ButtonProps, type ButtonInstance };
-export default Button;
+export { Button, type ButtonProps, type ButtonInstance }
+export default Button
 ```
 
 ### 3. 配置 package.json 的类型入口
@@ -130,10 +131,7 @@ export default Button;
     },
     "./*": "./*"
   },
-  "files": [
-    "es",
-    "lib"
-  ]
+  "files": ["es", "lib"]
 }
 ```
 
@@ -148,12 +146,12 @@ export default Button;
 declare module 'vue' {
   // Vue 3 全局组件类型声明规范
   export interface GlobalComponents {
-    MyButton: typeof import('my-component-library')['Button'];
-    MyInput: typeof import('my-component-library')['Input'];
+    MyButton: (typeof import('my-component-library'))['Button']
+    MyInput: (typeof import('my-component-library'))['Input']
   }
 }
 
-export {};
+export {}
 ```
 
 使用者可以在其项目的 `tsconfig.json` 中包含此文件，从而获得完整的模板类型支持。
@@ -165,7 +163,7 @@ export {};
 当使用运行时 props 定义（选项式 API）时，用 `ExtractPropTypes` 提取类型供使用者引用：
 
 ```typescript
-import { ExtractPropTypes, PropType } from 'vue';
+import { ExtractPropTypes, PropType } from 'vue'
 
 const buttonProps = {
   type: {
@@ -173,10 +171,10 @@ const buttonProps = {
     default: 'default',
   },
   disabled: Boolean,
-} as const;
+} as const
 
 // 提取出的 ButtonProps 类型为 { type?: 'default' | 'primary' | 'success'; disabled?: boolean }
-export type ButtonProps = ExtractPropTypes<typeof buttonProps>;
+export type ButtonProps = ExtractPropTypes<typeof buttonProps>
 ```
 
 ### InstanceType —— 获取组件实例类型
@@ -184,9 +182,9 @@ export type ButtonProps = ExtractPropTypes<typeof buttonProps>;
 从组件本身推导实例类型，包含 expose 的方法和属性：
 
 ```typescript
-import Button from './Button.vue';
+import Button from './Button.vue'
 
-export type ButtonInstance = InstanceType<typeof Button>;
+export type ButtonInstance = InstanceType<typeof Button>
 ```
 
 ## 全局类型声明的两种模式
@@ -198,10 +196,10 @@ export type ButtonInstance = InstanceType<typeof Button>;
 ```typescript
 // src/global.d.ts
 declare module 'my-component-library' {
-  import type { DefineComponent } from 'vue';
-  
-  export const Button: DefineComponent;
-  export const Input: DefineComponent;
+  import type { DefineComponent } from 'vue'
+
+  export const Button: DefineComponent
+  export const Input: DefineComponent
 }
 ```
 
@@ -209,8 +207,8 @@ declare module 'my-component-library' {
 
 ```typescript
 declare module 'my-component-library/es/*' {
-  import type { DefineComponent } from 'vue';
-  export default DefineComponent;
+  import type { DefineComponent } from 'vue'
+  export default DefineComponent
 }
 ```
 
@@ -225,8 +223,8 @@ declare module 'my-component-library/es/*' {
    - 确保存在对 `.vue` 文件的环境声明（通常在 `env.d.ts` 中）：
      ```typescript
      declare module '*.vue' {
-       import type { DefineComponent } from 'vue';
-       const component: DefineComponent<{}, {}, any>;
-       export default component;
+       import type { DefineComponent } from 'vue'
+       const component: DefineComponent<{}, {}, any>
+       export default component
      }
      ```

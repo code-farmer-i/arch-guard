@@ -24,7 +24,8 @@ const SCRIPT_KIND: Record<string, ts.ScriptKind> = {
 
 export const TS_EXTENSIONS: string[] = Object.keys(SCRIPT_KIND)
 
-const lineOf = (sf: ts.SourceFile, pos: number): number => sf.getLineAndCharacterOfPosition(pos).line + 1
+const lineOf = (sf: ts.SourceFile, pos: number): number =>
+  sf.getLineAndCharacterOfPosition(pos).line + 1
 
 function scriptKindOf(file: string): ts.ScriptKind {
   const dot = file.lastIndexOf('.')
@@ -44,7 +45,12 @@ function collectComments(sf: ts.SourceFile, text: string): PositionedComment[] {
       const key = `${range.pos}:${range.end}`
       if (seen.has(key)) continue
       seen.add(key)
-      out.push({ pos: range.pos, line: lineOf(sf, range.pos), text: text.slice(range.pos, range.end), kind })
+      out.push({
+        pos: range.pos,
+        line: lineOf(sf, range.pos),
+        text: text.slice(range.pos, range.end),
+        kind,
+      })
     }
   }
   const visit = (node: ts.Node): void => {
@@ -150,9 +156,23 @@ export function extractFacts(input: FactInput): Facts {
       }
       const start = lineOf(sf, node.getStart(sf))
       if (!node.exportClause) {
-        facts.exports.push({ name: '*', kind: 're-export', isStar: true, isDefault: false, typeOnly: node.isTypeOnly, line: start })
+        facts.exports.push({
+          name: '*',
+          kind: 're-export',
+          isStar: true,
+          isDefault: false,
+          typeOnly: node.isTypeOnly,
+          line: start,
+        })
       } else if (ts.isNamespaceExport(node.exportClause)) {
-        facts.exports.push({ name: node.exportClause.name.text, kind: 're-export', isStar: false, isDefault: false, typeOnly: node.isTypeOnly, line: start })
+        facts.exports.push({
+          name: node.exportClause.name.text,
+          kind: 're-export',
+          isStar: false,
+          isDefault: false,
+          typeOnly: node.isTypeOnly,
+          line: start,
+        })
       } else {
         for (const element of node.exportClause.elements) {
           facts.exports.push({
@@ -178,14 +198,21 @@ export function extractFacts(input: FactInput): Facts {
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       const argument = node.arguments[0]
       if (argument && ts.isStringLiteral(argument)) {
-        facts.imports.push({ spec: argument.text, line: lineOf(sf, node.getStart(sf)), typeOnly: false, dynamic: true })
+        facts.imports.push({
+          spec: argument.text,
+          line: lineOf(sf, node.getStart(sf)),
+          typeOnly: false,
+          dynamic: true,
+        })
       }
     }
 
     /* ---- 声明型导出 ---- */
     const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined
-    const isExported = modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
-    const isDefaultKeyword = modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) === true
+    const isExported =
+      modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
+    const isDefaultKeyword =
+      modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) === true
     if (isExported || isDefaultKeyword) {
       let kind = 'const'
       let name = 'default'
@@ -207,8 +234,12 @@ export function extractFacts(input: FactInput): Facts {
       } else if (ts.isVariableStatement(node)) {
         const declaration = node.declarationList.declarations[0]
         const initializer = declaration?.initializer
-        kind = initializer && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) ? 'arrow' : 'const'
-        name = declaration?.name && ts.isIdentifier(declaration.name) ? declaration.name.text : 'default'
+        kind =
+          initializer && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer))
+            ? 'arrow'
+            : 'const'
+        name =
+          declaration?.name && ts.isIdentifier(declaration.name) ? declaration.name.text : 'default'
       }
       facts.exports.push({
         name,
@@ -234,7 +265,11 @@ export function extractFacts(input: FactInput): Facts {
       const value = node.text.trim()
       if (value) facts.jsxText.push({ value, line: lineOf(sf, node.getStart(sf)) })
     }
-    if (!facts.hasJsx && (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node))) facts.hasJsx = true
+    if (
+      !facts.hasJsx &&
+      (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node))
+    )
+      facts.hasJsx = true
 
     /* ---- 调用 / debugger ---- */
     if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
@@ -260,24 +295,35 @@ export function extractFacts(input: FactInput): Facts {
     /* ---- 函数体量 ---- */
     let functionInfo: { name: string; start: number; end: number } | null = null
     if (ts.isFunctionDeclaration(node)) {
-      functionInfo = { name: node.name?.text ?? '(anonymous)', start: node.getStart(sf), end: node.getEnd() }
+      functionInfo = {
+        name: node.name?.text ?? '(anonymous)',
+        start: node.getStart(sf),
+        end: node.getEnd(),
+      }
     } else if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
       const parent = node.parent as ts.Node | undefined
       const name = parent && ts.isVariableDeclaration(parent) ? parent.name.getText() : '(fn)'
       functionInfo = { name, start: node.getStart(sf), end: node.getEnd() }
     }
     if (functionInfo) {
-      const body = ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) ? node.body : undefined
+      const body =
+        ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node)
+          ? node.body
+          : undefined
       facts.functions.push({
         name: functionInfo.name,
         line: lineOf(sf, functionInfo.start),
         lines: lineOf(sf, functionInfo.end) - lineOf(sf, functionInfo.start) + 1,
-        isComponent: /^[A-Z]/.test(functionInfo.name) && body !== undefined && ts.isBlock(body) ? containsJsx(body) : false,
+        isComponent:
+          /^[A-Z]/.test(functionInfo.name) && body !== undefined && ts.isBlock(body)
+            ? containsJsx(body)
+            : false,
       })
     }
 
     /* ---- 类型逃生舱 ---- */
-    if (node.kind === ts.SyntaxKind.AnyKeyword) facts.anyNodes.push({ line: lineOf(sf, node.getStart(sf)) })
+    if (node.kind === ts.SyntaxKind.AnyKeyword)
+      facts.anyNodes.push({ line: lineOf(sf, node.getStart(sf)) })
     if (ts.isNonNullExpression(node)) facts.nonNull.push({ line: lineOf(sf, node.getStart(sf)) })
 
     ts.forEachChild(node, visit)

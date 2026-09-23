@@ -1,6 +1,6 @@
 ---
 name: guide-component
-description: "当用户要求开发 Vue 3 组件、新建组件、或询问组件目录结构、开发规范、样式处理、组合式函数、全局配置（setup.ts）时使用。提供完整的 Vue 组件开发规范和最佳实践。"
+description: '当用户要求开发 Vue 3 组件、新建组件、或询问组件目录结构、开发规范、样式处理、组合式函数、全局配置（setup.ts）时使用。提供完整的 Vue 组件开发规范和最佳实践。'
 ---
 
 # Vue 组件开发规范
@@ -43,14 +43,14 @@ src/
 **可执行示例 (`src/button/index.ts`)：**
 
 ```ts
-import Button from './src/button.vue';
-import type { App } from 'vue';
+import Button from './src/button.vue'
+import type { App } from 'vue'
 
 Button.install = (app: App) => {
-  app.component(Button.name || 'my-button', Button);
-};
+  app.component(Button.name || 'my-button', Button)
+}
 
-export default Button;
+export default Button
 ```
 
 ### 3. 组件实现模板
@@ -72,14 +72,14 @@ export default Button;
 <script setup lang="ts">
 defineOptions({
   name: 'MyButton',
-});
+})
 
 const props = withDefaults(
   defineProps<{
-    type?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
-    size?: 'small' | 'medium' | 'large';
-    disabled?: boolean;
-    loading?: boolean;
+    type?: 'default' | 'primary' | 'success' | 'warning' | 'danger'
+    size?: 'small' | 'medium' | 'large'
+    disabled?: boolean
+    loading?: boolean
   }>(),
   {
     type: 'default',
@@ -87,16 +87,16 @@ const props = withDefaults(
     disabled: false,
     loading: false,
   },
-);
+)
 
 const emit = defineEmits<{
-  click: [event: MouseEvent];
-}>();
+  click: [event: MouseEvent]
+}>()
 
 const handleClick = (event: MouseEvent) => {
-  if (props.disabled || props.loading) return;
-  emit('click', event);
-};
+  if (props.disabled || props.loading) return
+  emit('click', event)
+}
 </script>
 ```
 
@@ -105,6 +105,7 @@ const handleClick = (event: MouseEvent) => {
 Pagoda CLI 默认使用 Less，可通过 `build.css.preprocessor` 切换为 SCSS。
 
 **基础样式配置：**
+
 ```js
 // pagoda.config.mjs
 export default defineConfig({
@@ -114,10 +115,11 @@ export default defineConfig({
       base: 'style/common/base.less', // 全局变量/混入，自动注入每个组件
     },
   },
-});
+})
 ```
 
 **基础样式文件示例 (`src/style/common/base.less`)：**
+
 ```less
 @import './variables.less';
 @import './mixins.less';
@@ -129,16 +131,16 @@ export default defineConfig({
 
 ```ts
 // src/composables/useClickOutside.ts
-import { onMounted, onUnmounted, type Ref } from 'vue';
+import { onMounted, onUnmounted, type Ref } from 'vue'
 
 export function useClickOutside(target: Ref<HTMLElement | null>, callback: () => void) {
   const handleClick = (event: MouseEvent) => {
     if (target.value && !target.value.contains(event.target as Node)) {
-      callback();
+      callback()
     }
-  };
-  onMounted(() => document.addEventListener('click', handleClick));
-  onUnmounted(() => document.removeEventListener('click', handleClick));
+  }
+  onMounted(() => document.addEventListener('click', handleClick))
+  onUnmounted(() => document.removeEventListener('click', handleClick))
 }
 ```
 
@@ -150,16 +152,16 @@ export function useClickOutside(target: Ref<HTMLElement | null>, callback: () =>
 
 ```ts
 // 1. 导出额外的公共 API（会被合并到库入口）
-export * from './composables/useClickOutside';
-export const version = '1.0.0';
+export * from './composables/useClickOutside'
+export const version = '1.0.0'
 
 // 2. 默认导出 install 配置
 export default {
   install(app, options) {
-    app.config.globalProperties.$myLib = options;
-    app.provide('config', options);
+    app.config.globalProperties.$myLib = options
+    app.provide('config', options)
   },
-};
+}
 ```
 
 ### 7. 标签前缀配置
@@ -172,7 +174,7 @@ export default defineConfig({
   build: {
     tagPrefix: 'my', // 组件标签变为 <my-button>
   },
-});
+})
 ```
 
 ### 8. 组件命名建议

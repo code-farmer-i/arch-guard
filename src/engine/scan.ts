@@ -24,7 +24,15 @@ function compile(pattern: string): { regex: RegExp; names: string[] } {
   return { regex: new RegExp(source.split(SLOT).join('([^/]+)')), names }
 }
 
-const DEFAULT_SKIP = new Set(['node_modules', 'dist', 'build', 'coverage', '.git', '.turbo', '.arch-guard-cache'])
+const DEFAULT_SKIP = new Set([
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  '.git',
+  '.turbo',
+  '.arch-guard-cache',
+])
 
 export interface ScanResult {
   files: string[]
@@ -53,7 +61,10 @@ export function scanProject(config: Config): ScanResult {
     extensions: [...TS_EXTENSIONS, ...CSS_EXTENSIONS, '.json', '.html'],
   }).map((full) => relOf(root, full))
 
-  const roles: CompiledRole[] = config.roles.map((descriptor) => ({ ...descriptor, ...compile(descriptor.pattern) }))
+  const roles: CompiledRole[] = config.roles.map((descriptor) => ({
+    ...descriptor,
+    ...compile(descriptor.pattern),
+  }))
   const ignore = config.ignore.map(globToRegExp)
   const exempt = config.exempt.map((entry) => ({ ...entry, matcher: globToRegExp(entry.glob) }))
 

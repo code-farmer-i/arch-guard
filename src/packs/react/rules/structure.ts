@@ -22,7 +22,14 @@ export const parseFailClosed: Rule = {
     }),
 }
 
-const finding = (rule: string, file: string, line: number, text: string, hint?: string, global = false): Finding => ({
+const finding = (
+  rule: string,
+  file: string,
+  line: number,
+  text: string,
+  hint?: string,
+  global = false,
+): Finding => ({
   rule,
   file,
   line,
@@ -46,7 +53,14 @@ export const roleTableComplete: Rule = {
     }
     for (const entry of ctx.scan.ambiguous) {
       out.push(
-        finding('S01', entry.rel, 1, `角色歧义：同时命中 ${entry.roles.join(' / ')}`, '角色判据必须互斥，请调整路径', true),
+        finding(
+          'S01',
+          entry.rel,
+          1,
+          `角色歧义：同时命中 ${entry.roles.join(' / ')}`,
+          '角色判据必须互斥，请调整路径',
+          true,
+        ),
       )
     }
     return out
@@ -161,7 +175,9 @@ export const exportShape: Rule = {
     for (const record of ctx.records) {
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
-      const exports = facts.exports.filter((entry) => entry.declared || entry.isStar || entry.kind === 're-export')
+      const exports = facts.exports.filter(
+        (entry) => entry.declared || entry.isStar || entry.kind === 're-export',
+      )
       if (record.slot === 'views' && facts.hasJsx) {
         if (!exports.some((entry) => entry.isDefault)) {
           out.push(finding('S13', record.rel, 1, '页面组件必须 default 导出（路由懒加载依赖它）'))
@@ -170,20 +186,30 @@ export const exportShape: Rule = {
       if (record.slot === 'hooks') {
         for (const entry of exports) {
           if (entry.isDefault || !entry.name.startsWith(ctx.config.naming.hookPrefix)) {
-            out.push(finding('S13', record.rel, entry.line, `hook 模块只允许导出 use*：${entry.name}`))
+            out.push(
+              finding('S13', record.rel, entry.line, `hook 模块只允许导出 use*：${entry.name}`),
+            )
           }
         }
       }
       if (record.slot === 'model') {
         for (const entry of exports) {
           if (!['type', 'interface', 'const', 'enum', 're-export'].includes(entry.kind)) {
-            out.push(finding('S13', record.rel, entry.line, `model 只允许类型与字面量常量：${entry.name}（${entry.kind}）`))
+            out.push(
+              finding(
+                'S13',
+                record.rel,
+                entry.line,
+                `model 只允许类型与字面量常量：${entry.name}（${entry.kind}）`,
+              ),
+            )
           }
         }
       }
       if (record.slot === 'lib') {
         for (const entry of exports) {
-          if (entry.isDefault) out.push(finding('S13', record.rel, entry.line, 'lib 禁止 default 导出'))
+          if (entry.isDefault)
+            out.push(finding('S13', record.rel, entry.line, 'lib 禁止 default 导出'))
         }
         if (facts.hasJsx) out.push(finding('S13', record.rel, 1, 'lib 是纯函数层，不得包含 JSX'))
       }
@@ -204,7 +230,11 @@ export const routesRequired: Rule = {
     const domains = new Map<string, { hasViews: boolean; hasRoutes: boolean; sample: string }>()
     for (const record of ctx.records) {
       if (!record.domain) continue
-      const entry = domains.get(record.domain) ?? { hasViews: false, hasRoutes: false, sample: record.rel }
+      const entry = domains.get(record.domain) ?? {
+        hasViews: false,
+        hasRoutes: false,
+        sample: record.rel,
+      }
       if (record.slot === 'views') entry.hasViews = true
       if (record.slot === 'routes') entry.hasRoutes = true
       domains.set(record.domain, entry)
@@ -256,7 +286,14 @@ export const sizeLimits: Rule = {
       }
       for (const fn of facts.functions) {
         if (fn.isComponent && fn.lines > functionLines) {
-          out.push(finding('S16', record.rel, fn.line, `组件函数 ${fn.name} 有 ${fn.lines} 行，超过上限 ${functionLines}`))
+          out.push(
+            finding(
+              'S16',
+              record.rel,
+              fn.line,
+              `组件函数 ${fn.name} 有 ${fn.lines} 行，超过上限 ${functionLines}`,
+            ),
+          )
         }
       }
     }

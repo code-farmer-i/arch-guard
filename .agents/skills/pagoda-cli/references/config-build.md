@@ -1,6 +1,6 @@
 ---
 name: config-build
-description: "详细说明 `build` 配置项（如产物模式、样式处理、Vite 自定义）。当用户需要调整组件库打包方式、修改 CSS 预处理器或引入第三方库时调用此 skill。"
+description: '详细说明 `build` 配置项（如产物模式、样式处理、Vite 自定义）。当用户需要调整组件库打包方式、修改 CSS 预处理器或引入第三方库时调用此 skill。'
 ---
 
 # build 构建配置
@@ -19,13 +19,13 @@ description: "详细说明 `build` 配置项（如产物模式、样式处理、
 // pagoda.config.mjs
 export default defineConfig({
   build: {
-    mode: 'components',           // 'components' (默认) 生成组件入口和样式; 'lib' 仅编译源码
-    platform: 'browser',          // 目标平台: 'browser' | 'node' | 'neutral'
-    packageManager: 'pnpm',       // 依赖安装和发布使用的包管理器 (npm/yarn/pnpm)
-    srcDir: 'src',                // 指定源码目录
+    mode: 'components', // 'components' (默认) 生成组件入口和样式; 'lib' 仅编译源码
+    platform: 'browser', // 目标平台: 'browser' | 'node' | 'neutral'
+    packageManager: 'pnpm', // 依赖安装和发布使用的包管理器 (npm/yarn/pnpm)
+    srcDir: 'src', // 指定源码目录
     skipInstall: ['heavy-dependency'], // 构建时跳过安装这些依赖
   },
-});
+})
 ```
 
 ### 2. 产物控制
@@ -35,25 +35,25 @@ export default defineConfig({
 ```js
 export default defineConfig({
   build: {
-    umd: true,                    // 是否生成 UMD 产物（供浏览器直接 <script> 引入）
-    bundle: true,                 // 是否将所有组件打包成单个大文件
-    sourcemap: false,             // 是否生成 sourcemap
-    namedExport: true,             // 是否生成具名导出，默认 true
-    vueSfc: true,                 // 是否启用 Vue 单文件组件 (SFC) 编译
-    tagPrefix: 'my',              // 组件标签前缀（用于自动生成的 Web Types 提示）
+    umd: true, // 是否生成 UMD 产物（供浏览器直接 <script> 引入）
+    bundle: true, // 是否将所有组件打包成单个大文件
+    sourcemap: false, // 是否生成 sourcemap
+    namedExport: true, // 是否生成具名导出，默认 true
+    vueSfc: true, // 是否启用 Vue 单文件组件 (SFC) 编译
+    tagPrefix: 'my', // 组件标签前缀（用于自动生成的 Web Types 提示）
   },
-});
+})
 ```
 
 `namedExport` 行为对比：
 
 ```ts
 // namedExport: true — 生成具名导出
-export { Button, Input, Select };
-export default install;
+export { Button, Input, Select }
+export default install
 
 // namedExport: false — 仅生成默认导出
-export default { Button, Input, Select, install };
+export default { Button, Input, Select, install }
 ```
 
 ### 3. 样式处理配置
@@ -64,13 +64,14 @@ export default { Button, Input, Select, install };
 export default defineConfig({
   build: {
     css: {
-      preprocessor: 'less',       // 默认 'less'，支持 'scss'
+      preprocessor: 'less', // 默认 'less'，支持 'scss'
       base: 'style/common/base.less', // 基础样式入口，会被注入到所有组件样式前
-      removeSourceFile: false,    // 构建后是否移除样式源码文件
+      removeSourceFile: false, // 构建后是否移除样式源码文件
     },
   },
-});
+})
 ```
+
 **场景**：如果项目使用 Sass/SCSS，必须显式将 `preprocessor` 改为 `scss` 或 `sass`。
 
 ### 4. 自定义底层构建 (Vite/esbuild/bundleOptions)
@@ -85,15 +86,15 @@ export default defineConfig({
       configure(config, type) {
         if (type === 'site') {
           // 修改文档站开发时的 Vite 配置
-          config.server.port = 8080;
+          config.server.port = 8080
         }
-        return config;
+        return config
       },
     },
     // 文件后缀配置
     extensions: {
       esm: '.mjs',
-      cjs: '.cjs'
+      cjs: '.cjs',
     },
     // esbuild 透传配置
     esbuildOptions: {
@@ -117,17 +118,17 @@ export default defineConfig({
     ],
     // 第三方组件库按需引入配置
     thirdPartyComponents: {
-      'element-plus': { 
+      'element-plus': {
         globalName: 'ElementPlus',
         sourceResolver: (path, { esModule }) => `element-plus/${esModule ? 'es' : 'lib'}/${path}`,
         styleResolver: {
           base: ({ esModule, ext }) => `element-plus/theme-chalk/base.css`,
-          component: (name, { esModule, ext }) => `element-plus/theme-chalk/el-${name}.css`
-        }
-      }
-    }
+          component: (name, { esModule, ext }) => `element-plus/theme-chalk/el-${name}.css`,
+        },
+      },
+    },
   },
-});
+})
 ```
 
 ### 5. 类库模式完整配置示例
@@ -151,5 +152,5 @@ export default defineConfig({
       cjs: '.cjs',
     },
   },
-});
+})
 ```

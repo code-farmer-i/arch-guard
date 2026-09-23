@@ -1,6 +1,12 @@
 import type { Finding, Rule } from '../../../engine/types.js'
 
-const finding = (rule: string, file: string, line: number, text: string, hint?: string): Finding => ({
+const finding = (
+  rule: string,
+  file: string,
+  line: number,
+  text: string,
+  hint?: string,
+): Finding => ({
   rule,
   file,
   line,
@@ -27,8 +33,10 @@ export const noTypeEscape: Rule = {
       const facts = ctx.facts.get(record.rel)
       if (!facts) return []
       const out: Finding[] = []
-      for (const node of facts.anyNodes) out.push(finding('H01', record.rel, node.line, 'any 类型逃生舱'))
-      for (const node of facts.nonNull) out.push(finding('H01', record.rel, node.line, '非空断言 !'))
+      for (const node of facts.anyNodes)
+        out.push(finding('H01', record.rel, node.line, 'any 类型逃生舱'))
+      for (const node of facts.nonNull)
+        out.push(finding('H01', record.rel, node.line, '非空断言 !'))
       for (const comment of facts.comments) {
         const match = comment.text.match(TS_COMMENT)
         if (match) out.push(finding('H01', record.rel, comment.line, `类型逃生舱注释：${match[0]}`))
@@ -51,7 +59,9 @@ export const noSuppression: Rule = {
       if (!facts) return []
       return facts.comments
         .filter((comment) => SUPPRESSION.test(comment.text))
-        .map((comment) => finding('H02', record.rel, comment.line, `禁用注释：${comment.text.trim().slice(0, 60)}`))
+        .map((comment) =>
+          finding('H02', record.rel, comment.line, `禁用注释：${comment.text.trim().slice(0, 60)}`),
+        )
     }),
 }
 
@@ -100,7 +110,9 @@ export const noUnfinishedMarkers: Rule = {
       }
       for (const entry of facts.strings) {
         if (NOT_IMPLEMENTED.test(entry.value)) {
-          out.push(finding('H04', record.rel, entry.line, `未完成占位：${entry.value.slice(0, 40)}`))
+          out.push(
+            finding('H04', record.rel, entry.line, `未完成占位：${entry.value.slice(0, 40)}`),
+          )
         }
       }
       return out
@@ -125,4 +137,10 @@ export const noSwallowedError: Rule = {
     }),
 }
 
-export const hygieneRules: Rule[] = [noTypeEscape, noSuppression, noDebugLeftovers, noUnfinishedMarkers, noSwallowedError]
+export const hygieneRules: Rule[] = [
+  noTypeEscape,
+  noSuppression,
+  noDebugLeftovers,
+  noUnfinishedMarkers,
+  noSwallowedError,
+]

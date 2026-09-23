@@ -10,7 +10,10 @@ export interface WalkOptions {
 }
 
 /** 目录遍历：跳过忽略项，按扩展名收文件 */
-export function walk(dir: string, { skip = new Set<string>(), extensions = null }: WalkOptions = {}): string[] {
+export function walk(
+  dir: string,
+  { skip = new Set<string>(), extensions = null }: WalkOptions = {},
+): string[] {
   const out: string[] = []
   const visit = (current: string): void => {
     let entries: string[]
@@ -84,7 +87,11 @@ export function sha1(text: string): string {
 
 /** 棘轮锚点：对格式化不敏感（去首尾空白、压缩内部空白） */
 export function anchorOf(lineText: string | undefined): string {
-  return sha1(String(lineText ?? '').trim().replace(/\s+/g, ' '))
+  return sha1(
+    String(lineText ?? '')
+      .trim()
+      .replace(/\s+/g, ' '),
+  )
 }
 
 export function readText(file: string): string {

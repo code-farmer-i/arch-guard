@@ -7,7 +7,12 @@ import { applyBaseline, anchorOf, runGuard, reactRules } from '../es/index.js'
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 const run = (fixture, options = {}) =>
-  runGuard({ cwd: `${PACKAGE_ROOT}__fixtures__/${fixture}`, rules: reactRules, quiet: true, ...options })
+  runGuard({
+    cwd: `${PACKAGE_ROOT}__fixtures__/${fixture}`,
+    rules: reactRules,
+    quiet: true,
+    ...options,
+  })
 
 test('合规夹具：零误报', async () => {
   const result = await run('clean')
@@ -60,7 +65,9 @@ test('棘轮：豁免按行文本锁定，改掉那一行豁免即失效', () =>
   const findings = [{ rule: 'H03', file: 'a.ts', line: 1, text: 'console' }]
   const baseline = {
     version: 1,
-    entries: [{ rule: 'H03', file: 'a.ts', anchor: anchorOf("console.log('x')"), anchorKind: 'line' }],
+    entries: [
+      { rule: 'H03', file: 'a.ts', anchor: anchorOf("console.log('x')"), anchorKind: 'line' },
+    ],
   }
   const same = applyBaseline(findings, baseline, () => "console.log('x')")
   assert.equal(same.active.length, 0)
@@ -73,7 +80,10 @@ test('棘轮：豁免按行文本锁定，改掉那一行豁免即失效', () =>
 
 test('scope=changed 不会丢掉不可归属的全局违规（防假绿）', async () => {
   const result = await run('violations', { scope: 'changed' })
-  assert.ok(result.active.some((finding) => finding.global), '全局违规必须保留')
+  assert.ok(
+    result.active.some((finding) => finding.global),
+    '全局违规必须保留',
+  )
   assert.ok(result.all.length > 0)
 })
 

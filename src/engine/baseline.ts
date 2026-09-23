@@ -35,16 +35,28 @@ export function loadBaseline(path: string): BaselineFile {
 
 export function saveBaseline(path: string, entries: BaselineEntry[]): void {
   const sorted = [...entries].sort(
-    (a, b) => a.rule.localeCompare(b.rule) || a.file.localeCompare(b.file) || a.anchor.localeCompare(b.anchor),
+    (a, b) =>
+      a.rule.localeCompare(b.rule) ||
+      a.file.localeCompare(b.file) ||
+      a.anchor.localeCompare(b.anchor),
   )
   writeFileSync(path, `${JSON.stringify({ version: 1, entries: sorted }, null, 2)}\n`, 'utf8')
 }
 
-export function anchorFor(finding: Finding, sourceOf: (rel: string) => string | undefined): BaselineEntry {
+export function anchorFor(
+  finding: Finding,
+  sourceOf: (rel: string) => string | undefined,
+): BaselineEntry {
   const anchorKind = finding.anchorKind ?? 'line'
-  if (finding.anchor) return { rule: finding.rule, file: finding.file, anchor: finding.anchor, anchorKind }
+  if (finding.anchor)
+    return { rule: finding.rule, file: finding.file, anchor: finding.anchor, anchorKind }
   if (anchorKind === 'file') {
-    return { rule: finding.rule, file: finding.file, anchor: sha1(finding.file), anchorKind: 'file' }
+    return {
+      rule: finding.rule,
+      file: finding.file,
+      anchor: sha1(finding.file),
+      anchorKind: 'file',
+    }
   }
   const line = sourceOf(finding.file)?.split('\n')[finding.line - 1]
   return { rule: finding.rule, file: finding.file, anchor: anchorOf(line), anchorKind }
@@ -56,7 +68,11 @@ export interface BaselineSplit {
   unused: BaselineEntry[]
 }
 
-export function applyBaseline(findings: Finding[], baseline: BaselineFile, sourceOf: (rel: string) => string | undefined): BaselineSplit {
+export function applyBaseline(
+  findings: Finding[],
+  baseline: BaselineFile,
+  sourceOf: (rel: string) => string | undefined,
+): BaselineSplit {
   const remaining = new Map<string, BaselineEntry[]>()
   for (const entry of baseline.entries) {
     const key = `${entry.rule}|${entry.file}`
@@ -86,7 +102,10 @@ export function applyBaseline(findings: Finding[], baseline: BaselineFile, sourc
   return { active, exempted, unused }
 }
 
-export function entriesFromFindings(findings: Finding[], sourceOf: (rel: string) => string | undefined): BaselineEntry[] {
+export function entriesFromFindings(
+  findings: Finding[],
+  sourceOf: (rel: string) => string | undefined,
+): BaselineEntry[] {
   const seen = new Set<string>()
   const entries: BaselineEntry[] = []
   for (const finding of findings) {

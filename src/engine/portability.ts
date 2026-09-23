@@ -63,7 +63,13 @@ export function checkPortability(packageRoot: string): PortabilityResult {
         })
       }
       if (literal.value.includes('/Users/')) {
-        findings.push({ rule: 'P2', file: rel, line: literal.line, text: '本体里出现绝对路径', global: true })
+        findings.push({
+          rule: 'P2',
+          file: rel,
+          line: literal.line,
+          text: '本体里出现绝对路径',
+          global: true,
+        })
       }
       if (rel.startsWith('src/engine/') && literal.value.startsWith('src/')) {
         findings.push({

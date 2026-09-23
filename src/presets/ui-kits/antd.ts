@@ -31,7 +31,13 @@ export function antdKit(): UiKitAdapter {
     themeIntegration: { css: 'src/shared/styles/vendor', js: ['src/shared/theme/antdTheme.ts'] },
     policy: {
       componentLadder: ['antd', '@ant-design/x', 'shared/components/ui', '一次性内联'],
-      overrideLadder: ['theme.components', 'vendor/antd-vars.css', '作用域变量', 'CSS Module', 'inline style'],
+      overrideLadder: [
+        'theme.components',
+        'vendor/antd-vars.css',
+        '作用域变量',
+        'CSS Module',
+        'inline style',
+      ],
     },
     examples: {
       vendorSelectors: { hit: ['.ant-btn', '.ant-table-cell'], miss: ['.my-card', '.sh-panel'] },

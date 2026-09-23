@@ -1,6 +1,6 @@
 ---
 name: config-nav
-description: "详细说明文档站的顶部和侧边栏导航配置（site.nav）。当用户需要添加新页面、重组文档目录树或调整菜单结构时调用此 skill。"
+description: '详细说明文档站的顶部和侧边栏导航配置（site.nav）。当用户需要添加新页面、重组文档目录树或调整菜单结构时调用此 skill。'
 ---
 
 # 导航配置 (Navigation)
@@ -22,7 +22,7 @@ export default defineConfig({
     nav: [
       // 1. 简单的顶级页面节点
       { title: '更新日志', view: 'changelog' },
-      
+
       // 2. 带有侧边栏的顶部导航分组
       {
         title: '指南',
@@ -31,7 +31,7 @@ export default defineConfig({
           { title: '快速上手', view: 'guide/quickstart' },
         ],
       },
-      
+
       // 3. 嵌套多级的组件导航分组
       {
         title: '组件',
@@ -42,12 +42,12 @@ export default defineConfig({
               { title: 'Button 按钮', view: 'button' },
               { title: 'Icon 图标', view: 'icon' },
             ],
-          }
+          },
         ],
       },
     ],
   },
-});
+})
 ```
 
 ### 2. 导航项属性 (PagodaCliSiteNavItem)
@@ -56,11 +56,11 @@ export default defineConfig({
 
 ```ts
 interface PagodaCliSiteNavItem {
-  title?: string;              // 必填：菜单中显示的标题文本
-  view?: string;               // 页面节点必填：映射到 site/desktop/views 目录下的 Markdown 文件路径
-  items?: PagodaCliSiteNavItem[]; // 分组节点必填：子菜单数组
-  hideInDesktop?: boolean;     // 仅在移动端显示，桌面端隐藏
-  hideInMobile?: boolean;      // 仅在桌面端显示，移动端隐藏
+  title?: string // 必填：菜单中显示的标题文本
+  view?: string // 页面节点必填：映射到 site/desktop/views 目录下的 Markdown 文件路径
+  items?: PagodaCliSiteNavItem[] // 分组节点必填：子菜单数组
+  hideInDesktop?: boolean // 仅在移动端显示，桌面端隐藏
+  hideInMobile?: boolean // 仅在桌面端显示，移动端隐藏
 }
 ```
 
@@ -68,11 +68,11 @@ interface PagodaCliSiteNavItem {
 
 `view` 的值直接对应文件系统的目录结构，这是非常关键的机制。
 
-| view 值 | 对应文件 |
-|----------|----------|
-| `development/basics/introduction` | `site/desktop/views/development/basics/introduction.md` |
-| `changelog` | `site/desktop/views/changelog.md` |
-| `button` | `src/Button/README.md`（默认组件路径）或 `site/desktop/views/button.md` |
+| view 值                           | 对应文件                                                                |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `development/basics/introduction` | `site/desktop/views/development/basics/introduction.md`                 |
+| `changelog`                       | `site/desktop/views/changelog.md`                                       |
+| `button`                          | `src/Button/README.md`（默认组件路径）或 `site/desktop/views/button.md` |
 
 **注意**：`view` 属性的值不应包含 `.md` 后缀。
 
@@ -85,7 +85,7 @@ export default defineConfig({
   site: {
     docsRoot: 'components', // 默认值，view: 'button' -> /components/button
   },
-});
+})
 ```
 
 修改为其他前缀：
@@ -95,7 +95,7 @@ export default defineConfig({
   site: {
     docsRoot: 'development', // view: 'button' -> /development/button
   },
-});
+})
 ```
 
 ### 5. `defaultRoute` 默认路由
@@ -107,7 +107,7 @@ export default defineConfig({
   site: {
     defaultRoute: '/guide/quickstart',
   },
-});
+})
 ```
 
 ### 6. 外链与版本切换
@@ -124,7 +124,7 @@ export default defineConfig({
       { label: 'Mobile', link: 'https://mobile.example.com' },
     ],
   },
-});
+})
 ```
 
 #### versions 版本切换
@@ -137,7 +137,7 @@ export default defineConfig({
       { label: 'v1.x', link: 'https://v1.example.com' },
     ],
   },
-});
+})
 ```
 
 ### 7. 组件文档自动识别
@@ -170,12 +170,12 @@ export default defineConfig({
   site: {
     locales: {
       'zh-CN': {
-        nav: [ { title: '指南', view: 'guide/intro' } ]
+        nav: [{ title: '指南', view: 'guide/intro' }],
       },
       'en-US': {
-        nav: [ { title: 'Guide', view: 'guide/intro' } ]
-      }
-    }
-  }
-});
+        nav: [{ title: 'Guide', view: 'guide/intro' }],
+      },
+    },
+  },
+})
 ```

@@ -32,7 +32,12 @@ function candidatesFor(target: string): string[] {
 }
 
 /** 别名与相对路径解析；解析不到的项目内路径返回 null（第三方包单独记录） */
-export function resolveSpecifier(spec: string, fromRel: string, config: Config, fileSet: Set<string>): string | null {
+export function resolveSpecifier(
+  spec: string,
+  fromRel: string,
+  config: Config,
+  fileSet: Set<string>,
+): string | null {
   const clean = spec.split('?')[0]?.split('#')[0] ?? spec
   let target: string | null = null
 
@@ -120,7 +125,9 @@ export function buildGraph(input: BuildGraphInput): Graph {
   }
 
   const reachable = computeReachable(input.entries ?? config.entries, edges, importers, files)
-  const orphaned = files.filter((rel) => !reachable.has(rel) && !rel.endsWith('.html') && !rel.endsWith('.json'))
+  const orphaned = files.filter(
+    (rel) => !reachable.has(rel) && !rel.endsWith('.html') && !rel.endsWith('.json'),
+  )
   const cycles = findCycles(edges)
 
   return { edges, importers, externals, unresolved, reachable, orphaned, cycles }

@@ -1,6 +1,6 @@
 ---
 name: advanced-web-types
-description: "当用户希望为 Vue 组件库生成供 WebStorm 和 VS Code 使用的智能提示（Web Types）文件时使用。介绍如何配置标签前缀以及通过规范 Markdown 表格自动提取组件 API。"
+description: '当用户希望为 Vue 组件库生成供 WebStorm 和 VS Code 使用的智能提示（Web Types）文件时使用。介绍如何配置标签前缀以及通过规范 Markdown 表格自动提取组件 API。'
 ---
 
 # Web Types 智能提示
@@ -20,6 +20,7 @@ CLI 提取 Web Types 元数据的唯一来源是组件目录下的 `README.md`�
 
 ```markdown
 <!-- src/Button/README.md -->
+
 # Button 按钮
 
 ## API
@@ -28,23 +29,23 @@ CLI 提取 Web Types 元数据的唯一来源是组件目录下的 `README.md`�
 
 ### Props
 
-| 参数 | 说明 | 类型 | 默认值 |
-|------|------|------|--------|
-| type | 按钮类型 | `'default' \| 'primary' \| 'success'` | `'default'` |
-| disabled | 是否禁用 | `boolean` | `false` |
+| 参数     | 说明     | 类型                                  | 默认值      |
+| -------- | -------- | ------------------------------------- | ----------- |
+| type     | 按钮类型 | `'default' \| 'primary' \| 'success'` | `'default'` |
+| disabled | 是否禁用 | `boolean`                             | `false`     |
 
 ### Events
 
-| 事件名 | 说明 | 回调参数 |
-|--------|------|----------|
-| click | 点击按钮时触发 | `(event: MouseEvent)` |
+| 事件名 | 说明           | 回调参数              |
+| ------ | -------------- | --------------------- |
+| click  | 点击按钮时触发 | `(event: MouseEvent)` |
 
 ### Slots
 
-| 插槽名 | 说明 |
-|--------|------|
+| 插槽名  | 说明     |
+| ------- | -------- |
 | default | 按钮内容 |
-| icon | 图标插槽 |
+| icon    | 图标插槽 |
 ```
 
 > **关键规则**：表头前的标题必须严格匹配 `### Props`、`### Events` 或 `### Slots`。CLI 解析器依赖这些固定的标题来分类提取数据。
@@ -55,15 +56,15 @@ CLI 提取 Web Types 元数据的唯一来源是组件目录下的 `README.md`�
 
 ```javascript
 // pagoda.config.mjs
-import { defineConfig } from '@pagoda-cli/core';
+import { defineConfig } from '@pagoda-cli/core'
 
 export default defineConfig({
   name: 'my-component-library',
   build: {
     // 自动为所有组件加上 `my-` 前缀用于模板提示
-    tagPrefix: 'my', 
+    tagPrefix: 'my',
   },
-});
+})
 ```
 
 ### 3. 配置 package.json 以生效提示
@@ -148,6 +149,7 @@ export default defineConfig({
 ```
 
 **结构要点：**
+
 - `attributes[].value.kind` 为 `"enum"` 时，`enum` 数组列出所有可选值，`default` 指定默认值
 - `attributes[].value.kind` 为 `"boolean"` 或 `"string"`（普通类型）时，`default` 为字符串形式
 - 每个标签包含 `attributes`（Props）、`events`（Events）、`slots`（Slots）三个数组

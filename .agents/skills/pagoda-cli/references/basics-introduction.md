@@ -1,6 +1,6 @@
 ---
 name: basics-introduction
-description: "介绍 Pagoda CLI 的核心特性、适用场景与优势。当用户询问什么是 Pagoda CLI、它能做什么或是否适合当前项目时调用此 skill。"
+description: '介绍 Pagoda CLI 的核心特性、适用场景与优势。当用户询问什么是 Pagoda CLI、它能做什么或是否适合当前项目时调用此 skill。'
 ---
 
 # Pagoda CLI 简介
@@ -20,19 +20,21 @@ Pagoda CLI 是一个专为 Vue 3 组件库开发设计的现代化构建工具�
 
 ### 技术栈
 
-| 技术 | 用途 |
-|------|------|
-| [Vite](https://vitejs.dev/) | 构建工具核心 |
-| [esbuild](https://esbuild.github.io/) | 快速代码编译 |
-| [Vue 3](https://vuejs.org/) | 文档站框架 |
-| [Vue Router](https://router.vuejs.org/) | 文档站路由 |
-| [Element Plus](https://element-plus.org/) | 文档站 UI 组件 |
+| 技术                                                                       | 用途                     |
+| -------------------------------------------------------------------------- | ------------------------ |
+| [Vite](https://vitejs.dev/)                                                | 构建工具核心             |
+| [esbuild](https://esbuild.github.io/)                                      | 快速代码编译             |
+| [Vue 3](https://vuejs.org/)                                                | 文档站框架               |
+| [Vue Router](https://router.vuejs.org/)                                    | 文档站路由               |
+| [Element Plus](https://element-plus.org/)                                  | 文档站 UI 组件           |
 | [unplugin-vue-markdown](https://github.com/unplugin/unplugin-vue-markdown) | Markdown 编译为 Vue 组件 |
 
 ### 2. 适用场景分析
 
 #### 场景 A：开发 Vue 3 UI 组件库
+
 如果你需要从零开发一个 Vue 3 组件库，Pagoda CLI 提供了最完整的闭环方案。
+
 ```bash
 # 开发文档站点及组件
 pagoda-cli site
@@ -43,26 +45,33 @@ pagoda-cli build
 # 一键发布
 pagoda-cli release
 ```
+
 **原因**：内置了文档站与移动端模拟器，极大降低了组件库工程化配置的成本。
 
 #### 场景 B：开发纯 JavaScript/TypeScript 类库
+
 对于无需 UI 组件的纯函数库，同样适用。
+
 ```js
 // pagoda.config.mjs
 export default defineConfig({
   build: {
     mode: 'lib', // 切换为纯类库构建模式
   },
-});
+})
 ```
+
 **原因**：可以复用其多模块格式打包能力（ESM/CJS/UMD）及快速编译特性。
 
 #### 场景 C：为现有组件库搭建文档站
+
 如果已有代码产物，仅需文档能力：
+
 ```bash
 # 构建文档静态站点
 pagoda-cli build-site
 ```
+
 **原因**：开箱即用的 Vitepress 替代方案，尤其适合需要移动端模拟器的 UI 库。
 
 ### 3. 与其他工具的对比（为什么选择 Pagoda CLI？）

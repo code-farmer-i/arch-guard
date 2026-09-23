@@ -1,6 +1,6 @@
 ---
 name: config-theme
-description: "提供文档站 CSS 变量和主题定制指南。当用户需要修改文档站主色调、文本颜色、字号、间距、圆角、层级或代码高亮样式时调用此 skill。覆盖 100+ 个可定制变量。"
+description: '提供文档站 CSS 变量和主题定制指南。当用户需要修改文档站主色调、文本颜色、字号、间距、圆角、层级或代码高亮样式时调用此 skill。覆盖 100+ 个可定制变量。'
 ---
 
 # 主题定制 (Theme)
@@ -114,13 +114,13 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 
 ```css
 :root {
-  --pd-doc-font-size-xs: 11px;    /* 版本标签等极小文字 */
-  --pd-doc-font-size-sm: 13px;    /* 表格、代码块 */
-  --pd-doc-font-size-base: 14px;  /* 正文、h5 */
-  --pd-doc-font-size-md: 16px;    /* h3、h4、Alert 标题 */
-  --pd-doc-font-size-lg: 20px;    /* h2 */
-  --pd-doc-font-size-xl: 22px;    /* Header 标题 */
-  --pd-doc-font-size-xxl: 28px;   /* h1 */
+  --pd-doc-font-size-xs: 11px; /* 版本标签等极小文字 */
+  --pd-doc-font-size-sm: 13px; /* 表格、代码块 */
+  --pd-doc-font-size-base: 14px; /* 正文、h5 */
+  --pd-doc-font-size-md: 16px; /* h3、h4、Alert 标题 */
+  --pd-doc-font-size-lg: 20px; /* h2 */
+  --pd-doc-font-size-xl: 22px; /* Header 标题 */
+  --pd-doc-font-size-xxl: 28px; /* h1 */
 }
 ```
 
@@ -128,12 +128,12 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 
 ```css
 :root {
-  --pd-doc-line-height-tight: 20px;    /* 紧凑 */
-  --pd-doc-line-height-base: 24px;     /* 正文、h4 */
-  --pd-doc-line-height-relaxed: 28px;  /* p、h3 */
-  --pd-doc-line-height-loose: 32px;    /* h2 */
-  --pd-doc-line-height-xl: 40px;       /* h1 */
-  --pd-doc-line-height-code: 1.7;      /* 代码块 */
+  --pd-doc-line-height-tight: 20px; /* 紧凑 */
+  --pd-doc-line-height-base: 24px; /* 正文、h4 */
+  --pd-doc-line-height-relaxed: 28px; /* p、h3 */
+  --pd-doc-line-height-loose: 32px; /* h2 */
+  --pd-doc-line-height-xl: 40px; /* h1 */
+  --pd-doc-line-height-code: 1.7; /* 代码块 */
 }
 ```
 
@@ -143,10 +143,10 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 :root {
   --pd-doc-font-weight-normal: 400;
   --pd-doc-font-weight-medium: 500;
-  --pd-doc-font-weight-semibold: 600;  /* 标题、表头 */
+  --pd-doc-font-weight-semibold: 600; /* 标题、表头 */
   --pd-doc-font-weight-bold: 700;
 
-  --pd-doc-letter-spacing-tight: -0.02em;    /* h1、h2 */
+  --pd-doc-letter-spacing-tight: -0.02em; /* h1、h2 */
   --pd-doc-letter-spacing-tighter: -0.015em; /* h3 */
   --pd-doc-letter-spacing-normal: 0;
 }
@@ -179,9 +179,9 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 
 ```css
 :root {
-  --pd-doc-border-radius-sm: 4px;     /* code 标签、blockquote */
-  --pd-doc-border-radius-md: 8px;     /* 图片、Alert、代码块容器 */
-  --pd-doc-border-radius-lg: 20px;    /* 版本标签 */
+  --pd-doc-border-radius-sm: 4px; /* code 标签、blockquote */
+  --pd-doc-border-radius-md: 8px; /* 图片、Alert、代码块容器 */
+  --pd-doc-border-radius-lg: 20px; /* 版本标签 */
   --pd-doc-border-radius-full: 999px; /* 导航项、按钮 */
 }
 ```
@@ -192,9 +192,9 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 
 ```css
 :root {
-  --pd-doc-transition-duration-fast: 0.2s;  /* 导航 hover */
+  --pd-doc-transition-duration-fast: 0.2s; /* 导航 hover */
   --pd-doc-transition-duration-base: 0.25s; /* 链接、标题锚点 */
-  --pd-doc-transition-duration-slow: 0.3s;  /* 移动端导航、浮层 */
+  --pd-doc-transition-duration-slow: 0.3s; /* 移动端导航、浮层 */
 }
 ```
 
@@ -206,13 +206,13 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 
 ```css
 :root {
-  --pd-doc-z-index-base: 1;       /* 代码块操作按钮 */
-  --pd-doc-z-index-content: 9;    /* TOC / Simulator 区域 */
-  --pd-doc-z-index-dropdown: 10;  /* Demo 底部控制条 */
-  --pd-doc-z-index-overlay: 98;   /* NavScreen / SimulatorScreen */
-  --pd-doc-z-index-nav-bar: 99;   /* MobileNavBar */
+  --pd-doc-z-index-base: 1; /* 代码块操作按钮 */
+  --pd-doc-z-index-content: 9; /* TOC / Simulator 区域 */
+  --pd-doc-z-index-dropdown: 10; /* Demo 底部控制条 */
+  --pd-doc-z-index-overlay: 98; /* NavScreen / SimulatorScreen */
+  --pd-doc-z-index-nav-bar: 99; /* MobileNavBar */
   --pd-doc-z-index-demo-nav: 100; /* 移动端 Demo 导航 */
-  --pd-doc-z-index-header: 999;   /* 桌面端 Header */
+  --pd-doc-z-index-header: 999; /* 桌面端 Header */
 }
 ```
 
@@ -475,11 +475,11 @@ markdow.scss / Vue 组件       ← 实际样式消费（组件只消费第 3 �
 
 ```javascript
 // site/desktop/style.js
-import './style/css-vars.scss';   // 或自定义 var 文件
-import './style/index.scss';
+import './style/css-vars.scss' // 或自定义 var 文件
+import './style/index.scss'
 
 // site/mobile/style.js
-import './style/css-vars.scss';
+import './style/css-vars.scss'
 ```
 
 > **最佳实践**：修改时尽量只覆盖顶层基础令牌（如 `--pd-doc-space-*`、`--pd-doc-font-size-*`），Markdown 专项变量会自动继承新值，保持整体视觉一致性。

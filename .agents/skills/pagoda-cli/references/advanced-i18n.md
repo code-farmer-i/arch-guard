@@ -1,6 +1,6 @@
 ---
 name: advanced-i18n
-description: "配置文档站和组件的多语言（如中英文）支持。当用户需要实现国际化、多语言切换、或为不同语言编写文档时调用。"
+description: '配置文档站和组件的多语言（如中英文）支持。当用户需要实现国际化、多语言切换、或为不同语言编写文档时调用。'
 ---
 
 # 多语言支持 (i18n)
@@ -20,13 +20,13 @@ description: "配置文档站和组件的多语言（如中英文）支持。当
 在 `pagoda.config.mjs` 中通过 `site.locales` 配置多语言字典和默认语言。
 
 ```javascript
-import { defineConfig } from '@pagoda-cli/core';
+import { defineConfig } from '@pagoda-cli/core'
 
 export default defineConfig({
   site: {
     // 默认语言（访问根路径时显示的语言）
     defaultLang: 'zh-CN',
-    
+
     // 多语言配置字典
     locales: {
       'zh-CN': {
@@ -39,15 +39,13 @@ export default defineConfig({
         nav: [
           {
             title: '指南',
-            items: [
-              { title: '介绍', view: 'guide/intro' },
-            ],
+            items: [{ title: '介绍', view: 'guide/intro' }],
           },
           {
             title: '组件',
             view: 'components',
           },
-        ]
+        ],
       },
       'en-US': {
         label: 'English',
@@ -59,22 +57,21 @@ export default defineConfig({
         nav: [
           {
             title: 'Guide',
-            items: [
-              { title: 'Introduction', view: 'guide/intro' },
-            ],
+            items: [{ title: 'Introduction', view: 'guide/intro' }],
           },
           {
             title: 'Components',
             view: 'components',
           },
-        ]
-      }
-    }
-  }
-});
+        ],
+      },
+    },
+  },
+})
 ```
 
 **关键点：**
+
 - `defaultLang` 决定了站点的默认语言（如不带语言前缀的路由对应哪种语言）。
 - `label` 字段用于渲染文档站顶部的语言切换下拉菜单。
 - `subtitle` 副标题，显示在站点标题下方。
@@ -86,6 +83,7 @@ export default defineConfig({
 组件和静态文档通过**文件名后缀**区分不同语言版本。默认语言的文档不需要后缀。
 
 **组件文档：**
+
 ```bash
 src/Button/
 ├── README.md           # 中文文档 (默认语言，对应路由 /components/button)
@@ -93,6 +91,7 @@ src/Button/
 ```
 
 **静态视图文档：**
+
 ```bash
 site/desktop/views/guide/
 ├── intro.md           # 中文文档 (默认语言，对应路由 /guide/intro)
@@ -103,6 +102,7 @@ site/desktop/views/guide/
 
 文档站会在桌面端顶部导航栏和移动端首页底部自动生成语言切换器。
 切换语言时：
+
 1. 记录当前文档路由。
 2. 将路由中的语言前缀替换为目标语言前缀（如 `/components/button` 变为 `/en-US/components/button`）。
 3. 自动跳转到对应语言页面。
@@ -111,12 +111,12 @@ site/desktop/views/guide/
 
 多语言文档的实际路由由**语言前缀 + 文件路径**组合而成。默认语言不需要前缀：
 
-| 语言 | 文件路径 | 实际路由 |
-|------|---------|----------|
-| zh-CN (默认) | `src/Button/README.md` | `/components/button` |
-| en-US | `src/Button/README.en-US.md` | `/en-US/components/button` |
-| zh-CN (默认) | `site/desktop/views/guide/intro.md` | `/guide/intro` |
-| en-US | `site/desktop/views/guide/intro.en-US.md` | `/en-US/guide/intro` |
+| 语言         | 文件路径                                  | 实际路由                   |
+| ------------ | ----------------------------------------- | -------------------------- |
+| zh-CN (默认) | `src/Button/README.md`                    | `/components/button`       |
+| en-US        | `src/Button/README.en-US.md`              | `/en-US/components/button` |
+| zh-CN (默认) | `site/desktop/views/guide/intro.md`       | `/guide/intro`             |
+| en-US        | `site/desktop/views/guide/intro.en-US.md` | `/en-US/guide/intro`       |
 
 ### 5. docsRoot 配置
 

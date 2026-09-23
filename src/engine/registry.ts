@@ -28,7 +28,11 @@ export interface RegistryResult {
   filters: RegistryFilters
 }
 
-export function createRegistry(rules: Rule[], config: Config, filters: RegistryFilters = {}): RegistryResult {
+export function createRegistry(
+  rules: Rule[],
+  config: Config,
+  filters: RegistryFilters = {},
+): RegistryResult {
   const all = new Map(rules.map((rule) => [rule.id, rule]))
   const enable = config.enable
   const requested = enable === 'all' ? [...all.keys()] : enable
@@ -41,7 +45,8 @@ export function createRegistry(rules: Rule[], config: Config, filters: RegistryF
     const rule = all.get(id)
     if (!rule) continue
     if (filters.only && filters.only.length > 0 && !filters.only.includes(rule.id)) continue
-    if (filters.domain && filters.domain.length > 0 && !filters.domain.includes(rule.domain)) continue
+    if (filters.domain && filters.domain.length > 0 && !filters.domain.includes(rule.domain))
+      continue
     if (filters.minLevel && LEVEL_ORDER[rule.level] > LEVEL_ORDER[filters.minLevel]) continue
     const missing = (rule.requires ?? []).filter((capability) => !hasCapability(config, capability))
     if (missing.length > 0) {

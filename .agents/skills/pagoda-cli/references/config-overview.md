@@ -1,6 +1,6 @@
 ---
 name: config-overview
-description: "提供 Pagoda CLI 的全局配置项概览（pagoda.config.mjs）。当用户需要初始化配置文件、查询配置结构或遇到整体配置冲突时调用此 skill。"
+description: '提供 Pagoda CLI 的全局配置项概览（pagoda.config.mjs）。当用户需要初始化配置文件、查询配置结构或遇到整体配置冲突时调用此 skill。'
 ---
 
 # 配置文件概述
@@ -17,7 +17,7 @@ Pagoda CLI 使用 `pagoda.config.mjs` 作为核心配置文件，放置在项目
 
 ```js
 // pagoda.config.mjs
-import { defineConfig } from '@pagoda-cli/core';
+import { defineConfig } from '@pagoda-cli/core'
 
 export default defineConfig({
   name: 'my-component-library', // 包或站点名称
@@ -27,7 +27,7 @@ export default defineConfig({
   site: {
     // 文档站内容和行为配置
   },
-});
+})
 ```
 
 也可以直接导出普通对象（不使用 `defineConfig`）：
@@ -42,12 +42,13 @@ export default {
   site: {
     // 文档站内容和行为配置
   },
-};
+}
 ```
 
 ### 2. 核心配置分类
 
 配置主要分为三大块：
+
 - **顶级配置**：`name` (项目名), `hooks` (发布等流程钩子)。
 - **构建配置 (`build`)**：控制如何将 `src/` 下的代码打包为组件库产物。详见 `config-build` skill。
 - **文档站配置 (`site`)**：控制文档站点的展示（导航、Logo、多语言）与构建行为。详见 `config-site` skill。
@@ -57,16 +58,16 @@ export default {
 如果需要强类型检查，可以使用 JSDoc 配合 TypeScript 类型：
 
 ```ts
-import { defineConfig, type PagodaCliConfig } from '@pagoda-cli/core';
+import { defineConfig, type PagodaCliConfig } from '@pagoda-cli/core'
 
 const config: PagodaCliConfig = {
   name: 'my-lib',
   site: {
     title: process.env.SITE_TITLE || 'My Lib', // 支持直接读取 Node 环境变量
-  }
-};
+  },
+}
 
-export default defineConfig(config);
+export default defineConfig(config)
 ```
 
 ### 4. 动态配置生成
@@ -75,12 +76,12 @@ export default defineConfig(config);
 
 ```js
 // pagoda.config.mjs
-import { defineConfig } from '@pagoda-cli/core';
-import { readdirSync } from 'fs';
+import { defineConfig } from '@pagoda-cli/core'
+import { readdirSync } from 'fs'
 
 const components = readdirSync('./src', { withFileTypes: true })
-  .filter(dirent => dirent.isDirectory())
-  .map(dirent => dirent.name);
+  .filter((dirent) => dirent.isDirectory())
+  .map((dirent) => dirent.name)
 
 export default defineConfig({
   name: 'my-component-library',
@@ -90,7 +91,7 @@ export default defineConfig({
   site: {
     title: process.env.SITE_TITLE || 'My Component Library',
   },
-});
+})
 ```
 
 ### 5. 完整配置结构参考
@@ -99,10 +100,11 @@ export default defineConfig({
 
 ```ts
 interface PagodaCliConfig {
-  name?: string;
-  hooks?: { beforeRelease?: string[] };
-  build?: PagodaCliBuildConfig;
-  site?: PagodaCliSiteConfig;
+  name?: string
+  hooks?: { beforeRelease?: string[] }
+  build?: PagodaCliBuildConfig
+  site?: PagodaCliSiteConfig
 }
 ```
+
 **优先级**：命令行参数 > 配置文件 > 默认值。

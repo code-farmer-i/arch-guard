@@ -36,9 +36,19 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
     { id: 'app:layouts', pattern: `${app}/layouts/**`, layer: 11, slot: 'layouts' },
 
     // 业务域：七个槽位 + 唯一入口 routes
-    { id: 'module:routes', pattern: `${modules}/{domain}/routes.{ts,tsx}`, layer: 10, slot: 'routes' },
+    {
+      id: 'module:routes',
+      pattern: `${modules}/{domain}/routes.{ts,tsx}`,
+      layer: 10,
+      slot: 'routes',
+    },
     { id: 'module:views', pattern: `${modules}/{domain}/views/**`, layer: 10, slot: 'views' },
-    { id: 'module:components', pattern: `${modules}/{domain}/components/**`, layer: 10, slot: 'components' },
+    {
+      id: 'module:components',
+      pattern: `${modules}/{domain}/components/**`,
+      layer: 10,
+      slot: 'components',
+    },
     { id: 'module:hooks', pattern: `${modules}/{domain}/hooks/**`, layer: 10, slot: 'hooks' },
     { id: 'module:model', pattern: `${modules}/{domain}/model/**`, layer: 10, slot: 'model' },
     { id: 'module:lib', pattern: `${modules}/{domain}/lib/**`, layer: 10, slot: 'lib' },
@@ -55,7 +65,12 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
     { id: 'shared:theme', pattern: `${shared}/theme/**`, layer: 6, slot: 'theme' },
     { id: 'shared:hooks', pattern: `${shared}/hooks/**`, layer: 7, slot: 'hooks' },
     { id: 'shared:components:ui', pattern: `${shared}/components/ui/**`, layer: 8, slot: 'ui' },
-    { id: 'shared:components:common', pattern: `${shared}/components/common/**`, layer: 8, slot: 'common' },
+    {
+      id: 'shared:components:common',
+      pattern: `${shared}/components/common/**`,
+      layer: 8,
+      slot: 'common',
+    },
   ]
 }
 

@@ -1,6 +1,6 @@
 ---
 name: api-runtime
-description: "当用户需要在文档站点开发（如自定义页面或组件 Demo）中实现站内路由跳转、多语言切换、生成在线演示（StackBlitz）以及获取站点全局配置时使用。"
+description: '当用户需要在文档站点开发（如自定义页面或组件 Demo）中实现站内路由跳转、多语言切换、生成在线演示（StackBlitz）以及获取站点全局配置时使用。'
 ---
 
 # 文档运行时 API 与全局组件
@@ -35,10 +35,10 @@ CLI 内置了 `<PagodaDocLinkToView>` 全局组件，专门用于站内链接，
 **在脚本中使用编程式导航：**
 
 ```typescript
-import { navigateToView } from '@pagoda-cli/core/site';
+import { navigateToView } from '@pagoda-cli/core/site'
 
 // 导航到指定视图（参数1: viewPath, 参数2: hash, 参数3: vue-router config）
-navigateToView('development/basics/introduction', 'installation', {});
+navigateToView('development/basics/introduction', 'installation', {})
 ```
 
 ### 2. 国际化 (i18n) 状态管理
@@ -47,13 +47,13 @@ navigateToView('development/basics/introduction', 'installation', {});
 
 ```vue
 <script setup>
-import { getLang, setLang } from '@pagoda-cli/core/site';
+import { getLang, setLang } from '@pagoda-cli/core/site'
 
-const currentLang = getLang(); // 返回 'zh-CN' 或 'en-US'
+const currentLang = getLang() // 返回 'zh-CN' 或 'en-US'
 
 const switchLang = () => {
-  setLang(currentLang === 'zh-CN' ? 'en-US' : 'zh-CN');
-};
+  setLang(currentLang === 'zh-CN' ? 'en-US' : 'zh-CN')
+}
 </script>
 
 <template>
@@ -66,13 +66,14 @@ const switchLang = () => {
 在应用初始化时调用，按优先级自动确定当前语言：
 
 ```typescript
-import { setDefaultLang } from '@pagoda-cli/core/site';
+import { setDefaultLang } from '@pagoda-cli/core/site'
 
 // 传入配置文件中的默认语言
-setDefaultLang('zh-CN');
+setDefaultLang('zh-CN')
 ```
 
 **语言优先级（从高到低）：**
+
 1. `localStorage` 中缓存的语言（用户上次的选择）
 2. 浏览器语言（`navigator.language`）
 3. `pagoda.config.mjs` 中配置的 `defaultLang`
@@ -83,42 +84,43 @@ setDefaultLang('zh-CN');
 如果需要自定义一个 "在 StackBlitz 中打开" 的按钮，可以使用 `getPlaygroundData` 和 `openPlayground`。
 
 ```typescript
-import { getPlaygroundData, openPlayground } from '@pagoda-cli/core/site';
+import { getPlaygroundData, openPlayground } from '@pagoda-cli/core/site'
 
 const openDemo = () => {
-  const demoCode = `<template><my-button type="primary">按钮</my-button></template>`;
-  
+  const demoCode = `<template><my-button type="primary">按钮</my-button></template>`
+
   // 1. 生成 StackBlitz 项目配置
   const config = getPlaygroundData(demoCode, {
     name: 'my-component-library', // 你的包名
     version: '1.0.0',
     peerDependencies: { vue: '^3.0.0' },
-    dependencies: { 'my-org/utils': '^1.0.0' } // 运行时依赖
-  });
+    dependencies: { 'my-org/utils': '^1.0.0' }, // 运行时依赖
+  })
 
   // 2. 在新标签页打开
-  openPlayground(config);
-};
+  openPlayground(config)
+}
 ```
 
 **`getPlaygroundData` 返回值结构（`PlaygroundConfig`）：**
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `files` | `Record<string, string>` | 文件映射，key 为文件路径，value 为文件内容 |
-| `title` | `string` | 演示标题 |
-| `template` | `string` | StackBlitz 模板类型（如 `'vue-ts'`） |
-| `activeFile` | `string` | 默认打开的文件路径 |
+| 属性         | 类型                     | 说明                                       |
+| ------------ | ------------------------ | ------------------------------------------ |
+| `files`      | `Record<string, string>` | 文件映射，key 为文件路径，value 为文件内容 |
+| `title`      | `string`                 | 演示标题                                   |
+| `template`   | `string`                 | StackBlitz 模板类型（如 `'vue-ts'`）       |
+| `activeFile` | `string`                 | 默认打开的文件路径                         |
 
 **`packageInfo` 完整参数：**
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `name` | `string` | 包名 |
-| `version` | `string` | 版本号 |
-| `peerDependencies` | `Record<string, string>` | 同级依赖 |
-| `dependencies` | `Record<string, string>` | 运行时依赖 |
-```
+| 属性               | 类型                     | 说明       |
+| ------------------ | ------------------------ | ---------- |
+| `name`             | `string`                 | 包名       |
+| `version`          | `string`                 | 版本号     |
+| `peerDependencies` | `Record<string, string>` | 同级依赖   |
+| `dependencies`     | `Record<string, string>` | 运行时依赖 |
+
+````
 
 ### 4. 获取站点配置与文档列表
 
@@ -150,7 +152,7 @@ const { srcDir, css } = config.build;
 
 // 访问文档站构建配置
 const { publicPath, outputDir } = config.site.build;
-```
+````
 
 > **Note:** `config.build` 是组件库构建配置（`PagodaCliBuildConfig`），包含 `mode`、`platform`、`srcDir`、`css` 等属性。而 `config.site.build` 是文档站构建配置（`PagodaCliSiteBuildConfig`），包含 `publicPath`、`outputDir` 等属性。
 
@@ -158,14 +160,14 @@ const { publicPath, outputDir } = config.site.build;
 
 每个文档对象包含以下完整属性：
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `name` | `string` | 文档名称 |
-| `path` | `string` | 文档文件路径 |
-| `lang` | `string` | 语言标识（如 `zh-CN`、`en-US`） |
-| `prefix` | `string` | 路由前缀 |
-| `isComponentDoc` | `boolean` | 是否为组件文档 |
-| `component` | `() => Promise<Component>` | 异步加载的组件函数 |
+| 属性             | 类型                       | 说明                            |
+| ---------------- | -------------------------- | ------------------------------- |
+| `name`           | `string`                   | 文档名称                        |
+| `path`           | `string`                   | 文档文件路径                    |
+| `lang`           | `string`                   | 语言标识（如 `zh-CN`、`en-US`） |
+| `prefix`         | `string`                   | 路由前缀                        |
+| `isComponentDoc` | `boolean`                  | 是否为组件文档                  |
+| `component`      | `() => Promise<Component>` | 异步加载的组件函数              |
 
 ## 其他实用工具
 
@@ -177,14 +179,14 @@ const { publicPath, outputDir } = config.site.build;
 - **Vue Router API**: 直接导出了 `useRouter`, `useRoute` 等 Vue Router 核心方法。
 
 ```typescript
-import { clipboardCopy, QRCode, useRouter } from '@pagoda-cli/core/site';
+import { clipboardCopy, QRCode, useRouter } from '@pagoda-cli/core/site'
 
 // 复制文本
-await clipboardCopy('复制的内容');
+await clipboardCopy('复制的内容')
 
 // 生成二维码 Data URL
-const dataUrl = await QRCode.toDataURL('https://example.com');
+const dataUrl = await QRCode.toDataURL('https://example.com')
 
 // 获取当前路由
-const router = useRouter();
+const router = useRouter()
 ```

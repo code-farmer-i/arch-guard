@@ -1,6 +1,6 @@
 ---
 name: advanced-monorepo
-description: "在 Monorepo (pnpm workspace) 环境下使用 Pagoda CLI 的指南。当用户需要同时维护组件库、工具库和文档站，或需要配置包间依赖时调用。"
+description: '在 Monorepo (pnpm workspace) 环境下使用 Pagoda CLI 的指南。当用户需要同时维护组件库、工具库和文档站，或需要配置包间依赖时调用。'
 ---
 
 # Monorepo 支持
@@ -40,6 +40,7 @@ my-monorepo/
 
 **步骤 1：声明 Workspace**
 创建根目录的 `pnpm-workspace.yaml`：
+
 ```yaml
 packages:
   - 'packages/*'
@@ -47,8 +48,9 @@ packages:
 
 **步骤 2：组件库配置 (`packages/components/pagoda.config.mjs`)**
 必须声明构建模式为 `components`：
+
 ```javascript
-import { defineConfig } from '@pagoda-cli/core';
+import { defineConfig } from '@pagoda-cli/core'
 
 export default defineConfig({
   name: '@my-org/components',
@@ -56,13 +58,14 @@ export default defineConfig({
     mode: 'components',
     packageManager: 'pnpm',
   },
-});
+})
 ```
 
 **步骤 3：工具库配置 (`packages/utils/pagoda.config.mjs`)**
 必须声明构建模式为 `lib`，纯工具通常不需要 umd：
+
 ```javascript
-import { defineConfig } from '@pagoda-cli/core';
+import { defineConfig } from '@pagoda-cli/core'
 
 export default defineConfig({
   name: '@my-org/utils',
@@ -71,12 +74,13 @@ export default defineConfig({
     packageManager: 'pnpm',
     umd: false,
   },
-});
+})
 ```
 
 ### 3. 处理包间依赖
 
 如果 `components` 依赖 `utils`，在 `packages/components/package.json` 中使用 `workspace:*` 协议：
+
 ```json
 {
   "dependencies": {
@@ -86,9 +90,10 @@ export default defineConfig({
 ```
 
 代码中正常导入：
+
 ```ts
 // packages/components/src/Button/index.vue
-import { debounce } from '@my-org/utils';
+import { debounce } from '@my-org/utils'
 ```
 
 ## 构建与开发工作流
@@ -124,16 +129,19 @@ cd ../components && pnpm run build
 ### 完整流程
 
 1. **安装 Changesets CLI**：
+
    ```bash
    pnpm add -Dw @changesets/cli
    ```
 
 2. **初始化 Changesets**：
+
    ```bash
    pnpm changeset init
    ```
 
 3. **配置 `.changeset/config.json`**：
+
    ```json
    {
      "access": "public",
@@ -146,15 +154,19 @@ cd ../components && pnpm run build
    - `updateInternalDependencies`: `"patch"` 表示当依赖包版本更新时，依赖方的版本号自动升级补丁版本
 
 4. **添加变更记录**：
+
    ```bash
    pnpm changeset
    ```
+
    交互式命令会询问哪些包有变更，以及变更类型（major/minor/patch）和变更描述。
 
 5. **更新版本号**：
+
    ```bash
    pnpm changeset version
    ```
+
    根据 changeset 记录自动更新 `package.json` 中的版本号和 `CHANGELOG.md`。
 
 6. **发布到 npm**：
@@ -188,9 +200,9 @@ cd ../components && pnpm run build
      resolve: {
        alias: {
          '@my-org/components': '../components/src',
-         '@my-org/utils': '../utils/src'
-       }
-     }
+         '@my-org/utils': '../utils/src',
+       },
+     },
    }
    ```
 
@@ -199,6 +211,7 @@ cd ../components && pnpm run build
 ### Q: 包间依赖解析错误？
 
 确保：
+
 1. `pnpm-workspace.yaml` 配置正确
 2. 依赖声明使用 `workspace:*` 协议
 3. 运行 `pnpm install` 安装依赖

@@ -1,6 +1,6 @@
 ---
 name: guide-js-library
-description: "当用户要求创建、开发或构建纯 JS/TS 库（如工具函数、SDK）时使用。提供纯 JS/TS 库的目录结构和构建配置规范。"
+description: '当用户要求创建、开发或构建纯 JS/TS 库（如工具函数、SDK）时使用。提供纯 JS/TS 库的目录结构和构建配置规范。'
 ---
 
 # 纯 JS/TS 库开发指南
@@ -70,7 +70,8 @@ src/
 ```bash
 pagoda-cli dev
 ```
-*注意：此命令使用 esbuild 实时编译，并使用 vue-tsc 生成类型文件。如果是开发包含 UI 的 Vue 组件库，应使用 `pagoda-cli site`。*
+
+_注意：此命令使用 esbuild 实时编译，并使用 vue-tsc 生成类型文件。如果是开发包含 UI 的 Vue 组件库，应使用 `pagoda-cli site`。_
 
 **生产构建：**
 完成开发后，执行构建命令生成最终产物：
@@ -78,4 +79,5 @@ pagoda-cli dev
 ```bash
 pagoda-cli build
 ```
+
 这会在 `es/` 和 `lib/` 目录下生成构建产物。

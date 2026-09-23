@@ -1,6 +1,6 @@
 ---
 name: config-simulator
-description: "详细说明文档站的移动端模拟器配置。当用户在开发移动端组件库，需要配置桌面文档与手机预览 iframe 联动时调用此 skill。"
+description: '详细说明文档站的移动端模拟器配置。当用户在开发移动端组件库，需要配置桌面文档与手机预览 iframe 联动时调用此 skill。'
 ---
 
 # 模拟器配置 (Simulator)
@@ -26,7 +26,7 @@ export default defineConfig({
       url: '/mobile.html', // 移动端页面地址（由 CLI 自动构建，默认即为 /mobile.html）
     },
   },
-});
+})
 ```
 
 访问地址：
@@ -45,28 +45,28 @@ export default defineConfig({
   site: {
     simulator: {
       url: '/mobile.html',
-      
+
       // 自定义路由映射：将桌面端的 /components/button 映射为移动端的 /button
       mapRoute: (path) => {
-        return path.replace('/components', '');
+        return path.replace('/components', '')
       },
-      
+
       // 双向同步开关
       syncFromSimulator: true, // 允许在模拟器内点击时，反向更新桌面文档路由
-      syncToSimulator: true,   // 允许在桌面文档切换时，更新模拟器路由
+      syncToSimulator: true, // 允许在桌面文档切换时，更新模拟器路由
     },
   },
-});
+})
 ```
 
 ### 3. 配置项汇总
 
-| 配置项 | 说明 | 类型 | 默认值 |
-|--------|------|------|--------|
-| `url` | 模拟器地址 | `string` | `/mobile.html` |
-| `mapRoute` | 路由映射函数 | `(path: string) => string` | `(path) => path` |
-| `syncFromSimulator` | 从模拟器同步路由到桌面端 | `boolean` | `true` |
-| `syncToSimulator` | 将桌面端路由同步到模拟器 | `boolean` | `true` |
+| 配置项              | 说明                     | 类型                       | 默认值           |
+| ------------------- | ------------------------ | -------------------------- | ---------------- |
+| `url`               | 模拟器地址               | `string`                   | `/mobile.html`   |
+| `mapRoute`          | 路由映射函数             | `(path: string) => string` | `(path) => path` |
+| `syncFromSimulator` | 从模拟器同步路由到桌面端 | `boolean`                  | `true`           |
+| `syncToSimulator`   | 将桌面端路由同步到模拟器 | `boolean`                  | `true`           |
 
 ### 4. 移动端文档站代码示例
 
@@ -89,21 +89,21 @@ site/mobile/
 
 ```js
 // site/mobile/main.js
-import { createApp } from 'vue';
-import App from './App.vue';
-import router from './router';
-import './style/index.scss';
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+import './style/index.scss'
 
-const app = createApp(App);
-app.use(router);
-app.mount('#app');
+const app = createApp(App)
+app.use(router)
+app.mount('#app')
 ```
 
 #### router.js
 
 ```js
 // site/mobile/router.js
-import { createRouter, createWebHashHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
   {
@@ -114,12 +114,12 @@ const routes = [
     path: '/:component',
     component: () => import('./components/DemoPreview.vue'),
   },
-];
+]
 
 export default createRouter({
   history: createWebHashHistory(),
   routes,
-});
+})
 ```
 
 #### App.vue
@@ -134,7 +134,7 @@ export default createRouter({
 </template>
 
 <script setup>
-import DemoNav from './components/DemoNav.vue';
+import DemoNav from './components/DemoNav.vue'
 </script>
 ```
 
@@ -144,22 +144,28 @@ import DemoNav from './components/DemoNav.vue';
 
 ```js
 // 桌面端发送路由到移动端
-iframe.contentWindow.postMessage({
-  type: 'replacePath',
-  value: {
-    path: '/button',
-    hash: ''
+iframe.contentWindow.postMessage(
+  {
+    type: 'replacePath',
+    value: {
+      path: '/button',
+      hash: '',
+    },
   },
-}, '*');
+  '*',
+)
 
 // 移动端发送路由到桌面端
-window.parent.postMessage({
-  type: 'replacePath',
-  value: {
-    path: '/button',
-    hash: ''
+window.parent.postMessage(
+  {
+    type: 'replacePath',
+    value: {
+      path: '/button',
+      hash: '',
+    },
   },
-}, '*');
+  '*',
+)
 ```
 
 监听消息实现路由同步：
@@ -168,10 +174,10 @@ window.parent.postMessage({
 // 监听路由同步消息
 window.addEventListener('message', (event) => {
   if (event.data?.type === 'replacePath') {
-    const { path, hash } = event.data?.value || {};
+    const { path, hash } = event.data?.value || {}
     // 更新路由
   }
-});
+})
 ```
 
 ### 6. 常见问题
@@ -192,5 +198,5 @@ export default defineConfig({
       showSimulator: false,
     },
   },
-});
+})
 ```

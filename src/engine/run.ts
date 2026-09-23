@@ -7,7 +7,13 @@ import { extractFacts, factInputOf } from './facts.js'
 import { buildGraph } from './graph.js'
 import { json } from './output.js'
 import { createRegistry } from './registry.js'
-import { renderReport, renderSummary, severityOf, toJsonReport, type ReportInput } from './report.js'
+import {
+  renderReport,
+  renderSummary,
+  severityOf,
+  toJsonReport,
+  type ReportInput,
+} from './report.js'
 import { scanProject } from './scan.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { globToRegExp, readText } from './util.js'
@@ -50,7 +56,9 @@ function gitChangedFiles(root: string, scope: string): { files: string[]; notice
       .filter(Boolean)
   try {
     // 变更路径是相对**仓库根**的；配置根可能不是仓库根，必须换算，否则会路径对不上而假绿
-    const top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim()
+    const top = execFileSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+    }).trim()
     let raw: string[]
     if (scope === 'staged') raw = git(['diff', '--cached', '--name-only', '--find-renames', 'HEAD'])
     else if (scope === 'changed') {
@@ -64,7 +72,9 @@ function gitChangedFiles(root: string, scope: string): { files: string[]; notice
       return null
     }
     const files = raw.map((path) => relative(root, join(top, path)).split('\\').join('/'))
-    return top === resolve(root) ? { files } : { files, notice: `仓库根是 ${top}，变更路径已换算到配置根` }
+    return top === resolve(root)
+      ? { files }
+      : { files, notice: `仓库根是 ${top}，变更路径已换算到配置根` }
   } catch {
     return null
   }
@@ -133,7 +143,9 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     }
   }
   const ruleIndex = new Map(options.rules.map((rule) => [rule.id, rule]))
-  all.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule))
+  all.sort(
+    (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule),
+  )
 
   /* ---- 棘轮 ---- */
   const baselinePath = join(config.root, config.baselineFile)

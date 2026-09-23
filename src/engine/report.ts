@@ -32,7 +32,10 @@ export function severityOf(finding: Finding, ruleIndex: Map<string, Rule>): Seve
   return ruleIndex.get(finding.rule)?.severity ?? 'error'
 }
 
-export function summarize(findings: Finding[], ruleIndex: Map<string, Rule>): { errors: number; warnings: number } {
+export function summarize(
+  findings: Finding[],
+  ruleIndex: Map<string, Rule>,
+): { errors: number; warnings: number } {
   let errors = 0
   let warnings = 0
   for (const finding of findings) {
@@ -59,13 +62,19 @@ export function renderReport(input: ReportInput): void {
       const severity = severityOf(finding, ruleIndex)
       const badge = severity === 'warn' ? color.yellow('warn ') : color.red('error')
       const mark = finding.global ? color.dim('（全局）') : ''
-      out(`  ${badge} ${finding.file}:${finding.line} ${color.cyan(`[${finding.rule}]`)} ${finding.text}${mark}`)
+      out(
+        `  ${badge} ${finding.file}:${finding.line} ${color.cyan(`[${finding.rule}]`)} ${finding.text}${mark}`,
+      )
       if (finding.hint) out(color.dim(`        → ${finding.hint}`))
     }
   }
 
   if (input.unusedBaseline.length > 0) {
-    out(color.yellow(`\n⚠ 基线里有 ${input.unusedBaseline.length} 条已失效的豁免（代码已改或已修好），请删掉`))
+    out(
+      color.yellow(
+        `\n⚠ 基线里有 ${input.unusedBaseline.length} 条已失效的豁免（代码已改或已修好），请删掉`,
+      ),
+    )
   }
   if (input.skipped.length > 0) {
     out(

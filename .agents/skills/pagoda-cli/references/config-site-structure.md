@@ -1,6 +1,6 @@
 ---
 name: config-site-structure
-description: "提供文档站目录结构和文件组织方式的指南。当用户不知道如何创建文档页面、自定义站点组件或修改入口文件时调用此 skill。"
+description: '提供文档站目录结构和文件组织方式的指南。当用户不知道如何创建文档页面、自定义站点组件或修改入口文件时调用此 skill。'
 ---
 
 # 站点结构与路由映射
@@ -51,6 +51,7 @@ my-component-library/
 如果需要为特定的页面（无论是 `.md` 还是 `.vue` 格式）配置额外的路由信息，如页面标题、是否显示右侧锚点、或者是否将路由同步至模拟器等，你可以在页面组件中导出 `meta` 对象。
 
 **在 `.vue` 文件中配置：**
+
 ```vue
 <script setup>
 defineOptions({
@@ -59,36 +60,37 @@ defineOptions({
     headerShadow: false,
     showAnchor: false,
     simulator: {
-      syncToSimulator: false // 禁用该页面向移动端模拟器同步路由
-    }
-  }
-});
+      syncToSimulator: false, // 禁用该页面向移动端模拟器同步路由
+    },
+  },
+})
 </script>
 ```
 
 **在 `.md` 文件中配置：**
 借助 Pagoda CLI 的内置转换支持，你可以直接在 Markdown 文件中使用 `<script setup>` 来声明同样的配置：
+
 ```vue
 <script setup>
 defineOptions({
   meta: {
     title: '组件指南',
-    showSimulator: true
-  }
-});
+    showSimulator: true,
+  },
+})
 </script>
 
-# 组件指南
-这里是页面的 Markdown 正文...
+# 组件指南 这里是页面的 Markdown 正文...
 ```
 
 #### 常用的 Meta 字段
-| 字段名 | 类型 | 说明 |
-| --- | --- | --- |
-| `title` | `string` | 附加的页面标题，将与 `site.title` 拼接后作为 `document.title` |
-| `showAnchor` | `boolean` | 是否在桌面端文档右侧显示目录锚点（覆盖全局配置） |
-| `showSimulator` | `boolean` | 是否在桌面端文档右侧显示移动端模拟器（覆盖全局配置） |
-| `headerShadow` | `boolean` | 是否在顶部导航栏显示阴影，默认为 `true` |
+
+| 字段名                      | 类型      | 说明                                                                        |
+| --------------------------- | --------- | --------------------------------------------------------------------------- |
+| `title`                     | `string`  | 附加的页面标题，将与 `site.title` 拼接后作为 `document.title`               |
+| `showAnchor`                | `boolean` | 是否在桌面端文档右侧显示目录锚点（覆盖全局配置）                            |
+| `showSimulator`             | `boolean` | 是否在桌面端文档右侧显示移动端模拟器（覆盖全局配置）                        |
+| `headerShadow`              | `boolean` | 是否在顶部导航栏显示阴影，默认为 `true`                                     |
 | `simulator.syncToSimulator` | `boolean` | 当切换到该路由时，是否将路由信息同步至移动端模拟器。设为 `false` 可禁止同步 |
 
 ### 4. 自定义文档站入口 (index.js)
@@ -97,41 +99,41 @@ defineOptions({
 
 ```js
 // site/desktop/index.js
-import MyUiLib from 'my-ui-lib';
+import MyUiLib from 'my-ui-lib'
 
 export default {
   // 全局注册组件
   install(app) {
-    app.use(MyUiLib);
+    app.use(MyUiLib)
   },
   // 控制是否显示模拟器
   showSimulator(route) {
-    return route.meta.isComponentDoc;
+    return route.meta.isComponentDoc
   },
   // 控制是否显示右侧锚点
   showAnchor(route) {
-    return !route.meta.isComponentDoc;
+    return !route.meta.isComponentDoc
   },
   // 定制在线代码演示区的环境配置
   configurePlaygroundParams(config, packageJson) {
     // 可以在这里注入在线演示的代码或者配置
-    return config;
-  }
-};
+    return config
+  },
+}
 ```
 
 与桌面端类似，移动端（模拟器）也有入口配置文件 `site/mobile/index.js`，用于全局注册组件：
 
 ```js
 // site/mobile/index.js
-import MyUiLib from 'my-ui-lib';
+import MyUiLib from 'my-ui-lib'
 
 export default {
   // 全局注册组件
   install(app) {
-    app.use(MyUiLib);
+    app.use(MyUiLib)
   },
-};
+}
 ```
 
 另外还有 `site/desktop/style.js` 和 `site/mobile/style.js` 用于引入相应的全局样式。
@@ -141,36 +143,41 @@ export default {
 CLI 内置了默认模板，通常无需自定义。如需覆盖，可在 `site/` 下创建 EJS 模板文件。
 
 **桌面端模板 (`site/index.html`)**：
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %></title>
-  <link rel="icon" href="<%= icon %>">
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/main.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+    <link rel="icon" href="<%= icon %>" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>
 ```
 
 **移动端模板 (`site/mobile.html`)**：
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-  <title><%= title %></title>
-  <link rel="icon" href="<%= icon %>">
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/mobile.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"
+    />
+    <title><%= title %></title>
+    <link rel="icon" href="<%= icon %>" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/mobile.js"></script>
+  </body>
 </html>
 ```
 
@@ -187,16 +194,18 @@ site/static/
 ```
 
 **在配置中引用**（推荐相对路径，CLI 自动解析）：
+
 ```js
 export default defineConfig({
   site: {
-    logo: './logo.png',  // 相对路径
+    logo: './logo.png', // 相对路径
     icon: '/favicon.ico', // 也可用绝对路径
   },
-});
+})
 ```
 
 **在 Markdown 中引用**（使用绝对路径）：
+
 ```markdown
 ![Logo](/logo.png)
 ```

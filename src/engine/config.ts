@@ -35,13 +35,18 @@ const DEFAULT_NAMING = {
 let importCounter = 0
 
 /** 别名只从 tsconfig 读（单一出处，避免两处真相） */
-export function aliasesFromTsconfig(root: string): { aliases: Record<string, string>; notice?: string } {
+export function aliasesFromTsconfig(root: string): {
+  aliases: Record<string, string>
+  notice?: string
+} {
   const file = join(root, 'tsconfig.json')
   if (!exists(file)) return { aliases: {} }
   try {
     const read = ts.readConfigFile(file, (path) => ts.sys.readFile(path))
     if (read.error) return { aliases: {} }
-    const options = (read.config as { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } }).compilerOptions
+    const options = (
+      read.config as { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } }
+    ).compilerOptions
     if (!options?.paths) return { aliases: {} }
     const baseUrl = (options.baseUrl ?? '.').replace(/^\.\//, '').replace(/\/$/, '')
     const aliases: Record<string, string> = {}
@@ -50,22 +55,34 @@ export function aliasesFromTsconfig(root: string): { aliases: Record<string, str
       if (!target) continue
       const cleaned = target.replace(/\/\*$/, '').replace(/^\.\//, '')
       const alias = key.replace(/\/\*$/, '')
-      aliases[alias] = baseUrl && baseUrl !== '.' ? `${baseUrl}/${cleaned}`.replace(/\/+/g, '/') : cleaned
+      aliases[alias] =
+        baseUrl && baseUrl !== '.' ? `${baseUrl}/${cleaned}`.replace(/\/+/g, '/') : cleaned
     }
-    return { aliases, notice: `别名取自 tsconfig.json 的 paths（${Object.keys(aliases).length} 条）` }
+    return {
+      aliases,
+      notice: `别名取自 tsconfig.json 的 paths（${Object.keys(aliases).length} 条）`,
+    }
   } catch {
     return { aliases: {} }
   }
 }
 
-export async function loadConfig(options: { root: string; configPath?: string }): Promise<LoadedConfig> {
+export async function loadConfig(options: {
+  root: string
+  configPath?: string
+}): Promise<LoadedConfig> {
   const { root } = options
   const path = options.configPath ? join(root, options.configPath) : join(root, 'arch.config.mjs')
   if (!exists(path)) {
-    throw new Error(`找不到配置文件：${path}\n（arch-guard 不会回退猜测；请用 --config 指定，或在项目根放 arch.config.mjs）`)
+    throw new Error(
+      `找不到配置文件：${path}\n（arch-guard 不会回退猜测；请用 --config 指定，或在项目根放 arch.config.mjs）`,
+    )
   }
   importCounter += 1
-  const module = (await import(`${pathToFileURL(path).href}?v=${importCounter}`)) as { default?: RawProjectConfig; presets?: Preset[] }
+  const module = (await import(`${pathToFileURL(path).href}?v=${importCounter}`)) as {
+    default?: RawProjectConfig
+    presets?: Preset[]
+  }
   const raw: RawProjectConfig = module.default ?? { presets: module.presets }
 
   const notices: string[] = []
@@ -103,9 +120,12 @@ export async function loadConfig(options: { root: string; configPath?: string })
   }
 
   if (config.roles.length === 0) {
-    throw new Error('配置里没有角色表（roles）。请至少引入一个结构预设，例如 presets: [canonical()]')
+    throw new Error(
+      '配置里没有角色表（roles）。请至少引入一个结构预设，例如 presets: [canonical()]',
+    )
   }
-  if (!exists(join(root, 'package.json'))) notices.push('项目根没有 package.json：依赖类规则会被跳过')
+  if (!exists(join(root, 'package.json')))
+    notices.push('项目根没有 package.json：依赖类规则会被跳过')
 
   return { config, notices, path }
 }
