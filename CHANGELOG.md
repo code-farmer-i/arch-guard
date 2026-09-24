@@ -15,6 +15,26 @@
 
 ## [Unreleased]
 
+### Changed（性能：`walk()` 不再为每个目录项补一次 `statSync`）
+
+- **根因**：`readdirSync(current)` 只拿名字，类型信息丢了，于是每个条目都补一次 `statSync` 只为问
+  `isDirectory()` —— 纯 syscall 浪费，目录树一大就线性放大。
+  改为 `readdirSync(current, { withFileTypes: true })`，类型随目录项一起返回。
+- **实测**（同进程、同口径、`old`/`new` **交替跑各 6 次取中位数**，避免把冷缓存当优化；文件数一致）：
+  本仓 `walk()` **139.6ms → 45.7ms（3.1×）**，109 个 md。端到端 `--check-docs` 现在 **0.20s**
+  （启动基线 0.15s + walk 0.046s；改动前同口径约 0.29s）。
+  真实大仓的数字来自用户报告：superhive（`dev/` 下有 Go modcache，1131 个 md）`--check-docs` **2.6s → 预计 ~0.9s**。
+  三个调用点一起受益：契约扫描（`scan.ts`）、`--check-docs` / `--render-docs`（`docs.ts`）、本体自检（`portability.ts`）。
+- ⚠️ 测法说明：我第一次量出"913ms → 43ms"，那是**第一次调用（冷缓存）对之后的热调用**，不是优化幅度。
+  所以上面的数字是交替跑的**中位数** —— 这个仓对"看起来漂亮的数字"的要求和规则一样：口径先写清。
+- **语义等价不是"顺手改"**：`Dirent.isDirectory()` 描述的是**链接本身**，对指向目录的符号链接返回 `false`；
+  而 `statSync` 是**跟随**链接的。直接信 `Dirent` 会不再跟随链接目录 —— 所以只有链接才付一次 syscall，
+  且**悬空链接仍整体跳过**（旧实现 stat 抛错就 `continue`，不会把它当文件收进来）。
+- **证明方式**：新增 `tests/walk.test.mjs`，把**改动前的算法原样抄一份当参照**（`referenceWalk`），
+  在含链接目录 / 链接文件 / 悬空链接 / 忽略名 / 扩展名过滤的合成树上比对，要求**逐项一致** ——
+  比"挑几个用例"更能挡住"顺手把链接语义改了"。
+- 沿用旧行为未改：目录链接成环时不设防（需要 realpath 记账，属另一件事）。
+
 ### Changed（**破坏性**：`ok` 语义收窄 → `apiVersion` 1 → 2）
 
 - **`ok` 从"判过的东西没有 error"改成"判过的东西没有 error，而且确实判了"**：
