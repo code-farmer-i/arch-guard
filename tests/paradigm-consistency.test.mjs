@@ -232,6 +232,9 @@ test('⑥ S12：组件目录里的非 PascalCase 文件，按**真实形态**给
     'src/shared/ui/misnamed.tsx': 'export const misnamed = () => <div />\n',
     // ③ 没有 JSX 也不是组件 → 它根本不是组件
     'src/shared/ui/lower.tsx': 'export const lower = (): number => 1\n',
+    // ④ 含 JSX 但**不是组件**：导出的是元素表（`hasJsx` 为 true，却推不出"这是组件"）
+    'src/pages/tools/ui/themeModeIcons.tsx':
+      'export const THEME_MODE_ICONS: Record<string, ReactNode> = {\n  dark: <MoonOutlined />,\n}\n',
     // 对照组：合规的组件
     'src/shared/ui/Pure.tsx': 'export const Pure = (): number => 1\n',
   })
@@ -242,13 +245,29 @@ test('⑥ S12：组件目录里的非 PascalCase 文件，按**真实形态**给
         .filter((finding) => finding.rule === 'S12')
         .map((finding) => [finding.file, finding]),
     )
-    assert.equal(byFile.size, 3, `只该报这三个：${[...byFile.keys()].join(' , ')}`)
+    assert.equal(byFile.size, 4, `只该报这四个：${[...byFile.keys()].join(' , ')}`)
     assert.match(
       byFile.get('src/pages/tools/ui/useThing.tsx')?.text ?? '',
       /hook 不该住在组件目录.*挪到 model\/ 或 hooks\//,
       'hook 被点名时必须说"挪走"，而不是"改名字"',
     )
-    assert.match(byFile.get('src/shared/ui/misnamed.tsx')?.text ?? '', /组件文件必须 PascalCase/)
+    // "有 JSX" 只说明文件里有元素字面量，推不出"导出的是组件"：元素表与真组件**必须拿到同一句**，
+    // 而这一句对两种形态都成立（陈述事实 + 两条路）—— 旧措辞会让人以为"改个名字就修好了"
+    const jsxText = byFile.get('src/shared/ui/misnamed.tsx')?.text ?? ''
+    assert.match(jsxText, /在组件目录里但不是 PascalCase/)
+    assert.match(jsxText, /是组件就改成 PascalCase 的 \.tsx/)
+    assert.match(jsxText, /只放元素 \/ 常量就给 \.ts 或挪出 ui\//)
+    assert.equal(
+      /组件文件必须 PascalCase/.test(jsxText),
+      false,
+      '不许再无条件断言"它是组件"（元素表也含 JSX）',
+    )
+    const wordingOf = (file, base) => (byFile.get(file)?.text ?? '').replace(`${base} `, '')
+    assert.equal(
+      wordingOf('src/pages/tools/ui/themeModeIcons.tsx', 'themeModeIcons.tsx'),
+      wordingOf('src/shared/ui/misnamed.tsx', 'misnamed.tsx'),
+      '元素表与真组件除文件名外必须同句：措辞不得依赖"到底是不是组件"这个判不准的事实',
+    )
     assert.match(byFile.get('src/shared/ui/lower.tsx')?.text ?? '', /不是组件却住在组件目录/)
     // 提示指修法（pretty 报告里渲染成 `→ …`）
     assert.match(

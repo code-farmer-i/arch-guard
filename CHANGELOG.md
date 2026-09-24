@@ -15,6 +15,26 @@
 
 ## [Unreleased]
 
+### Fixed（S12 措辞：不再靠"有 JSX"断言"它是组件"）
+
+- **现象**：同一个 `:ui` 检查下两种完全不同的文件收到一字不差的报文 —— 导出元素表的
+  `themeModeIcons.tsx`（`Record<ThemeMode, ReactNode>` 里含 `<MoonOutlined />`）与真组件
+  `loginPrefs.tsx` 都得到「组件文件必须 PascalCase」。对后者准确；对前者把人指向了"改个名字就变绿"
+  的动作，而真实问题（元素表不该以 `.tsx` 待在 `ui/`）原封不动。
+- **根因**：第 ② 支的判据是 `hasJsx`（文件里有没有元素字面量），推不出"**导出的**是不是组件"；
+  紧邻那条注释的前提「真有 JSX → 它确实是组件」本身不成立。
+- **修法（按反馈建议，不动判据）**：② 支改成对两种形态都成立的措辞 ——
+  `X 在组件目录里但不是 PascalCase：是组件就改成 PascalCase 的 .tsx；只放元素 / 常量就给 .ts 或挪出 ui/`，
+  并把注释的前提改对。
+- **为什么不改用 `functions[].isComponent` 选措辞**：它是启发式（首字母大写 + **块体** + 含 JSX），
+  实测最常见的 `export const Foo = () => <div />`（**表达式体**）就是 `false`（元素表则没有函数）——
+  拿一个会判错的判据去决定措辞，等于"用一个可能错的判据去修一个只是不够具体的报文"，方向是反的，
+  还会给最常见的组件写法制造新的错误提示。
+- **回归**：`tests/paradigm-consistency.test.mjs` 加了元素表形态，断言**两种形态除文件名外同句**
+  （措辞不得依赖"到底是不是组件"这个判不准的事实），并断言旧的无条件断言措辞不再出现。
+- **顺带明确**：`findings[].text` / `notices[].text` 都**不是契约**（机读侧用 `rule` / `file` / `line` / `severity` /
+  `code`）—— 否则这次改措辞就得是破坏性变更。写进 DESIGN §6.9。
+
 ### Changed（性能：`walk()` 不再为每个目录项补一次 `statSync`）
 
 - **根因**：`readdirSync(current)` 只拿名字，类型信息丢了，于是每个条目都补一次 `statSync` 只为问

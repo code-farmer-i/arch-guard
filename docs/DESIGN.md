@@ -580,7 +580,9 @@ scope: { default: 'full', preCommit: 'staged', devLoop: 'changed', ci: 'full' }
 1. **断言 `apiVersion`**：不认识就明说「不认识这版报告」，别少读几个字段继续装绿；
 2. **未知 code 必须明说**：`notices.filter((n) => !isNoticeCode(n.code))` 非空就报警 —— 这是「不许静默少显示一类信息」的消费方那一半；
 3. **已知 code 用穷举映射接**（`Record<NoticeCode, Handler>` / `switch` + `never`），这样我们**新增 code 时你的构建会红**；
-4. **永远不要匹配 `text`**：文案是本仓随时可改的内部细节，把它当契约就是第二处真相。
+4. **永远不要匹配 `text`**：`notices[].text` 与 **`findings[].text`** 都是本仓随时可以改的内部细节
+   （本轮就改过 S12 的措辞）——机读侧请用 `rule` / `file` / `line` / `severity` / `code`。
+   把文案当契约就是第二处真相，而且会让"把报文改准"这种纯改进变成破坏性变更。
 
 **（2.1）契约枚举的标准形状**
 

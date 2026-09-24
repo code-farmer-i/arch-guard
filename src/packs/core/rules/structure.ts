@@ -210,10 +210,17 @@ export const namingRules: Rule = {
          * 判据不动（组件目录里的文件必须 PascalCase），但**报文必须指向真正的修法**：
          * `ui/useThing.tsx` 被点名的真实问题是"hook 住错了目录"，不是"组件名起错了" ——
          * 一律报"组件文件必须 PascalCase"会把 agent 送去改名字，而它该做的是把文件挪走。
-         * 所以按**文件的真实形态**分三种说法（事实来自 facts：`hasJsx`）：
+         * 所以按**文件的可判定形态**分三种说法：
          *   ① 名字像 hook（`config.naming.hookPrefix` 开头）→ 说"hook 不该住组件目录"；
-         *   ② 真有 JSX → 它确实是组件，只是名字不对 → 原报文（准确）；
-         *   ③ 没有 JSX 且名字不像组件 → 它根本不是组件 → 说清它是什么、该去哪。
+         *   ② 文件里有 JSX → **只说明"有元素字面量"，推不出"导出的是组件"**（导出元素表也含 JSX：
+         *      `export const ICONS: Record<K, ReactNode> = { dark: <Moon /> }`）。所以这一支的措辞必须
+         *      对**两种形态都成立**：陈述事实 + 给两条路（是组件就改名；只放元素/常量就给 `.ts` 或挪走）。
+         *   ③ 没有 JSX 且名字不像组件 → 说清它是什么、该去哪。
+         *
+         * **为什么不判"导出的到底是不是组件"再选措辞**：事实模型里的 `functions[].isComponent` 是启发式
+         * （首字母大写 + **块体** + 含 JSX），而最常见的 `export const Foo = () => <div />`（表达式体）
+         * 实测就是 `false` —— 拿一个会判错的判据去决定措辞，等于"用一个可能错的判据去修一个只是不够具体的报文"，
+         * 方向是反的（还会制造新的错误提示）。
          */
         const looksLikeHook = stem.startsWith(hookPrefix)
         const hasJsx = ctx.facts.get(record.rel)?.hasJsx === true
@@ -225,7 +232,8 @@ export const namingRules: Rule = {
             looksLikeHook
               ? `hook 不该住在组件目录：把 ${base} 挪到 model/ 或 hooks/`
               : hasJsx
-                ? `组件文件必须 PascalCase：${base}`
+                ? // 有 JSX ≠ 是组件（元素表也含 JSX）→ 只说结论 + 两条路，两种形态都成立
+                  `${base} 在组件目录里但不是 PascalCase：是组件就改成 PascalCase 的 .tsx；只放元素 / 常量就给 .ts 或挪出 ui/`
                 : `${base} 不是组件却住在组件目录：这份 .tsx 里没有 JSX，纯逻辑请放 model/、或干脆改成 .ts`,
             '组件目录（ui / components）只放组件：组件用 PascalCase .tsx；hook 与纯逻辑另有位置',
           ),
