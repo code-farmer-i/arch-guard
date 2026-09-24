@@ -16,7 +16,7 @@
 
 文中 `tools/arch-guard/` 对应本仓库根；`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
 
-**本文件只写「怎么实现」与「还没做什么」。** 遇到过时章节：原 §2/§3/§4 已迁到 `PARADIGM.md`（避免两处真相），§7.5 同理；原 §8/§9/§10/§11/§13/§15（交付物清单 / superhive 落地 / 分期 / 验收 / 待拍板 / 归属与抽取）已删除——它们要么属于状态（README + CHANGELOG + CI），要么已被"独立仓库 + P1–P3 自检"这个事实取代。
+**本文件只写「怎么实现」与「还没做什么」。** 遇到过时章节：原 §2/§3/§4 已迁到 `PARADIGM.md`（避免两处真相），§7.5 同理；原 §8/§9/§10/§11/§13/§15（交付物清单 / superhive 落地 / 分期 / 验收 / 待拍板 / 归属与抽取）已删除——它们要么属于状态（README + CHANGELOG + CI），要么已被"独立仓库 + P1–P4 自检"这个事实取代。
 
 ## 0. 摘要
 
@@ -184,19 +184,24 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 **自解释数字豁免**：`0`、`1`、百分比、无单位比例（`line-height`/`opacity`/`scale`/`aspect-ratio`）、属性级例外（`order`、`grid` 计数、未定义权重刻度时的 `font-weight`）、**`calc(var(--spacing) * N)` 这类带令牌的表达式**（逃生舱即令牌本身）。
 
-**前缀与阈值均可配置**：本表出现的 `--sh-*`、`--spacing`、`--text-*`、`--radius-*` 都是 `designSystem({ tokenPrefix, scales })` 的取值；换项目只改配置，规则文本不硬编码前缀。
+**阈值与刻度可配置**：本表出现的 `--spacing`、`--text-*`、`--radius-*` 都是 `designSystem({ scales })` 的取值。
+令牌前缀（`--sh-*`）**不再是参数**：D02 / D18 尚未实现，参数没有消费者，而 `--sh` 是宿主 superhive 的前缀、不该做通用默认。
+实现 D02/D18 时它以 `designSystem({ tokenPrefix })` + `requires: ['designSystem.tokenPrefix']` 加回（缺它则规则**明列停用**，不空转）。
 
 ### 5.3 文案（C）
 
-| ID  | 红线                                                                                                                                                              | 判据                     | 等级  | 级别  |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ----- | ----- |
-| C01 | **JSX 裸文本禁止**：文本节点只许表达式（`{t(...)}`）；当源语言含 CJK 时，非 locales 文件禁中文字面量                                                              | AST JSXText + 字符串     | L2    | error |
-| C02 | 每个 `t('k')` 的 key 必须中英都存在                                                                                                                               | locales 索引             | L3    | error |
-| C03 | 两份语言目录同构（文件集合一致 + 逐文件键一致）                                                                                                                   | 目录配对                 | L1+L2 | error |
-| C04 | 一文件一顶层命名空间，键前缀 = 文件名                                                                                                                             | AST + 路径               | L1+L2 | error |
-| C05 | locales 文件必须被 `i18n/index` 聚合                                                                                                                              | 图                       | L3    | error |
-| C06 | 无死键（未被 `t()` 引用）                                                                                                                                         | 引用完整性               | L3    | warn  |
-| C07 | **声明了 i18n 就必须真有资源**：① `resourceDir` 下一个文件都没有 → C02–C06 等于没跑；② `copy({ languages })` 声明的语言在磁盘上没有资源（缺的那门语言会显示键名） | 路径 + 资源索引 + 适配器 | L1    | warn  |
+> 域名 `copy` = 文案（UX / marketing copy 的标准术语），**不是"复制"**；对应预设 `copy()`。
+> 语言集合由**磁盘扫描**得出（那是事实），`i18n(i18nextKit({ languages }))` 里声明的语言用于**声明 ⇄ 事实**对账（C07 报"声明了却没资源"）。
+
+| ID  | 红线                                                                                                                                                                          | 判据                     | 等级  | 级别  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ----- | ----- |
+| C01 | **JSX 裸文本禁止**：文本节点只许表达式（`{t(...)}`）；当源语言含 CJK 时，非 locales 文件禁中文字面量                                                                          | AST JSXText + 字符串     | L2    | error |
+| C02 | 每个 `t('k')` 的 key 必须中英都存在                                                                                                                                           | locales 索引             | L3    | error |
+| C03 | 两份语言目录同构（文件集合一致 + 逐文件键一致）                                                                                                                               | 目录配对                 | L1+L2 | error |
+| C04 | 一文件一顶层命名空间，键前缀 = 文件名                                                                                                                                         | AST + 路径               | L1+L2 | error |
+| C05 | locales 文件必须被 `i18n/index` 聚合                                                                                                                                          | 图                       | L3    | error |
+| C06 | 无死键（未被 `t()` 引用）                                                                                                                                                     | 引用完整性               | L3    | warn  |
+| C07 | **声明了 i18n 就必须真有资源**：① `resourceDir` 下一个文件都没有 → C02–C06 等于没跑；② `i18n(i18nextKit({ languages }))` 声明的语言在磁盘上没有资源（缺的那门语言会显示键名） | 路径 + 资源索引 + 适配器 | L1    | warn  |
 
 ### 5.4 依赖（P）
 
@@ -383,11 +388,14 @@ ctx = {
 2. `arch.baseline.json`：`规则 + 文件 + 行文本哈希`，**只减不增**，过期条目 warning。
 3. 无内联豁免。
 
-### 6.7 自检（三条）
+### 6.7 自检（四条）
 
 1. `--self-test`：每条规则的违规样例必须报、合规样例必须不报。
 2. **角色表互斥完备**：`src` 下每个文件恰好命中一个角色。
-3. **引擎零项目字面量**：`tools/arch-guard/**` 与 `presets/**` 不得出现项目路径 / 令牌前缀 / 具体组件库名（组件库名只许出现在 `presets/ui-kits/*` 与 `data/*`，见 §7.1）。
+3. **本体自包含（P1–P3）**：依赖登记（P1）· 无宿主字面量（P2）· 引擎不假设布局（P3）。
+4. **库名只在数据表与适配器面（P4）**：`engine/**`、`packs/**` 与**通用预设**（`presets/*.ts`）里
+   不得出现已登记库名 —— 名单从 `data/*` 与 `presets/<面>/*` 里按约定登记（`from` / `packages` / `preferred`
+   数组，或常量名含 `Packages`/`Kits`/`Names`）**自己长出来**，不新增第二份名单。轻量版（含 §7.3 的完整口径）。
 
 ### 6.8 检测范围（scope）：全量与增量
 
@@ -480,8 +488,9 @@ export default {
   packs: [reactPack], // 框架包（一个项目一个）：规则集由它给；CLI 不再硬编码规则数组
   presets: [
     canonical(), // 三根拓扑、角色表、命名、体积阈值
-    designSystem({ tokenPrefix: '--sh', spacing: '--spacing', themes: ['dark', 'light'] }),
-    copy({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] }),
+    designSystem({ spacing: '--spacing', themes: ['dark', 'light'] }), // 落点默认随范式
+    copy(), // C 域规则集
+    i18n(i18nextKit({ languages: ['zh-CN', 'en'] })), // i18n 能力（换方案只改这一行）
     deps({ deny: ['axios', 'swr', 'redux', 'mobx', 'react-hook-form'] }),
     uiKit(antdKit()), // ← 换库 / 不用库只改这一行（见 §7.1）
     hygiene(),
@@ -549,7 +558,7 @@ export default {
 
 **预设列表**：`canonical()`（三根应用）/ `library()`（库 / CLI：入口 + 目录表）/ **`fsd()`**（Feature-Sliced Design：
 六层 + 切片 + 片段 + 公开面，全部落成数据，判定走通用规则 S21/S22/S23）/ `designSystem()` / `copy()` / `deps()` /
-`metrics()` / `hygiene()` / `uiKit(…)`。预设是**规范的家**（`canonical()` 也是规范），引擎里不得出现任何方法论字面量。
+`metrics()` / `hygiene()` / `uiKit(adapter)` / **`i18n(adapter)`**（i18n 能力，与 uiKit 同形）。预设是**规范的家**（`canonical()` 也是规范），引擎里不得出现任何方法论字面量。
 
 ### 7.1 UI 组件库适配（可换、可不用）
 
@@ -563,16 +572,14 @@ export default {
 
 **适配器契约** —— 每个字段驱动哪条规则：
 
-| 字段              | 含义                                                       | 驱动的规则                               |
-| ----------------- | ---------------------------------------------------------- | ---------------------------------------- |
-| `id`              | 适配器标识                                                 | 报告与文档                               |
-| `packages`        | 适配表声明的包（必须装在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时）       |
-| `icons.from`      | 允许的图标来源包（唯一）                                   | P05                                      |
-| `vendorSelectors` | 该库的 DOM 选择器前缀（如 `\.ant-`）                       | D10 / D10b                               |
-| `vendorVars`      | 该库的 CSS 变量前缀（如 `^--ant-`）                        | D10 / D10b                               |
-| `detachedApis`    | 脱离上下文的全局 API 与替代写法                            | H06                                      |
-| `styleProps`      | 内联样式入口 prop 名（React `style`；MUI `sx` / `css`）    | D15                                      |
-| `policy`（可选）  | 组件来源阶梯、覆盖阶梯的文本                               | 只用于渲染 `ARCHITECTURE.md`，不参与红线 |
+| 字段              | 含义                                                       | 驱动的规则                         |
+| ----------------- | ---------------------------------------------------------- | ---------------------------------- |
+| `id`              | 适配器标识                                                 | 报告与文档                         |
+| `packages`        | 适配表声明的包（必须装在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时） |
+| `icons.from`      | 允许的图标来源包（唯一）                                   | P05                                |
+| `vendorSelectors` | 该库的 DOM 选择器前缀（如 `\.ant-`）                       | D10 / D10b                         |
+| `vendorVars`      | 该库的 CSS 变量前缀（如 `^--ant-`）                        | D10 / D10b                         |
+| `detachedApis`    | 脱离上下文的全局 API 与替代写法                            | H06                                |
 
 ```js
 // presets/ui-kits/antd.mjs —— 约 30 行，这就是"换框架"的全部成本
@@ -597,7 +604,6 @@ export default () => ({
       suggest: '<Modal /> 或 App.useApp() 的 modal',
     },
   ],
-  styleProps: ['style'],
   policy: {
     componentLadder: ['antd', '@ant-design/x', 'shared/components/ui', '一次性内联'],
     overrideLadder: [
@@ -615,7 +621,7 @@ export default () => ({
 
 1. **用 antd**（superhive 现状）：`uiKit(antd())`。
 2. **换任何库**：写一份约 30 行的适配器；`presets/ui-kits/` 里会附带 `none` 与 `antd`，并给出 `mui` 的骨架示例。
-3. **不用组件库**：`uiKit(none())` —— `packages: []`、无 vendor 选择器、`styleProps: ['style']`。D10/D10b/P04/P05 自动失效，组件来源阶梯只剩「`shared/components/ui` 自研 + 复用」。**预设贡献规则：没声明的能力不产生规则**，不留空转红线。
+3. **不用组件库**：`uiKit(noneKit())` —— `packages: []`、无 vendor 选择器。D10/D10b/P04/P05 自动失效，组件来源阶梯只剩「`shared/components/ui` 自研 + 复用」。**预设贡献规则：没声明的能力不产生规则**，不留空转红线。
 
 **换库是可验收的**：`data/kit-fingerprints.mjs` 内置已知组件库指纹（antd `.ant-`/`--ant-`、Element `.el-`、Mantine `.mantine-`、Chakra `.chakra-`、Arco `.arco-`、Semi `.semi-`、Naive `.n-`、MUI `.Mui`/`@mui/*`、Vue `.vue`/`@apply`/`dark:` …）。换库后 D11 会扫出**旧库残留一条不剩** —— 这是可判定的迁移验收条件。
 
@@ -741,7 +747,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 **（5）用户只填数据，要逻辑就贡献内置适配器**
 
-配置里**不能写函数**。遇到数据表达不了的结构，在字段里声明形态（`styleProps: [{ name: 'sx', arg: 'object|function' }]`）；确实需要判定逻辑时，把适配器作为**内置适配器**贡献进引擎（随引擎分发、经评审、带 fixtures），而不是往项目配置里塞代码。三条理由：
+配置里**不能写函数**。遇到数据表达不了的结构，在字段里声明形态（如 `icons: { from: ['…'] }`）；确实需要判定逻辑时，把适配器作为**内置适配器**贡献进引擎（随引擎分发、经评审、带 fixtures），而不是往项目配置里塞代码。三条理由：
 
 1. **可判定性** —— 适配器若能执行任意逻辑，就无法证明规则仍只落 L1–L3；
 2. **可自检 / 可序列化** —— 数据才能被 schema 校验、被报告展示、被 diff 评审、被逐字段复用；

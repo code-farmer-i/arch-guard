@@ -4,6 +4,8 @@
   "dependencies": {
     "antd": "^5.0.0",
     "@ant-design/icons": "^5.0.0",
-    "@ant-design/x": "^2.0.0"
+    "@ant-design/x": "^2.0.0",
+    "i18next": "^25.0.0",
+    "react-i18next": "^16.0.0"
   }
 }

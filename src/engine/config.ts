@@ -205,6 +205,22 @@ export async function loadConfig(options: {
     )
   }
 
+  /**
+   * `Pack.adapters` 不再是一份死声明，而是一条 fail-closed 校验：
+   * 宿主配的适配器 facet 必须被该 pack 支持 —— 否则就是"配了却没有任何规则读它"。
+   */
+  if (pack) {
+    const supported = new Set(pack.adapters ?? [])
+    const configured = Object.keys({ ...preset.adapters, ...overrides.adapters })
+    const unknown = configured.filter((facet) => !supported.has(facet))
+    if (unknown.length > 0) {
+      throw new Error(
+        `框架包 ${pack.id} 不支持这些适配器 facet：${unknown.join(' / ')}（支持：${[...supported].join(' / ')}）\n` +
+          '（每个 facet 都必须有规则消费它 —— 没有消费者的 facet 已按"声明必须有消费者"删除）',
+      )
+    }
+  }
+
   // 布局默认值属于预设（canonical），引擎不假设任何项目布局（见 §15.2 P3）
   const layout = overrides.layout ?? preset.layout
   if (!layout) {

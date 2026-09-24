@@ -131,7 +131,7 @@ test('adapters：每一类非法声明都报错', () => {
   assert.throws(() => defineAdapter('ui-kit', {}), /缺少 id/)
   assert.throws(() => defineAdapter('ui-kit', { id: 'x', packages: 'antd' }), /必须是字符串数组/)
   assert.throws(() => defineAdapter('ui-kit', { id: 'x', vendorSelectors: ['('] }), /正则无法编译/)
-  assert.throws(() => defineAdapter('ui-kit', { id: 'x', styleProps: [1] }), /必须是字符串数组/)
+  assert.throws(() => defineAdapter('ui-kit', { id: 'x', vendorVars: [1] }), /必须是字符串数组/)
   assert.throws(
     () => defineAdapter('ui-kit', { id: 'x', detachedApis: [{ from: 'antd' }] }),
     /from\[\] 与 members\[\]/,

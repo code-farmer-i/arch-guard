@@ -8,8 +8,6 @@ export interface ContrastPair {
 }
 
 export interface DesignSystemOptions {
-  /** 令牌前缀，例如 --sh */
-  tokenPrefix?: string
   /** 刻度令牌名，例如 --spacing */
   spacing?: string
   /** 主题名集合（明暗两套时是 ['dark','light']） */
@@ -73,7 +71,6 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
        * 光看其余参数分不出来：`designParams()` 带内置默认路径。
        */
       designSystemDeclared: true,
-      tokenPrefix: options.tokenPrefix ?? '--sh',
       spacing: options.spacing ?? '--spacing',
       themes: options.themes ?? ['dark', 'light'],
       htmlKeys: options.htmlKeys ?? ['theme'],

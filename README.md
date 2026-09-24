@@ -51,12 +51,14 @@ export default {
     // fsd()（Feature-Sliced Design：六层 + 切片 + 片段）
     // 域预设按需叠加（名字 = 域名，见 CONTEXT.md 的域表）：
     //   designSystem()            设计系统（D）
-    //   copy({ languages })       文案 / i18n（C）—— "copy" 是文案的术语，不是复制
+    //   copy() + i18n(i18nextKit({ languages: […] }))   文案 / i18n（C）—— "copy" 是文案的术语，不是复制
+    //   i18n(noneI18nKit())       项目不用 i18n 时显式声明（C 域不注册）
     //   deps({ allow })           依赖选型（P）· metrics() 度量（M）· hygiene() 反退化（H）
     //   uiKit(antdKit() | noneKit()) 组件库适配（正交轴）
     // FSD 项目改用 fsd()：六层 + 切片 + 片段 + 公开面（见 docs/ALTERNATIVES.md §3.5）
-    designSystem({ tokenPrefix: '--sh' }), // 令牌分层 / 颜色唯一出处 / 对比度
-    copy({ languages: ['zh-CN', 'en'] }), // 文案契约
+    designSystem({ … }), // 令牌分层 / 颜色唯一出处 / 对比度（落点默认随范式）
+    copy(), // 文案域规则集
+    i18n(i18nextKit({ languages: ['zh-CN', 'en'] })), // i18n 能力（换方案只改这一行）
     hygiene(), // 反退化：逃生舱 / 调试残留 / 未完成标记
     uiKit(antdKit()), // 组件库适配器（换库 / 不用库只改这一行）
   ],
@@ -85,7 +87,7 @@ uiKit(antdKit()) // 用 antd
 uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关规则不注册
 ```
 
-换库 = 写一份约 30 行的适配器（`packages` / `vendorSelectors` / `detachedApis` / `styleProps` / `examples`）。
+换库 = 写一份约 30 行的适配器（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。
 `data/kit-fingerprints.ts` 内置已知组件库指纹，于是**换库后旧库残留一条不剩是可判定验收条件**。
 
 ## 检测范围（scope）

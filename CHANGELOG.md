@@ -4,6 +4,57 @@
 
 ## [Unreleased]
 
+### Added（P4 自检：库名只许出现在数据表与适配器面）
+
+- **兑现 docs/DESIGN.md §7.3 早就写下的承诺**：`engine/**`、`packs/**` 与通用预设（`presets/*.ts`）不得出现已登记库名，
+  违反即门禁自身报错。`portability.ts` 以前只有 P1/P2/P3，所以库名可以随便躺在引擎里。
+- 名单**不新增第二份**：从允许位置（`data/*` 与 `presets/<面>/*`）按约定登记（`from` / `packages` / `preferred` 数组，
+  或常量名含 `Packages`/`Kits`/`Names`）**自己长出来** —— 新增 kit 自动纳入扫描。
+- 只收**包名形状**的名字（`@scope/x`、含 `-`/`.`）：纯单词库名（`antd`、`bootstrap`）与项目里的槽位名无法区分
+  （`canonical.ts` 的 `slot: 'bootstrap'` 就是误报来源），收了就是误报 —— 这条限制写进 hint 与 §6.7。
+- 实测：往通用预设里注入 `from: ['react-i18next']` → `[P4] 库名只许出现在 presets/<面>/* 与 data/*：react-i18next`；撤销即恢复通过。
+
+### Changed（库名归位：data 表 + 适配器面；i18n 拆成 kit；死声明清理）
+
+- **`i18n` 适配器从通用预设里搬走**：`copy()` 现在**只贡献 C 域规则集**（不再内联 i18next 适配器、不再收 `resourceDir`/`languages`/`fn`/`hook`）。
+  能力改由 `i18n(i18nextKit({…}))` / `i18n(noneI18nKit())` 提供 —— 与 `uiKit(adapter)` 完全同形，
+  库名只出现在新的 `presets/i18n-kits/*`。修掉的旧后果：`--verify-deps` 拿 `from: ['i18next','react-i18next']`
+  对账 package.json，项目换了 i18n 方案却还留着 `copy()` 就误报"声明了 i18next 却没装"。
+- **引擎/框架包里的库名归位到数据表**：`engine/deps-audit.ts` 的 `KNOWN_KITS` 删除，改用既有的
+  `data/kit-fingerprints.ts`（本来就是同一份数据的第二真相）；`packs/.../deps-adapters.ts` 的硬编码图标名单
+  移到 `data/icon-packages.ts`。
+- **删掉 `tokenPrefix`**：它没有任何消费者（D02/D18 未实现），而且是**宿主 superhive 的前缀**做通用/引擎默认 ——
+  正是 P2 要防的那类宿主字面量。实现 D02/D18 时以 `designSystem({ tokenPrefix })` + 参数型能力加回
+  （`registry` 新增参数型能力根：`designSystem.x` 读 `config.params.x`，缺它则规则**明列停用**）。
+- **死声明清理**（按"声明必须有消费者"）：
+  - 三个**零消费者** facet（`router` / `data-layer` / `styles`）从 `FACET_FIELDS` 与 `CAPABILITY_ROOTS` 删除；
+  - `ui-kit` 的 `styleProps` / `policy` /（此前）`themeIntegration` 三个字段删除；
+  - **`Pack.adapters` 从死声明变成 fail-closed 校验**：宿主配的 facet 必须被该 pack 支持，否则报错；
+    react pack 的清单同时修正为 `['ui-kit','i18n','metrics']`（原来列了 3 个没人读的，反而漏了 metrics）。
+- 测试/夹具同步：`tests/preset-compose.test.mjs` 的 i18n 用例改按新语义（`copy()` 不带适配器时**没有能力**、
+  由范式补落点）、能力守卫表改成"谁负责**启用**规则"（`copy()` 而不是 kit）、`declared-gap` 夹具补上 i18next 依赖
+  （P04 现在也拿 `from` 对账）。
+
+### Changed（C 域预设**保持叫 `copy()`**：不加 `i18n()` 别名，改为让后果可见）
+
+- 用户反馈"看到 `copy()` 想不到这是 i18n"。按设计逐条推：**预设名 = 域名 = 概念名**（域表是 S 结构 / D 设计系统 /
+  **C 文案** / P 依赖 / H 反退化 / M 度量，只有 C、M 有同名预设）；`i18n` 是**机制名**（还绑 i18next），
+  与"工具可替换、概念名优先"的取向冲突；而 `i18n = copy` 这种**别名让同一个东西有两个名字** ——
+  正是这轮刚清掉的"第二份真相"（`config.layers` / `themeIntegration` / `languages`）。**所以不改名、不加别名。**
+- 改成**让后果可见**：`copy({ languages })` 以前**没人读**（语言集合由磁盘扫描得出），
+  "声明了 en 却没有 `en/`"完全无声 —— 而缺的那门语言在界面上会直接显示键名。现在 **C07** 增加第二个分支：
+  **声明的语言必须有资源**（声明 ⇄ 事实，与 D21 / P11 同一形状）；总资源为零时仍只报一条（不往 C03 灌噪音）。
+- 新增夹具 `__fixtures__/copy-langs` → 夹具回归 **27/27**；README 配置模板加了「预设 → 概念」目录；
+  DESIGN §5.3 标明"copy = 文案，不是复制"。
+
+### Docs（组合矩阵：96 种穷举实测）
+
+- DESIGN 新增 §7.0.1：3 范式 × 5 域预设全部子集（96 种）**真实加载**的结果 ——
+  单范式 + 任意域预设 **96/96 合法**；任取两范式 **3/3 被守卫拦下**；重复写同一预设幂等；
+  域预设全开时落点仍随范式（`canonical` → `shared/styles`，`fsd` → `shared/ui/styles`）。
+  另记三个"不是错误但要知道"的点：逐键覆盖类字段**顺序敏感**、库范式不声明契约落点（无能力则 skipped 明列）、
+  `overrides` 是整体替换而预设之间是并集。
+
 ### Added（预设组合语义：范式唯一 + 落点跟范式 + `addRoles` 追加）
 
 - **范式唯一性守卫（fail-closed）**：`presets` 里出现两个范式预设（如 `[canonical(), fsd()]`）→ `loadConfig` 直接报错并指路。

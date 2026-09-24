@@ -30,9 +30,68 @@ export interface PortabilityResult {
   checked: number
 }
 
+/**
+ * P4：**库名只许出现在适配器面（`presets/<面>/*`）与数据表（`data/*`）**。
+ *
+ * 名单不新增第二份：从允许位置里**自己长出来** —— 按约定登记的包名数组
+ * （键名 `from` / `packages` / `preferred`，或常量名里含 `Packages` / `Kits` / `Names`）。
+ * 于是 engine / packs / 通用预设里出现任何已登记库名都会报错，而且新增 kit 自动纳入扫描。
+ *
+ * 为什么需要它：`copy()` 曾把 i18next 适配器内联在通用预设里（`--verify-deps` 还会拿它对账
+ * package.json），`engine/deps-audit.ts` 与 `packs/.../deps-adapters.ts` 各自抄过一份库名名单 ——
+ * docs/DESIGN.md §7.3 早就承诺了这条自检，但一直没实现。
+ */
+const LIBRARY_ARRAY_PATTERNS = [
+  /(?:from|packages|preferred)\s*:\s*\[([^\]]*)\]/g,
+  /(?:const|let)\s+\w*(?:Packages|Kits|Names)\w*\s*(?::\s*[\w[\]]+\s*)?=\s*\[([^\]]*)\]/g,
+]
+
+/** 库名的允许位置：数据表与适配器面（`presets/<面>/…`） */
+function isLibraryAllowed(rel: string): boolean {
+  return rel.startsWith('src/data/') || /^src\/presets\/[^/]+\//.test(rel)
+}
+
+/** 库名的禁止位置：引擎、框架包、以及**通用预设**（`presets/*.ts` 顶层文件） */
+function isLibraryForbidden(rel: string): boolean {
+  return (
+    rel.startsWith('src/engine/') ||
+    rel.startsWith('src/packs/') ||
+    /^src\/presets\/[^/]+\.ts$/.test(rel)
+  )
+}
+
+/**
+ * 只把**包名形状**的名字入名单：`@scope/name` 或含 `-` / `.` 的（`react-i18next`、`element-plus`）。
+ * 纯单词库名（`antd`、`bootstrap`、`none`）**故意不收** —— 它们与项目里的槽位名 / 标识符
+ * 无法区分（`canonical.ts` 的 `slot: 'bootstrap'` 就是例子），收了就是误报。
+ * 代价：孤立的纯单词库名散落到引擎里不会被这条逮住；实际违规几乎总是成组的
+ * （三处历史违规里都至少有一个带 scope / 短横线的名字）。
+ */
+const SIGNAL_NAME = /[/.-]/
+
+function libraryNamesIn(files: string[]): Set<string> {
+  const names = new Set<string>()
+  for (const file of files) {
+    const text = readText(file)
+    for (const pattern of LIBRARY_ARRAY_PATTERNS) {
+      for (const match of text.matchAll(pattern)) {
+        for (const item of (match[1] ?? '').matchAll(/'([^']+)'/g)) {
+          const name = item[1] as string
+          if (!SIGNAL_NAME.test(name)) continue
+          names.add(name)
+        }
+      }
+    }
+  }
+  return names
+}
+
 export function checkPortability(packageRoot: string): PortabilityResult {
   const files = walk(join(packageRoot, 'src'), { extensions: ['.ts'] })
   const findings: Finding[] = []
+  const libraryNames = libraryNamesIn(
+    files.filter((file) => isLibraryAllowed(relOf(packageRoot, file))),
+  )
 
   for (const file of files) {
     const rel = relOf(packageRoot, file)
@@ -53,6 +112,24 @@ export function checkPortability(packageRoot: string): PortabilityResult {
         hint: '新增运行时依赖要在 package.json 与本文件的 ALLOWED_BARE_IMPORTS 里显式登记（并写清理由），不许顺手引进来',
         global: true,
       })
+    }
+
+    /* P4 库名只许出现在适配器面与数据表 */
+    if (libraryNames.size > 0 && isLibraryForbidden(rel)) {
+      for (const literal of facts.strings) {
+        const hit = [...libraryNames].find(
+          (name) => literal.value === name || literal.value.startsWith(`${name}/`),
+        )
+        if (!hit) continue
+        findings.push({
+          rule: 'P4',
+          file: rel,
+          line: literal.line,
+          text: `库名只许出现在 presets/<面>/* 与 data/*：${hit}`,
+          hint: '把库放到数据表（src/data）或适配器面（presets/ui-kits、presets/i18n-kits…）；引擎与通用预设里只留路径与字段（纯单词库名与槽位名无法区分，不入名单）',
+          global: true,
+        })
+      }
     }
 
     /* P2 / P3 只看字符串字面量 */

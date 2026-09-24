@@ -16,33 +16,8 @@ const FACET_FIELDS: Record<string, string[]> = {
     'vendorSelectors',
     'vendorVars',
     'detachedApis',
-    'styleProps',
-    'policy',
     'examples',
   ],
-  'data-layer': [
-    'facet',
-    'id',
-    'specVersion',
-    'packages',
-    'serverState',
-    'clientState',
-    'examples',
-  ],
-  router: [
-    'facet',
-    'id',
-    'specVersion',
-    'packages',
-    'mode',
-    'navigateHooks',
-    'linkComponent',
-    'pathProp',
-    'routesFile',
-    'pathsModule',
-    'examples',
-  ],
-  styles: ['facet', 'id', 'specVersion', 'kind', 'modulePattern', 'classAccess', 'examples'],
   i18n: [
     'facet',
     'id',
@@ -53,7 +28,6 @@ const FACET_FIELDS: Record<string, string[]> = {
     'fn',
     'resourceDir',
     'languages',
-    'format',
     'examples',
   ],
   metrics: [
@@ -71,12 +45,14 @@ const FACET_FIELDS: Record<string, string[]> = {
 export const FACETS = Object.keys(FACET_FIELDS)
 
 /** 能力根名 → 适配器面（capability 用 `uiKit.vendorSelectors` 这种路径表达） */
+/**
+ * 能力根 → 适配器 facet。**只登记有规则消费的**（见 docs/DESIGN.md §7.1）。
+ * `router` / `data-layer` / `styles` 曾经在这里，但没有任何规则读它们的字段 ——
+ * 按"声明必须有消费者"删掉；将来要支持就**连同消费它们的规则一起加回**。
+ */
 export const CAPABILITY_ROOTS: Record<string, string> = {
   metrics: 'metrics',
   uiKit: 'ui-kit',
-  dataLayer: 'data-layer',
-  router: 'router',
-  styles: 'styles',
   i18n: 'i18n',
 }
 

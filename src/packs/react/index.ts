@@ -35,5 +35,6 @@ export const reactPack = definePack({
   id: 'react',
   framework: 'react',
   rules: reactRules,
-  adapters: ['ui-kit', 'router', 'styles', 'i18n', 'data-layer'],
+  // 只列**真有规则消费**的 facet（router / styles / data-layer 没有消费者，已删）；metrics 反而以前漏了
+  adapters: ['ui-kit', 'i18n', 'metrics'],
 })

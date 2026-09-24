@@ -13,8 +13,10 @@ export interface ContrastPair {
   min: number
 }
 
+/** 令牌前缀（`--sh-*`）曾在这里作为参数 —— 但**没有任何规则读它**（D02/D18 未实现），
+ * 而且是宿主 superhive 的前缀，不该做通用默认。删掉；将来实现 D02/D18 时再作为
+ * `designSystem({ tokenPrefix })` + `requires: ['designSystem.tokenPrefix']` 加回。 */
 export interface DesignParams {
-  tokenPrefix: string
   spacing: string
   themes: string[]
   styleDir: string
@@ -33,7 +35,6 @@ const DEFAULTS: Omit<
   DesignParams,
   'contrastPairs' | 'lengthProps' | 'allowLengthValues' | 'themes' | 'htmlKeys'
 > = {
-  tokenPrefix: '--sh',
   spacing: '--spacing',
   styleDir: 'src/shared/styles',
   tokenDir: 'src/shared/styles/tokens',
@@ -57,7 +58,6 @@ export function designParams(ctx: RuleContext): DesignParams {
   const pick = <K extends keyof typeof DEFAULTS>(key: K): (typeof DEFAULTS)[K] =>
     (p[key] as (typeof DEFAULTS)[K] | undefined) ?? DEFAULTS[key]
   return {
-    tokenPrefix: pick('tokenPrefix'),
     spacing: pick('spacing'),
     styleDir: pick('styleDir'),
     tokenDir: pick('tokenDir'),

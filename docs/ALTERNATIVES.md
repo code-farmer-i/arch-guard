@@ -200,7 +200,8 @@ export default {
       themeFile: 'src/shared/ui/styles/tokens/theme.css',
       storageFile: 'src/shared/config/storage.ts',
     }),
-    copy({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] }),
+    copy(),
+    i18n(i18nextKit({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] })),
     deps({ allow: ['react', 'react-dom', 'react-router'] }),
     hygiene(),
     uiKit(noneKit()), // 或 uiKit(antdKit()) —— 按项目实际的组件库
@@ -264,9 +265,10 @@ export default {
     fsd(), // ← 六层 + 切片 + 片段 + 公开面，**连契约落点一起声明**
     // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 令牌 `src/shared/ui/styles/tokens`、
     // 第三方覆盖 `src/shared/ui/styles/vendor`、storage key `src/shared/config/storage.ts`。
-    // 只有**要改**哪条才写哪条（显式参数压过范式声明）：`designSystem({ tokenPrefix: '--x', styleDir: '…' })`
+    // 只有**要改**哪条才写哪条（显式参数压过范式声明）：`designSystem({ styleDir: '…' })`
     designSystem(),
-    copy({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] }),
+    copy(),
+    i18n(i18nextKit({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] })),
     deps({ allow: ['react', 'react-dom', 'react-router'] }),
     hygiene(),
     uiKit(noneKit()),

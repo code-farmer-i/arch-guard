@@ -56,7 +56,7 @@ export { designSystem, deps } from './presets/design-system.js'
 export { copy } from './presets/copy.js'
 export { metrics } from './presets/metrics.js'
 export { hygiene } from './presets/hygiene.js'
-export { uiKit, antdKit, noneKit } from './presets/index.js'
+export { i18n, i18nextKit, noneI18nKit, uiKit, antdKit, noneKit } from './presets/index.js'
 
 export { reactPack, reactRules } from './packs/react/index.js'
 export { kitFingerprints, fingerprintsOf } from './data/kit-fingerprints.js'

@@ -1,33 +1,15 @@
-import { defineAdapter } from '../engine/adapters.js'
 import type { Preset } from '../engine/types.js'
 
-export interface CopyOptions {
-  /** 资源目录：`<resourceDir>/<lang>/<namespace>.ts` */
-  resourceDir?: string
-  /** 语言集；留空则按目录自动发现 */
-  languages?: string[]
-  /** 翻译函数的调用名（默认 t） */
-  fn?: string
-  /** 翻译 hook 名（默认 useTranslation） */
-  hook?: string
-}
-
 /**
- * 文案预设：以 **i18n 适配器**声明能力（适配器是数据，不是插件）。
- * 没声明它，C 域规则会以「能力未声明」出现在 skipped 里，而不是静默失能。
+ * 文案（copy）域：**只贡献 C 域规则集**（C02–C07）。
+ *
+ * i18n 适配器来自 `i18n(i18nextKit())` / `i18n(noneI18nKit())` —— 与 `uiKit(adapter)` 同形。
+ * 以前这里内联了一份 i18next 适配器（`from: ['i18next','react-i18next']`），后果是：
+ * ① 通用预设里出现库名（P4 自检会拦）；② `--verify-deps` 拿它对账 package.json，
+ * 项目换了 i18n 方案却还留着 `copy()` 就误报"声明了 i18next 却没装"。
+ *
+ * 不注册适配器时，C 域规则会以「因能力未声明而停用」明列 —— 不是静默失能。
  */
-export function copy(options: CopyOptions = {}): Preset {
-  // `resourceDir` **不写死**：落点由范式声明（canonical/fsd 的 `params.i18nDir`），
-  // 只有项目要改才显式传 `resourceDir`。而"有哪些语言"是**项目事实**，必须显式给。
-  const adapter = defineAdapter('i18n', {
-    id: 'i18next',
-    specVersion: '1',
-    from: ['i18next', 'react-i18next'],
-    hook: options.hook ?? 'useTranslation',
-    fn: options.fn ?? 't',
-    languages: options.languages ?? [],
-    // 落点：**只有显式给了才写**（否则由范式的 `params.i18nDir` 在 loadConfig 补齐）
-    ...(options.resourceDir ? { resourceDir: options.resourceDir } : {}),
-  })
-  return { enable: ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'], adapters: { i18n: adapter } }
+export function copy(): Preset {
+  return { enable: ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'] }
 }

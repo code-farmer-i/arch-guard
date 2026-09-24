@@ -82,7 +82,7 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--self-test', '跑夹具回归（每条规则违规必报 × 合规不报）')
     .option(
       '--self-check-portability',
-      '检查本体自包含（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设）',
+      '检查本体自包含（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设 / P4 库名只在数据表与适配器面）',
     )
     .addHelpText(
       'after',
@@ -146,7 +146,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     }
     out(
       color.green(
-        `✔ 本体自包含通过（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设），检查了 ${result.checked} 个文件`,
+        `✔ 本体自包含通过（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设 / P4 库名只在数据表与适配器面），检查了 ${result.checked} 个文件`,
       ),
     )
     return 0

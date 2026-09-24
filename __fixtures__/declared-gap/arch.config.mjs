@@ -1,4 +1,4 @@
-import { antdKit, canonical, copy, designSystem, hygiene, uiKit } from '../../es/index.js'
+import { i18n, i18nextKit, antdKit, canonical, copy, designSystem, hygiene, uiKit } from '../../es/index.js'
 
 // 声明了三样东西，项目里一样都没有：
 //   - copy()          → C 域零资源        (C07)
@@ -9,7 +9,8 @@ export default {
   presets: [
     canonical(),
     hygiene(),
-    copy({ resourceDir: 'src/i18n/locales', languages: ['zh-CN', 'en'] }),
+    copy(),
+    i18n(i18nextKit({ resourceDir: 'src/i18n/locales', languages: ['zh-CN', 'en'] })),
     designSystem({ styleDir: 'src/styles' }),
     uiKit(antdKit()),
   ],

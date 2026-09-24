@@ -32,7 +32,9 @@ const finding = (
 function adapterPackages(ctx: RuleContext): string[] {
   const out = new Set<string>()
   for (const adapter of Object.values(ctx.config.adapters)) {
-    for (const name of adapter.packages ?? []) out.add(name)
+    // `packages` ∪ `from`：i18n 适配器把库名放在 `from` 里（同 deps-adapters 的 helper）
+    const spec = adapter as { packages?: string[]; from?: string[] }
+    for (const name of [...(spec.packages ?? []), ...(spec.from ?? [])]) out.add(name)
   }
   return [...out]
 }

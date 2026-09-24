@@ -181,8 +181,26 @@ export interface UiKitAdapter {
   vendorSelectors?: string[]
   vendorVars?: string[]
   detachedApis?: DetachedApi[]
-  styleProps?: string[]
-  policy?: Record<string, unknown>
+  examples?: AdapterExamples
+}
+
+/**
+ * i18n 适配器（文案域的能力来源）。
+ * 库名（`from`）只许出现在 `presets/i18n-kits/*` —— 通用预设 `copy()` 里不许有。
+ */
+export interface I18nAdapter {
+  facet: 'i18n'
+  id: string
+  specVersion?: string
+  from?: string[]
+  /** 翻译函数名（默认 `t`） */
+  fn?: string
+  /** 翻译 hook 名（默认 `useTranslation`） */
+  hook?: string
+  /** 资源目录：`<resourceDir>/<lang>/<namespace>.ts`；缺省由范式的 `params.i18nDir` 补 */
+  resourceDir?: string
+  /** 项目声明要支持的语言（与磁盘实况对账，C07） */
+  languages?: string[]
   examples?: AdapterExamples
 }
 
@@ -195,7 +213,7 @@ export interface GenericAdapter {
   [key: string]: unknown
 }
 
-export type Adapter = UiKitAdapter | GenericAdapter
+export type Adapter = UiKitAdapter | I18nAdapter | GenericAdapter
 
 export interface Preset {
   /**

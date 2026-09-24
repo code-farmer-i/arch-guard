@@ -21,7 +21,7 @@ function project(presets, extra = '') {
   const dir = mkdtempSync(join(tmpdir(), 'ag-compose-'))
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, copy, fsd, designSystem, library } from '${ES}'\n` +
+    `import { canonical, copy, fsd, designSystem, i18n, i18nextKit, library } from '${ES}'\n` +
       `export default { packs: [], presets: [${presets}]${extra} }\n`,
   )
   return dir
@@ -77,20 +77,32 @@ test('组合：范式落点跟着 src 走（自定义源码根不会退回 src/�
 test('组合：i18n 落点同样跟着范式走（`copy()` 不再写死默认值）', async () => {
   const resourceDirOf = (config) => config.adapters.i18n?.resourceDir
 
-  const canon = await load('canonical(), copy()')
-  assert.equal(resourceDirOf(canon), 'src/shared/i18n/locales', '三根的落点')
+  // `copy()` 只贡献规则集；适配器来自 `i18n(i18nextKit())`（库名只许在 presets/i18n-kits/）
+  const bare = await load('canonical(), copy()')
+  assert.equal(resourceDirOf(bare), undefined, 'copy() 不再内联适配器（通用预设里没有库名）')
+  assert.equal(hasCapability(bare, 'i18n.resourceDir'), false, '没有适配器 = 没有能力，不静默跑')
+
+  const canon = await load('canonical(), copy(), i18n(i18nextKit())')
+  assert.equal(resourceDirOf(canon), 'src/shared/i18n/locales', '三根的落点由范式补')
   assert.equal(
-    resourceDirOf(await load("canonical({ src: 'app-src' }), copy()")),
+    resourceDirOf(await load("canonical({ src: 'app-src' }), copy(), i18n(i18nextKit())")),
     'app-src/shared/i18n/locales',
     '跟着 src 走（不再写死 src/）',
   )
-  assert.equal(resourceDirOf(await load('fsd(), copy()')), 'src/shared/i18n/locales', 'FSD 的落点')
+  assert.equal(
+    resourceDirOf(await load('fsd(), copy(), i18n(i18nextKit())')),
+    'src/shared/i18n/locales',
+    'FSD 的落点',
+  )
 
   // 显式给的压过范式
-  assert.equal(resourceDirOf(await load("fsd(), copy({ resourceDir: 'src/i18n' })")), 'src/i18n')
+  assert.equal(
+    resourceDirOf(await load("fsd(), copy(), i18n(i18nextKit({ resourceDir: 'src/i18n' }))")),
+    'src/i18n',
+  )
 
   // 库范式不声明 i18n 落点 → 适配器没有 resourceDir → C 域**因能力未声明而停用**（fail-closed 且可见）
-  const lib = await load("library(), copy({ languages: ['zh-CN'] })")
+  const lib = await load("library(), copy(), i18n(i18nextKit({ languages: ['zh-CN'] }))")
   assert.equal(resourceDirOf(lib), undefined)
   assert.equal(hasCapability(lib, 'i18n.resourceDir'), false, '没落点 = 没能力（不静默跑）')
   assert.equal(hasCapability(canon, 'i18n.resourceDir'), true, '范式声明了落点 = 有能力')

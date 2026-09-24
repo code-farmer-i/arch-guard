@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
 import {
+  canonical,
   copy,
+  createRule,
   deps,
   designSystem,
-  canonical,
-  createRule,
+  i18n,
+  i18nextKit,
   loadConfig,
   reactRules,
   renderReport,
@@ -158,26 +160,23 @@ test('report：停用规则与未知规则在 report 里明列（防「以为在
 
 test('presets：designSystem / copy / deps 的默认值与自定义值', () => {
   const defaults = designSystem()
-  assert.equal(defaults.params?.tokenPrefix, '--sh')
   assert.equal(defaults.params?.spacing, '--spacing')
   assert.deepEqual(defaults.params?.themes, ['dark', 'light'])
 
-  const custom = designSystem({ tokenPrefix: '--x', themes: ['light'] })
-  assert.equal(custom.params?.tokenPrefix, '--x')
+  const custom = designSystem({ themes: ['light'] })
   assert.deepEqual(custom.params?.themes, ['light'])
+  // tokenPrefix 已删：它没有任何消费者（D02/D18 未实现），而且是宿主前缀，不该做通用默认
+  assert.equal(defaults.params?.tokenPrefix, undefined)
 
-  // copy() 以 **i18n 适配器**声明能力（适配器是数据）。
-  // `resourceDir` **不写死**：落点由范式声明（canonical/fsd 的 `params.i18nDir`），loadConfig 一处补齐 ——
-  // 否则 `canonical({ src: 'app-src' })` 的 i18n 目录不会跟着 src 走。
-  const i18nDefault = copy().adapters?.i18n
-  assert.equal(i18nDefault?.resourceDir, undefined, '默认落点由范式给，不写死')
-  assert.equal(i18nDefault?.fn, 't')
-  assert.deepEqual(i18nDefault?.languages, [])
-  const i18nCustom = copy({ resourceDir: 'src/i18n', languages: ['zh-CN'], fn: 'tr' }).adapters
-    ?.i18n
-  assert.equal(i18nCustom?.resourceDir, 'src/i18n')
-  assert.deepEqual(i18nCustom?.languages, ['zh-CN'])
-  assert.equal(i18nCustom?.fn, 'tr')
+  // `copy()` 只贡献 C 域规则集，**不再内联任何 i18n 适配器**（库名只许在 presets/i18n-kits/）：
+  // 能力由 `i18n(i18nextKit({...}))` 提供，与 `uiKit(adapter)` 同形。
+  assert.deepEqual(copy().enable, ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'])
+  assert.equal(copy().adapters, undefined, '通用预设里不许有适配器（也就没有库名）')
+  const kit = i18nextKit({ resourceDir: 'src/i18n', languages: ['zh-CN'], fn: 'tr' })
+  assert.equal(kit.resourceDir, 'src/i18n')
+  assert.deepEqual(kit.languages, ['zh-CN'])
+  assert.equal(kit.fn, 'tr')
+  assert.deepEqual(i18n(kit).adapters?.i18n, kit)
 
   const policy = deps()
   assert.ok(Array.isArray(policy.params?.deny))

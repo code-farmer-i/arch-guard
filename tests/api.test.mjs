@@ -35,7 +35,7 @@ test('适配器：examples 的 hit 必须真的被声明命中', () => {
 })
 
 test('适配器：合法声明被冻结', () => {
-  const adapter = defineAdapter('ui-kit', { id: 'x', packages: [], styleProps: ['style'] })
+  const adapter = defineAdapter('ui-kit', { id: 'x', packages: [] })
   assert.equal(Object.isFrozen(adapter), true)
 })
 
@@ -74,7 +74,7 @@ test('结构：别名取自项目自己的 tsconfig', async () => {
   assert.equal(config.aliases['@'], 'src')
 })
 
-test('本体自包含：P1/P2/P3 全过', () => {
+test('本体自包含：P1–P4 全过', () => {
   const result = checkPortability(PACKAGE_ROOT)
   assert.deepEqual(
     result.findings.map((finding) => `${finding.rule} ${finding.file}`),

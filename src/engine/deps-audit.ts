@@ -1,4 +1,5 @@
 import type { DepsPolicy, ProjectDeps } from './deps.js'
+import { kitFingerprints } from '../data/kit-fingerprints.js'
 import type { Adapter } from './types.js'
 
 /**
@@ -18,21 +19,6 @@ export interface DepsAudit {
   /** 反向：装了、但不在任何适配表里的组件库包（选型漂移） */
   foreign: string[]
   ok: boolean
-}
-
-/** 常见组件库包名 → 库 id：用于识别「装了适配表之外的组件库」 */
-const KNOWN_KITS: Record<string, string> = {
-  antd: 'antd',
-  '@ant-design/x': 'antd',
-  '@ant-design/icons': 'antd',
-  '@mui/material': 'mui',
-  '@chakra-ui/react': 'chakra',
-  '@mantine/core': 'mantine',
-  'element-plus': 'element-plus',
-  'naive-ui': 'naive-ui',
-  vuetify: 'vuetify',
-  'react-bootstrap': 'bootstrap',
-  '@headlessui/react': 'headlessui',
 }
 
 export function auditAdapterDeps(
@@ -55,14 +41,17 @@ export function auditAdapterDeps(
   }
 
   // 反向：装了的组件库里，有适配表之外的
+  // 指纹表是**库名的唯一出处**（`data/kit-fingerprints.ts`）—— 引擎里不再放库名
+  const kitIdOf = (packageName: string): string | undefined =>
+    kitFingerprints.find((kit) => kit.packages.includes(packageName))?.id
   const adapterKitIds = new Set(
     rows
-      .map((row) => KNOWN_KITS[row.packages[0]?.name ?? ''] ?? null)
-      .filter((item): item is string => item !== null),
+      .map((row) => kitIdOf(row.packages[0]?.name ?? ''))
+      .filter((item): item is string => item !== undefined),
   )
   const foreign = [...deps.declared]
-    .filter((name) => KNOWN_KITS[name] !== undefined && !declaredByAdapters.has(name))
-    .filter((name) => !adapterKitIds.has(KNOWN_KITS[name] as string))
+    .filter((name) => kitIdOf(name) !== undefined && !declaredByAdapters.has(name))
+    .filter((name) => !adapterKitIds.has(kitIdOf(name) as string))
     .sort()
 
   const missing = rows.some((row) => row.packages.some((item) => !item.declared))

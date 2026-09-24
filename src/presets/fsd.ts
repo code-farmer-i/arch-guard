@@ -115,7 +115,7 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
  * FSD 范式预设：角色表 + 三条结构声明。
  *
  * ```js
- * presets: [fsd(), designSystem({ … }), copy({ … }), deps({ … }), hygiene(), uiKit(noneKit())]
+ * presets: [fsd(), designSystem({ … }), copy(), i18n(i18nextKit()), deps({ … }), hygiene(), uiKit(noneKit())]
  * ```
  *
  * 基础沿用库范式（`layout.modules` / `layout.shared` 置空 → 三根那套 S03–S09/S15/S18 自然空转，

@@ -1,6 +1,8 @@
 import { fingerprintsOf } from '../../../data/kit-fingerprints.js'
+import type { Adapter } from '../../../engine/types.js'
 import { wheelFingerprints } from '../../../data/wheel-fingerprints.js'
 import { createRule } from '../../../engine/rule.js'
+import { knownIconPackages } from '../../../data/icon-packages.js'
 import type { Facts, Finding, Rule } from '../../../engine/types.js'
 
 /**
@@ -35,17 +37,13 @@ function packageOf(spec: string): string {
 }
 
 /**
- * 常见图标包名单（纯数据，规则不散落任何判定）。
- * 只在适配器**没有**登记图标来源时，出现这些包才算「第二套图标来源」。
+ * 适配器声明的包名 = `packages` ∪ `from`（i18n 适配器把库名放在 `from` 里）。
+ * 只读数据，不做判定。
  */
-const KNOWN_ICON_PACKAGES = new Set([
-  '@ant-design/icons',
-  '@heroicons/react',
-  'react-icons',
-  'lucide-react',
-  '@mui/icons-material',
-  '@tabler/icons-react',
-])
+function adapterPackagesOf(adapter: Adapter): string[] {
+  const spec = adapter as { packages?: string[]; from?: string[] }
+  return [...(spec.packages ?? []), ...(spec.from ?? [])]
+}
 
 /** P04 适配表与实际依赖一致：声明了要装，装了要登记（反向用 kit 指纹表判定） */
 export const adapterDepsConsistent: Rule = createRule({
@@ -62,7 +60,7 @@ export const adapterDepsConsistent: Rule = createRule({
 
     // 正向：适配表声明的包必须在 package.json 里
     for (const adapter of Object.values(ctx.config.adapters)) {
-      for (const pkg of adapter.packages ?? []) {
+      for (const pkg of adapterPackagesOf(adapter)) {
         owned.push(pkg)
         if (ctx.deps.declared.has(pkg)) continue
         out.push(
@@ -120,7 +118,7 @@ export const iconSourceSingle: Rule = createRule({
       if (!facts) continue
       for (const item of facts.imports) {
         const pkg = packageOf(item.spec)
-        if (!KNOWN_ICON_PACKAGES.has(pkg) || allowedSet.has(pkg)) continue
+        if (!knownIconPackages.includes(pkg) || allowedSet.has(pkg)) continue
         out.push(
           finding(
             'P05',

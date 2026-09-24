@@ -11,6 +11,5 @@ export function noneKit(): UiKitAdapter {
     id: 'none',
     specVersion: '1',
     packages: [],
-    styleProps: ['style'],
   })
 }
