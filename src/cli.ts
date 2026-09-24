@@ -42,7 +42,7 @@ interface CliOptions {
   cache?: boolean
   verifyDeps?: boolean
   coverageReport?: string
-  updateBaseline?: boolean
+  updateCoverage?: boolean
   reportOnly?: boolean
   localOnly?: boolean
   selfTest?: boolean
@@ -77,7 +77,10 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--no-cache', '不做 facts 持久缓存（每轮全量解析；排查缓存相关问题时用）')
     .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
     .option('--coverage-report <path>', '覆盖率产物路径（覆盖 metrics 适配器里的配置）')
-    .option('--update-baseline', '把当前全部违规写入基线（只能在全量 scope 下）')
+    .option(
+      '--update-coverage',
+      '刷新覆盖率棘轮快照（M04 用）；与「豁免违规」无关 —— 违规没有豁免渠道',
+    )
     .option('--report-only', '只报告，不因 error 退出非零')
     .option('--local-only', 'scope 非全量时允许跳过不可归属的全局违规')
     .option('--self-test', '跑夹具回归（每条规则违规必报 × 合规不报）')
@@ -92,7 +95,7 @@ export function createProgram(version: string = packageVersion()): Command {
   $ arch-guard                              # 全项目检查
   $ arch-guard --scope=changed              # 只报告 git 变更文件（含未跟踪）
   $ arch-guard --domain=D --format=json     # 只看设计系统，输出 JSON
-  $ arch-guard --update-baseline            # 把存量违规写进棘轮基线
+  $ arch-guard --update-coverage            # 刷新覆盖率棘轮快照（不是豁免违规）
 `,
     )
   return program
@@ -201,7 +204,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
       scope: options.scope,
       reportOnly: options.reportOnly === true,
       localOnly: options.localOnly === true,
-      updateBaseline: options.updateBaseline === true,
+      updateCoverage: options.updateCoverage === true,
       configPath: options.config,
       ...(options.paths ? { paths: options.paths.split(',').filter(Boolean) } : {}),
       ...(domains.length > 0 ? { domain: domains } : {}),

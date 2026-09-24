@@ -16,7 +16,7 @@ export interface CoverageOptions {
   zeroAllow?: { file: string; reason: string }[]
   /** 覆盖率棘轮：与基线比不得倒退 */
   ratchet?: boolean
-  /** 棘轮快照（--update-baseline 会一并写入） */
+  /** 棘轮快照（`--update-coverage` 写入） */
   baselineFile?: string
   /** 本次改动的文件必须被覆盖（默认只要求源文件） */
   mustCover?: string[]

@@ -131,18 +131,22 @@ test('cli：错误参数一律退出 2 并给出可用值', async () => {
   }
 })
 
-test('cli：--update-baseline 写基线后转绿，且不允许在增量 scope 下写', async () => {
+test('cli：基线机制已移除 —— --update-baseline 不存在，存量违规没有豁免通道', async () => {
   const dir = makeProject()
   try {
-    const write = await runCli(['--update-baseline'], { cwd: dir })
-    assert.equal(write.code, 0, write.out)
-    const again = await runCli([], { cwd: dir })
-    assert.equal(again.code, 0, '基线写完后应该绿')
-    assert.match(again.out, /豁免 \d+/)
-    assert.match(again.out, /架构守卫通过/)
+    // 开关本身不该再存在（这正是"必须符合规范"的核心：没有一键洗白）
+    const gone = await runCli(['--update-baseline'], { cwd: dir })
+    assert.equal(gone.code, 2, '未知开关一律退出 2')
+    assert.match(gone.out + gone.err, /unknown option|未知/)
 
-    const badScope = await runCli(['--update-baseline', '--scope=staged'], { cwd: dir })
-    assert.equal(badScope.code, 2, '增量下写基线必须拒绝（会写出不完整的基线）')
+    // 就算手写一份基线文件也没用：违规照报
+    writeFileSync(
+      join(dir, 'arch.baseline.json'),
+      JSON.stringify({ version: 1, specVersion: '1', entries: [] }),
+    )
+    const run = await runCli([], { cwd: dir })
+    assert.equal(run.code, 1, '有违规就必须红')
+    assert.match(run.out, /基线机制已移除/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -184,5 +188,5 @@ test('cli：createProgram 注册了全部对外开关（防止重构时丢参数
     .sort()
   assert.ok(options.includes('--stats'))
   assert.ok(options.includes('--verify-deps'))
-  assert.ok(options.includes('--update-baseline'))
+  assert.ok(options.includes('--update-coverage'))
 })

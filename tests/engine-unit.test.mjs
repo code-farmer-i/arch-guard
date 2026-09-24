@@ -1,22 +1,15 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import {
   AdapterError,
   RuleDefinitionError,
   anchorOf,
   antdKit,
-  applyBaseline,
   createRule,
   defineAdapter,
-  entriesFromFindings,
   globToRegExp,
-  loadBaseline,
   mergePresets,
-  saveBaseline,
   summarize,
   toJsonReport,
 } from '../es/index.js'
@@ -92,38 +85,6 @@ test('预设贡献规则集：并集起来正好覆盖各域已实现的规则�
 
 /* ---------------- 棘轮 ---------------- */
 
-test('baseline：缺失文件当空基线；损坏文件报错而不是静默', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ag-baseline-'))
-  assert.deepEqual(loadBaseline(join(dir, 'none.json')).entries, [])
-  writeFileSync(join(dir, 'broken.json'), '{ not json')
-  assert.throws(() => loadBaseline(join(dir, 'broken.json')), /无法解析/)
-})
-
-test('baseline：写读往返 + 文件级锚点 + 去重', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ag-rt-'))
-  const file = join(dir, 'arch.baseline.json')
-  const findings = [
-    { rule: 'H03', file: 'a.ts', line: 1, text: 'x', anchorKind: 'file' },
-    { rule: 'H03', file: 'a.ts', line: 1, text: 'x', anchorKind: 'file' },
-  ]
-  const entries = entriesFromFindings(findings, () => undefined)
-  assert.equal(entries.length, 1, '同规则同文件同锚点去重')
-  assert.equal(entries[0]?.anchorKind, 'file')
-  saveBaseline(file, entries)
-  assert.deepEqual(loadBaseline(file).entries, entries)
-  assert.match(readFileSync(file, 'utf8'), /"version": 1/)
-})
-
-test('baseline：未命中的条目算过期（不再需要）', () => {
-  const split = applyBaseline(
-    [],
-    { version: 1, entries: [{ rule: 'X', file: 'a.ts', anchor: 'abc', anchorKind: 'line' }] },
-    () => '',
-  )
-  assert.equal(split.unused.length, 1)
-  assert.equal(split.active.length, 0)
-})
-
 /* ---------------- 适配器与规则契约 ---------------- */
 
 test('adapters：每一类非法声明都报错', () => {
@@ -196,8 +157,6 @@ test('report：严重度统计与 JSON 形状', () => {
     config: { params: {} },
     ruleIndex: index,
     findings,
-    exemptedCount: 2,
-    unusedBaseline: [],
     skipped: [],
     unknownEnabled: [],
     notices: [],

@@ -14,7 +14,7 @@
 | 某个特性的规格                       | `.scratch/<feature-slug>/spec.md`                               |
 | 不装本门禁用什么 / 竞品盘点          | [`ALTERNATIVES.md`](./ALTERNATIVES.md)                          |
 
-文中路径都是**本仓库根相对路径**（本体源码在 `src/`，见 §6.2）；`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
+文中路径都是**本仓库根相对路径**（本体源码在 `src/`，见 §6.2）；`arch.config.mjs` 属于宿主项目。
 
 **本文件只写「怎么实现」与「还没做什么」。** 遇到过时章节：原 §2/§3/§4 已迁到 `PARADIGM.md`（避免两处真相），§7.5 同理；原 §8/§9/§10/§11/§13/§15（交付物清单 / superhive 落地 / 分期 / 验收 / 待拍板 / 归属与抽取）已删除——它们要么属于状态（README + CHANGELOG + CI），要么已被"独立仓库 + P1–P4 自检"这个事实取代。
 
@@ -26,7 +26,7 @@
 
 | 层       | 内容                                                    | 与宿主的关系                   |
 | -------- | ------------------------------------------------------- | ------------------------------ |
-| 通用范式 | 三条公理 + 10 个检测原语（分类词汇）+ 4 张表 + 棘轮机制 | 写在 `PARADIGM.md`，整篇可搬   |
+| 通用范式 | 三条公理 + 10 个检测原语（分类词汇）+ 4 张表 + 豁免通道 | 写在 `PARADIGM.md`，整篇可搬   |
 | 通用引擎 | `src/`，解析 / 建图 / 规则 / 报告                       | **零项目字面量**（P2/P3 自检） |
 | 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明）    | 每个仓库一份，约 60 行         |
 
@@ -309,7 +309,7 @@ f = {
 ```
 src/
   index.ts          公共 API（宿主的唯一导入面）
-  cli.ts            CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 基线 → 报告
+  cli.ts            CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 报告
   engine/           引擎（与框架、与宿主布局都无关）
     scan.ts           遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign
     facts.ts          事实模型：AST/JSON → imports / exports / strings / calls / functions / comments
@@ -321,9 +321,10 @@ src/
     registry.ts       能力协商：requires 未满足的规则不注册并记入 skipped
     rule.ts           createRule：域 ↔ id 前缀、error 只落 L1–L3（代码强制）
     pack.ts           definePack：框架包声明
-    run.ts            编排：scope / 棘轮 / 报告 / --stats
+    run.ts            编排：scope / 过滤器 / 报告 / --stats
     git.ts            scope 的 git 事实（changed / staged 的 index 内容 / since）
-    baseline.ts       棘轮    report.ts  渲染    coverage.ts  M 域产物的解析
+    filters.ts        scope / --paths / --severity（只过滤报告且必须自述）
+    report.ts         渲染    coverage.ts  M 域产物的解析
     deps.ts/deps-audit.ts  依赖事实与策略    i18n.ts  文案资源索引    css.ts  CSS 结构化扫描
     portability.ts    P1–P4 自检    self-test.ts  夹具回归    util.ts/ts-api.ts/output.ts
     types.ts          规则面向的契约（事实模型 / 配置 / 规则 / 发现项）
@@ -409,13 +410,17 @@ ctx = {
 
 - 100 文件量级：扫描 + parse + 建图 <300ms；L1 规则先跑、失败先停。
 - 默认只跑 L1–L3；`--type-aware` 走 tsc Program 跑 L4（CI 可选）。
-- `--domain=<域>`、`--only=<ID>`、`--report`、`--update-baseline`、`--self-test`。
+- `--domain=<域>`、`--only=<ID>`、`--report`、`--update-coverage`（刷新覆盖率棘轮快照）、`--self-test`。
 
-### 6.6 豁免通道
+### 6.6 豁免通道（只有一条）
 
-1. `arch.config.mjs` 里的结构性白名单（有理由、可评审）。
-2. `arch.baseline.json`：`规则 + 文件 + 行文本哈希`，**只减不增**，过期条目 warning。
-3. 无内联豁免。
+1. `arch.config.mjs` 里的结构性 `exempt` 白名单：**每条必须写理由**（缺理由在 `loadConfig` 直接报错），进 diff 可评审。
+2. 无内联豁免注释（`eslint-disable` 之类本身是红线 H02）。
+
+**违规没有存量豁免**：曾经有过 `arch.baseline.json`（规则 + 文件 + 行文本哈希，只减不增），
+但它同时满足"永久 / 一键重写 / 锚点被格式化干掉"三件事 —— 于是"重新写基线"成了比"修"便宜得多的动作，
+门禁的结论也从"符合规范"退化成"没有新增违规"。现在整个机制已移除：**不合规就是红**。
+（覆盖率棘轮 M04 是另一件事：它比覆盖率快照、不豁免违规。）
 
 ### 6.7 自检（四条）
 
@@ -476,13 +481,11 @@ ctx = {
 
 1. **不可归属的全局违规默认仍然失败**：`--changed` 下，全量谓词发现的违规若不落在变更文件上，**仍然报错**并标注「全局」；只有显式 `--local-only` 才降为「跳过并列出 N 条」。**禁止静默丢弃。**
 2. **不许静默降级**：无 git → 明确降级 `full` 并打印；diff 为空 → 打印「无变更文件，仍执行全量谓词」。
-3. **untracked 与 rename 必须正确处理**：untracked 纳入（agent 最常写新文件：`git ls-files --others --exclude-standard`）；rename 按改名处理而非「删+增」（否则 baseline 锚点与图都错）。
+3. **untracked 与 rename 必须正确处理**：untracked 纳入（agent 最常写新文件：`git ls-files --others --exclude-standard`）；rename 按改名处理而非「删+增」（否则改名后的路径与图都对不上）。
 4. **pre-commit 跑 index 内容**：`--staged` 读 `git show :<path>` 的 blob 而非磁盘工作区文件 —— 否则会检查用户还没打算提交的改动，或漏掉已暂存的改动（hook 经典 bug）。
-5. **baseline 过期检查只在 full 模式做**：增量运行不碰「未命中的基线条目」，否则每次 `--changed` 都刷一堆过期 warning。
-6. **危险组合直接拒绝**：`--changed` / `--staged` + `--update-baseline`（会写出不完整基线，随后 full 爆红）。
-7. **输出必须自述 scope**：`scope=staged(3 files) | 全量谓词在全项目快照上求值 | 全局违规 0 | 因能力停用 3 条`，防「以为全量在跑」。
-8. **CI 必须 full**：`--changed` 是开发体验工具，不是门禁依据；CI 跑 `changed` = 假绿。写进文档与 CI 模板。
-9. **过滤器必须自述**：`--severity` / `--paths` 把范围缩小到零之后，**不许「绿而不说」** —— 条数进 notice、摘要行与 JSON
+5. **输出必须自述 scope**：`scope=staged(3 files) | 全量谓词在全项目快照上求值 | 全局违规 0 | 因能力停用 3 条`，防「以为全量在跑」。
+6. **CI 必须 full**：`--changed` 是开发体验工具，不是门禁依据；CI 跑 `changed` = 假绿。写进文档与 CI 模板。
+7. **过滤器必须自述**：`--severity` / `--paths` 把范围缩小到零之后，**不许「绿而不说」** —— 条数进 notice、摘要行与 JSON
    （`filteredBySeverity` / `notices`）；`include` 非空却 0 个源码文件由 **S24 直接报错**（「0 个文件 → 通过」是假绿，见 PARADIGM §11）。
 
 **（4）退出码**
@@ -845,7 +848,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 - **规则集变体**：语言相关规则换实现（JSX 裸文本 → 模板插值；`use*` hooks → composables；SFC `<style scoped>` 是新规则）
 - **fixtures**：pack 自带违规 / 合规样例
 
-**跨 pack 复用、无需重写的部分**：三条公理、10 个原语（分类词汇，见 §3.1）、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、棘轮与三条元自检。
+**跨 pack 复用、无需重写的部分**：三条公理、10 个原语（分类词汇，见 §3.1）、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、豁免通道与三条元自检。
 
 **加一个 Vue pack 的量级**：SFC parser ~350 行 + 角色表变体 ~80 行 + React 专属规则替换（S13 / C01 / H06 等约 10 条）+ Vue 专属规则（模板插值、scoped 样式约 6 条）+ fixtures ~30 个文件 ≈ **半个引擎**。所以 Vue 不进 v1；但 **pack 边界必须在 v1 就划出来**（现在已划：`packs/core/rules` 是共享规则、各自 pack 的 `rules/` 是语言专属规则的家），否则将来加 Vue 是重写而不是加法。
 
@@ -858,7 +861,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 | 误报毁掉门禁公信力              | 红线只落 L1–L3；每条规则有 fixtures；不确定的降 warn 或不写                                              |
 | 迁移面大（三根拓扑 116 import） | 机械 codemod + type-check 全量验证；或退成「平铺但同样严格」（代价：域内 import 规则从一句话变回矩阵）   |
 | CSS 扫描器覆盖面                | v1 声明支持范围（注释、@规则、块、变量、composes）；超范围（嵌套、`@layer`、CSS-in-JS）走 postcss 适配器 |
-| 规则太严 → 大家刷 baseline      | baseline 行哈希 + 只减不增 + 过期条目 warning + diff 必审                                                |
+| 规则太严 → 大家刷 `exempt`      | 零容忍（没有基线可刷）；唯一的例外通道必须写理由、随 config 进 diff 评审                                 |
 | 门禁自身维护成本                | fixtures + 三条元自检，规则改动必须有回归                                                                |
 | 门禁与文档漂移                  | 约定即配置：人读 `ARCHITECTURE.md`，机读 `arch.config.mjs`，同源生成                                     |
 
@@ -866,13 +869,13 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 ## 14. 已知缺口（未实现）
 
-**只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` 的**本地对账部分** / `definePack` / config·baseline 的 `specVersion` 均已落地，从本表移除）
+**只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` 的**本地对账部分** / `definePack` / config 的 `specVersion` 均已落地，从本表移除）
 已落地的能力见 [`CHANGELOG.md`](../CHANGELOG.md)，进度见 [`README.md`](../README.md) 的 Roadmap。
 
 | ID   | 缺口                                                                                                                                                                                                                                                                                                                  | 影响                                                 |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | R1   | **已拍板（方案 c，见 PARADIGM §6.3）**：跨域组合一律提升到 `shared/components/common`（业务中立组合件）或 `shared/api`（数据契约），由 `app` 组合；**给域开第二个公开面 `index.ts` 的方案已否**（深模块会变成两个出口）                                                                                               | —                                                    |
-| R4   | 豁免只有 `exempt` 白名单与基线两条通道，缺「有理由 + 有期限」的结构化例外                                                                                                                                                                                                                                             | 正当的永久例外会被记成"存量债"，语义腐败             |
+| R4   | 豁免只剩 `exempt` 白名单一条通道（基线已移除），但仍缺「有期限」：白名单是永久的                                                                                                                                                                                                                                      | 正当的永久例外会被记成"存量债"，语义腐败             |
 | R6   | 有 `exempt`，但没有「生成代码必须带 `@generated` 标记」的可证伪要求                                                                                                                                                                                                                                                   | 豁免可以被随意扩大                                   |
 | E2   | 适配器面清单（facet）仍硬编码在引擎里（已支持 i18n 面；新增面仍要动引擎）                                                                                                                                                                                                                                             | 加一个新面要动引擎                                   |
 | D 域 | **11 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（stylelint 的值白名单 + eslint 的 `no-restricted-syntax`，见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖   |

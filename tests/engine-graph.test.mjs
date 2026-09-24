@@ -82,7 +82,6 @@ test('scan：合规示例每个文件恰好一个角色，且有歧义/缺失时
     params: {},
     entries: [],
     aliases: {},
-    baselineFile: 'arch.baseline.json',
   })
   assert.deepEqual(scan.missing, [])
   assert.deepEqual(scan.ambiguous, [])

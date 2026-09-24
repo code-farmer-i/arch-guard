@@ -1,4 +1,3 @@
-import type { BaselineEntry } from './baseline.js'
 import { out } from './output.js'
 import type { Config, Domain, Finding, Level, Rule, Severity } from './types.js'
 import { color } from './util.js'
@@ -7,8 +6,6 @@ export interface ReportInput {
   config: Config
   ruleIndex: Map<string, Rule>
   findings: Finding[]
-  exemptedCount: number
-  unusedBaseline: BaselineEntry[]
   skipped: { rule: string; reason: string }[]
   unknownEnabled: string[]
   notices: string[]
@@ -80,13 +77,6 @@ export function renderReport(input: ReportInput): void {
     }
   }
 
-  if (input.unusedBaseline.length > 0) {
-    out(
-      color.yellow(
-        `\n⚠ 基线里有 ${input.unusedBaseline.length} 条已失效的豁免（代码已改或已修好），请删掉`,
-      ),
-    )
-  }
   if (input.skipped.length > 0) {
     out(
       color.dim(
@@ -110,7 +100,6 @@ export function renderSummary(input: ReportInput): void {
     input.skippedGlobals > 0 ? `--local-only 跳过全局违规 ${input.skippedGlobals}` : null,
     input.filteredBySeverity > 0 ? `--severity 过滤 ${input.filteredBySeverity} 条` : null,
     `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
-    `豁免 ${input.exemptedCount}`,
     input.exemptedFiles > 0 ? `配置豁免 ${input.exemptedFiles} 个文件` : null,
     input.contractScope.length > 0
       ? `扫描域 ${input.contractScope.join(',')}（域外 ${input.outsideContract} 个文件不判契约）`
@@ -129,7 +118,6 @@ export interface JsonReport {
   scope: string
   findings: (Finding & { domain?: Domain; level?: Level; severity: Severity })[]
   skipped: { rule: string; reason: string }[]
-  exempted: number
   /** 因 `--local-only` 跳过的全局违规条数（机读侧同样不许静默丢弃） */
   skippedGlobals: number
   /** 因 `--severity` 过滤掉的 finding 条数（过滤改了报告，机读侧必须看得见） */
@@ -162,7 +150,6 @@ export function toJsonReport(input: ReportInput): JsonReport {
       }
     }),
     skipped: input.skipped,
-    exempted: input.exemptedCount,
     skippedGlobals: input.skippedGlobals,
     filteredBySeverity: input.filteredBySeverity,
     notices: input.notices,

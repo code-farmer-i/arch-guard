@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
-import { applyBaseline, anchorOf, runGuard, coreRules } from '../es/index.js'
+import { runGuard, coreRules } from '../es/index.js'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 
@@ -57,23 +57,6 @@ test('报告过滤：--min-level=L1 只跑路径级规则', async () => {
 test('报告过滤：--severity=warn 在没有 warn 规则时不报 error', async () => {
   const result = await run('violations', { severity: 'warn' })
   assert.deepEqual(result.active, [])
-})
-
-test('棘轮：豁免按行文本锁定，改掉那一行豁免即失效', () => {
-  const findings = [{ rule: 'H03', file: 'a.ts', line: 1, text: 'console' }]
-  const baseline = {
-    version: 1,
-    entries: [
-      { rule: 'H03', file: 'a.ts', anchor: anchorOf("console.log('x')"), anchorKind: 'line' },
-    ],
-  }
-  const same = applyBaseline(findings, baseline, () => "console.log('x')")
-  assert.equal(same.active.length, 0)
-  assert.equal(same.exempted.length, 1)
-
-  const changed = applyBaseline(findings, baseline, () => "console.warn('x')")
-  assert.equal(changed.active.length, 1)
-  assert.equal(changed.unused.length, 1)
 })
 
 test('scope=changed 不会丢掉不可归属的全局违规（防假绿）', async () => {

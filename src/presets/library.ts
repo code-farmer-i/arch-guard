@@ -75,7 +75,7 @@ export function library(options: LibraryOptions = {}): Preset {
     // 契约扫描域：只有 src 下的 ts/css 参与角色判定。构建产物、示例宿主、夹具、工具配置
     // 都在域外 —— 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。
     include: [`${src}/**`],
-    ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json', '.agents/**'],
+    ignore: ['arch.config.mjs', 'arch.config.js', '.agents/**'],
     // S21 是「分层单向」——它不是应用专属，库/自定义目录表靠它把层号变成可判定红线
     enable: [
       'S00',

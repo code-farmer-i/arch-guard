@@ -284,9 +284,16 @@ export async function loadConfig(options: {
     metaFramework,
     exempt: [...(preset.exempt ?? []), ...(overrides.exempt ?? [])],
     aliases,
-    baselineFile: overrides.baselineFile ?? 'arch.baseline.json',
   }
 
+  // 豁免是唯一的例外通道（基线已移除），所以理由必须写：没理由的豁免 = 静默跳过
+  const missingReason = config.exempt.filter((entry) => !entry.reason?.trim())
+  if (missingReason.length > 0) {
+    throw new Error(
+      'exempt 的每一条都必须写 reason（没有理由的豁免无从评审）：' +
+        missingReason.map((entry) => entry.glob).join(' , '),
+    )
+  }
   if (config.roles.length === 0) {
     throw new Error(
       '配置里没有角色表（roles）。请至少引入一个结构预设，例如 presets: [canonical()]',

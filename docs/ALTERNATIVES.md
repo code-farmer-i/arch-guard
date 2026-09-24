@@ -14,7 +14,7 @@
 | ------------------------ | ----------------------------------------------------------------------------------------- |
 | 有没有单一替代品         | **没有**。最接近的 `steiger` 只做 FSD 目录规范；`dependency-cruiser` 只做依赖图           |
 | 拼一套成熟组合能覆盖多少 | 约 **30 / 53 条**（结构 + 单文件形态 + 部分文案/依赖/度量）                               |
-| 拼不出来的               | **跨文件令牌图、跨语言一致性、声明⇄事实、依赖选型体系、统一棘轮、判定纪律**               |
+| 拼不出来的               | **跨文件令牌图、跨语言一致性、声明⇄事实、依赖选型体系、零容忍判定、判定纪律**             |
 | FSD 项目怎么办           | 结构交 `steiger`；契约层可以接我们（`library({ modules: 六层, entry: [] })`），实测零重叠 |
 | 我们的定位启示           | **目录规范是团队选择，契约层才是跨方法论通用的** —— 见 §8                                 |
 
@@ -56,7 +56,7 @@
 | **反退化**      | `@typescript-eslint/*`、`no-console`·`no-debugger`·`no-empty`·`no-warning-comments`、`no-restricted-syntax`、`eslint-plugin-sonarjs`           | **H 域基本全覆盖**                                                    |
 | **度量**        | `vitest`/`c8` `thresholds`（含 glob + perFile）、`diff-cover`、Codecov                                                                         | 覆盖率阈值、变更覆盖率                                                |
 | **去重**        | `jscpd`                                                                                                                                        | 复制粘贴（S17 的文本近似）                                            |
-| **棘轮**        | **eslint 内置 `--suppress-all` / `--prune-suppressions`** + **stylelint 内置 `--suppress`**                                                    | 存量治理                                                              |
+| **存量豁免**    | **eslint 内置 `--suppress-all` / `--prune-suppressions`** + **stylelint 内置 `--suppress`**                                                    | 存量治理（**我们不提供**：零容忍）                                    |
 
 ```jsonc
 // package.json
@@ -89,17 +89,19 @@ forbidden: [
 | H        | 全覆盖       | —                                              |
 | **合计** | **≈30 / 53** | 23 条                                          |
 
-**两笔隐形成本**：① 角色表要在 dependency-cruiser / boundaries / project-structure **各写一遍**（= 把契约抄三份）；
-② **基线是散的** —— eslint 一份、stylelint 一份、覆盖率一份，没有跨工具的单一债务视图。
+**一笔隐形成本**：角色表要在 dependency-cruiser / boundaries / project-structure **各写一遍**（= 把契约抄三份）。
 
-### 棘轮的真实差距（实测）
+### 存量豁免：我们不提供（曾经的差异点，已主动放弃）
 
-eslint 的 `eslint-suppressions.json` 形状是 `{ 文件: { 规则: { count: N } } }` —— **按计数，不按行**
-（见 `node_modules/eslint/lib/services/suppressions-service.js`）。推论：
+生态的存量治理靠各工具自带的 suppressions：eslint 的 `eslint-suppressions.json` 形状是
+`{ 文件: { 规则: { count: N } } }` —— **按计数，不按行**（见 `node_modules/eslint/lib/services/suppressions-service.js`）。
+推论很直接：**修掉一处、在别处新增一处，计数不变，门禁照样绿。**
 
-> 修掉一处、**在别处新增一处**，计数不变，门禁照样绿。
-
-我们的棘轮锚点是**规范化行文本哈希**：被豁免那行一改，豁免立即失效。这是"防绕过"上的实质差别，不是口味。
+本工具一度提供「按行文本哈希锁定」的 `arch.baseline.json`（被豁免那行一改即失效）—— 单看这一条确实比按计数强。
+但把机制整体摊开看，它同时满足三件事：**永久**（条目无期限）、**一键重写**（`--update-baseline` 写全部当前违规）、
+**锚点被格式化干掉**（跑一次 prettier 就大面积失效）。于是「重新写基线」永远比「修」便宜，
+门禁的结论从「符合规范」退化成「没有新增违规」。**我们选择移除整个机制**：违规没有豁免通道，不合规就是红。
+唯一例外是 `arch.config.mjs` 的 `exempt` 白名单，必须写理由、随配置进 diff —— 可见、可评审、**不可能一键扩大**。
 
 ## 3. FSD 场景下的组合
 
@@ -437,7 +439,7 @@ export default {
 3. **声明 ⇄ 事实**：声明了 i18n / 设计系统 / 组件库却零事实（C07 / D21 / P11）
 4. **依赖选型体系**：能力表、适配表 ⇄ 实际依赖对账、图标来源唯一、手搓轮子指纹（P 域生态**一条都没有**）
 5. **CSS Module 双向契约**（D17）、文案一文件一命名空间与分片聚合（C04/C05）
-6. **统一棘轮**：跨工具的单一债务视图 + 按行锚点（对比 eslint 的按计数）
+6. **零容忍**：违规没有存量豁免（没有「一键洗白」通道），结论只有「符合规范」与「不符合」两种
 7. **判定纪律**：error 只落 L1–L3（`createRule` 代码强制）+ 每条规则必须带"违规必报 × 合规不报"夹具
 
 ## 7. 定位启示
@@ -520,9 +522,9 @@ structure: {
 ③ TS 解析生态碎片化（tsc / oxc / swc / tree-sitter）——**这条我们恰好绕过了**：规则只消费归一化 facts，换 parser 不动规则；
 ④ **没人把"结构 + 契约"接在一起** —— 结构有工具、契约（令牌/文案/依赖/度量）没有，完整架构门禁这个位置一直空着。
 
-**我们比对手多的四样**：统一**棘轮**（ArchUnit / import-linter / boundaries 都没有）、**能力协商**、
+**我们比对手多的四样**：**零容忍判定**（没有可刷的存量清单）、**能力协商**、
 **判定等级纪律 + 每条规则必须带夹具**、**跨语言事实**（TS ↔ CSS ↔ HTML ↔ locales）。
-而对手做不到的是：**同一份声明同时驱动结构规则与契约规则**（共享同一套角色表、facts、棘轮、报告）。
+而对手做不到的是：**同一份声明同时驱动结构规则与契约规则**（共享同一套角色表、facts、报告）。
 
 **硬边界**：只能兼容规范的**可判定部分（L1–L3）**。"这个 feature 必须是一个用户动作"（FSD）、
 "这个组件是 molecule 还是 organism"（Atomic Design）是 L5，**任何引擎都判不了** —— 不是我们弱，是问题不可判定。
@@ -537,7 +539,7 @@ structure: {
 2. ✅ **关系声明**：`StructureSpec`（`order` / `isolate` / `publicApi`）三个字段各有一条规则消费（S21/S22/S23）。
 3. ❌ **目录枚举**：原以为要扫目录才能查"空切片 / 缺 index"—— 设计后消解：组由文件派生，不必扫目录。
 4. ❌ **不写 FSD 的启发式规则**：`insignificant-slice`、`excessive-slicing`、复数一致那些仍归 steiger。
-5. ❌ 我们**没有** `--fix`（DESIGN 里记着 fixer × 棘轮的冲突，未解）与 `--watch`。
+5. ❌ 我们**没有** `--fix` 与 `--watch`。（fixer × 棘轮的冲突已随基线移除而消失，但 `--fix` 仍不在 v1 范围。）
 6. ✅ `canonical()` 已迁移到通用规则：应用范式声明 `structure: { order: true }`，层序由 **S21** 判；原先 shared 专属的 **S07 已删**
    （顺带补上原先没人管的 `shared → modules`、`modules → app` 向上依赖）。
 

@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+### Removed（违规基线：门禁不再接受存量豁免）
+
+- **`arch.baseline.json` 与 `--update-baseline` 一并移除**：违规必须修，**不符合规范就是红**。
+  唯一例外只剩 config 的 `exempt` 白名单（现在**必须写理由**，缺理由在配置加载期直接报错）。
+- 为什么移除：该机制同时满足「**永久**（条目无期限）+ **一键重写**（写全部当前违规）+ **锚点被格式化干掉**」。
+  于是"重新写基线"永远比"修"便宜 —— 实测：2 条违规 → `--update-baseline` → 全绿；再加一条 → 红 → 再写一次 → 全绿（豁免数还从 4 涨到 6）。
+  门禁的结论从「符合规范」退化成「没有新增违规」，而后者可以被无限刷。**跳过门禁的成本是 0**，这与"约束 agent 编码质量"直接冲突。
+- 连带的接口变化（破坏性）：`Config.baselineFile`、`RunOptions.updateBaseline`、报告里的 `豁免 N` 与"过期豁免"提示、
+  `index.ts` 的 baseline 导出（`loadBaseline` / `applyBaseline` / `saveBaseline` / `entriesFromFindings` / `anchorFor` / 相关类型）
+  全部删除；`src/engine/baseline.ts` 删除（140 行）。
+- **覆盖率棘轮（M04）保留**，但它与豁免无关：快照改由新开关 **`--update-coverage`** 刷新（写 `arch.coverage.json`）；
+  没启用棘轮或产物读不到时**明确说"未写快照"**，不静默。
+- 旧仓库若还留着 `arch.baseline.json`：文件被忽略，并在报告里提示「违规基线机制已移除」（不许静默）。
+- 顺带解决的历史冲突：DESIGN §14 记过的「fixer × 棘轮」冲突随基线一起消失（`--fix` 仍不在 v1 范围）。
+- 新增 `tests/no-baseline.test.mjs`（4 条）：手写基线也不再豁免且明确提示、`--update-baseline` 开关不存在（退出 2）、
+  `exempt` 缺理由即 fail-closed、`--update-coverage` 只写覆盖率快照而不豁免任何违规。
+
 ### Fixed（vendor 边界：D10 漏检变量、P11 锚点误报）
 
 - **D10 现在也守变量前缀**（DESIGN §5.2 一直是这么写的：「选择器前缀**与变量前缀**只许出现在 `styles/vendor/**`」，

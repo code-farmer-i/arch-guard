@@ -2,7 +2,6 @@ import { writeFileSync } from 'node:fs'
 import { aggregate, readCoverageReport, type CoverageReport } from './coverage.js'
 import { join, relative } from 'node:path'
 
-import { applyBaseline, entriesFromFindings, loadBaseline, saveBaseline } from './baseline.js'
 import { loadConfig } from './config.js'
 import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
@@ -26,7 +25,7 @@ import type { Pack } from './pack.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { applyReportFilters } from './filters.js'
 import { gitChangedFiles, gitHeadTimeMs, stagedContentsOf } from './git.js'
-import { readText } from './util.js'
+import { exists, readText } from './util.js'
 
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
 
@@ -39,7 +38,8 @@ export interface RunOptions {
   only?: string[]
   minLevel?: Level
   severity?: Severity
-  updateBaseline?: boolean
+  /** 只刷新覆盖率棘轮快照（M04）；与「豁免违规」无关 —— 违规没有豁免渠道 */
+  updateCoverage?: boolean
   reportOnly?: boolean
   localOnly?: boolean
   format?: 'pretty' | 'json' | 'github'
@@ -307,21 +307,11 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule),
   )
 
-  /* ---- 棘轮 ---- */
-  const baselinePath = join(config.root, config.baselineFile)
-  const fullScope = (options.scope ?? 'full') === 'full'
-  let active: Finding[]
-  let exemptedCount = 0
-  let unusedBaseline: ReportInput['unusedBaseline'] = []
+  /* ---- 违规**没有**存量豁免：全量违规直接进报告，active 就是全部 ---- */
+  let active: Finding[] = all
 
-  if (options.updateBaseline) {
-    if (!fullScope) {
-      throw new Error('--update-baseline 只能在全量 scope 下运行（增量会写出不完整的基线）')
-    }
-    const entries = entriesFromFindings(all, sourceOf)
-    saveBaseline(baselinePath, entries)
-    notices.push(`已写入基线 ${config.baselineFile}：${entries.length} 条`)
-    // 覆盖率棘轮的快照一并写下（同一个命令，避免两处手动维护）
+  // 覆盖率棘轮快照（M04 用）：这是"覆盖率不许倒退"的基线，与"豁免违规"是两件事
+  if (options.updateCoverage) {
     const coverage = metricsAdapter?.coverage
     if (coverage?.ratchet === true && metricsInfo?.report) {
       const totals = coverageTotals(metricsInfo.report)
@@ -333,15 +323,18 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       notices.push(
         `已写入覆盖率快照：行 ${totals.lines.toFixed(2)}% / 分支 ${totals.branches.toFixed(2)}%`,
       )
+    } else {
+      notices.push(
+        '--update-coverage：没启用覆盖率棘轮（metrics 的 coverage.ratchet）或覆盖率产物读不到，未写快照',
+      )
     }
-    active = []
-  } else {
-    const baseline = loadBaseline(baselinePath)
-    const split = applyBaseline(all, baseline, sourceOf)
-    active = split.active
-    exemptedCount = split.exempted.length
-    // 过期豁免只在全量模式检查（增量运行不该刷过期噪音）
-    unusedBaseline = fullScope ? split.unused : []
+  }
+
+  // 旧机制留下的文件：不再豁免任何东西 —— 明说，免得以为存量债还挂着
+  if (exists(join(config.root, 'arch.baseline.json'))) {
+    notices.push(
+      '检测到 arch.baseline.json：违规基线机制已移除，存量违规不再被豁免（请删除该文件）',
+    )
   }
 
   /* ---- 报告过滤（scope / --paths / --severity）：集中在一处，规矩是"只过滤报告且必须自述" ---- */
@@ -365,8 +358,6 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     config,
     ruleIndex,
     findings: active,
-    exemptedCount,
-    unusedBaseline,
     skipped: registry.skipped,
     unknownEnabled: registry.unknownEnabled,
     notices,

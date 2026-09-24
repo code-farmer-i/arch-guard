@@ -54,8 +54,6 @@ const baseInput = (overrides = {}) => ({
   config: { params: {} },
   ruleIndex: new Map(coreRules.map((rule) => [rule.id, rule])),
   findings: [],
-  exemptedCount: 0,
-  unusedBaseline: [],
   skipped: [],
   unknownEnabled: [],
   notices: [],
@@ -109,10 +107,8 @@ test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线',
         scopeFiles: 3,
         globalFindings: 1,
         skippedGlobals: 2,
-        exemptedCount: 2,
         exemptedFiles: 1,
         skipped: [{ rule: 'D10', reason: '能力未声明：uiKit.vendorSelectors' }],
-        unusedBaseline: [{ rule: 'H01', file: 'a.ts', anchor: 'x', anchorKind: 'line' }],
         unknownEnabled: ['NOPE'],
         notices: ['别名取自 tsconfig'],
       }),
@@ -202,34 +198,6 @@ test('presets：library 与 canonical 是两套角色表，且都完备', () => 
 
 /* ---------------- run.ts 的路径 ---------------- */
 
-test('run：--update-baseline 写入基线，第二次运行即被豁免', async () => {
-  const dir = copyFixture('violations')
-  try {
-    const first = await runGuard({ cwd: dir, rules: coreRules, quiet: true, updateBaseline: true })
-    assert.equal(first.exitCode, 0, '写入基线后本轮不报')
-    const baseline = JSON.parse(readFileSync(join(dir, 'arch.baseline.json'), 'utf8'))
-    assert.ok(baseline.entries.length >= 5, '委派了一批规则后条目变少')
-
-    const second = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
-    assert.equal(second.active.length, 0, '存量违规被豁免')
-    assert.equal(second.exitCode, 0)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test('run：增量 scope 下禁止写基线（会写出不完整的基线）', async () => {
-  const dir = copyFixture('violations')
-  try {
-    await assert.rejects(
-      runGuard({ cwd: dir, rules: coreRules, quiet: true, scope: 'staged', updateBaseline: true }),
-      /只能在全量 scope/,
-    )
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
-
 test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-closed', async () => {
   const dir = copyFixture('violations')
   try {
@@ -295,8 +263,6 @@ test('输出：GitHub 注解与 --stats 统计表（CI 与排查用）', async (
       { rule: 'H01', file: 'src/a.ts', line: 3, text: '问题一' },
       { rule: 'S16', file: 'src/b.ts', line: 7, text: '问题二\n换行要被压平' },
     ],
-    exemptedCount: 0,
-    unusedBaseline: [],
     skipped: [],
     unknownEnabled: [],
     notices: [],

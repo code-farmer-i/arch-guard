@@ -82,7 +82,7 @@ export default {
 npx arch-guard                          # 全项目检查
 npx arch-guard --scope=changed           # 只报告 git 变更文件（含未跟踪）
 npx arch-guard --domain=D --format=json  # 只看设计系统，输出 JSON（给 agent / CI）
-npx arch-guard --update-baseline         # 把存量违规写进棘轮基线
+npx arch-guard --update-coverage         # 刷新覆盖率棘轮快照（M04；不是豁免违规）
 ```
 
 ## 三种用法：用库 / 换库 / 不用库
@@ -110,15 +110,17 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 | agent 迭代  | `--scope=changed`（含未跟踪文件）             |
 | PR          | `--scope=since:origin/main`                   |
 
-**安全语义**：不可归属的全局违规默认仍然失败（只有显式 `--local-only` 才允许跳过并列出条数）；无 git / 空 diff 会明确提示降级，绝不静默；`--changed` + `--update-baseline` 被拒绝。
+**安全语义**：不可归属的全局违规默认仍然失败（只有显式 `--local-only` 才允许跳过并列出条数）；无 git / 空 diff 会明确提示降级，绝不静默；`include` 非空却 0 个文件由 S24 直接报错。
 
-## 棘轮
+## 豁免：只有一条通道
 
-存量违规写进 `arch.baseline.json`：条目 = `规则 + 文件 + 稳定锚点`（单行取规范化行文本哈希）。
+**违规没有存量豁免**：没有基线、没有"一键把当前违规记下来"。不合规就是红 —— 这是刻意的取舍，
+因为任何"先把存量记下来"的通道最终都会变成日常动作，而不是例外。
 
-**被豁免的那行代码一改，豁免立即失效** —— 逼着清偿，而不是把门禁关掉。基线只减不增，过期条目会在全量模式提示删除。
+唯一的例外通道是 `arch.config.mjs` 的 `exempt`：**每一条必须写理由**（没理由在配置加载期就报错），
+白名单随配置进 diff，可评审。**没有内联豁免注释**（连 `eslint-disable` 都是红线 H02）。
 
-豁免只有两条官方通道：config 结构性白名单、基线。**没有内联豁免注释**（连 `eslint-disable` 都是红线 H02）。
+> 别和 **覆盖率棘轮**（M04）混淆：它比的是覆盖率快照（`--update-coverage` 维护），不豁免任何违规。
 
 ## 引擎不绑宿主
 
@@ -171,7 +173,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式 + �
 ## Roadmap
 
 - [x] 体积阈值默认 500 且可配（`overrides.thresholds`）
-- [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 棘轮 / scope / 自检
+- [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 豁免通道 / scope / 自检
 - [x] 结构域：角色表与目录契约（S00–S06、S09、S11–S16、S19–S23）——含**层序 / 组隔离 / 公开面**三条通用图规则
 - [x] 设计系统域（D03–D08 / D10 / D10b / D11 / D16 / D17 / D21）：色值唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / vendor 边界与反向封闭 / 框架残留 / 样式落点 / CSS Module 契约 / 声明与事实对账
 - [x] 文案域（C02–C07）：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账

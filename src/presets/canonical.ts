@@ -113,6 +113,6 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     // 生成代码）既不该被要求"落位"，也不该每次全量解析；但它们仍留在文件集里供 import 解析。
     include: [`${src}/**`],
     // 门禁自身的配置文件不属于项目源码树
-    ignore: ['arch.config.mjs', 'arch.config.js', 'arch.baseline.json', '.agents/**'],
+    ignore: ['arch.config.mjs', 'arch.config.js', '.agents/**'],
   }
 }

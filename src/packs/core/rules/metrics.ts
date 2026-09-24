@@ -225,7 +225,7 @@ export const coverageRatchet: Rule = {
       snapshot = JSON.parse(readFileSync(path, 'utf8')) as CoverageSnapshot
     } catch {
       return [
-        finding('M04', path, 1, '覆盖率棘轮快照无法解析', '删掉它并用 --update-baseline 重新生成'),
+        finding('M04', path, 1, '覆盖率棘轮快照无法解析', '删掉它并用 --update-coverage 重新生成'),
       ]
     }
     const current = totalsOf(report)

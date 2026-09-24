@@ -157,7 +157,11 @@ export interface NamingRules {
 
 export interface ExemptEntry {
   glob: string
-  reason?: string
+  /**
+   * 豁免理由，**必填**。基线机制已移除，这条结构性白名单是唯一的例外通道 ——
+   * 没有理由的豁免就是静默跳过（`loadConfig` 会在加载期直接报错）。
+   */
+  reason: string
 }
 
 export interface AdapterExamples {
@@ -291,7 +295,6 @@ export interface Config {
   metaFramework: string
   exempt: ExemptEntry[]
   aliases: Record<string, string>
-  baselineFile: string
   autoFix?: boolean
 }
 
