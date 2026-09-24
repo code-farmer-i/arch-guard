@@ -1,0 +1,230 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+
+import { coreRules } from '../es/index.js'
+
+/** 只填这几条规则会读的字段 */
+function context({ records, structure = {}, roles = [] }) {
+  return {
+    config: {
+      root: '/tmp/structure-groups',
+      srcRoot: 'src',
+      params: {},
+      adapters: {},
+      naming: { hookPrefix: 'use', viewSuffix: 'Page' },
+      thresholds: {
+        fileLines: 500,
+        viewLines: 500,
+        functionLines: 150,
+        exportsPerFile: 6,
+        componentsPerFile: 3,
+      },
+      layout: { app: '', modules: '', shared: '' },
+      roles,
+      structure: {
+        order: false,
+        isolate: [],
+        publicApi: [],
+        publicApiUnits: [],
+        segmentedGroups: [],
+        reservedNames: [],
+        groupCountLimits: [],
+        directoryItemLimits: [],
+        groupInDegree: [],
+        nameCollisions: [],
+        repetitiveNaming: [],
+        pluralConsistency: [],
+        degreeLimits: [],
+        importLocality: [],
+        ...structure,
+      },
+      entries: [],
+      ignore: [],
+      aliases: {},
+    },
+    records,
+    facts: new Map(),
+    graph: {
+      edges: new Map(),
+      importers: new Map(),
+      externals: new Map(),
+      unresolved: new Map(),
+      reachable: new Set(),
+      orphaned: [],
+      cycles: [],
+    },
+    scan: {
+      records: [],
+      files: [],
+      missing: [],
+      ambiguous: [],
+      exempted: [],
+      outside: [],
+      foreign: [],
+    },
+    deps: { hasManifest: false, runtime: [], dev: [], peer: [], declared: new Set() },
+    policy: { allow: [], deny: [], capabilities: {} },
+    files: records.map((record) => record.rel),
+    sourceOf: () => undefined,
+  }
+}
+
+const record = (
+  rel,
+  { layer = 1, role = 'x', group = null, groupName = null, captures = {} } = {},
+) => ({
+  rel,
+  abs: `/tmp/structure-groups/${rel}`,
+  role,
+  layer,
+  domain: null,
+  slot: null,
+  captures,
+  group,
+  groupName,
+  kind: 'ts',
+})
+
+const run = (id, ctx) => {
+  const rule = coreRules.find((item) => item.id === id)
+  assert.ok(rule, `规则 ${id} 不存在`)
+  return rule.run(ctx)
+}
+
+/** 分组切片：角色声明的是 `group: 'slice'`，所以 `group` 是**叶子名**，父桶在 captures 里 */
+const grouped = (bucket, leaf) => ({
+  group: leaf,
+  groupName: 'slice',
+  captures: { group: bucket, slice: leaf },
+})
+
+test('S35 组必须有片段：只有入口的组报，有内容的组不报；没声明就不参与', () => {
+  const records = [
+    record('src/pages/empty/index.ts', {
+      layer: 5,
+      role: 'entry',
+      group: 'empty',
+      groupName: 'slice',
+    }),
+    record('src/pages/crews/index.ts', {
+      layer: 5,
+      role: 'entry',
+      group: 'crews',
+      groupName: 'slice',
+    }),
+    record('src/pages/crews/ui/CrewsPage.tsx', {
+      layer: 5,
+      role: 'ui',
+      group: 'crews',
+      groupName: 'slice',
+    }),
+  ]
+  const roles = [
+    { id: 'entry', pattern: 'src/pages/{slice}/index.ts', layer: 5, group: 'slice', entry: true },
+    { id: 'ui', pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' },
+  ]
+  assert.deepEqual(
+    run('S35', context({ records, roles })),
+    [],
+    '没声明 segmentedGroups → 不参与判定',
+  )
+  const findings = run(
+    'S35',
+    context({ records, roles, structure: { segmentedGroups: ['slice'] } }),
+  )
+  assert.deepEqual(
+    findings.map((finding) => finding.file),
+    ['src/pages/empty/index.ts'],
+  )
+})
+
+test('S25 保留名目录：只看超出角色 pattern 的目录；没声明就不参与', () => {
+  const roles = [{ id: 'ui', pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' }]
+  const records = [
+    record('src/pages/crews/ui/CrewsPage.tsx', {
+      layer: 5,
+      role: 'ui',
+      group: 'crews',
+      groupName: 'slice',
+    }),
+    record('src/pages/crews/ui/lib/thing.ts', {
+      layer: 5,
+      role: 'ui',
+      group: 'crews',
+      groupName: 'slice',
+    }),
+  ]
+  assert.deepEqual(run('S25', context({ records, roles })), [], '没声明 reservedNames → 不参与判定')
+  const findings = run(
+    'S25',
+    context({ records, roles, structure: { reservedNames: ['lib', '@x'] } }),
+  )
+  assert.deepEqual(
+    findings.map((finding) => `${finding.file}@${finding.line}`),
+    ['src/pages/crews/ui/lib/thing.ts@1'],
+    '`ui` 是角色自己的那一段，不算"片段内的保留名"',
+  )
+})
+
+test('S26 组数量：按「层 + 父组桶」分桶，未分组的共用一个桶', () => {
+  const records = [
+    record('src/pages/a/ui/A.tsx', { layer: 5, group: 'a', groupName: 'slice' }),
+    record('src/pages/b/ui/B.tsx', { layer: 5, group: 'b', groupName: 'slice' }),
+    record('src/pages/admin/a/ui/A.tsx', { layer: 5, ...grouped('admin', 'a') }),
+    record('src/pages/admin/b/ui/B.tsx', { layer: 5, ...grouped('admin', 'b') }),
+  ]
+  const structure = { groupCountLimits: [{ dimension: 'slice', max: 2 }] }
+  assert.deepEqual(run('S26', context({ records, structure })), [])
+  const findings = run(
+    'S26',
+    context({ records, structure: { groupCountLimits: [{ dimension: 'slice', max: 1 }] } }),
+  )
+  assert.deepEqual(
+    findings.map((finding) => finding.file).sort(),
+    ['src/pages/a/ui/A.tsx', 'src/pages/admin/a/ui/A.tsx'],
+    '两个桶各报一条，锚在各自桶内字典序最小的文件上',
+  )
+})
+
+test('S27 目录子项数：默认数文件 + 子目录，foldersOnly 只数子目录', () => {
+  const records = [
+    record('src/shared/lib/a/index.ts', { layer: 1, role: 'lib' }),
+    record('src/shared/lib/b/index.ts', { layer: 1, role: 'lib' }),
+    record('src/shared/lib/loose.ts', { layer: 1, role: 'lib' }),
+  ]
+  const roles = [{ id: 'lib', pattern: 'src/shared/lib/**', layer: 1 }]
+  assert.equal(
+    run(
+      'S27',
+      context({ records, roles, structure: { directoryItemLimits: [{ role: 'lib', max: 2 }] } }),
+    ).length,
+    1,
+  )
+  assert.deepEqual(
+    run(
+      'S27',
+      context({
+        records,
+        roles,
+        structure: { directoryItemLimits: [{ role: 'lib', max: 2, foldersOnly: true }] },
+      }),
+    ),
+    [],
+    '只数目录时是 2，不超上限',
+  )
+})
+
+test('S27 目录子项数：角色一条记录都没有时跳过（宁少报不误报）', () => {
+  const roles = [{ id: 'r', pattern: 'src/empty/**', layer: 1 }]
+  assert.deepEqual(
+    run(
+      'S27',
+      context({
+        records: [record('src/other/x.ts', { role: 'r' })],
+        roles,
+        structure: { directoryItemLimits: [{ role: 'r', max: 0 }] },
+      }),
+    ),
+    [],
+  )
+})

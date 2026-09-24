@@ -25,17 +25,17 @@ Status: in-progress
 
 ## 已定案的取舍
 
-| 冲突 | 决定 |
-| --- | --- |
-| 规则号撞车：本地 `S24` = 组必须有片段，上游 `S24` = 契约扫描域非空 | 本地那条**重编号为 `S35`**（上游 S25–S34 都空着，本地 S25–S34 原样保留） |
-| 规则落点 | 全部放 `src/packs/core/rules/**`（框架无关），`sources` 的相对层级与本地一致 |
-| 结构声明里"角色/维度不存在" | **直接报错**（fail-closed），不新增 notice code —— 避免动对外报告契约 |
-| `notices` 类型 | 上游是 `Diagnostic[]`；本移植不再往 notices 里塞结构声明消息 |
+| 冲突                                                               | 决定                                                                         |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| 规则号撞车：本地 `S24` = 组必须有片段，上游 `S24` = 契约扫描域非空 | 本地那条**重编号为 `S35`**（上游 S25–S34 都空着，本地 S25–S34 原样保留）     |
+| 规则落点                                                           | 全部放 `src/packs/core/rules/**`（框架无关），`sources` 的相对层级与本地一致 |
+| 结构声明里"角色/维度不存在"                                        | **直接报错**（fail-closed），不新增 notice code —— 避免动对外报告契约        |
+| `notices` 类型                                                     | 上游是 `Diagnostic[]`；本移植不再往 notices 里塞结构声明消息                 |
 
 ## 步骤（每步一个提交 + `pnpm check` 绿）
 
 1. ✅ **声明与类型扩展**：`engine/structure-spec.ts`（新，拆出结构声明词汇表，`types.ts` 触到 500 行上限）+ `engine/structure.ts`（解析 / 校验 / 加法合并 / overrides 覆盖）+ `config.ts` / `util.ts` 接线 + `tests/structure-declarations.test.mjs`
-2. ⬜ **组规则**：S35（原 S24 组必须有片段）· S25 保留名目录 · S26 组数量上限 · S27 目录子项上限 + `structure-util.ts` + 夹具
+2. ✅ **组规则**：S35（原 S24 组必须有片段）· S25 保留名目录 · S26 组数量上限 · S27 目录子项上限 + `structure-util.ts` + 夹具
 3. ⬜ **图规则**：S28 组的外部引用下限（死切片）· S32 导入局部性 + 夹具
 4. ⬜ **命名**：S29 组名撞单元 · S30 重复词 · S31 单复数一致性 + `src/data/plural-forms.ts` + `pluralize` 采纳（登记三处：`portability.ts` 白名单 / `package.json` / 狗粮 `arch.config.mjs` 的 `deps({ allow })`）
 5. ⬜ **依赖图三件**：S08 依赖环 · S33 未解析导入 · S34 文件级入/出度 + 夹具（顺带修上游同样存在的两处坏路径：`examples/minimal` 的 `@/shared/lib/format`、`structure-isolate` 夹具里少写一层 `..` 的 import）
@@ -53,3 +53,6 @@ Status: in-progress
 
 - 2026-09-24 起：`main` 已同步到 `d19363e`，上游基线在本机 `pnpm check` EXIT=0（30/30 夹具）。
 - 2026-09-24 Step 1 完成并提交：`structure` 声明扩到 13 个字段；`types.ts` 500 行上限触发 → 拆出 `engine/structure-spec.ts`。
+- 2026-09-24 Step 2 完成并提交：`packs/core/rules/structure-util.ts` + `structure-groups.ts`（S35/S25/S26/S27；
+  S24→S35 重编号已落地），夹具 `structure-groups` / `structure-limits`（各 `exact: true`），
+  `coreRules` 与 `library()` 启用名单已接。双 Node `pnpm check` EXIT=0（266 测试 / 32 夹具）。

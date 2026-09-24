@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S26",
+      "file": "src/pages/a/index.ts"
+    },
+    {
+      "rule": "S27",
+      "file": "src/parts/x/a.ts"
+    }
+  ],
+  "exact": true
+}

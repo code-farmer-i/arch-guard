@@ -10,6 +10,7 @@ import { designVendorRules } from './rules/design-vendor.js'
 import { metricsRules } from './rules/metrics.js'
 import { declaredStructureRules } from './rules/structure-declared.js'
 import { structureGraphRules } from './rules/structure-graph.js'
+import { structureGroupRules } from './rules/structure-groups.js'
 import { scanScopeNotEmpty } from './rules/structure-scan.js'
 import { structureRules } from './rules/structure.js'
 
@@ -30,6 +31,7 @@ export const coreRules: Rule[] = [
   ...structureRules,
   ...structureGraphRules,
   ...declaredStructureRules,
+  ...structureGroupRules,
   // 扫描域非空是"逐文件规则能跑"的先决条件，放在结构域里
   scanScopeNotEmpty,
   ...designTokenRules,

@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S25",
+      "file": "src/pages/crews/ui/lib/thing.ts"
+    },
+    {
+      "rule": "S35",
+      "file": "src/pages/empty/index.ts"
+    }
+  ],
+  "exact": true
+}
