@@ -94,6 +94,8 @@ export function library(options: LibraryOptions = {}): Preset {
       'S25',
       'S26',
       'S27',
+      'S28',
+      'S32',
       'S35',
       'P01',
       'P02',

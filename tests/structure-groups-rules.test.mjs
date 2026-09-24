@@ -3,8 +3,8 @@ import { test } from 'node:test'
 
 import { coreRules } from '../es/index.js'
 
-/** 只填这几条规则会读的字段 */
-function context({ records, structure = {}, roles = [] }) {
+/** 只填这几条规则会读的字段；`edges` 用来测图规则（S28） */
+function context({ records, structure = {}, roles = [], edges = [], importers = [] }) {
   return {
     config: {
       root: '/tmp/structure-groups',
@@ -45,8 +45,8 @@ function context({ records, structure = {}, roles = [] }) {
     records,
     facts: new Map(),
     graph: {
-      edges: new Map(),
-      importers: new Map(),
+      edges: new Map(edges),
+      importers: new Map(importers),
       externals: new Map(),
       unresolved: new Map(),
       reachable: new Set(),
@@ -226,5 +226,147 @@ test('S27 目录子项数：角色一条记录都没有时跳过（宁少报不�
       }),
     ),
     [],
+  )
+})
+
+test('S28 外部引用下限：0 个必报、只被 app 引用放过、pages 层整层跳过、同层引用不计', () => {
+  const records = [
+    record('src/features/dead/index.ts', {
+      layer: 3,
+      role: 'entry',
+      group: 'dead',
+      groupName: 'slice',
+    }),
+    record('src/features/dead/ui/Dead.tsx', { layer: 3, group: 'dead', groupName: 'slice' }),
+    record('src/features/used/index.ts', {
+      layer: 3,
+      role: 'entry',
+      group: 'used',
+      groupName: 'slice',
+    }),
+    record('src/features/used/ui/Used.tsx', { layer: 3, group: 'used', groupName: 'slice' }),
+    record('src/features/apponly/index.ts', {
+      layer: 3,
+      role: 'entry',
+      group: 'apponly',
+      groupName: 'slice',
+    }),
+    record('src/pages/never/index.ts', {
+      layer: 5,
+      role: 'entry',
+      group: 'never',
+      groupName: 'slice',
+    }),
+    record('src/pages/crews/ui/CrewsPage.tsx', {
+      layer: 5,
+      role: 'page',
+      group: 'crews',
+      groupName: 'slice',
+    }),
+    record('src/app/router/index.tsx', { layer: 6, role: 'app' }),
+  ]
+  const roles = [
+    { id: 'entry', pattern: 'src/**/index.ts', layer: 1, entry: true },
+    { id: 'app', pattern: 'src/app/**', layer: 6 },
+  ]
+  const structure = {
+    groupInDegree: [{ dimension: 'slice', min: 1, exceptLayers: [5], singleFromLayers: [6] }],
+  }
+  const edges = [
+    ['src/pages/crews/ui/CrewsPage.tsx', new Set(['src/features/used/index.ts'])],
+    ['src/app/router/index.tsx', new Set(['src/features/apponly/index.ts'])],
+  ]
+  const importers = [
+    ['src/features/used/index.ts', new Set(['src/pages/crews/ui/CrewsPage.tsx'])],
+    ['src/features/apponly/index.ts', new Set(['src/app/router/index.tsx'])],
+  ]
+  assert.deepEqual(
+    run('S28', context({ records, roles, structure })).map((finding) => finding.file),
+    [
+      'src/features/dead/ui/Dead.tsx',
+      'src/features/used/ui/Used.tsx',
+      'src/features/apponly/index.ts',
+    ],
+    '没给图（无引用）时：dead / used / apponly 都算零引用，pages 层跳过',
+  )
+  assert.deepEqual(
+    run('S28', context({ records, roles, structure, edges, importers })).map((f) => f.file),
+    ['src/features/dead/ui/Dead.tsx'],
+    '有引用后：used 有跨层引用不报；apponly 只被 app 引用 → 放过；dead 零引用照报',
+  )
+  assert.deepEqual(run('S28', context({ records, roles })), [], '没声明 groupInDegree → 不参与判定')
+})
+
+test('S28 同层引用不计：同层跨组引用不算外部引用', () => {
+  const records = [
+    record('src/features/a/index.ts', { layer: 3, role: 'entry', group: 'a', groupName: 'slice' }),
+    record('src/features/b/index.ts', { layer: 3, role: 'entry', group: 'b', groupName: 'slice' }),
+  ]
+  const roles = [{ id: 'entry', pattern: 'src/**/index.ts', layer: 1, entry: true }]
+  const structure = { groupInDegree: [{ dimension: 'slice', min: 1 }] }
+  const findings = run(
+    'S28',
+    context({
+      records,
+      roles,
+      structure,
+      edges: [['src/features/a/index.ts', new Set(['src/features/b/index.ts'])]],
+    }),
+  )
+  assert.deepEqual(
+    findings.map((finding) => finding.file).sort(),
+    ['src/features/a/index.ts', 'src/features/b/index.ts'],
+    '同层引用互相都不算外部引用 → 两条都报',
+  )
+})
+
+test('S28 min > 1：只有一个外部引用者时报，唯一引用者是 app 时放过', () => {
+  const records = [
+    record('src/features/used/index.ts', {
+      layer: 3,
+      role: 'entry',
+      group: 'used',
+      groupName: 'slice',
+    }),
+    record('src/features/lonely/index.ts', {
+      layer: 3,
+      role: 'entry',
+      group: 'lonely',
+      groupName: 'slice',
+    }),
+    record('src/features/dead/index.ts', {
+      layer: 3,
+      role: 'entry',
+      group: 'dead',
+      groupName: 'slice',
+    }),
+    record('src/app/router/index.tsx', { layer: 6, role: 'app' }),
+    record('src/pages/home/ui/Home.tsx', {
+      layer: 5,
+      role: 'page',
+      group: 'home',
+      groupName: 'slice',
+    }),
+  ]
+  const roles = [{ id: 'entry', pattern: 'src/**/index.ts', layer: 1, entry: true }]
+  const structure = {
+    groupInDegree: [{ dimension: 'slice', min: 2, exceptLayers: [5], singleFromLayers: [6] }],
+  }
+  const findings = run(
+    'S28',
+    context({
+      records,
+      roles,
+      structure,
+      edges: [
+        ['src/app/router/index.tsx', new Set(['src/features/used/index.ts'])],
+        ['src/pages/home/ui/Home.tsx', new Set(['src/features/lonely/index.ts'])],
+      ],
+    }),
+  )
+  assert.deepEqual(
+    findings.map((finding) => finding.file).sort(),
+    ['src/features/dead/index.ts', 'src/features/lonely/index.ts'],
+    'used 的唯一引用者是 app → 放过；lonely 来源不是 app → 报；dead 零引用 → 报',
   )
 })

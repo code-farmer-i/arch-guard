@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S28",
+      "file": "src/features/dead/ui/Dead.tsx"
+    }
+  ],
+  "exact": true
+}

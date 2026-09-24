@@ -212,9 +212,108 @@ export const directoryItemLimits: Rule = {
   },
 }
 
+/* ---------------- S28 组的外部引用下限（死切片） ---------------- */
+
+/**
+ * 判据（只数**跨层**的引用，同层引用不计）：
+ *   - 引用组数为 0 → 报"没被用到"；
+ *   - 少于 `min` → 报（默认 `min: 1` 时就是"只有一个引用者，通常该合并进去"）；
+ *   - 例外：唯一引用者来自 `singleFromLayers` 里的层时放过（页面只被装配层引用是正常形态）。
+ *
+ * `exceptLayers` 整层跳过：页面天然只被路由层引用，查它只会得到一片噪音。
+ * 计数单位是**引用组**（层 + 组值），与社区 linter 的 (layer, slice) 口径一致。
+ */
+export const groupInDegree: Rule = {
+  id: 'S28',
+  domain: 'structure',
+  level: 'L3',
+  severity: 'error',
+  title: '组的外部引用下限',
+  hint: '没人引用的组是死代码；只有一个引用者时通常该把它合并进那一处',
+  run: (ctx) => {
+    const specs = ctx.config.structure.groupInDegree ?? []
+    if (specs.length === 0) return []
+    const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
+    const entryRoles = new Set(
+      ctx.config.roles.filter((role) => role.entry === true).map((role) => role.id),
+    )
+    const out: Finding[] = []
+
+    for (const spec of specs) {
+      const except = new Set(spec.exceptLayers ?? [])
+      const singleFrom = new Set(spec.singleFromLayers ?? [])
+      const groups = new Map<
+        string,
+        { layer: number; group: string; anchor: string; bodyAnchor: string | null }
+      >()
+      for (const record of ctx.records) {
+        if (record.layer >= 90) continue
+        if (record.groupName !== spec.dimension || !record.group) continue
+        if (except.has(record.layer)) continue
+        const key = `${record.layer}:${record.group}`
+        const seen = groups.get(key) ?? {
+          layer: record.layer,
+          group: record.group,
+          anchor: record.rel,
+          bodyAnchor: null,
+        }
+        if (record.rel < seen.anchor) seen.anchor = record.rel
+        if (
+          !entryRoles.has(record.role) &&
+          (seen.bodyAnchor === null || record.rel < seen.bodyAnchor)
+        ) {
+          seen.bodyAnchor = record.rel
+        }
+        groups.set(key, seen)
+      }
+
+      // 遍历**图里的所有边**（而不是 records 里的文件）：契约域外的文件（`vite.config.ts`、
+      // 未登记路径）照样能引用到组，把它们漏掉会把"其实有人用"报成死代码。
+      const referrers = new Map<string, Set<string>>()
+      for (const [from, targets] of ctx.graph.edges) {
+        const source = byRel.get(from)
+        if (source && source.layer >= 90) continue
+        for (const target of targets) {
+          const to = byRel.get(target)
+          if (!to || to.layer >= 90) continue
+          if (to.groupName !== spec.dimension || !to.group) continue
+          if (except.has(to.layer)) continue
+          if (source && source.layer === to.layer) continue
+          const key = `${to.layer}:${to.group}`
+          if (!referrers.has(key)) referrers.set(key, new Set())
+          referrers.get(key)?.add(`${source?.layer ?? 'outside'}:${source?.group ?? ''}`)
+        }
+      }
+
+      for (const [key, group] of groups) {
+        const refs = referrers.get(key) ?? new Set<string>()
+        if (refs.size >= spec.min) continue
+        if (refs.size === 1 && singleFrom.size > 0) {
+          const only = [...refs][0] as string
+          const layer = Number(only.slice(0, only.indexOf(':')))
+          if (singleFrom.has(layer)) continue
+        }
+        const anchor = group.bodyAnchor ?? group.anchor
+        out.push(
+          finding(
+            'S28',
+            anchor,
+            1,
+            refs.size === 0
+              ? `组「${group.group}」（第 ${group.layer} 层）没有任何外部引用：没被用到的东西就是死代码`
+              : `组「${group.group}」（第 ${group.layer} 层）只有 ${refs.size} 个外部引用组，少于下限 ${spec.min}：考虑合并进引用方`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 export const structureGroupRules: Rule[] = [
   segmentedGroups,
   reservedFolderNames,
   groupCountLimits,
   directoryItemLimits,
+  groupInDegree,
 ]
