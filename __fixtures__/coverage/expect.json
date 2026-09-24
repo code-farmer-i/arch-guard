@@ -32,5 +32,6 @@
   "unitOnly": [
     "M05",
     "M06"
-  ]
+  ],
+  "exact": true
 }

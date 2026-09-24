@@ -40,5 +40,6 @@
       "rule": "D11",
       "file": "src/shared/components/ui/Bad.module.css"
     }
-  ]
+  ],
+  "exact": true
 }

@@ -88,5 +88,6 @@
       "rule": "S18",
       "file": "src/shared/lib/crewOnly.ts"
     }
-  ]
+  ],
+  "exact": true
 }

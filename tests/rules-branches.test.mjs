@@ -40,6 +40,8 @@ function makeContext({
       structure,
       entries: [],
       ignore: [],
+      // 归一化后的 Config 一定有 include（S24 直接读它，不必防御）
+      include: [],
       aliases: {},
     },
     records: [...byRel.keys()].map((rel) => ({

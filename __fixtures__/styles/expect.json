@@ -8,5 +8,6 @@
       "rule": "D17",
       "file": "src/shared/components/ui/Bad.module.css"
     }
-  ]
+  ],
+  "exact": true
 }

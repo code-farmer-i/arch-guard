@@ -4,5 +4,6 @@
       "rule": "S00",
       "file": "src/app/main.tsx"
     }
-  ]
+  ],
+  "exact": true
 }

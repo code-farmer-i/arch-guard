@@ -24,8 +24,9 @@ import {
 import { scanProject } from './scan.js'
 import type { Pack } from './pack.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
-import { gitChangedFiles, gitHeadTimeMs, rootRelativePattern, stagedContentsOf } from './git.js'
-import { globToRegExp, readText } from './util.js'
+import { applyReportFilters } from './filters.js'
+import { gitChangedFiles, gitHeadTimeMs, stagedContentsOf } from './git.js'
+import { readText } from './util.js'
 
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
 
@@ -77,6 +78,8 @@ export interface RunResult {
   scopeFiles: string[]
   /** `--local-only` 跳过的全局违规条数（0 = 没跳过；程序化调用方也拿得到这个事实） */
   skippedGlobals: number
+  /** `--severity` 过滤掉的 finding 条数（0 = 没过滤；同理不许静默） */
+  filteredBySeverity: number
   durationMs: number
   stats: RuleStat[]
 }
@@ -126,6 +129,10 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     notices.push(
       `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
     )
+  } else if (scan.records.length === 0) {
+    // include 不限（引擎默认）且全树 0 个源码：没有任何东西被判定，必须说出来。
+    // include 非空的情况由 S24 报错（那是配置写错，不是空仓库）。
+    notices.push('include 未限制，但全项目 0 个 ts/css 文件：本次没有任何东西被判定')
   }
   const texts = new Map<string, string>()
   const facts = new Map<string, Facts>()
@@ -337,57 +344,22 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     unusedBaseline = fullScope ? split.unused : []
   }
 
-  /* ---- scope 过滤：只过滤报告，不过滤正确性 ---- */
-  let scopeFiles: string[] = []
-  /** `--local-only` 丢掉的全局违规条数：必须可机读（JSON）也可人读（notice），不许静默 */
-  let skippedGlobals = 0
-  if (scope !== 'full') {
-    if (changed === null) {
-      notices.push(`scope=${scope} 无法取得 git 变更集（无 git 或无提交），已降级为全量`)
-    } else {
-      if (changed.notice) notices.push(changed.notice)
-      scopeFiles = changed.files
-      const set = new Set(changed.files)
-      active = active.filter((finding) => {
-        if (set.has(finding.file)) return true
-        if (finding.global) {
-          // 不可归属的全局违规**默认仍然失败**；只有显式 --local-only 才放行 ——
-          // 且放行多少条必须打出来（否则"零 error"就成了静默丢弃，见 DESIGN §6.8 退出码表）
-          if (options.localOnly === true) {
-            skippedGlobals += 1
-            return false
-          }
-          return true
-        }
-        return false
-      })
-      if (skippedGlobals > 0) {
-        notices.push(
-          `--local-only：跳过 ${skippedGlobals} 条不可归属的全局违规（架构级，需全量运行才可见）`,
-        )
-      }
-    }
-  }
+  /* ---- 报告过滤（scope / --paths / --severity）：集中在一处，规矩是"只过滤报告且必须自述" ---- */
+  const filtered = applyReportFilters({
+    active,
+    changed,
+    scope,
+    scanned,
+    root: config.root,
+    ruleIndex,
+    notices,
+    ...(options.paths ? { paths: options.paths } : {}),
+    ...(options.severity ? { severity: options.severity } : {}),
+    ...(options.localOnly ? { localOnly: true } : {}),
+  })
+  active = filtered.active
+  const { scopeFiles, skippedGlobals, filteredBySeverity } = filtered
   const globalFindings = active.filter((finding) => finding.global).length
-
-  if (options.paths && options.paths.length > 0) {
-    // `--paths` 同时接受配置根相对路径与**绝对路径**：IDE / 编辑器插件 / lint 工具按文件传参时
-    // 给的是绝对路径，不归一就会「一条都没匹配上」→ 静默假绿（门禁报通过，其实什么都没查）。
-    const matchers = options.paths.map((pattern) =>
-      globToRegExp(rootRelativePattern(pattern, config.root)),
-    )
-    const globalsBefore = active.filter((finding) => finding.global).length
-    active = active.filter((finding) => matchers.some((matcher) => matcher.test(finding.file)))
-    const globalsAfter = active.filter((finding) => finding.global).length
-    if (globalsBefore > globalsAfter) {
-      notices.push(
-        `--paths 只报匹配的文件：本次另有 ${globalsBefore - globalsAfter} 条全局违规（架构级）被过滤，需全量运行才可见`,
-      )
-    }
-  }
-  if (options.severity) {
-    active = active.filter((finding) => severityOf(finding, ruleIndex) === options.severity)
-  }
 
   const reportInput: ReportInput = {
     config,
@@ -402,6 +374,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     scopeFiles: scopeFiles.length,
     globalFindings,
     skippedGlobals,
+    filteredBySeverity,
     durationMs: Date.now() - started,
     rulesEnabled: registry.enabled.length,
     rulesTotal: rules.length,
@@ -437,6 +410,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     scope,
     scopeFiles,
     skippedGlobals,
+    filteredBySeverity,
     durationMs: Date.now() - started,
     stats,
   }

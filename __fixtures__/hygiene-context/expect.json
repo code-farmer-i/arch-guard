@@ -24,5 +24,6 @@
       "rule": "S15",
       "file": "src/shared/lib/timers.ts"
     }
-  ]
+  ],
+  "exact": true
 }

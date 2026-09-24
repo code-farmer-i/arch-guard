@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+### Fixed（过滤器与空扫描域：三条「绿而不自述」的洞）
+
+- **新增规则 S24「契约扫描域不得为空」**：`include` 非空却一个源码文件都没匹配到 → **error**，并标为全局
+  （`--scope=changed` 下默认仍然失败，不许静默丢弃）。此前只有「认不出的元框架」那一轴被守住，
+  `include` / `srcRoot` / 预设 `layout` 打错一个字母就会「0 个文件 → ✔ 通过」——PARADIGM §11 明说过这是**假绿**。
+  `include` 为空（不限扫描域）时不判：空仓库是合法形态，改由报告 notice 自述「没有任何东西被判定」。
+  新夹具 `__fixtures__/scan-scope-empty`（违规侧）。
+- **`--severity` 过滤必须自述**：以前在有 error 的项目上跑 `--severity=warn` 会打印「✔ 架构守卫通过」而不交代被滤掉了什么。
+  现在 notice + 摘要行 + `RunResult.filteredBySeverity` + JSON 字段四处都给条数（照 `--local-only` 的先例）。
+- **`--paths` 一个文件都没匹配上必须自述**：路径打错时以前安静通过；现在明确说「0 个文件被判定，别当成通过」。
+- **JSON 报告补 `notices`**：这些自述以前只存在于人读的那一行里，CI / agent 看不到；现在机读侧同样可见。
+
+### Changed（夹具精确性：从「只查漏报」到「漏报、多报都查」）
+
+- 12 个夹具此前没写 `exact: true`，而自检默认**只查漏报、不查多报**（`self-test.ts`）——
+  实测它们本来就精确（0 漏报 / 0 多报），但那是「碰巧」，不是「被守住」。现在 **28/28 全部 `exact`**：
+  将来任何规则多报（= 误报，本仓第一红线）都会让门禁直接红。
+  维护提示：改写 `expect.json` 时**必须保留 `unitOnly` 之类的声明字段**（`coverage` 夹具用它登记由单测覆盖的 M05/M06）。
+
 ### Fixed（scope 的安全语义：承诺了却没实现的那两条）
 
 - **`--scope=staged` 现在真的读 index 内容**（`git show :<path>`），不再读工作区文件。这是 pre-commit 的经典 bug：

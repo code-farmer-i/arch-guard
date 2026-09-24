@@ -111,37 +111,38 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 55 条**（以 `arch-guard --stats` / `reactRules` 为准）：
-> `S00–S06`、`S09`、`S11–S23`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`H06`、`P01`、`P02`、`P04–P07`、`P11`、`M02–M09`。
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 56 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> `S00–S06`、`S09`、`S11–S24`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`H06`、`P01`、`P02`、`P04–P07`、`P11`、`M02–M09`。
 > `S08`（无环）、`S10`（相对越级）、`P03`（幽灵依赖）、`P08`（死依赖）等已按 §4.9 **委派**给
 > eslint / dependency-cruiser / knip，不在本体实现；`H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。
 
 ### 5.1 结构与边界（S）
 
-| ID  | 红线                                                                                                                                                                           | 判据        | 等级  | 级别  |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ----- | ----- |
-| S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内                                                                                                        | 目录白名单  | L1    | error |
-| S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套                                                                                                                                    | 路径        | L1    | error |
-| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）                                                                                                                                  | 路径        | L1    | error |
-| S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方                                                                                                                  | import 前缀 | L3    | error |
-| S05 | 域外只许 `import '@/modules/<域>/routes'`                                                                                                                                      | 图          | L3    | error |
-| S06 | `views/` 对域外私有                                                                                                                                                            | 图          | L3    | error |
-| S08 | 全图无环                                                                                                                                                                       | 图 DFS      | L3    | error |
-| S09 | `app/layouts` 不得 import `modules/**`                                                                                                                                         | 图          | L3    | error |
-| S10 | 禁相对越级 `../`                                                                                                                                                               | import 前缀 | L2    | error |
-| S11 | 禁 barrel / `export *`                                                                                                                                                         | AST         | L2    | error |
-| S12 | 命名契约（目录/文件/导出名，§4.7）                                                                                                                                             | 路径 + AST  | L1+L2 | error |
-| S13 | 导出形态契约（§4.5）                                                                                                                                                           | AST         | L2    | error |
-| S14 | 有 `views/` 必须有 `routes.tsx`                                                                                                                                                | 路径        | L1    | error |
-| S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用                                                                                               | 可达性      | L3    | error |
-| S16 | 体积：文件 ≤500（默认，可配）/ 单组件函数 ≤150                                                                                                                                 | AST 计数    | L2    | error |
-| S19 | **宽度**：单文件导出值 ≤6 / 单文件组件数 ≤3（不含类型导出）。**仅应用范式** —— 库的入口就是公开面，导出几十个符号是对的形态                                                    | AST 计数    | L2    | error |
-| S17 | 同一导出名在两处定义（防复制粘贴实现）                                                                                                                                         | AST         | L2    | warn  |
-| S18 | `shared` 里的项只被一个域使用 → 应下沉域内                                                                                                                                     | 图入度来源  | L3    | warn  |
-| S20 | **框架包必须覆盖项目的源码形态**：出现当前 pack 量不了的源码（如 react pack 遇到 `.vue`）即报                                                                                  | 扩展名分派  | L1    | error |
-| S21 | **分层单向（通用）**：只许依赖层号 ≤ 自己的文件。应用范式（`canonical()`）与库/FSD 都靠它 —— 一套机制管到底；也补上了原先没人管的 `shared → modules`、`modules → app` 向上依赖 | 依赖图      | L3    | error |
-| S22 | **组隔离**：同组维度、同层、不同组之间不许互相引用（`structure.isolate` 声明了才判）                                                                                           | 依赖图      | L3    | error |
-| S23 | **公开面**：组必须有入口（角色描述符 `entry: true`），且组外不许直接引用组内非入口文件（`structure.publicApi` 声明了才判）                                                     | 依赖图      | L3    | error |
+| ID  | 红线                                                                                                                                                                           | 判据         | 等级  | 级别  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ | ----- | ----- |
+| S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内                                                                                                        | 目录白名单   | L1    | error |
+| S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套                                                                                                                                    | 路径         | L1    | error |
+| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）                                                                                                                                  | 路径         | L1    | error |
+| S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方                                                                                                                  | import 前缀  | L3    | error |
+| S05 | 域外只许 `import '@/modules/<域>/routes'`                                                                                                                                      | 图           | L3    | error |
+| S06 | `views/` 对域外私有                                                                                                                                                            | 图           | L3    | error |
+| S08 | 全图无环                                                                                                                                                                       | 图 DFS       | L3    | error |
+| S09 | `app/layouts` 不得 import `modules/**`                                                                                                                                         | 图           | L3    | error |
+| S10 | 禁相对越级 `../`                                                                                                                                                               | import 前缀  | L2    | error |
+| S11 | 禁 barrel / `export *`                                                                                                                                                         | AST          | L2    | error |
+| S12 | 命名契约（目录/文件/导出名，§4.7）                                                                                                                                             | 路径 + AST   | L1+L2 | error |
+| S13 | 导出形态契约（§4.5）                                                                                                                                                           | AST          | L2    | error |
+| S14 | 有 `views/` 必须有 `routes.tsx`                                                                                                                                                | 路径         | L1    | error |
+| S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用                                                                                               | 可达性       | L3    | error |
+| S16 | 体积：文件 ≤500（默认，可配）/ 单组件函数 ≤150                                                                                                                                 | AST 计数     | L2    | error |
+| S19 | **宽度**：单文件导出值 ≤6 / 单文件组件数 ≤3（不含类型导出）。**仅应用范式** —— 库的入口就是公开面，导出几十个符号是对的形态                                                    | AST 计数     | L2    | error |
+| S17 | 同一导出名在两处定义（防复制粘贴实现）                                                                                                                                         | AST          | L2    | warn  |
+| S18 | `shared` 里的项只被一个域使用 → 应下沉域内                                                                                                                                     | 图入度来源   | L3    | warn  |
+| S20 | **框架包必须覆盖项目的源码形态**：出现当前 pack 量不了的源码（如 react pack 遇到 `.vue`）即报                                                                                  | 扩展名分派   | L1    | error |
+| S21 | **分层单向（通用）**：只许依赖层号 ≤ 自己的文件。应用范式（`canonical()`）与库/FSD 都靠它 —— 一套机制管到底；也补上了原先没人管的 `shared → modules`、`modules → app` 向上依赖 | 依赖图       | L3    | error |
+| S22 | **组隔离**：同组维度、同层、不同组之间不许互相引用（`structure.isolate` 声明了才判）                                                                                           | 依赖图       | L3    | error |
+| S23 | **公开面**：组必须有入口（角色描述符 `entry: true`），且组外不许直接引用组内非入口文件（`structure.publicApi` 声明了才判）                                                     | 依赖图       | L3    | error |
+| S24 | **契约扫描域不得为空**：`include` 非空却一个源码文件都没匹配到 → 报错（0 个文件 → 通过 是假绿；`include` 为空 = 不限扫描域，不判）                                             | 扫描结果计数 | L1    | error |
 
 ### 5.2 设计系统与魔法数字（D）
 
@@ -481,6 +482,8 @@ ctx = {
 6. **危险组合直接拒绝**：`--changed` / `--staged` + `--update-baseline`（会写出不完整基线，随后 full 爆红）。
 7. **输出必须自述 scope**：`scope=staged(3 files) | 全量谓词在全项目快照上求值 | 全局违规 0 | 因能力停用 3 条`，防「以为全量在跑」。
 8. **CI 必须 full**：`--changed` 是开发体验工具，不是门禁依据；CI 跑 `changed` = 假绿。写进文档与 CI 模板。
+9. **过滤器必须自述**：`--severity` / `--paths` 把范围缩小到零之后，**不许「绿而不说」** —— 条数进 notice、摘要行与 JSON
+   （`filteredBySeverity` / `notices`）；`include` 非空却 0 个源码文件由 **S24 直接报错**（「0 个文件 → 通过」是假绿，见 PARADIGM §11）。
 
 **（4）退出码**
 
@@ -771,7 +774,7 @@ P01 依赖白名单与 `AGENTS.md` 选型表不能各写一份；目录契约与
 每条规则声明 `requires`（能力路径），registry 按适配器实际声明注册：
 
 ```ts
-// src/packs/react/rules/design-vendor.ts
+// src/packs/core/rules/design-vendor.ts
 export const vendorSelectorConfined = createRule({
   id: 'D10',
   domain: 'design',

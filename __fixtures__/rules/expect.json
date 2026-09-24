@@ -24,5 +24,6 @@
       "rule": "S16",
       "file": "src/shared/lib/big.ts"
     }
-  ]
+  ],
+  "exact": true
 }

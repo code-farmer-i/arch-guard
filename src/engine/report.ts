@@ -17,6 +17,8 @@ export interface ReportInput {
   globalFindings: number
   /** 因 `--local-only` 被跳过的不可归属全局违规条数（0 = 没跳过任何东西） */
   skippedGlobals: number
+  /** 因 `--severity` 被过滤掉的 finding 条数（0 = 没过滤；过滤必须可见） */
+  filteredBySeverity: number
   durationMs: number
   rulesEnabled: number
   rulesTotal: number
@@ -106,6 +108,7 @@ export function renderSummary(input: ReportInput): void {
     '全量谓词在全项目快照上求值',
     `全局违规 ${input.globalFindings}`,
     input.skippedGlobals > 0 ? `--local-only 跳过全局违规 ${input.skippedGlobals}` : null,
+    input.filteredBySeverity > 0 ? `--severity 过滤 ${input.filteredBySeverity} 条` : null,
     `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
     `豁免 ${input.exemptedCount}`,
     input.exemptedFiles > 0 ? `配置豁免 ${input.exemptedFiles} 个文件` : null,
@@ -129,6 +132,13 @@ export interface JsonReport {
   exempted: number
   /** 因 `--local-only` 跳过的全局违规条数（机读侧同样不许静默丢弃） */
   skippedGlobals: number
+  /** 因 `--severity` 过滤掉的 finding 条数（过滤改了报告，机读侧必须看得见） */
+  filteredBySeverity: number
+  /**
+   * 全部自述性提示（扫描域 / 降级 / 缓存 / 过滤 / 退回工作区…）。
+   * 放进 JSON 是为了让 **CI 与 agent 也看得到**：不然这些"说过的话"只存在于人读的那一行里。
+   */
+  notices: string[]
   /** 契约扫描域（空 = 全树），以及域外不判契约的文件数 */
   contractScope: string[]
   outsideContract: number
@@ -154,6 +164,8 @@ export function toJsonReport(input: ReportInput): JsonReport {
     skipped: input.skipped,
     exempted: input.exemptedCount,
     skippedGlobals: input.skippedGlobals,
+    filteredBySeverity: input.filteredBySeverity,
+    notices: input.notices,
     contractScope: input.contractScope,
     outsideContract: input.outsideContract,
     durationMs: input.durationMs,

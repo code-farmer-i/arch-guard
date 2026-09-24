@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S24",
+      "file": "app-src/**"
+    }
+  ],
+  "exact": true
+}
