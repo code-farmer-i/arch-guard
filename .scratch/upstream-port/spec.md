@@ -1,6 +1,6 @@
 # 把本会话的工作移植到上游（upstream port）
 
-Status: in-progress
+Status: done
 
 ## 背景与问题
 
@@ -83,3 +83,9 @@ Status: in-progress
 - 2026-09-24 **Step 6 的欠账（已识别）**：`routerLink` / `routeFile` / `queryKeyFrom` / `modulePattern` 四个适配器字段
   **没有消费者**（只有 types 与字段校验），违反本仓库"声明必须有消费者"的纪律。决定：先瘦身（只留 P12/P04/P01 真正读的
   `packages`），等有规则时"连同消费它的规则一起加回"。
+- 2026-09-24 Step 8 完成并提交（**移植全部收尾**）：DESIGN §5.1 补 S08/S25–S35 行、§5.4 补 P12 行、
+  已实现条数 56 → 69；§7.4 补 E2 面注册；§7.2 三条可替换面标成「T1 第一半已做」；
+  §14 移除 E2 行、§16.4 改成「联网成熟度明确不做」。README 规则数与 Roadmap 同步。
+  ALTERNATIVES 新增 §3.2.1「与 steiger 的规则对齐（现状）」+「三处有意更严」+ §5 标出 dc 三件已收回。
+  CONTEXT 补「结构声明」词汇（组维度 / 组桶 / 公开面单元 / 保留名 / 词形表 / 方案面 / 同类方案）。
+  CHANGELOG 写清这批移植（含 S24→S35 重编号与 pluralize 依赖）。双 Node `pnpm check` EXIT=0。

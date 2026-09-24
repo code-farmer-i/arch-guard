@@ -145,6 +145,37 @@ DX 上它比我们强：**每条带文档链接、标 `✔ Auto-fixable`、有 `
 > 不需要第二个工具。本节只适用于**已经在用 steiger** 的宿主：让它继续管 FSD 细则，我们用 `disable` 避开重复报。
 > **新项目不必引入 steiger** —— 走 §3.5 的声明配方即可。
 
+### 3.2.1 与 steiger 的规则对齐（现状）
+
+`fsd()` 预设现在**按规则级对齐**社区 linter，宿主不必再装第二个工具：
+
+| steiger 规则（默认）                                                                                            | 我们                                                           |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `forbidden-imports`                                                                                             | S21 层序 + S22 组隔离                                          |
+| `no-higher-level-imports`                                                                                       | S21                                                            |
+| `no-cross-imports`                                                                                              | S22                                                            |
+| `no-public-api-sidestep`                                                                                        | S23②                                                           |
+| `no-wildcard-exports`                                                                                           | S11（默认开，更严）                                            |
+| `public-api`                                                                                                    | S23① + S23③（shared 片段同样要公开面）                         |
+| `no-layer-public-api` · `no-segments-on-sliced-layers` · `no-ui-in-app` · `typo-in-layer-name` · `no-processes` | S01 封闭角色表                                                 |
+| `segments-by-purpose`                                                                                           | S01（白名单而非黑名单：更严、可配）                            |
+| `no-segmentless-slices`                                                                                         | **S35**（只有公开面入口的空壳组）                              |
+| `no-reserved-folder-names`                                                                                      | **S25**                                                        |
+| `insignificant-slice`                                                                                           | **S28**（跨层引用组数下限；`pages` 跳过、只被 `app` 引用放过） |
+| `excessive-slicing`                                                                                             | **S26**（同层同桶 > 20）                                       |
+| `shared-lib-grouping`                                                                                           | **S27**（`shared/lib` 一级子项 > 15）                          |
+| `ambiguous-slice-names`                                                                                         | **S29**（组名 / 组路径段撞真实单元名）                         |
+| `repetitive-naming`                                                                                             | **S30**                                                        |
+| `inconsistent-naming`                                                                                           | **S31**（词形判据 = `src/data/plural-forms.ts` / pluralize）   |
+| `import-locality`                                                                                               | **S32**（默认关，同社区）                                      |
+
+**编号说明**：社区 linter 没有规则编号，本仓的 `S24` 是「契约扫描域不得为空」，所以"组必须有片段"落 **S35**。
+
+**三处有意更严**（写在这里免得踩坑）：`index.css` 这类非代码 `index.*` 不算公开面；重名词汇表只收**真实存在**的单元目录；
+`shared/<段>.ts`（shared 根下的散文件）仍是 S01 —— 官方的文件系统模型认它，我们要求片段按目录组织。
+
+**不追的 DX**：`--watch` / `--fix` / 每条规则的文档链接 / 规则并发跑（判据等价即可，报文不照抄）。
+
 ### 3.3 已用 steiger 的宿主：契约层接我们（实测零重叠）
 
 **装什么**
@@ -439,6 +470,11 @@ export default {
 量级也印证：`dependency-cruiser` 287 万/周、`eslint-plugin-boundaries` 110 万/周 vs **steiger 6 万/周**。
 
 ## 5. dependency-cruiser vs steiger
+
+> **2026-09-24 更新**：dependency-cruiser 三件"我们原来没有"的图能力已收回本体 ——
+> **依赖环 → S08**（`graph.cycles`）、**未解析导入 → S33**（`graph.unresolved`，fail-closed）、
+> **文件级入/出度阈值 → S34**（`structure.degreeLimits`）。
+> 仍留给它的只剩**依赖图可视化**（`--format dot`）：那是"看"的工具，门禁是"判"的工具。
 
 |          | dependency-cruiser                                                                                                                                                        | steiger                                                                    |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |

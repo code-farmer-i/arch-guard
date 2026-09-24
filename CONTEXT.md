@@ -115,3 +115,38 @@ _Avoid_: 项目类型、模板
 **域（domain）**：
 规则的五个分组：S 结构 / D 设计系统 / C 文案 / P 依赖 / H 反退化。规则 id 的首字母即域字母。
 _Avoid_: 类别、模块
+
+### 结构声明
+
+**组维度（group dimension）**：
+角色描述符里 `group: '<捕获名>'` 声明的维度（`src/pages/{slice}/ui/**` → 维度 `slice`）。同一切片的文件同组。
+_Avoid_: 层级、分组
+
+**组桶（bucket）**：
+「层 + 除本维度外的其它捕获」相同的一组组。分组切片（`{group}/{slice}`）的桶就是 `{group}`；未分组的组共用一个空桶。
+S26 / S29 / S30 / S31 都按桶判定 —— 分桶口径只有一处（`structure-util.ts` 的 `bucketsOf`）。
+_Avoid_: 父目录、命名空间
+
+**公开面单元（public API unit）**：
+没有捕获维度的角色目录（FSD 的 `shared/ui`）。组走 `structure.publicApi`，单元走 `structure.publicApiUnits`；
+`children: true` 表示"片段根不要求入口，一级子目录各自要求"（根有入口则整段跳过）。
+_Avoid_: 模块、包
+
+**保留名（reserved name）**：
+专指片段那一层的目录名（`ui` / `api` / `lib` / `model` / `config` / `@x`）。出现在片段**内部**就是歧义（S25）。
+_Avoid_: 关键字、黑名单
+
+**词形表（plural forms）**：
+`src/data/plural-forms.ts`：基于 `pluralize` 的薄封装 + 中性词政策层。S31 的单复数一致性判据来自它 ——
+判的是"同一层里是否一致"，不是"名字好不好"（后者是 L5）。
+_Avoid_: 词典、命名规范
+
+**方案面（solution face）**：
+"不改变架构、只改变写法"的可替换轴：`ui-kit` / `i18n` / `metrics` / `router` / `data-layer` / `styles`。
+每个面一份适配器（纯数据），由**预设**用 `defineFacet` 登记 —— 引擎不枚举面清单。
+_Avoid_: 插件、扩展点
+
+**同类方案（alternatives）**：
+同一个面里**互相替代**的库（`src/data/solution-alternatives.ts`）。登记了某个面之后再 import 同面里的另一个库 → P12。
+刻意不收传输层 / 客户端状态 / 原子类与预处理器（并存是常规写法）。
+_Avoid_: 竞品、禁用库（那是 P02）

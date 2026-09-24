@@ -15,6 +15,37 @@
 
 ## [Unreleased]
 
+### Added（依赖图收敛 + 声明驱动的组规则 + 方案适配器）
+
+- **收回两个委派缺口**：**S08 依赖环**（`graph.cycles`）与 **S33 导入必须解析得到**（`graph.unresolved`）——
+  后者此前零消费者，写错相对路径（少一层 `..`）会**静默通过**；上线当天就抓到三处真实问题
+  （`structure-isolate` 夹具的坏路径已修；`violations` 的悬空说明符是故意的，写进注释；
+  `graph` 夹具的 `shared/api` 环按 S08 样例补注释与期望）。
+- **S34 文件级入/出度上限**（`structure.degreeLimits`）：组粒度看不见的"神模块 / 改一处动全身"。
+- **声明驱动的组规则**：`S35` 组必须有片段（**编号说明**：`S24` 已是"契约扫描域不得为空"，故排在其后）·
+  `S25` 片段内保留名目录 · `S26` 组数量上限 · `S27` 目录子项数上限 · `S28` 组的外部引用下限（死切片）·
+  `S29` 组名撞单元 · `S30` 重复词 · `S31` 单复数一致 · `S32` 导入局部性（默认关）。
+- **`structure` 声明扩到 13 个字段**：解析 / 加法合并 / `overrides` 显式覆盖 / fail-closed 校验
+  （维度名与角色 id 不存在一律报错）落在 `engine/structure.ts`。
+- **词形判定改用 `pluralize`**（新增运行时依赖，已按 P1 审查门登记三处）：手写表在 315 词语料上分歧 2.9%，
+  含 `alias`/`atlas` 误报与 `apis` 漏报的真 bug；`src/data/plural-forms.ts` 只留薄封装 + 中性词政策层。
+- **适配器面开放注册（E2）**：引擎只预注册有消费者的核心面，新面由预设 `defineFacet` 登记；
+  `FACETS` 常量 → `facetNames()` / `facetSpec()` / `facetOfCapabilityRoot()`（公共 API 变更）。
+- **方案适配器（T1 第一半）**：`router()` / `dataLayer()` / `styles()` 三个面 + kits，
+  配 **P12 同类方案不许混入**（判据来自 `src/data/solution-alternatives.ts`）。
+  适配器只声明 `packages`（P12/P04/P01 真正消费的字段）——不做"声明了没人读"的字段。
+- **`fsd()` 与社区文件系统模型对齐**：单文件片段（`model.ts`）· 入口认代码扩展名 · shared 每个片段的入口
+  （ui/lib 走一级子目录 + 根入口豁免）· 重名查组路径段 · shared 公开面单元（S23③）。
+- 夹具 44 个（新增 cycles / unresolved / degree-limits / group-in-degree / import-locality / solutions /
+  structure-groups / structure-limits / structure-name-collisions / structure-repetitive-naming /
+  structure-plural-consistency / fsd-parity / fsd-boundaries / fsd-import-locality），
+  全部 `exact`；规则总数 56 → **69**。
+
+### Changed（文档口径）
+
+- DESIGN §14 移除已实现的 E2 行；**联网成熟度校验明确不做**（`--verify-deps` 只做本地对账）。
+- README / DESIGN / ALTERNATIVES / CONTEXT 同步新规则、新声明、方案面与「与 steiger 的规则对齐」表。
+
 ### Fixed（手工轮子指纹深度审计：一个"五个能力从没报过"的 bug + 名册式枚举 + 文档漂移）
 
 - **平台能力的豁免条件写反**（真 bug）：`deps.ts` 里 `if (entry.platform === true) return true` → 这个文件被当成
