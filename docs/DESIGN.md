@@ -566,7 +566,8 @@ export default {
 三类预设：**范式**（`canonical` / `library` / `fsd`，**三选一**）· **域**（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`，**任意子集**）·
 **正交适配**（`uiKit(adapter)`、`packs`）。
 
-穷举 3 范式 × 5 域预设的全部子集（96 种）真实加载一遍：
+穷举 3 范式 × 5 域预设的全部子集（96 种）真实加载一遍 —— **这条论断由 `tests/preset-matrix.test.mjs` 钉住**
+（不是"手工跑过一次"：并集 / 加法 / 整体替换 / 落点随范式 / 幂等 / `disable` 减法逐条断言）：
 
 | 组合                    | 结果                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------- |
@@ -575,12 +576,14 @@ export default {
 | 同一预设写两遍          | ✅ 通过（`enable` 是并集、`structure` 是加法，天然幂等）                              |
 | 域预设全开时的落点      | `canonical` → `src/shared/styles`；`fsd` → `src/shared/ui/styles`；**落点始终随范式** |
 
-三个"不是错误但要知道"的点：
+几条"不是错误但要知道"的点：
 
 1. **顺序对"逐键覆盖"类字段敏感**：`params` / `adapters` / `thresholds` / `naming` 是后者胜 ——
    正常写法（每样只加一次）不受影响，但重复写同一个预设时以最后一个为准。
-2. **库范式不声明契约落点**（库可能没有样式/文案）：`[library(), designSystem()]` 走 `designParams()` 的三根兜底；
-   `[library(), copy()]` 则**没有 `i18n.resourceDir` 能力** → C 域进 `skipped` 明列（fail-closed，不静默）。要跑就显式给。
+2. **库范式不声明契约落点**（库可能没有样式/文案），而且**没有任何兜底**：`[library(), designSystem()]`
+   的 `params.styleDir` 就是 undefined → 依赖落点的 8 条规则进 `skipped` 明列（见下条）；
+   `[library(), copy()]` 同理没有 `i18n.resourceDir` 能力 → C 域明列停用（fail-closed，不静默）。要跑就显式给路径。
+   （旧版这里会"走 `designParams()` 的三根兜底"，那正是"用三根路径去量一个不存在的目录"的假绿来源，已删。）
 3. **`overrides` 是"我全都要自己定"**：`overrides.enable` / `overrides.roles` **整体替换**（要追加用 `addRoles`），
    `overrides.disable` 做减法；预设之间才是并集。
 

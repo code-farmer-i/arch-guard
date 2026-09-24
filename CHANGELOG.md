@@ -17,6 +17,7 @@
   `--verify-deps`（本地对账已落地 / 联网成熟度未实现）、facts 缓存键（`rel + role + 内容 sha1`，不含"配置哈希/规则集版本"，
   因为 facts 与规则无关）、§6.2 目录树（`src/**/*.ts`，不再写已不存在的 `tools/arch-guard/*.mjs`）、§1.2 依赖口径
   （改为"显式登记的审查门"，与 `commander` + P1 白名单一致）、README 的四条不变式（补 P4）与 Roadmap。
+  另修 §7.0.1 里与下一节自相矛盾的一条（库范式"走三根兜底"的旧口径：现在**没有兜底**，缺落点即明列停用）。
 
 ### Changed（真相收敛）
 
@@ -31,6 +32,10 @@
 
 - `docs/adr/0006-primitives-are-vocabulary.md`：十个检测原语是**分类词汇**，不是引擎里的一层（实现里没有 primitives 模块）。
   可机检的锚点是「`createRule()` 契约 + 每条规则的夹具对」；PARADIGM §3.1、CONTEXT.md、DESIGN §6.7 同步写明。
+- **`tests/preset-matrix.test.mjs`：把 DESIGN §7.0.1 的「96 种组合穷举」从"手工跑过一次"变成回归保护。**
+  逐条断言组合语义本身：`enable` 是各贡献者的**并集**（任取 'all' 则整体 'all'，且 32 个域子集必须给出 32 份不同规则集
+  —— 谁都不能被顶掉）、`structure` 是**加法**、`roles`/`layout` 来自范式（域预设不许动）、
+  落点**随范式**且域预设只写显式给的、同一预设写两遍幂等、范式两两混用 fail-closed、`disable` 在 registry 侧真的做减法。
 - README「质量保障」补 P4 自检与 `pnpm check` 的实际链路；`/coverage.txt` 移出版本控制并加进 `.gitignore`
   （它是本地日志，README 的测试数/覆盖率数字跟着它一起过期过）。
 
