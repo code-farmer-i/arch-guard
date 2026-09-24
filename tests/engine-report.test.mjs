@@ -166,9 +166,11 @@ test('presets：designSystem / copy / deps 的默认值与自定义值', () => {
   assert.equal(custom.params?.tokenPrefix, '--x')
   assert.deepEqual(custom.params?.themes, ['light'])
 
-  // copy() 以 **i18n 适配器**声明能力（适配器是数据）：资源目录与翻译函数都在里面
+  // copy() 以 **i18n 适配器**声明能力（适配器是数据）。
+  // `resourceDir` **不写死**：落点由范式声明（canonical/fsd 的 `params.i18nDir`），loadConfig 一处补齐 ——
+  // 否则 `canonical({ src: 'app-src' })` 的 i18n 目录不会跟着 src 走。
   const i18nDefault = copy().adapters?.i18n
-  assert.equal(i18nDefault?.resourceDir, 'src/shared/i18n/locales')
+  assert.equal(i18nDefault?.resourceDir, undefined, '默认落点由范式给，不写死')
   assert.equal(i18nDefault?.fn, 't')
   assert.deepEqual(i18nDefault?.languages, [])
   const i18nCustom = copy({ resourceDir: 'src/i18n', languages: ['zh-CN'], fn: 'tr' }).adapters

@@ -137,6 +137,7 @@ export function fsd(options: FsdOptions = {}): Preset {
       paletteFile: `${src}/shared/ui/styles/tokens/palette.css`,
       themeFile: `${src}/shared/ui/styles/tokens/theme.css`,
       storageFile: `${src}/shared/config/storage.ts`,
+      i18nDir: `${src}/shared/i18n/locales`,
     },
     // FSD 的三条结构规矩，全部由**通用规则**判：
     //   order     → S21 层序单向（app 6 > pages 5 > widgets 4 > features 3 > entities 2 > shared 1）

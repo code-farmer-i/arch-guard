@@ -17,14 +17,17 @@ export interface CopyOptions {
  * 没声明它，C 域规则会以「能力未声明」出现在 skipped 里，而不是静默失能。
  */
 export function copy(options: CopyOptions = {}): Preset {
+  // `resourceDir` **不写死**：落点由范式声明（canonical/fsd 的 `params.i18nDir`），
+  // 只有项目要改才显式传 `resourceDir`。而"有哪些语言"是**项目事实**，必须显式给。
   const adapter = defineAdapter('i18n', {
     id: 'i18next',
     specVersion: '1',
     from: ['i18next', 'react-i18next'],
     hook: options.hook ?? 'useTranslation',
     fn: options.fn ?? 't',
-    resourceDir: options.resourceDir ?? 'src/shared/i18n/locales',
     languages: options.languages ?? [],
+    // 落点：**只有显式给了才写**（否则由范式的 `params.i18nDir` 在 loadConfig 补齐）
+    ...(options.resourceDir ? { resourceDir: options.resourceDir } : {}),
   })
   return { enable: ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'], adapters: { i18n: adapter } }
 }

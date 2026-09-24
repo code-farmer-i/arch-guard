@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { loadConfig } from '../es/index.js'
+import { hasCapability, loadConfig } from '../es/index.js'
 
 /**
  * 预设**组合语义**：从"用户选一个目录规范，域预设自由叠加"这个用例出发，
@@ -21,7 +21,7 @@ function project(presets, extra = '') {
   const dir = mkdtempSync(join(tmpdir(), 'ag-compose-'))
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, fsd, designSystem, library } from '${ES}'\n` +
+    `import { canonical, copy, fsd, designSystem, library } from '${ES}'\n` +
       `export default { packs: [], presets: [${presets}]${extra} }\n`,
   )
   return dir
@@ -74,6 +74,27 @@ test('组合：范式落点跟着 src 走（自定义源码根不会退回 src/�
   assert.equal(config.params.storageFile, 'app-src/shared/config/storage.ts')
 })
 
+test('组合：i18n 落点同样跟着范式走（`copy()` 不再写死默认值）', async () => {
+  const resourceDirOf = (config) => config.adapters.i18n?.resourceDir
+
+  const canon = await load('canonical(), copy()')
+  assert.equal(resourceDirOf(canon), 'src/shared/i18n/locales', '三根的落点')
+  assert.equal(
+    resourceDirOf(await load("canonical({ src: 'app-src' }), copy()")),
+    'app-src/shared/i18n/locales',
+    '跟着 src 走（不再写死 src/）',
+  )
+  assert.equal(resourceDirOf(await load('fsd(), copy()')), 'src/shared/i18n/locales', 'FSD 的落点')
+
+  // 显式给的压过范式
+  assert.equal(resourceDirOf(await load("fsd(), copy({ resourceDir: 'src/i18n' })")), 'src/i18n')
+
+  // 库范式不声明 i18n 落点 → 适配器没有 resourceDir → C 域**因能力未声明而停用**（fail-closed 且可见）
+  const lib = await load("library(), copy({ languages: ['zh-CN'] })")
+  assert.equal(resourceDirOf(lib), undefined)
+  assert.equal(hasCapability(lib, 'i18n.resourceDir'), false, '没落点 = 没能力（不静默跑）')
+  assert.equal(hasCapability(canon, 'i18n.resourceDir'), true, '范式声明了落点 = 有能力')
+})
 test('组合：addRoles 追加在范式角色表之上，roles 仍是整体替换', async () => {
   const base = await load('fsd()')
   const added = await load(

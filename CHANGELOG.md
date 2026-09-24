@@ -18,6 +18,17 @@
 - 文档：DESIGN 新增 §7.0「预设的组合语义」表（每个字段的合并规则）；PARADIGM §6.6 补一句；ALTERNATIVES §3.5 配方简化为
   `fsd() + designSystem()`（不再手写 6 条路径）。
 
+### Fixed（i18n 落点也跟范式走：`copy()` 不再写死 `src/shared/i18n/locales`）
+
+- `copy()` 以前把 `resourceDir` 写死成 `src/shared/i18n/locales` —— 与 `designSystem()` 塞三根默认值是同一类毛病：
+  `canonical({ src: 'app-src' })` 时 i18n 目录**不跟着 src 走**。
+- 修法：范式声明 `params.i18nDir`（`canonical()` / `fsd()` → `${src}/shared/i18n/locales`），`copy()` **只写显式给的** `resourceDir`，
+  并在 `loadConfig` **一处补齐**（适配器没写就用 `params.i18nDir`）—— 能力判定 / i18n 索引 / 报告都只认一个完整的适配器。
+- 库范式不声明 i18n 落点：`[library(), copy()]` 时适配器没有 `resourceDir` → C 域**因能力未声明而停用**（fail-closed 且可见），
+  要跑就显式给 `copy({ resourceDir })`。
+- 测试：`tests/preset-compose.test.mjs` 增 1 条（三根 / 自定义 `src` / FSD / 显式优先 / 库范式无能力 五种情形）；
+  `tests/engine-report.test.mjs` 里那条"默认值"断言改成新语义（默认落点由范式给）。
+
 ### Fixed（`fsd()` 默认片段里有两个"按内容命名"的名字）
 
 - 按社区官方 linter 的 [`segments-by-purpose`](https://github.com/feature-sliced/steiger/tree/master/packages/steiger-plugin-fsd/src/segments-by-purpose) 黑名单核对，

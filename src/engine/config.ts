@@ -10,7 +10,7 @@ import {
   implementedFrameworks,
 } from '../data/framework-sources.js'
 import type { Pack } from './pack.js'
-import type { Config, Preset, Thresholds } from './types.js'
+import type { Adapter, Config, Preset, Thresholds } from './types.js'
 import { exists, mergePresets } from './util.js'
 
 export interface RawProjectConfig {
@@ -218,6 +218,24 @@ export async function loadConfig(options: {
   const entries = overrides.entries ?? preset.entries ?? [`${layout.app}/main.tsx`]
   if (exists(join(root, 'index.html'))) entries.push('index.html')
 
+  const params = { ...preset.params, ...overrides.params }
+  const adapters = { ...preset.adapters, ...overrides.adapters }
+  /**
+   * **适配器缺的落点可以由范式通过 `params` 声明**（`canonical()` / `fsd()` 的 `i18nDir`）。
+   *
+   * 在这一处补齐，而不是让能力判定 / i18n 索引 / 报告各自兜底：下游只认"一个完整的适配器"。
+   * 为什么需要它：`copy()` 不该写死默认路径 —— 否则 `canonical({ src: 'app-src' })` 时
+   * i18n 目录不跟着走（和 `designSystem()` 塞三根默认值是同一类毛病）。
+   */
+  const i18nAdapter = adapters.i18n
+  if (
+    i18nAdapter &&
+    !(i18nAdapter as { resourceDir?: string }).resourceDir &&
+    typeof params.i18nDir === 'string'
+  ) {
+    adapters.i18n = { ...i18nAdapter, resourceDir: params.i18nDir } as Adapter
+  }
+
   const config: Config = {
     root,
     srcRoot: overrides.srcRoot ?? preset.srcRoot ?? 'src',
@@ -231,7 +249,7 @@ export async function loadConfig(options: {
     ],
     naming: { ...DEFAULT_NAMING, ...preset.naming, ...overrides.naming },
     thresholds: { ...DEFAULT_THRESHOLDS, ...preset.thresholds, ...overrides.thresholds },
-    adapters: { ...preset.adapters, ...overrides.adapters },
+    adapters,
     // `overrides.enable` 仍是"我全都要自己定"的总开关（整体替换）；预设之间是并集（见 mergePresets）
     enable: overrides.enable ?? preset.enable ?? 'all',
     disable: [...new Set([...(preset.disable ?? []), ...(overrides.disable ?? [])])],
@@ -248,7 +266,7 @@ export async function loadConfig(options: {
         ]),
       ],
     },
-    params: { ...preset.params, ...overrides.params },
+    params,
     entries,
     ignore: [...(preset.ignore ?? []), ...(overrides.ignore ?? [])],
     // 契约扫描域：预设给默认（canonical / library 都收窄到 src），overrides 可覆盖；空 = 不限制

@@ -47,7 +47,13 @@ export default {
   packs: [reactPack], // 框架包（一个项目一个）：规则集由它决定
   presets: [
     canonical(), // 应用范式：三根拓扑 / 角色表 / 阈值
-    // 库 / CLI 工具改用 library()：入口 + 目录表（见 PARADIGM.md §11.1）
+    // 范式三选一：canonical()（三根应用）· library()（库 / CLI：入口 + 目录表）·
+    // fsd()（Feature-Sliced Design：六层 + 切片 + 片段）
+    // 域预设按需叠加（名字 = 域名，见 CONTEXT.md 的域表）：
+    //   designSystem()            设计系统（D）
+    //   copy({ languages })       文案 / i18n（C）—— "copy" 是文案的术语，不是复制
+    //   deps({ allow })           依赖选型（P）· metrics() 度量（M）· hygiene() 反退化（H）
+    //   uiKit(antdKit() | noneKit()) 组件库适配（正交轴）
     // FSD 项目改用 fsd()：六层 + 切片 + 片段 + 公开面（见 docs/ALTERNATIVES.md §3.5）
     designSystem({ tokenPrefix: '--sh' }), // 令牌分层 / 颜色唯一出处 / 对比度
     copy({ languages: ['zh-CN', 'en'] }), // 文案契约

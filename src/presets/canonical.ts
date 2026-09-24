@@ -92,6 +92,7 @@ export function canonical(options: CanonicalOptions = {}): Preset {
       paletteFile: `${src}/shared/styles/tokens/palette.css`,
       themeFile: `${src}/shared/styles/tokens/theme.css`,
       storageFile: `${src}/shared/config/storage.ts`,
+      i18nDir: `${src}/shared/i18n/locales`,
     },
     // 应用范式默认**全开**：显式写出来，与其它预设贡献的域取并集时仍是 'all'
     // （不写的话，`canonical() + hygiene()` 的并集会被 hygiene 的列表顶成只有 H 域）

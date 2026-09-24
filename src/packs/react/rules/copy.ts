@@ -126,6 +126,8 @@ export const shardsAggregated: Rule = {
 interface I18nAdapterData {
   fn?: string
   hook?: string
+  /** 项目**声明**要支持的语言。语言集合本身是从磁盘扫出来的，这里只用于"声明⇄事实"对账（C07） */
+  languages?: string[]
 }
 
 /** i18n 适配器里登记的函数名 / hook 名（适配器是数据，规则只读它） */
@@ -253,7 +255,7 @@ export const noDeadKeys: Rule = {
   },
 }
 
-/* ---------------- C07 声明了 i18n 却零资源 ---------------- */
+/* ---------------- C07 声明了 i18n：资源与声明都要属实 ---------------- */
 
 /**
  * 声明了 i18n 能力（`copy()`），但 `resourceDir` 下一个文案文件都没有 → 整片 C 域等于没跑。
@@ -270,18 +272,41 @@ export const i18nResourcesExist: Rule = {
   severity: 'warn',
   title: '声明了 i18n 就必须真有文案资源',
   requires: ['i18n.resourceDir'],
-  hint: '确认 copy() 里的 resourceDir 写对了；项目确实不用 i18n 就把 copy() 预设去掉（去掉后 C 域会进 skipped 明列）',
+  hint: '确认 copy() 里的 resourceDir 与 languages 写对了；项目确实不用 i18n 就把 copy() 预设去掉（去掉后 C 域会进 skipped 明列）',
   run: (ctx) => {
     const index = ctx.i18n
-    if (!index || index.files.length > 0) return []
-    return [
-      finding(
-        'C07',
-        index.resourceDir,
-        1,
-        `声明了 i18n（resourceDir=${index.resourceDir}），但一个文案文件都没有：C 域这几条规则等于没跑`,
-      ),
-    ]
+    if (!index) return []
+    // ① 一条资源都没有：C 域这几条规则等于没跑（最容易发生的假绿）
+    if (index.files.length === 0) {
+      return [
+        finding(
+          'C07',
+          index.resourceDir,
+          1,
+          `声明了 i18n（resourceDir=${index.resourceDir}），但一个文案文件都没有：C 域这几条规则等于没跑`,
+        ),
+      ]
+    }
+    /**
+     * ② **声明的语言必须有资源**（声明 ⇄ 事实，与 D21 / P11 同一个形状）。
+     *
+     * `copy({ languages })` 以前没人读：语言集合是从磁盘扫出来的，所以"声明了 en 却没有 en/ 目录"
+     * 完全无声 —— 而缺的那门语言在界面上会直接显示键名。这条把它变成后果。
+     * 只报"零资源"的语言：部分缺键由 C03（多语言同构）在扫描到的语言之间判，避免同一件事报两遍。
+     */
+    const declared = i18nAdapterData(ctx).languages
+    if (!Array.isArray(declared)) return []
+    const discovered = new Set(index.languages)
+    return declared
+      .filter((language) => !discovered.has(language))
+      .map((language) =>
+        finding(
+          'C07',
+          index.resourceDir,
+          1,
+          `声明了语言 ${language}，但 ${index.resourceDir} 下没有任何它的文案文件（那门语言会直接显示键名）`,
+        ),
+      )
   },
 }
 
