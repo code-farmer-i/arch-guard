@@ -155,13 +155,27 @@ export interface NamingRules {
   viewSuffix: string
 }
 
-export interface ExemptEntry {
+/**
+ * **规则级例外**：声明「**这条规则**对**这类文件**不适用」—— 不是「这个文件免检」。
+ *
+ * 为什么必须是规则级：文件级豁免（曾经那个 `exempt`）让整个文件不进角色表、不解析事实、
+ * 所有规则一起停看 —— 为了表达"console 对输出口是合法的"，代价是这个文件从此不受任何架构约束。
+ * 现在的实现是**对发现项做后置过滤**：文件照常有角色、进依赖图、被其它规则判定，只有指名的那条规则被摘掉。
+ *
+ * 三种需求的分工（别再混用）：
+ *   ① 这片树不属于契约 → `include` / `ignore`（覆盖面问题，不是违规问题）
+ *   ② 这条规则对它不适用 → 这里（唯一需要例外的情形：修了功能就没了 / 夹具就没意义了）
+ *   ③ 暂时不想修（存量债）→ **没有这个通道**（基线机制已移除，不合规就是红）
+ */
+export interface ExceptionEntry {
+  /** 规则 id，必须真实存在（`runGuard` 会校验，拼错直接报错） */
+  rule: string
+  /** 文件 glob（配置根相对） */
   glob: string
-  /**
-   * 豁免理由，**必填**。基线机制已移除，这条结构性白名单是唯一的例外通道 ——
-   * 没有理由的豁免就是静默跳过（`loadConfig` 会在加载期直接报错）。
-   */
+  /** 为什么这条规则对它不适用（必填，进 diff 可评审） */
   reason: string
+  /** 到期日 `YYYY-MM-DD`：写了就必过期 —— 过期后门禁直接报错，逼你续期或删掉 */
+  expires?: string
 }
 
 export interface AdapterExamples {
@@ -258,7 +272,7 @@ export interface Preset {
   include?: string[]
   /** 元框架标识（`react` / `vue` / …）：决定哪些源码扩展名归本 pack 管 */
   metaFramework?: string
-  exempt?: ExemptEntry[]
+  exceptions?: ExceptionEntry[]
 }
 
 /**
@@ -293,7 +307,7 @@ export interface Config {
   include: string[]
   /** 元框架标识：当前 pack 负责哪些源码扩展名（见 src/data/framework-sources.ts） */
   metaFramework: string
-  exempt: ExemptEntry[]
+  exceptions: ExceptionEntry[]
   aliases: Record<string, string>
   autoFix?: boolean
 }

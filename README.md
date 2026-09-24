@@ -112,13 +112,26 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 
 **安全语义**：不可归属的全局违规默认仍然失败（只有显式 `--local-only` 才允许跳过并列出条数）；无 git / 空 diff 会明确提示降级，绝不静默；`include` 非空却 0 个文件由 S24 直接报错。
 
-## 豁免：只有一条通道
+## 例外：规则级，且必须指名
 
 **违规没有存量豁免**：没有基线、没有"一键把当前违规记下来"。不合规就是红 —— 这是刻意的取舍，
 因为任何"先把存量记下来"的通道最终都会变成日常动作，而不是例外。
 
-唯一的例外通道是 `arch.config.mjs` 的 `exempt`：**每一条必须写理由**（没理由在配置加载期就报错），
-白名单随配置进 diff，可评审。**没有内联豁免注释**（连 `eslint-disable` 都是红线 H02）。
+唯一的宽松通道是 `arch.config.mjs` 的 **规则级例外**：
+
+```js
+overrides: {
+  exceptions: [
+    // 「这条规则对这类文件不适用」——不是「这个文件免检」
+    { rule: 'H03', glob: 'src/engine/output.ts', reason: '门禁的唯一输出出口', expires: '2026-12-31' },
+  ],
+}
+```
+
+- `rule` 必须真实存在（拼错直接报错）；`reason` 必填；`expires` 写了就**过期即红**。
+- 文件照常有角色、进依赖图、被**其它**规则判定 —— 只有指名的那条规则被摘掉。
+- 每次运行都会指名列出每条例外（命中几处 / 未命中），未命中的会提示"可能可以删掉"。
+- **没有内联豁免注释**（连 `eslint-disable` 都是红线 H02）。
 
 > 别和 **覆盖率棘轮**（M04）混淆：它比的是覆盖率快照（`--update-coverage` 维护），不豁免任何违规。
 
@@ -160,7 +173,7 @@ pnpm check                     # ★ 提交前的完整门禁：build + 类型 +
 pnpm self-test                 # 夹具回归：每条规则违规必报 × 合规不报
 pnpm self-check-portability    # P1 / P2 / P3 / P4
 pnpm guard:sample              # 拿 examples/minimal 当宿主跑一遍
-pnpm guard:self                # 狗粮：门禁跑自己（library() 范式 + 配置豁免）
+pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 ```
 
 ## 文档

@@ -47,7 +47,6 @@ function emptyContext() {
       files: [],
       missing: [],
       ambiguous: [],
-      exempted: [],
       outside: [],
       foreign: [],
     },

@@ -64,7 +64,7 @@ const baseInput = (overrides = {}) => ({
   durationMs: 1,
   rulesEnabled: 19,
   rulesTotal: 19,
-  exemptedFiles: 0,
+  exceptions: [],
   contractScope: ['src/**'],
   outsideContract: 0,
   ...overrides,
@@ -98,7 +98,7 @@ test('report：按域分组、带修法、标注全局违规', () => {
   assert.match(text, /\[H06\]/)
 })
 
-test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线', () => {
+test('report：摘要自述 scope / 例外 / 停用规则', () => {
   const text = capture(() =>
     renderSummary(
       baseInput({
@@ -107,7 +107,15 @@ test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线',
         scopeFiles: 3,
         globalFindings: 1,
         skippedGlobals: 2,
-        exemptedFiles: 1,
+        exceptions: [
+          {
+            rule: 'H06',
+            glob: 'src/engine/output.ts',
+            reason: '输出出口必须 console',
+            expires: '2026-12-31',
+            hits: 2,
+          },
+        ],
         skipped: [{ rule: 'D10', reason: '能力未声明：uiKit.vendorSelectors' }],
         unknownEnabled: ['NOPE'],
         notices: ['别名取自 tsconfig'],
@@ -115,7 +123,7 @@ test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线',
     ),
   )
   assert.match(text, /scope=staged \| 3 个文件/)
-  assert.match(text, /配置豁免 1 个文件/)
+  assert.match(text, /例外 2 处 \/ 1 条声明/, '例外必须自述')
   assert.match(text, /--local-only 跳过全局违规 2/, '跳过的全局违规必须自述（不许静默丢弃）')
   assert.match(text, /✖ 架构守卫失败：1 个 error/)
 })
@@ -272,7 +280,7 @@ test('输出：GitHub 注解与 --stats 统计表（CI 与排查用）', async (
     durationMs: 1,
     rulesEnabled: 2,
     rulesTotal: 2,
-    exemptedFiles: 0,
+    exceptions: [],
   }
   const annotations = renderGithubAnnotations(input)
   assert.match(annotations, /::error file=src\/a\.ts,line=3/)

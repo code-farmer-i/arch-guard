@@ -13,7 +13,7 @@ import { run } from '../es/cli.js'
  * 这一组盯的就是"有没有一键洗白通道"：
  *   1. 就算手写一份 `arch.baseline.json`，违规照报（文件被忽略，并明确提示）；
  *   2. `--update-baseline` 开关本身不存在（未知参数 → 退出 2）；
- *   3. 唯一的例外通道是 config 的 `exempt`，而它**必须写理由**（没理由 = 加载期报错）；
+ *   3. 唯一的宽松通道是 config 的 **规则级** `exceptions`（见 tests/exceptions.test.mjs）；
  *   4. `--update-coverage` 只刷新**覆盖率**棘轮快照（M04），与"豁免违规"无关。
  */
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -85,23 +85,6 @@ test('--update-baseline 开关不存在：没有一键洗白通道', async () =>
     assert.equal(gone.code, 2, '未知开关必须退出 2（而不是写出一份基线）')
     assert.match(gone.out + gone.err, /unknown option|未知/)
     assert.equal(existsSync(join(dir, 'arch.baseline.json')), false, '不许悄悄写出基线文件')
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test('唯一例外通道 exempt 必须写理由：没理由在配置加载期就报错', async () => {
-  const dir = makeProject({
-    config: `import { canonical, tsPack } from '${INDEX_URL}'\nexport default {
-  packs: [tsPack],
-  presets: [canonical()],
-  overrides: { exempt: [{ glob: 'src/shared/lib/a.ts' }] },
-}\n`,
-  })
-  try {
-    const result = await runCli([], dir)
-    assert.equal(result.code, 2, '缺理由的豁免必须 fail-closed')
-    assert.match(result.out + result.err, /exempt 的每一条都必须写 reason/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

@@ -46,7 +46,6 @@ export interface ScanResult {
   missing: string[]
   ambiguous: { rel: string; roles: string[] }[]
   ignored: string[]
-  exempted: { rel: string; reason: string }[]
   /** 契约扫描域之外的 ts/css：不参与角色判定，但**仍要解析**（角色记为 `(outside)`） */
   outside: FileRecord[]
   /** 当前框架包量不了的源码文件（如 react pack 遇到 `.vue`）—— S20 靠它把假绿变成报错 */
@@ -95,22 +94,15 @@ export function scanProject(config: Config): ScanResult {
     ...compile(descriptor.pattern),
   }))
   const ignore = config.ignore.map(globToRegExp)
-  const exempt = config.exempt.map((entry) => ({ ...entry, matcher: globToRegExp(entry.glob) }))
   const include = config.include.map(globToRegExp)
 
   const records: FileRecord[] = []
   const missing: string[] = []
   const ambiguous: { rel: string; roles: string[] }[] = []
   const ignored: string[] = []
-  const exempted: { rel: string; reason: string }[] = []
   const outside: FileRecord[] = []
 
   for (const rel of files) {
-    const exemptEntry = exempt.find((entry) => entry.matcher.test(rel))
-    if (exemptEntry) {
-      exempted.push({ rel, reason: exemptEntry.reason ?? '' })
-      continue
-    }
     if (ignore.some((regex) => regex.test(rel))) {
       ignored.push(rel)
       continue
@@ -181,5 +173,5 @@ export function scanProject(config: Config): ScanResult {
     })
   }
 
-  return { files, records, missing, ambiguous, ignored, exempted, outside, foreign }
+  return { files, records, missing, ambiguous, ignored, outside, foreign }
 }

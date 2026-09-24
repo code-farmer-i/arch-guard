@@ -70,12 +70,9 @@ export default {
       'pagoda.config.mjs',
       'eslint.config.mjs',
     ],
-    // 豁免走官方通道：写清理由，可见、可评审（不用内联注释）
-    exempt: [
-      {
-        glob: 'src/engine/output.ts',
-        reason: '门禁的唯一输出出口，console 是它的职责（eslint 同样只对它放行 no-console）',
-      },
-    ],
+    // 例外（规则级）挂在这里；本仓目前一条都不需要 ——
+    // 曾经的 `exempt: [{ glob: 'src/engine/output.ts' }]` 实测是**净 0**（console 那条规则 H03 已委派 eslint，
+    // 本体没有规则会命中它），留着只会让人以为"这个文件免检"。真要写就写成：
+    //   exceptions: [{ rule: 'H03', glob: 'src/engine/output.ts', reason: '…', expires: '2026-12-31' }]
   },
 }

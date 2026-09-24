@@ -64,7 +64,7 @@ _Avoid_: 特性、功能、依赖、白名单
 
 **批准清单（allowlist）**：
 `deps({ allow })`：项目运行时依赖的**完整**集合，非空才开启 P01（未登记即拒）。与能力表是两件事 —— 只声明能力不会把它打开（[ADR-0005](./docs/adr/0005-allowlist-is-explicit.md)）。
-_Avoid_: 白名单、选型表（与能力表、`exempt` 混淆）
+_Avoid_: 白名单、选型表（与能力表、`exceptions` 混淆）
 
 **能力协商（capability negotiation）**：
 规则声明 `requires`；适配器没声明的能力，对应规则**不注册**（而不是注册后再跳过）。
@@ -72,9 +72,11 @@ _Avoid_: 条件加载、开关
 
 ### 阈值与豁免
 
-**豁免（exemption）**：
-唯一的例外通道：配置里的 `exempt` 结构性白名单，**每条必须写理由**（进 diff 可评审）。**没有违规基线、没有内联豁免注释**。
-_Avoid_: 基线、棘轮、忽略、跳过、disable
+**例外（exception）**：
+唯一的宽松通道：配置里的 `exceptions: [{ rule, glob, reason, expires? }]` —— 声明「**这条规则**对**这类文件**不适用」，
+**不是「文件免检」**。`reason` 必填、`rule` 必须存在、`expires` 过期即红；每次运行都会点名。
+**没有违规基线、没有文件级豁免、没有内联豁免注释。**
+_Avoid_: 基线、棘轮、白名单、忽略、跳过、disable
 
 **覆盖率棘轮（coverage ratchet）**：
 M04 的机制：与覆盖率快照（`arch.coverage.json`）比，不许倒退。它**不豁免违规** —— 与豁免是两件事。

@@ -18,6 +18,7 @@ import {
   renderSummary,
   severityOf,
   toJsonReport,
+  type ExceptionReport,
   type ReportInput,
 } from './report.js'
 import { scanProject } from './scan.js'
@@ -25,7 +26,7 @@ import type { Pack } from './pack.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { applyReportFilters } from './filters.js'
 import { gitChangedFiles, gitHeadTimeMs, stagedContentsOf } from './git.js'
-import { exists, readText } from './util.js'
+import { exists, globToRegExp, readText } from './util.js'
 
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
 
@@ -307,6 +308,46 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule),
   )
 
+  /* ---- 规则级例外：只摘掉「指名的那条规则 × 那些文件」的发现项 ---- */
+  // 关键：这是对**发现项**的后置过滤，不是扫描期的整文件跳过 ——
+  // 文件照常有角色、进依赖图、被其它规则判定（曾经的文件级 exempt 会让整个文件失能）。
+  const exceptionHits = config.exceptions.map(() => 0)
+  if (config.exceptions.length > 0) {
+    const knownRules = new Set(rules.map((rule) => rule.id))
+    const today = new Date().toISOString().slice(0, 10)
+    for (const entry of config.exceptions) {
+      // fail-closed：拼错的规则 id 等于例外根本没生效（假绿），必须当场报
+      if (!knownRules.has(entry.rule)) {
+        throw new Error(
+          `exceptions 引用了不存在的规则：${entry.rule}（${entry.glob}）—— 拼错等于没写，必须报出来`,
+        )
+      }
+      if (entry.expires !== undefined && entry.expires < today) {
+        throw new Error(
+          `exceptions 已过期：${entry.rule} × ${entry.glob}（expires ${entry.expires}，今天 ${today}）—— 续期或删掉它`,
+        )
+      }
+    }
+    const matchers = config.exceptions.map((entry) => globToRegExp(entry.glob))
+    const kept: Finding[] = []
+    for (const finding of all) {
+      const hit = config.exceptions.findIndex(
+        (entry, index) =>
+          entry.rule === finding.rule && (matchers[index] as RegExp).test(finding.file),
+      )
+      if (hit >= 0) {
+        exceptionHits[hit] = (exceptionHits[hit] ?? 0) + 1
+        continue
+      }
+      kept.push(finding)
+    }
+    all.splice(0, all.length, ...kept)
+  }
+  const exceptions: ExceptionReport[] = config.exceptions.map((entry, index) => ({
+    ...entry,
+    hits: exceptionHits[index] ?? 0,
+  }))
+
   /* ---- 违规**没有**存量豁免：全量违规直接进报告，active 就是全部 ---- */
   let active: Finding[] = all
 
@@ -369,7 +410,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     durationMs: Date.now() - started,
     rulesEnabled: registry.enabled.length,
     rulesTotal: rules.length,
-    exemptedFiles: scan.exempted.length,
+    exceptions,
     contractScope: config.include,
     outsideContract: scan.outside.length,
   }

@@ -167,7 +167,7 @@ test('report：严重度统计与 JSON 形状', () => {
     durationMs: 1,
     rulesEnabled: 2,
     rulesTotal: 2,
-    exemptedFiles: 0,
+    exceptions: [],
     contractScope: [],
     outsideContract: 0,
   })

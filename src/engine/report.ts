@@ -19,8 +19,11 @@ export interface ReportInput {
   durationMs: number
   rulesEnabled: number
   rulesTotal: number
-  /** 配置里 exempt 掉的文件数（豁免必须可见） */
-  exemptedFiles: number
+  /**
+   * 规则级例外：声明了什么、各自命中几处。**必须可见** ——
+   * 未命中的也要点名（那说明它已经可以删掉了），否则例外会慢慢积成隐形门禁关闭。
+   */
+  exceptions: ExceptionReport[]
   /** 契约扫描域（空 = 全树） */
   contractScope: string[]
   /** 扫描域之外、不参与目录契约判定的 ts/css 文件数 */
@@ -77,6 +80,17 @@ export function renderReport(input: ReportInput): void {
     }
   }
 
+  if (input.exceptions.length > 0) {
+    const hits = input.exceptions.reduce((sum, entry) => sum + entry.hits, 0)
+    out(color.dim(`\n例外（规则级）：命中 ${hits} 处 / ${input.exceptions.length} 条声明`))
+    for (const entry of input.exceptions) {
+      out(
+        color.dim(
+          `  · ${entry.rule} × ${entry.glob} —— ${entry.hits > 0 ? `命中 ${entry.hits} 处` : '未命中（可能可以删掉）'}；理由：${entry.reason}${entry.expires ? `；到期 ${entry.expires}` : ''}`,
+        ),
+      )
+    }
+  }
   if (input.skipped.length > 0) {
     out(
       color.dim(
@@ -100,7 +114,9 @@ export function renderSummary(input: ReportInput): void {
     input.skippedGlobals > 0 ? `--local-only 跳过全局违规 ${input.skippedGlobals}` : null,
     input.filteredBySeverity > 0 ? `--severity 过滤 ${input.filteredBySeverity} 条` : null,
     `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
-    input.exemptedFiles > 0 ? `配置豁免 ${input.exemptedFiles} 个文件` : null,
+    input.exceptions.length > 0
+      ? `例外 ${input.exceptions.reduce((sum, entry) => sum + entry.hits, 0)} 处 / ${input.exceptions.length} 条声明`
+      : null,
     input.contractScope.length > 0
       ? `扫描域 ${input.contractScope.join(',')}（域外 ${input.outsideContract} 个文件不判契约）`
       : null,
@@ -109,6 +125,16 @@ export function renderSummary(input: ReportInput): void {
   out(color.dim(parts.join(' | ')))
   if (errors > 0) out(color.red(`✖ 架构守卫失败：${errors} 个 error、${warnings} 个 warn`))
   else out(color.green(`✔ 架构守卫通过${warnings > 0 ? `（${warnings} 个 warn）` : ''}`))
+}
+
+/** 报告里的一条例外（规则级） */
+export interface ExceptionReport {
+  rule: string
+  glob: string
+  reason: string
+  expires?: string
+  /** 本次被它摘掉的发现项条数（0 = 声明了但没命中） */
+  hits: number
 }
 
 export interface JsonReport {
@@ -127,6 +153,8 @@ export interface JsonReport {
    * 放进 JSON 是为了让 **CI 与 agent 也看得到**：不然这些"说过的话"只存在于人读的那一行里。
    */
   notices: string[]
+  /** 规则级例外（声明 + 命中数），机读侧同样可见 */
+  exceptions: ExceptionReport[]
   /** 契约扫描域（空 = 全树），以及域外不判契约的文件数 */
   contractScope: string[]
   outsideContract: number
@@ -150,6 +178,7 @@ export function toJsonReport(input: ReportInput): JsonReport {
       }
     }),
     skipped: input.skipped,
+    exceptions: input.exceptions,
     skippedGlobals: input.skippedGlobals,
     filteredBySeverity: input.filteredBySeverity,
     notices: input.notices,

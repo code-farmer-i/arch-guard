@@ -68,7 +68,6 @@ function makeContext({
       files: [],
       missing: [],
       ambiguous: [],
-      exempted: [],
       outside: [],
       foreign: [],
       ...scan,
@@ -184,7 +183,6 @@ test('S01 / S03：提示要指路（闭集枚举只说"你错了"没用，要说
     files: [],
     missing,
     ambiguous: [],
-    exempted: [],
     outside: [],
     foreign: [],
   })

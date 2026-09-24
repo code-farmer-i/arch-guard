@@ -282,17 +282,26 @@ export async function loadConfig(options: {
     // 契约扫描域：预设给默认（canonical / library 都收窄到 src），overrides 可覆盖；空 = 不限制
     include: overrides.include ?? preset.include ?? [],
     metaFramework,
-    exempt: [...(preset.exempt ?? []), ...(overrides.exempt ?? [])],
+    exceptions: [...(preset.exceptions ?? []), ...(overrides.exceptions ?? [])],
     aliases,
   }
 
-  // 豁免是唯一的例外通道（基线已移除），所以理由必须写：没理由的豁免 = 静默跳过
-  const missingReason = config.exempt.filter((entry) => !entry.reason?.trim())
-  if (missingReason.length > 0) {
+  // 例外是唯一的宽松通道（基线已移除），所以必须指名"哪条规则对哪类文件不适用"、并写清理由
+  const badException = config.exceptions.find(
+    (entry) => !entry.rule?.trim() || !entry.glob?.trim() || !entry.reason?.trim(),
+  )
+  if (badException !== undefined) {
     throw new Error(
-      'exempt 的每一条都必须写 reason（没有理由的豁免无从评审）：' +
-        missingReason.map((entry) => entry.glob).join(' , '),
+      'exceptions 的每一条都必须写清 rule / glob / reason —— 例外是「某条规则对某类文件不适用」，' +
+        '不是「某个文件免检」：' +
+        JSON.stringify(badException),
     )
+  }
+  const badExpiry = config.exceptions.find(
+    (entry) => entry.expires !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(entry.expires),
+  )
+  if (badExpiry !== undefined) {
+    throw new Error(`exceptions 的 expires 必须是 YYYY-MM-DD：${JSON.stringify(badExpiry)}`)
   }
   if (config.roles.length === 0) {
     throw new Error(

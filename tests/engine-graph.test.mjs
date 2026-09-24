@@ -67,7 +67,6 @@ test('scan：合规示例每个文件恰好一个角色，且有歧义/缺失时
     roles: config.roles ?? [],
     root: `${PACKAGE_ROOT}examples/minimal`,
     ignore: config.ignore ?? [],
-    exempt: [],
     srcRoot: 'src',
     naming: { hookPrefix: 'use', viewSuffix: 'Page' },
     thresholds: {
