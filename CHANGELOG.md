@@ -15,6 +15,21 @@
 
 ## [Unreleased]
 
+### Changed（**破坏性**：`ok` 语义收窄 → `apiVersion` 1 → 2）
+
+- **`ok` 从"判过的东西没有 error"改成"判过的东西没有 error，而且确实判了"**：
+  `ok = errors === 0 && (paths === null || paths.matched > 0) && scopeFiles > 0`。
+  实测的漏洞：`--paths` 一个都没匹配上时退出码是 2（"请求无法满足"），而 `ok` 还是 `true` ——
+  只读 stdout JSON、拿不到退出码的 CI 脚本 / PR bot 写 `if (!report.ok) fail`，于是**请求没被满足被当成通过**。
+  这是 v1 那一轮"让消费方能可靠判定报告内容"漏掉的一格。
+- **没有把 `ok` 与退出码对齐**（那会造出 `ok: true` 且 `errors: 3` 的荒谬组合）：
+  退出码答「要不要拦」（`--report-only` / `--local-only` 都是"有 error 也退 0"），
+  `ok` 答「结论是否通过」。两通道的完整分工表见 DESIGN §6.9（2.0.0）。
+- **`REPORT_API_VERSION` 1 → 2**（改字段含义 = 破坏性，按 §6.9 的分级）；冻结测试的版本值与字段清单同步。
+  迁移：**只把自报支持的版本号改成 2**；本来就按 `paths.matched` / `diagnostics.length` 判的消费方零改动。
+- 顺带补同类的一格：**全量下 0 个文件被判定**（`include` 不限 + 空仓）时 `scopeFiles === 0`，
+  那时也没有任何 error —— 现在同样是 `ok: false`（与 S24「0 个文件 → 通过」是同一条道理）。
+
 ### Added（契约枚举的常量表与守卫，**派生**不是第二份清单）
 
 - 导出 `NOTICE.PATHS_NO_MATCH` 这类常量（kebab-case → `SCREAMING_SNAKE`，类型层用模板字面量推导）

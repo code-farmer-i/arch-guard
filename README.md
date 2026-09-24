@@ -137,8 +137,10 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
   ```
 
 - **机读 ⊇ 人读**：摘要行里的每个数字，JSON 里都有（`scopeFiles` / `rulesEnabled` / `rulesTotal` / `globalFindings`…）。
-- **「没判任何东西」可判定**：`--paths` 一个都没匹配上 → `paths.matched = 0` + `code: 'paths-no-match'` + **退出码 2**
-  （「没问」是 `paths: null`，「问了没命中」是 `matched: 0`）。
+- **「没判任何东西」可判定**：`--paths` 一个都没匹配上 → `paths.matched = 0` + `code: 'paths-no-match'` +
+  **退出码 2** + **`ok: false`**（「没问」是 `paths: null`，「问了没命中」是 `matched: 0`）。
+- **`ok` ≠ 退出码**：`ok` 答"**结论是不是通过**"（判过的没 error **且确实判了**）；退出码答"**要不要拦**"
+  （受 `--report-only` / `--local-only` 影响）。只看 stdout 的消费方以 `ok` 为准，别把两者对齐。
 - 契约变更（增删顶层字段 / 增删 code）**必须动 `apiVersion`**，而这是被 `tests/report-contract.test.mjs` **冻结**住的。
 
 ## 文档与门禁同一份真相
