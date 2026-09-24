@@ -15,6 +15,62 @@
 
 ## [Unreleased]
 
+### Fixed（手工轮子指纹深度审计：一个"五个能力从没报过"的 bug + 名册式枚举 + 文档漂移）
+
+- **平台能力的豁免条件写反**（真 bug）：`deps.ts` 里 `if (entry.platform === true) return true` → 这个文件被当成
+  "已经在用首选方案"而 `continue`，于是 **deep-clone / unique-id / number-format / deep-equal / query-string
+  五个平台能力从来没报过** —— 而紧邻的注释写的是"平台内置类能力只要命中就报"。改成 `return false`
+  （平台内置没有 import 可查 → **没有豁免**）。顺带写清：同文件里也用了 `structuredClone` 也不能豁免 ——
+  JSON 深拷贝会丢 Date / Map / undefined，那仍然是 bug。
+- **`allowOwn` 只改了 hint，没真降级**：数据表说"只提示不报错"，实现里 finding 仍是 error。新增
+  `Finding.severity` 覆盖 + `severityOf()` 读它 → P06 对 allowOwn 能力（query-string 等）**真的降级为 warn**；
+  同时修掉 `toJsonReport` 里"每条 finding 的 severity 直接读规则严重度"（与 counts / 退出码不一致）。
+- **名册式枚举成族**（与上一轮 datetime 的 `getDay` 同一类）：
+  | 能力                               | 旧（漏）                             | 补                                                                |
+  | ---------------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+  | `cli-args`                         | 只认 `argv.slice/indexOf/…`          | `process.argv[2]` + `filter/forEach/map/reduce/some/every`        |
+  | `unique-id`                        | 只认 `toString(36)`                  | 2/8/10/16、`toString().slice()`、经典 uuid v4 拼装片段            |
+  | `number-format`                    | 只认一种分组正则                     | "正则里出现 `\d{3}`"                                              |
+  | `deep-equal`                       | 只认 `===`                           | `==` / `!=` / `!==`（宽松相等更常见）                             |
+  | `query-string`                     | 只认 `'?'.concat(`                   | `'?' + x`、模板串 `` `?${x}` ``、手写 `encodeURIComponent(k)+'='` |
+  | `deep-clone`                       | **没有 `softSyntax`** → P07 永不参与 | 自研递归克隆的弱指纹                                              |
+  | `debounce-throttle` / `validation` | 各 2 / 1 条                          | rAF 与 `performance.now()` / `new RegExp(` · `.match(` · `.exec(` |
+- **`apiNames` 必须与 `softSyntax` 成对**：多个条目只写了 apiNames，命名指纹永远读不到（死声明）。
+  新增**数据表自检**测试断言这条 —— 它正是能提前发现"声明了却永不生效"的那类断言。
+- **新增夹具 `__fixtures__/wheels/`**：五个平台能力的手搓样本 + `argv[2]` + 宽松 `==` + 自研递归克隆 +
+  **合规写法零命中**（`structuredClone` / `crypto.randomUUID` / `Intl.NumberFormat` / `isDeepStrictEqual` / `URLSearchParams`）。
+  这个 bug 能活下来，就是因为**此前没有任何夹具覆盖平台能力**（datetime 夹具只覆盖 datetime，deps 只覆盖 cli-args）。
+- **文档漂移对齐**：DESIGN §16.2 的规则表把 **P08 / P09 / P10 当成已实现**（同一文档后面却写着它们没实现），
+  P07 的判据写成"≥2 个 API 名重叠"（实际是**精确同名，1 个即可**）；PARADIGM 有 4 处把 P08 当本体规则。
+  现在表格只列本体真在跑的规则，其余编号写明"并入 / 已委派"。
+
+### Changed（datetime 能力：补上「字符串日期解析」这条漏网）
+
+- 起因是问「datetime 没限制 `new Date` 吗」。核实结果：**`new Date()` / `Date.now()`（取当前时刻）与
+  `new Date(ms)`（时间戳）是故意不管的** —— 它们是原生原语，不是"手搓库"；禁掉只会制造误报。
+  这个语义现在写进了数据表头部：**登记能力 = 这个能力的活走登记方案，不是禁用语言原语**。
+- **实测出的缺口**：字符串日期**解析**这一格完全没人管 —— `new Date(s)`、`Date.parse(s)`、
+  自研 `parseDate(s) { return new Date(s) }` 三种**都不报**。原因有两层：解析形态不在 `syntax` 里；
+  而 P07 需要 `softSyntax`，datetime 条目此前**没有这个字段**，所以 P07 对 datetime 永不参与。
+- 修法（**纯数据，不动规则**），两处都从"名册"改成"族"：
+  - **取/改日期分量按 `Date` 的封闭 API 成族**：`\.get(?:FullYear|Month|Date|Day|…|UTC…)\(\)` +
+    `\.set(?:…)\(` —— 旧实现只列了 5 个 getter，`getDay`、`getSeconds`、`getUTCFullYear` 与**全部 setter**
+    都漏在外面（实测 `d.getDay()` 一条都不报）。`Date` 的实例方法是 ECMAScript 封闭集合，不会像库名那样过期。
+  - **解析**：`Date\.parse\(`（该 API 只用于解析）+ `new Date\(\s*['"]`（只认**字面量**参数）；
+    人类可读格式化补 `\.to(?:DateString|TimeString|UTCString)\(\)`（机器格式 `toISOString()` 不在此列 —— 那是序列化）。
+  - `softSyntax` 放宽成族（`\.get[A-Z]\w*\(` / `\.set[A-Z]\w*\(`）→ 启用 P07；P07 的精度由**自研同名**把门，只是 warn。
+- **两条刻意守住的边界**（写进条目注释与夹具）：
+  ① 宽模式 `\.get[A-Z]\w*\(\)` **不用** —— 实测在本仓 + 29 个夹具里它命中 10 处，其中 4 处是误伤
+  （`scanner.getTokenPos()` / `getTextPos()` / `node.getEnd()`）；显式族模式同范围命中 6 处，全是真 Date 用法。
+  ② `getTime` / `setTime` **不在**族里：取时间戳是合法原生用法，毫秒手算由"与 4 位以上数字运算"那两条专门管。
+  ③ `new Date(variable)` 静态判不出是字符串还是时间戳 → 不管（宁可漏也不误伤）。
+- 夹具 `__fixtures__/datetime` 扩展：`parse.ts`（解析 → P06）· `week.ts`（`getDay` / `getUTC*` / setter → P06）·
+  `dates.ts`（自研 `isSameDay` + 弱指纹 → P07 warn）· **`now.ts` 边界探针**
+  （`new Date()` / `Date.now()` / `new Date(ms)` / `getTime` / `setTime` → **必须零命中**；`exact: true` 保证多报即红），
+  并打开 P07；`expect.json` 按实测更新。其余 28 个夹具不受影响（自检 29/29）。
+- 对应的回归测试从"只数 P06 条数"升级成四段：格式化/取分量 → P06 · 字符串解析 → P06 · 自研同名+弱指纹 → P07 ·
+  原生原语与用 dayjs 的文件 → **不报**（把"边界"也钉成断言）。
+
 ### Fixed（S12 措辞：不再靠"有 JSX"断言"它是组件"）
 
 - **现象**：同一个 `:ui` 检查下两种完全不同的文件收到一字不差的报文 —— 导出元素表的

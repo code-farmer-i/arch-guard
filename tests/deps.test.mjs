@@ -72,17 +72,31 @@ test('P 域：违规夹具报出四条 error 与一条 warn', async () => {
   ])
 })
 
-test('P 域：手搓日期格式化被抓，而正确使用 dayjs 的文件不报', async () => {
+test('P 域：手搓日期格式化 / 解析被抓，原生原语与用 dayjs 的文件不报', async () => {
   const result = await run('datetime')
   const p06 = result.all.filter((finding) => finding.rule === 'P06')
-  assert.equal(p06.length, 1)
-  assert.equal(p06[0].file, 'src/app/main.tsx')
-  assert.match(p06[0].text, /另有 5 处/)
-  // 正确使用 dayjs 的文件不该被 P06 点名（别的规则可能因为它不可达而报 S15，这里只看 P06）
-  assert.equal(
-    result.all.some((finding) => finding.rule === 'P06' && finding.file.includes('time.ts')),
-    false,
+  // ① 手搓格式化 / 取分量（main.tsx）② 字符串解析（parse.ts：Date.parse + new Date('…')）
+  assert.deepEqual(
+    p06.map((finding) => finding.file),
+    ['src/app/main.tsx', 'src/shared/lib/parse.ts', 'src/shared/lib/week.ts'],
   )
+  assert.match(p06[0].text, /另有 5 处/)
+
+  // ③ 弱指纹 + 自研同名 → P07（warn），这是 P07 首次覆盖 datetime（此前该条目没有 softSyntax）
+  const p07 = result.all.filter((finding) => finding.rule === 'P07')
+  assert.deepEqual(
+    p07.map((finding) => finding.file),
+    ['src/shared/lib/dates.ts'],
+  )
+  assert.match(p07[0].text, /自研了 isSameDay/)
+
+  // ④ 边界（fixture 里 now.ts 是专门的边界探针；expect.json 是 exact，多报一条就会红）：
+  //    原生原语 `new Date()` / `Date.now()` / `new Date(ms)`，以及 `getTime` / `setTime` 时间戳读写
+  //    —— 都**不算**"手搓日期库"（`getTime` 刻意不在族模式里；只有"与 4 位以上数字手算"才报）
+  const touched = new Set([...p06, ...p07].map((finding) => finding.file))
+  assert.equal(touched.has('src/shared/lib/now.ts'), false, '原语与时间戳读写不该被当成手搓库')
+  // ⑤ 正确使用 dayjs 的文件不报（别的规则可能因为它不可达而报 S15，这里只看 P 域）
+  assert.equal(touched.has('src/shared/lib/time.ts'), false)
 })
 
 test('P 域：命中指纹但确实在用登记方案时不报（本体即正例）', async () => {

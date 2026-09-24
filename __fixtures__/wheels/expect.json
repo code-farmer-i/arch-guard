@@ -1,0 +1,12 @@
+{
+  "findings": [
+    { "rule": "P06", "file": "src/shared/lib/argv.ts" },
+    { "rule": "P06", "file": "src/shared/lib/clone-json.ts" },
+    { "rule": "P07", "file": "src/shared/lib/clone-recursive.ts" },
+    { "rule": "P06", "file": "src/shared/lib/deep-equal.ts" },
+    { "rule": "P06", "file": "src/shared/lib/number-format.ts" },
+    { "rule": "P06", "file": "src/shared/lib/query-string.ts" },
+    { "rule": "P06", "file": "src/shared/lib/unique-id.ts" }
+  ],
+  "exact": true
+}

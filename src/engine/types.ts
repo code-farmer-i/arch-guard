@@ -347,6 +347,14 @@ export interface Finding {
   anchorKind?: 'line' | 'file' | 'symbol'
   /** 全局谓词（不可归属到变更文件）标记，scope 过滤时不能被静默丢弃 */
   global?: boolean
+  /**
+   * 该发现项的严重度**覆盖**（默认取规则声明的严重度）。
+   *
+   * 只在"同一判据、两种严重度"时用 —— 目前只有 P06：会不会降级由**数据表**决定
+   * （能力条目的 `allowOwn: true` = 允许自研，只提示），规则只负责落实。
+   * 唯一读取点是 `severityOf()`，所以报告、统计、`--severity` 过滤三处自动一致。
+   */
+  severity?: Severity
 }
 
 export interface RuleContext {

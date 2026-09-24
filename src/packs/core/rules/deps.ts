@@ -143,8 +143,16 @@ function scanStrongFingerprints(
 
 /**
  * P06 能力必须用登记方案：命中「手工轮子」强指纹时，必须已经在用该能力的首选方案。
- * 平台内置类能力（structuredClone / Intl / crypto.randomUUID / URLSearchParams）只要命中就报。
- * `allowOwn: true` 的能力降级为 warn（有些小工具自研合理）。
+ *
+ * 两种能力的豁免方式不同（这里曾经写反，导致 5 个平台能力静默失效）：
+ * - **需要依赖的能力**（dayjs / commander / zod…）：看**这个文件**有没有 import 首选方案 ——
+ *   按文件判而非按项目判，否则"部分迁移"（A 文件用了、B 文件还在手搓）会被整体放过；
+ * - **平台内置能力**（structuredClone / Intl / crypto.randomUUID / URLSearchParams…）：**没有依赖可查，
+ *   所以没有豁免** —— 命中就报。别以为"同文件里也用了 structuredClone 就没事"：JSON 深拷贝会丢
+ *   Date / Map / undefined，那仍然是个 bug。
+ *
+ * `allowOwn: true` 的能力（query-string / validation / debounce-throttle）**降级为 warn**：
+ * 有些小工具自研是合理的，但"提示"要真的出现在报告里，而不是只往 hint 追加一句话。
  */
 export const capabilityPreferred: Rule = {
   id: 'P06',
@@ -163,7 +171,10 @@ export const capabilityPreferred: Rule = {
       // 按**文件**判定：这个文件自己有没有在用登记方案。
       // 用全项目判定会放过「部分迁移」（A 文件用了 dayjs、B 文件还在手搓）。
       const fileUsesPreferred = (file: string): boolean => {
-        if (entry.platform === true) return true
+        // 平台内置能力没有 import 可查 → **没有豁免**（返回 false 表示"不算已在用"）。
+        // 这里曾经返回 true（语义写反），于是 deep-clone / unique-id / number-format /
+        // deep-equal / query-string 五个平台能力**从来没报过**，而没有任何夹具覆盖它们。
+        if (entry.platform === true) return false
         const facts = ctx.facts.get(file)
         return facts?.imports.some((item) => packageOf(item.spec) === preferred) === true
       }
@@ -183,7 +194,11 @@ export const capabilityPreferred: Rule = {
           `手搓了 ${capability} 的活，但没在用登记的 ${preferred}${others > 0 ? `（该文件另有 ${others} 处）` : ''}`,
           entry.hint,
         )
-        if (entry.allowOwn === true) findingEntry.hint = `${entry.hint}（该能力允许自研，仅提示）`
+        if (entry.allowOwn === true) {
+          // 数据表说"只提示不报错" → 真的降级（此前只改 hint，finding 仍是 error）
+          findingEntry.severity = 'warn'
+          findingEntry.hint = `${entry.hint}（该能力允许自研，仅提示）`
+        }
         out.push(findingEntry)
       }
     }

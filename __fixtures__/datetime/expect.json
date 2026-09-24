@@ -3,6 +3,18 @@
     {
       "rule": "P06",
       "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "P06",
+      "file": "src/shared/lib/parse.ts"
+    },
+    {
+      "rule": "P06",
+      "file": "src/shared/lib/week.ts"
+    },
+    {
+      "rule": "P07",
+      "file": "src/shared/lib/dates.ts"
     }
   ],
   "exact": true

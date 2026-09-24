@@ -47,7 +47,9 @@ export const DOMAIN_LABEL: Record<Domain, string> = {
 }
 
 export function severityOf(finding: Finding, ruleIndex: Map<string, Rule>): Severity {
-  return ruleIndex.get(finding.rule)?.severity ?? 'error'
+  // 发现项可以覆盖规则声明的严重度（如 P06 对 `allowOwn` 能力降级为 warn）——
+  // **唯一读取点**，所以报告 / 统计 / `--severity` 过滤不会各自为政
+  return finding.severity ?? ruleIndex.get(finding.rule)?.severity ?? 'error'
 }
 
 export function summarize(
@@ -227,7 +229,9 @@ export function toJsonReport(input: ReportInput): JsonReport {
         ...finding,
         domain: rule?.domain,
         level: rule?.level,
-        severity: rule?.severity ?? 'error',
+        // 走 severityOf（不是直接读规则的严重度）：`allowOwn` 之类**逐条覆盖**的降级
+        // 必须同时体现在 counts、退出码、pretty、github 与 JSON —— 否则机读侧与人读侧对不上
+        severity: severityOf(finding, input.ruleIndex),
       }
     }),
     skipped: input.skipped,
