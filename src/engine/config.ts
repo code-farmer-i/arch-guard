@@ -243,12 +243,16 @@ export async function loadConfig(options: {
    * 为什么需要它：`copy()` 不该写死默认路径 —— 否则 `canonical({ src: 'app-src' })` 时
    * i18n 目录不跟着走（和 `designSystem()` 塞三根默认值是同一类毛病）。
    */
-  const i18nAdapter = adapters.i18n
+  const i18nAdapter = adapters.i18n as { from?: string[]; resourceDir?: string } | undefined
+  const usesI18nLibrary = Array.isArray(i18nAdapter?.from) && i18nAdapter.from.length > 0
   if (
     i18nAdapter &&
-    !(i18nAdapter as { resourceDir?: string }).resourceDir &&
+    usesI18nLibrary &&
+    !i18nAdapter.resourceDir &&
     typeof params.i18nDir === 'string'
   ) {
+    // 只在适配器**声明了 i18n 库**（`from` 非空）时补落点：
+    // `noneI18nKit()` 表达的是"项目不用 i18n"，给它补落点会让 C 域照跑、C07 还会误报"声明了 i18n 却零资源"。
     adapters.i18n = { ...i18nAdapter, resourceDir: params.i18nDir } as Adapter
   }
 

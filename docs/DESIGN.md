@@ -556,9 +556,27 @@ export default {
 4. **范式唯一性是 fail-closed 的**：`[canonical(), fsd()]` 这种组合以前会得到
    "角色表来自后者、`layout` 逐键混合、`structure` 取并集"的静默错误状态，现在直接报错并指路 `addRoles`。
 
+**组合方案（`stack()`）**：把**原子预设**拼成一套组合，供 `presets: [范式(), ...stack({ … })]` 使用。
+它自己的三条约束：① **不含任何硬编码** —— 组件库 / i18n 方案 / 语言 / 白名单 / 落点全部由选项传入，
+不传就用"声明空能力"的 `noneKit()` / `noneI18nKit()`（对应规则**明列停用**）；② **不引入新语义** ——
+只是把 `designSystem()` / `copy()` / `deps()` / `hygiene()` / `i18n()` / `uiKit()` / `metrics()` 拼起来，
+用户完全可以不要它、手写这几行；③ **范式仍只有一个** —— `stack()` 只负责正交的域轴。
+
+```js
+// react + i18next + antd：范式一行、组合一行
+presets: [
+  canonical(),
+  ...stack({
+    i18n: i18nextKit({ languages: ['zh-CN', 'en'] }),
+    uiKit: antdKit(),
+    deps: { allow: ['react', 'react-dom', 'antd', 'i18next', 'react-i18next'] },
+  }),
+]
+```
+
 **预设列表**：`canonical()`（三根应用）/ `library()`（库 / CLI：入口 + 目录表）/ **`fsd()`**（Feature-Sliced Design：
 六层 + 切片 + 片段 + 公开面，全部落成数据，判定走通用规则 S21/S22/S23）/ `designSystem()` / `copy()` / `deps()` /
-`metrics()` / `hygiene()` / `uiKit(adapter)` / **`i18n(adapter)`**（i18n 能力，与 uiKit 同形）。预设是**规范的家**（`canonical()` 也是规范），引擎里不得出现任何方法论字面量。
+`metrics()` / `hygiene()` / `uiKit(adapter)` / **`i18n(adapter)`**（i18n 能力，与 uiKit 同形）/ **`stack(options)`**（域轴组合方案）。预设是**规范的家**（`canonical()` 也是规范），引擎里不得出现任何方法论字面量。
 
 ### 7.1 UI 组件库适配（可换、可不用）
 

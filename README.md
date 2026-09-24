@@ -56,11 +56,16 @@ export default {
     //   deps({ allow })           依赖选型（P）· metrics() 度量（M）· hygiene() 反退化（H）
     //   uiKit(antdKit() | noneKit()) 组件库适配（正交轴）
     // FSD 项目改用 fsd()：六层 + 切片 + 片段 + 公开面（见 docs/ALTERNATIVES.md §3.5）
-    designSystem({ … }), // 令牌分层 / 颜色唯一出处 / 对比度（落点默认随范式）
-    copy(), // 文案域规则集
-    i18n(i18nextKit({ languages: ['zh-CN', 'en'] })), // i18n 能力（换方案只改这一行）
-    hygiene(), // 反退化：逃生舱 / 调试残留 / 未完成标记
-    uiKit(antdKit()), // 组件库适配器（换库 / 不用库只改这一行）
+    //
+    // 域轴可以按需自由组合；`stack()` 只是把这些**原子预设**拼好的糖（不含任何硬编码，
+    // 组件库 / i18n 方案 / 语言 / 白名单全部由你传；不传就是"声明空能力"，对应规则明列停用）：
+    ...stack({
+      i18n: i18nextKit({ languages: ['zh-CN', 'en'] }), // 换 i18n 方案只改这一行
+      uiKit: antdKit(), // 换组件库 / 不用库只改这一行
+      deps: { allow: ['react', 'react-dom', 'antd', 'i18next', 'react-i18next'] },
+    }),
+    // 不用 stack() 就照它展开写：
+    //   designSystem({ … }) · copy() · deps({ allow }) · hygiene() · i18n(kit) · uiKit(kit)
   ],
   overrides: {
     // 项目差异只写这里

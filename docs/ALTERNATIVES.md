@@ -257,7 +257,7 @@ export default {
 
 ```js
 // arch.config.mjs —— FSD 项目的全部配置
-import { copy, deps, designSystem, fsd, hygiene, noneKit, reactPack, uiKit } from '@arch-guard/core'
+import { fsd, i18nextKit, noneKit, reactPack, stack } from '@arch-guard/core'
 
 export default {
   packs: [reactPack],
@@ -265,13 +265,12 @@ export default {
     fsd(), // ← 六层 + 切片 + 片段 + 公开面，**连契约落点一起声明**
     // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 令牌 `src/shared/ui/styles/tokens`、
     // 第三方覆盖 `src/shared/ui/styles/vendor`、storage key `src/shared/config/storage.ts`。
-    // 只有**要改**哪条才写哪条（显式参数压过范式声明）：`designSystem({ styleDir: '…' })`
-    designSystem(),
-    copy(),
-    i18n(i18nextKit({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN', 'en'] })),
-    deps({ allow: ['react', 'react-dom', 'react-router'] }),
-    hygiene(),
-    uiKit(noneKit()),
+    // 域轴用**组合方案**拼（等价于手写 designSystem()/copy()/deps()/hygiene()/i18n()/uiKit()）：
+    ...stack({
+      i18n: i18nextKit({ languages: ['zh-CN', 'en'] }), // 不用 i18n 就传 i18n: noneI18nKit()
+      uiKit: noneKit(), // 用 antd 就换 antdKit()：换库只改这一行
+      deps: { allow: ['react', 'react-dom', 'react-router'] },
+    }),
   ],
 }
 ```

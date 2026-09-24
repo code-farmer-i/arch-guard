@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### Added（组合方案 `stack()`：原子预设 + 一层不含硬编码的糖）
+
+- 新增 **`stack(options)`**：把域预设按需装配成 `presets: [范式(), ...stack({ … })]`。三条约束写进实现与文档：
+  ① **不含任何硬编码**（组件库 / i18n 方案 / 语言 / 白名单 / 落点全部由选项传入，不传就用"声明空能力"的
+  `noneKit()` / `noneI18nKit()` → 对应规则**明列停用**）；② **不引入新语义**（只是拼
+  `designSystem()`/`copy()`/`deps()`/`hygiene()`/`i18n()`/`uiKit()`/`metrics()`，用户可以不要它、手写同样几行）；
+  ③ **范式仍只有一个**（`stack()` 只管正交的域轴）。
+- 顺手修掉一个语义 bug：`noneI18nKit()`（"项目不用 i18n"）以前也会被范式的 `params.i18nDir` 补上落点，
+  于是 C 域照跑、C07 还会误报"声明了 i18n 却零资源"。现在**只在适配器声明了 i18n 库（`from` 非空）时才补落点**。
+- 拆出 `presets/kit.ts`（`uiKit()` / `i18n()`），避免 `stack()` 与 `presets/index.ts` 循环依赖。
+- 测试：`tests/stack.test.mjs`（6 条）—— 默认空能力 · 选项驱动 · 落点仍随范式 · 组合 = 各域并集 ·
+  `hygiene: false` 与 `metrics` 按选项生效 · "不用 stack 手写同样几行结果一致"。
+- 文档：README 配置模板换成 `...stack({ … })`；DESIGN §7 增「组合方案」小节；ALTERNATIVES §3.5 配方改用 `stack()`。
+
 ### Added（P4 自检：库名只许出现在数据表与适配器面）
 
 - **兑现 docs/DESIGN.md §7.3 早就写下的承诺**：`engine/**`、`packs/**` 与通用预设（`presets/*.ts`）不得出现已登记库名，
