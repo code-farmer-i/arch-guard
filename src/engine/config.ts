@@ -282,6 +282,8 @@ export async function loadConfig(options: {
     // 契约扫描域：预设给默认（canonical / library 都收窄到 src），overrides 可覆盖；空 = 不限制
     include: overrides.include ?? preset.include ?? [],
     metaFramework,
+    // 范式标识带进最终配置：`placementHint` / `--explain` 靠它区分「三根 / 库 / FSD」三套落点
+    ...(paradigms[0] ? { paradigm: paradigms[0] } : {}),
     exceptions: [...(preset.exceptions ?? []), ...(overrides.exceptions ?? [])],
     aliases,
   }

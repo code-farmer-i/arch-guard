@@ -48,7 +48,9 @@ test('组合：一个配置只能有一个范式预设（fail-closed，不静默
 
 test('组合：契约落点跟随范式（域预设不再塞三根默认值）', async () => {
   const fsdConfig = await load('fsd(), designSystem()')
-  assert.equal(fsdConfig.params.styleDir, 'src/shared/ui/styles', 'FSD 的落点')
+  // 全局样式归官方 `app/styles` 片段；令牌与第三方覆盖仍在 `shared/ui/styles` 下
+  assert.equal(fsdConfig.params.styleDir, 'src/app/styles', 'FSD 的全局样式落点')
+  assert.equal(fsdConfig.params.tokenDir, 'src/shared/ui/styles/tokens', 'FSD 的令牌落点')
   assert.equal(fsdConfig.params.vendorDir, 'src/shared/ui/styles/vendor')
 
   const canonConfig = await load('canonical(), designSystem()')

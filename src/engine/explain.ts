@@ -53,6 +53,11 @@ export interface PathExplanation {
     slots: string[]
   }
   naming: { hookPrefix: string; viewSuffix: string }
+  /**
+   * 本范式是否有 views / hooks 槽位语义 —— `naming`（hook 前缀、页面后缀）**只有**这两条规则在用
+   * （S12 / S13）。没有槽位就别打印它：承诺了却不执行比不写更糟。
+   */
+  slotNaming: boolean
   /** 与落点有关的路径参数（令牌 / 样式 / 存储 / i18n） */
   pathParams: Record<string, string>
   rules: { enabled: ExplainRule[]; skipped: { rule: string; reason: string }[] }
@@ -105,6 +110,8 @@ export function explainPaths(input: ExplainInput): PathExplanation[] {
     if (typeof value === 'string' && value.length > 0) pathParams[key] = value
   }
 
+  const slotNaming = config.roles.some((role) => role.slot === 'views' || role.slot === 'hooks')
+
   return input.paths.map((rel) => {
     const resolution = resolveRole(index, rel)
     const judged =
@@ -151,6 +158,9 @@ export function explainPaths(input: ExplainInput): PathExplanation[] {
         `歧义：同时命中 ${resolution.roles.length} 个角色（${resolution.roles.join(' / ')}）—— 角色表需要收窄`,
       )
     }
+    if (judged && !slotNaming) {
+      notes.push('本范式没有 views / hooks 槽位：`naming`（hook 前缀 / 页面后缀）不参与判定')
+    }
     if (resolution.status === 'resource') {
       notes.push('资源文件（json / html 等）：只进文件集供图解析，不参与角色判定')
     }
@@ -174,6 +184,7 @@ export function explainPaths(input: ExplainInput): PathExplanation[] {
         slots,
       },
       naming: config.naming,
+      slotNaming,
       pathParams,
       rules: { enabled, skipped: input.skipped },
       notes,
@@ -234,9 +245,11 @@ export function renderExplanations(list: PathExplanation[], format: ReportFormat
       lines.push(`  依赖       ${item.contract.imports[0]}`)
       for (const extra of item.contract.imports.slice(1)) lines.push(`             ${extra}`)
     }
-    lines.push(
-      `  命名       hook 前缀 \`${item.naming.hookPrefix}\` · 页面后缀 \`${item.naming.viewSuffix}\``,
-    )
+    if (item.slotNaming) {
+      lines.push(
+        `  命名       hook 前缀 \`${item.naming.hookPrefix}\` · 页面后缀 \`${item.naming.viewSuffix}\``,
+      )
+    }
     const params = Object.entries(item.pathParams)
     if (params.length > 0) {
       lines.push(`  落点参数   ${params.map(([key, value]) => `${key}=${value}`).join(' · ')}`)

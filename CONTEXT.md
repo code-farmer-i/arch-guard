@@ -39,6 +39,16 @@ _Avoid_: 插件、驱动、集成
 可替换面的种类：`ui-kit` / `data-layer` / `router` / `styles` / `i18n`。
 _Avoid_: 维度、类别
 
+**页面级（pageLike）**：
+角色描述符上的标记：这个角色是"页面"这一级的单元，S16 用 `thresholds.viewLines` 判它（其余用 `fileLines`）。
+由**角色表**声明而不是规则猜 —— 猜的代价是 library / FSD 下 `viewLines` 配了不生效。
+_Avoid_: 靠 `slot === 'views'` 推断
+
+**槽位语义（structure.slots）**：
+参数型能力：本范式的角色带槽位（views / hooks / model / lib）。canonical 声明它，library 与 fsd 没有 ——
+S13 因此在那两个范式下**明列停用**，而不是注册了却永远判不出东西。
+_Avoid_: 注册了空转的规则、`--explain` 承诺没在跑的判定
+
 ### 判定与证据
 
 **判定等级（L1–L5）**：

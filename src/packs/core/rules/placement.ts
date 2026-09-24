@@ -9,6 +9,12 @@ import type { Config } from '../../../engine/types.js'
  */
 export function placementHint(rel: string, config: Config): string {
   const { app, modules, shared } = config.layout
+  /**
+   * FSD 必须**先认出来**：它的 `layout` 也是 `library()` 那套（`modules` / `shared` 都是空串），
+   * 不看 `paradigm` 就会掉进下面的库分支，给出「先在 `library({ modules })` 里补上」这种
+   * 完全不相干的建议（`--explain` 是"写之前问"的唯一工具，这一行错了等于工具失效）。
+   */
+  if (config.paradigm === 'fsd') return fsdPlacementHint(rel, config)
   // 库范式（没有域 / 共享层）：念出**项目声明过的目录表**——
   // 不能说应用范式那套「app 层只认 main/App/router/layouts」（库的 layout.app 就是源码根）
   if (modules === '' && shared === '') {
@@ -48,4 +54,53 @@ export function placementHint(rel: string, config: Config): string {
     )
   }
   return '顶层只有 app/ modules/ shared/ 三根（PARADIGM.md §6.1）：先归到其中一根，再选槽位'
+}
+
+/**
+ * FSD 的「该放哪」：**层 → 切片 → 片段**三级，而且片段的合法集合**按层不同**（app 与 shared 无切片）。
+ *
+ * 全部从**角色表**读（`slicedLayers` / `segments` / `appSegments` / `sharedSegments` 都可配），
+ * 所以自定义过的 FSD 也能给对 —— 而不是复述一份写死的目录表。
+ */
+function fsdPlacementHint(rel: string, config: Config): string {
+  const src = config.srcRoot
+  const sliced = new Map<string, Set<string>>()
+  const flat = new Map<string, Set<string>>()
+  const add = (target: Map<string, Set<string>>, layer: string, segment: string): void => {
+    const bucket = target.get(layer) ?? new Set<string>()
+    bucket.add(segment)
+    target.set(layer, bucket)
+  }
+  for (const role of config.roles) {
+    const parts = role.id.split(':')
+    if (parts[0] !== 'fsd' || parts.length !== 3) continue
+    const layer = parts[1] as string
+    const segment = parts[2] as string
+    if (segment === 'index' || segment === 'main') continue
+    if (role.group === 'slice') add(sliced, layer, segment)
+    else add(flat, layer, segment)
+  }
+  const layers = [...sliced.keys()]
+  const appSegments = [...(flat.get('app') ?? [])]
+  const sharedSegments = [...(flat.get('shared') ?? [])]
+  const rest = rel.startsWith(`${src}/`) ? rel.slice(src.length + 1) : rel
+  const [first = '', second] = rest.split('/')
+
+  if (first === 'app') {
+    return `app 是**无切片层**：只认 index / main 与片段 ${appSegments.join(' / ')}；套壳写进 app/index，配置对象进 shared/`
+  }
+  if (first === 'shared') {
+    return `shared 是**无切片层**（不该有业务逻辑）：只认片段 ${sharedSegments.join(' / ')}`
+  }
+  if (sliced.has(first)) {
+    const segments = [...(sliced.get(first) ?? [])]
+    if (second === undefined) {
+      return `${first}/ 下要建**切片**目录：${first}/<切片名>/<片段>/… —— 切片名用业务域词（crews / crew-filter 这种）`
+    }
+    return `${first}/<切片名>/ 下只认这些片段：${segments.join(' / ')}；切片的公开面是它的 index.ts（组外只许从那里引）`
+  }
+  return (
+    `FSD 六层：app/ ${layers.map((layer) => `${layer}/`).join(' ')}shared/ —— 先选层；` +
+    '除 app 与 shared 外都是「层 / 切片 / 片段」三级'
+  )
 }

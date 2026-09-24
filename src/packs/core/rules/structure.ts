@@ -189,7 +189,8 @@ export const namingRules: Rule = {
         out.push(finding('S12', record.rel, 1, `页面文件必须以 ${viewSuffix} 结尾：${base}`))
       }
       // api 层允许 camelCase（queryKeys / queryClient 这类基础设施），只禁首字母大写与下划线
-      if (record.role === 'shared:api' && (/^[A-Z]/.test(stem) || stem.includes('_'))) {
+      // 按角色**后缀**判（而不是写死 canonical 的 `shared:api`）：FSD 的 `fsd:shared:api` 语义相同
+      if (record.role.endsWith(':api') && (/^[A-Z]/.test(stem) || stem.includes('_'))) {
         out.push(
           finding(
             'S12',
@@ -199,8 +200,9 @@ export const namingRules: Rule = {
           ),
         )
       }
+      // 组件目录同理：canonical 的 `shared:components:{ui,common}` 与 FSD 的 `fsd:shared:ui`、`fsd:<层>:ui`
       if (
-        (record.role === 'shared:components:ui' || record.role === 'shared:components:common') &&
+        (record.role.endsWith(':ui') || record.role.endsWith(':components:common')) &&
         base.endsWith('.tsx') &&
         !/^[A-Z]/.test(stem)
       ) {
@@ -219,6 +221,8 @@ export const exportShape: Rule = {
   severity: 'error',
   title: '导出形态契约',
   hint: 'views 必须 default 导出；hooks 只导出 use*；model 只放类型与字面量常量',
+  // 本条全靠槽位语义：没有槽位的范式（library / fsd）下它 100% 空转 —— 明列停用，别假装在跑
+  requires: ['structure.slots'],
   run: (ctx) => {
     const out: Finding[] = []
     for (const record of ctx.records) {
@@ -329,7 +333,9 @@ export const sizeLimits: Rule = {
       if (record.kind !== 'ts') continue
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
-      const limit = record.slot === 'views' ? viewLines : fileLines
+      // 「页面级」由角色表声明（`pageLike`）—— 只看 `slot === 'views'` 会让 library / fsd 下
+      // 的 viewLines 静默失效（配了也不生效）
+      const limit = record.pageLike === true || record.slot === 'views' ? viewLines : fileLines
       if (facts.lineCount > limit) {
         out.push({
           rule: 'S16',

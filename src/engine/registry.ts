@@ -8,7 +8,13 @@ import type { Config, Domain, Level, Rule } from './types.js'
  * **参数型**（`designSystem.x` → 读 `config.params.x`）—— 后者表达"项目事实"（如令牌前缀），
  * 让缺它时规则**明列停用**而不是空转或误报。
  */
-const PARAM_CAPABILITY_ROOTS = new Set(['designSystem'])
+/**
+ * 参数型能力的根：读 `config.params`（**导出给盘点工具用**，别让外部再抄一份名单）。
+ * `structure.slots` 表达的是**范式事实** ——「本范式的角色带槽位语义（views / hooks / model / lib）」。
+ * canonical 声明了它，library 与 fsd 没有（它们的角色不带槽位）→ S13 在那两个范式下**明列停用**，
+ * 而不是注册了却永远判不出东西（`--explain` 也就不会再承诺它）。
+ */
+export const PARAM_CAPABILITY_ROOTS = new Set(['designSystem', 'structure'])
 
 export function hasCapability(config: Config, capability: string): boolean {
   const [root, ...rest] = capability.split('.')

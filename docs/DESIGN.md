@@ -381,6 +381,10 @@ structure: {
 }
 ```
 
+**页面级**由角色描述符声明：`pageLike: true`（canonical 的 `module:views`、FSD 的 `pages/<切片>/ui`）——
+S16 对它用 `thresholds.viewLines` 而不是 `fileLines`。**别让规则去猜"什么算页面"**：猜的结果就是
+library / FSD 下 `viewLines` 静默失效（配了不生效），所以改由角色表声明 + 没有页面角色时报告自述。
+
 **组**由角色描述符声明：`{ pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' }` —— 同一切片的文件同组；
 入口用 `entry: true` 标记（三根范式是 `routes.tsx`，FSD 是 `index.ts`，**规则不认识文件名**）。
 record 上派生 `captures`（全部 `{name}` 捕获）、`group`（组值）、`groupName`（维度名）。
@@ -577,7 +581,7 @@ export default {
 
 两条与"符合所选规范"直接相关的设计：
 
-1. **契约落点由范式声明**（`canonical()` → `src/shared/styles` + `src/shared/i18n/locales`；`fsd()` → `src/shared/ui/styles`…）。适配器缺的落点由 `loadConfig` **一处补齐**（`copy()` 不写死 `resourceDir`，改由范式 `params.i18nDir` 补）—— 能力判定 / i18n 索引 / 报告只认「一个完整的适配器」，不在下游各自兜底。
+1. **契约落点由范式声明**（`canonical()` → `src/shared/styles` + `src/shared/i18n/locales`；`fsd()` → 全局样式 `src/app/styles`、令牌 `src/shared/ui/styles/tokens`、第三方覆盖 `src/shared/ui/styles/vendor`…）。适配器缺的落点由 `loadConfig` **一处补齐**（`copy()` 不写死 `resourceDir`，改由范式 `params.i18nDir` 补）—— 能力判定 / i18n 索引 / 报告只认「一个完整的适配器」，不在下游各自兜底。
    域预设（`designSystem()` 等）**只写用户显式给的路径**，不塞三根默认值 ——
    否则 `[fsd(), designSystem()]` 会被悄悄改回三根路径（实测过）。谁都没声明时，
    `designParams()` 的内置默认兜底，行为与旧版一致。
@@ -590,12 +594,12 @@ export default {
 穷举 3 范式 × 5 域预设的全部子集（96 种）真实加载一遍 —— **这条论断由 `tests/preset-matrix.test.mjs` 钉住**
 （不是"手工跑过一次"：并集 / 加法 / 整体替换 / 落点随范式 / 幂等 / `disable` 减法逐条断言）：
 
-| 组合                    | 结果                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| 单范式 + 域预设任意子集 | **96 / 96 合法**（含"一个域预设都不加"的空集）                                        |
-| 任取两个范式            | **3 / 3 被守卫拦下**（`一个配置只能有一个范式预设…`）                                 |
-| 同一预设写两遍          | ✅ 通过（`enable` 是并集、`structure` 是加法，天然幂等）                              |
-| 域预设全开时的落点      | `canonical` → `src/shared/styles`；`fsd` → `src/shared/ui/styles`；**落点始终随范式** |
+| 组合                    | 结果                                                                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 单范式 + 域预设任意子集 | **96 / 96 合法**（含"一个域预设都不加"的空集）                                                                                |
+| 任取两个范式            | **3 / 3 被守卫拦下**（`一个配置只能有一个范式预设…`）                                                                         |
+| 同一预设写两遍          | ✅ 通过（`enable` 是并集、`structure` 是加法，天然幂等）                                                                      |
+| 域预设全开时的落点      | `canonical` → `src/shared/styles`；`fsd` → 全局样式 `src/app/styles` + 令牌 `src/shared/ui/styles/tokens`；**落点始终随范式** |
 
 几条"不是错误但要知道"的点：
 
@@ -821,13 +825,14 @@ const skipped = RULES.filter((rule) => !enabled.includes(rule))
 
 **（3）`defineAdapter` 的校验（专治静默失能）**
 
-| 校验                                       | 挡住的失败模式                                                                         |
-| ------------------------------------------ | -------------------------------------------------------------------------------------- |
-| 字段白名单，未知字段即报错                 | 拼错 `vendorSelector`（少个 s）不会静默不生效                                          |
-| 类型 + 正则可编译性                        | 非法正则不进入引擎                                                                     |
-| 冲突检测：两个适配器声明同前缀             | antd 与 element 同时声明 `.ant-`                                                       |
-| 一致性：声明的结构与项目事实对齐（运行时） | `routers.mode='code-based'` 但没有 `routes.tsx`；`packages` 不在 `package.json`（P04） |
-| `specVersion` 兼容性                       | 搬到别的仓库后契约不兼容                                                               |
+| 校验                                              | 挡住的失败模式                                                                                                                                 |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 字段白名单，未知字段即报错                        | 拼错 `vendorSelector`（少个 s）不会静默不生效                                                                                                  |
+| 类型 + 正则可编译性                               | 非法正则不进入引擎                                                                                                                             |
+| 冲突检测：两个适配器声明同前缀                    | antd 与 element 同时声明 `.ant-`                                                                                                               |
+| 一致性：声明的结构与项目事实对齐（运行时）        | `routers.mode='code-based'` 但没有 `routes.tsx`；`packages` 不在 `package.json`（P04）                                                         |
+| 一致性：声明的能力与范式对得上（注册期 / 报告期） | 范式没有槽位语义（library / fsd）→ S13 **明列停用**（`requires: ['structure.slots']`）；配了 `viewLines` 但没有页面级角色 → 报告自述它不会生效 |
+| `specVersion` 兼容性                              | 搬到别的仓库后契约不兼容                                                                                                                       |
 
 **（4）适配器自带样例（可证伪）**
 

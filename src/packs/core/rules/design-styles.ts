@@ -19,12 +19,27 @@ export const stylesInModules: Rule = {
   hint: '全局 CSS 只放令牌与第三方覆盖；组件样式一律 CSS Module，避免类名互相污染',
   run: (ctx) => {
     const params = designParams(ctx)
-    const styleDir = params.styleDir
+    /**
+     * 全局 CSS 允许的落点 = **声明过的**样式目录 / 令牌目录 / 第三方覆盖目录。
+     * 三个都要收：FSD 的令牌在 `shared/ui/styles/tokens`、第三方覆盖在 `shared/ui/styles/vendor`，
+     * 而全局样式（reset / 变量）属于官方 `app/styles` 片段 —— 只认 `styleDir` 一个目录时，
+     * `app/styles/*.css` 会被误报成「出现在组件目录」（文案与事实都不对）。
+     */
+    const globalDirs = [params.styleDir, params.tokenDir, params.vendorDir].filter(
+      (dir) => typeof dir === 'string' && dir.length > 0,
+    )
     return ctx.records
       .filter((record) => record.kind === 'css')
       .filter((record) => !record.rel.endsWith('.module.css'))
-      .filter((record) => !record.rel.startsWith(`${styleDir}/`))
-      .map((record) => finding('D16', record.rel, 1, '非 CSS Module 的样式文件出现在组件目录'))
+      .filter((record) => !globalDirs.some((dir) => record.rel.startsWith(`${dir}/`)))
+      .map((record) =>
+        finding(
+          'D16',
+          record.rel,
+          1,
+          `全局 CSS 只许放声明的样式落点（${globalDirs.join(' / ') || '未声明'}）；组件样式请用 *.module.css`,
+        ),
+      )
   },
 }
 

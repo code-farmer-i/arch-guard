@@ -43,7 +43,13 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
       layer: 10,
       slot: 'routes',
     },
-    { id: 'module:views', pattern: `${modules}/{domain}/views/**`, layer: 10, slot: 'views' },
+    {
+      id: 'module:views',
+      pattern: `${modules}/{domain}/views/**`,
+      layer: 10,
+      slot: 'views',
+      pageLike: true,
+    },
     {
       id: 'module:components',
       pattern: `${modules}/{domain}/components/**`,
@@ -87,6 +93,8 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     // 三根范式的**契约落点**：范式负责声明自己的惯用目录，域预设（designSystem 等）不再塞默认值 ——
     // 这样 `[fsd(), designSystem()]` 不会被悄悄改回三根路径
     params: {
+      // 本范式**带槽位语义**（views / hooks / model / lib）→ S13 才有东西可判
+      slots: true,
       styleDir: `${src}/shared/styles`,
       tokenDir: `${src}/shared/styles/tokens`,
       vendorDir: `${src}/shared/styles/vendor`,

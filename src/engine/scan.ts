@@ -170,6 +170,7 @@ export function recordOf(
     group: groupName ? (matched.captured[groupName] ?? null) : null,
     groupName: groupName && matched.captured[groupName] ? groupName : null,
     kind: matched.kind,
+    ...(matched.descriptor.pageLike === true ? { pageLike: true } : {}),
   }
 }
 

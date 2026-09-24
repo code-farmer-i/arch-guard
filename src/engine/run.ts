@@ -156,6 +156,17 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     )
   }
 
+  // 阈值 `viewLines` 只对**页面级**角色生效（`pageLike` / `views` 槽位）：本范式没有这类角色时
+  // 它**永远不会生效** —— 配了却没效果正是本仓最忌讳的静默失效，所以当场自述（D21 同款套路）
+  if (
+    config.thresholds.viewLines !== config.thresholds.fileLines &&
+    !config.roles.some((role) => role.pageLike === true || role.slot === 'views')
+  ) {
+    notices.push(
+      `阈值 viewLines=${config.thresholds.viewLines} 已设，但本范式没有页面级角色（pageLike / views 槽位）：这条阈值不会生效`,
+    )
+  }
+
   // `ignore`（项目边界）跳过了什么必须自述：它是"别碰"，被跳过的东西**不进文件集、不解析、不进图**，
   // 而报告此前完全不提它 —— 宿主把某个源码目录误写进 ignore 时，表现就是"悄无声息地不判了"
   if (scan.vcsIgnored.length > 0) {

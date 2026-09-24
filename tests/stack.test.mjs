@@ -62,7 +62,7 @@ test('stack()：一切都由选项传入；落点仍由范式声明（换范式�
 
   const fsdConfig = await load(`fsd(), ${kit}`)
   assert.equal(fsdConfig.adapters.i18n?.resourceDir, 'src/shared/i18n/locales')
-  assert.equal(fsdConfig.params.styleDir, 'src/shared/ui/styles', 'FSD 自己的落点')
+  assert.equal(fsdConfig.params.styleDir, 'src/app/styles', 'FSD 自己的落点（全局样式）')
 })
 
 test('stack()：组合出来的规则集 = 各域的并集；能力齐了就不该有停用', async () => {

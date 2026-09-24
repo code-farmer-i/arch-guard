@@ -122,6 +122,9 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
         pattern: `${src}/${layer}/${slice}/${segment}/**`,
         layer: layerNumber,
         group: 'slice',
+        // `pages` 层的 `ui` 片段就是页面组件本身 → S16 对它用 `viewLines`
+        // （注意：改 `slicedLayers` 把页面层改名后这里不再匹配，会退化成 fileLines —— 见 S16 的告警）
+        ...(layer === 'pages' && segment === 'ui' ? { pageLike: true as const } : {}),
       })),
     )
   }
@@ -139,11 +142,14 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
 }
 
 /**
- * FSD 范式预设：角色表 + 三条结构声明。
+ * FSD 范式预设：角色表 + 三条结构声明 + 契约落点。
  *
  * ```js
  * presets: [fsd(), designSystem({ … }), copy(), i18n(i18nextKit()), deps({ … }), hygiene(), uiKit(noneKit())]
  * ```
+ *
+ * 落点：全局样式 `app/styles`（官方 `app` 片段）· 令牌 `shared/ui/styles/tokens` ·
+ * 第三方覆盖 `shared/ui/styles/vendor` · storage key `shared/config/storage.ts` · i18n `shared/i18n/locales`。
  *
  * 基础沿用库范式（`layout.modules` / `layout.shared` 置空 → 三根那套 S03–S09/S15/S18 自然空转，
  * 不会去查不存在的目录假装检查过）。
@@ -158,7 +164,9 @@ export function fsd(options: FsdOptions = {}): Preset {
     // FSD 的契约落点：令牌放 `shared/ui/styles`（**不需要**额外加片段 —— ui 本来就是 FSD 片段），
     // 于是 `[fsd(), designSystem()]` 开箱即符合 FSD 目录，不用手写一堆路径
     params: {
-      styleDir: `${src}/shared/ui/styles`,
+      // 全局样式（reset / 变量）归官方 `app/styles` 片段；令牌与第三方覆盖仍在 `shared/ui/styles` 下
+      // （D16 允许的全局 CSS 落点 = styleDir / tokenDir / vendorDir 三个声明目录）
+      styleDir: `${src}/app/styles`,
       tokenDir: `${src}/shared/ui/styles/tokens`,
       vendorDir: `${src}/shared/ui/styles/vendor`,
       paletteFile: `${src}/shared/ui/styles/tokens/palette.css`,

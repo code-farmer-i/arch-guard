@@ -196,7 +196,7 @@ export default {
 
     // ② 契约域：**声明即启用**（各域预设的规则集取并集，不用手写 enable 清单）
     designSystem({
-      styleDir: 'src/shared/ui/styles',
+      styleDir: 'src/app/styles', // 全局样式归官方 app 片段
       tokenDir: 'src/shared/ui/styles/tokens',
       paletteFile: 'src/shared/ui/styles/tokens/palette.css',
       themeFile: 'src/shared/ui/styles/tokens/theme.css',
@@ -265,8 +265,9 @@ export default {
   packs: [reactPack],
   presets: [
     fsd(), // ← 六层 + 切片 + 片段 + 公开面，**连契约落点一起声明**
-    // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 令牌 `src/shared/ui/styles/tokens`、
-    // 第三方覆盖 `src/shared/ui/styles/vendor`、storage key `src/shared/config/storage.ts`。
+    // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 全局样式 `src/app/styles`（官方 app 片段）、
+    // 令牌 `src/shared/ui/styles/tokens`、第三方覆盖 `src/shared/ui/styles/vendor`、
+    // storage key `src/shared/config/storage.ts`。
     // 域轴用**组合方案**拼（等价于手写 designSystem()/copy()/deps()/hygiene()/i18n()/uiKit()）：
     ...stack({
       i18n: i18nextKit({ languages: ['zh-CN', 'en'] }), // 不用 i18n 就传 i18n: noneI18nKit()

@@ -99,6 +99,8 @@ export interface FileRecord {
   /** 组维度名（捕获名），如 `slice`；无组为 null */
   groupName: string | null
   kind: FileKind
+  /** 页面级单元（来自角色的 `pageLike`）：S16 用 `viewLines` 判它 */
+  pageLike?: boolean
 }
 
 export interface RoleDescriptor {
@@ -116,6 +118,14 @@ export interface RoleDescriptor {
   group?: string
   /** 本角色是所属组的**公开面（入口）**，配合 `structure.publicApi` 使用 */
   entry?: boolean
+  /**
+   * 本角色是「**页面级**」单元 —— S16 对它用 `viewLines` 而不是 `fileLines`。
+   *
+   * 为什么要有这个字段：S16 原来只看 `slot === 'views'`，于是没有槽位语义的范式
+   * （library / FSD 的 `pages/<切片>/ui`）下 `viewLines` **静默失效** —— 配了也不生效。
+   * 页面级由**角色表**声明，规则不再猜。
+   */
+  pageLike?: boolean
 }
 
 /* ---------------- 配置与适配器 ---------------- */
@@ -290,6 +300,14 @@ export type ConfigOverrides = Partial<Config> & {
 export interface Config {
   root: string
   srcRoot: string
+  /**
+   * 范式标识（`canonical` / `library` / `fsd`；自写预设可不写）。
+   *
+   * 以前只有 `loadConfig` 的"一个配置只许一个范式"校验在读它，**没进合并后的配置** ——
+   * 于是 `placementHint` 只能靠 `layout` 猜范式，FSD 被猜成库范式、给出
+   * 「先在 `library({ modules })` 里补上」这种不相干的建议。现在它是**可消费的事实**。
+   */
+  paradigm?: string
   layout: { app: string; modules: string; shared: string }
   roles: RoleDescriptor[]
   naming: NamingRules

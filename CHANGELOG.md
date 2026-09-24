@@ -4,6 +4,30 @@
 
 ## [Unreleased]
 
+### Fixed（五处「声明了却不生效」——同一类病，来自一次真实反馈）
+
+全部先复现、再修；每一条都配了回归测试（`tests/paradigm-consistency.test.mjs`，7 条）：
+
+1. **`--explain` 在 FSD 下给库范式的建议**：`placementHint` 只看 `layout`，而 `fsd()` 的 `layout`
+   沿用的是 `library()` 那套（`modules` / `shared` 都是空串）→ 掉进库分支，输出
+   「先在 `library({ modules })` 里补上」。修法：`Config` 现在**真的带上 `paradigm`**
+   （此前只有 `loadConfig` 的范式唯一性校验在读它，没进合并配置），并给 FSD 一条从**角色表**读的
+   落点分支（层 / 切片 / 片段按角色表念，自定义过的 FSD 也给得对）。
+2. **S12 / S13 在 `fsd()` 下 100% 空转**（全靠 `record.slot` 与 canonical 专属 role 字面量）：
+   S12 的 api / 组件命名改成**按角色后缀**判（`fsd:shared:api` 与 `shared:api` 语义相同 → 都会判）；
+   S13 则需要槽位语义 → 新增参数型能力 `structure.slots`（canonical 声明，library / fsd 没有），
+   于是它在那两个范式下**明列停用**，而不是"注册了却永远判不出东西"。
+3. **`thresholds.viewLines` 在 FSD 下静默失效**（同一份 153 行页面：`viewLines: 100` 不报、`fileLines: 100` 才报）：
+   新增角色描述符字段 **`pageLike`**（canonical 的 `module:views`、FSD 的 `pages/<切片>/ui`），
+   S16 用它决定 `viewLines` / `fileLines`；**没有任何页面级角色的范式配了 `viewLines` 时，报告当场自述
+   这条阈值不会生效**（D21「声明了却零匹配」的同款套路）。
+4. **`naming` 只有 S12 / S13 消费**，上面两条死了它却还在被 `--explain` 打印：现在没有 views / hooks
+   槽位就不打印命名契约，并给出一句原因（"承诺了却不执行"比不写更糟）。
+5. **D16 与官方 `app/styles` 片段打架**：D16 原来只豁免 `styleDir` → `src/app/styles/probe.css`
+   被判「非 CSS Module 的样式文件出现在组件目录」（文案也不对）。现在豁免**声明过的三个落点**
+   （styleDir / tokenDir / vendorDir），文案改成"全局 CSS 只许放声明的样式落点"；同时 `fsd()` 的
+   `styleDir` 归位到官方的 `app/styles`（全局样式），令牌与第三方覆盖仍在 `shared/ui/styles/{tokens,vendor}`。
+
 ### Changed（适配表边界：`packages` 是"必须装的"，不是"整套库的清单"）
 
 - **`antdKit().packages` 去掉 `@ant-design/x`**（AI 界面套件，antd 生态的**可选扩展**）。
