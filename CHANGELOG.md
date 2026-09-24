@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Changed（`fsd()` 按官方 v2.1 对齐）
+
+- **补上官方 shared 典型段 `routes`**，app 典型段补 `routes` / `store` / `entrypoint`
+  （实测：这些官方写法此前被判「S01 无处安放」）。
+- **支持官方的"环境特定公开面"** `index.server.{ts,tsx}` / `index.client.{ts,tsx}`
+  （app 层与四个切片层各加一条角色，且同样标 `entry: true` —— 它就是那个切片的公开面）。
+- 角色描述符 38 → **45**；新增 `tests/fsd-conformance.test.mjs`（4 条）：官方典型段与 `index.server` 不被误报、
+  核心规矩（S21/S22/S23）照旧，以及**已知偏离被故意钉住**。
+- **记录一处未实现的官方能力：`@x` 跨引用公开面**（`entities/A/@x/B.ts`）。它是官方唯一的"同层跨切片"合法通道，
+  要支持得给 S22 开例外并限制在 entities 层；当前替代是把这类联系提到更高层（官方也说"尽量少用"）。
+  源码注释与 `ALTERNATIVES.md` §3.5 的对照表都写明了这一点，免得下次又被当成 bug。
+- 逐条对照表（含 ✅/⚠️/❌）落在 `docs/ALTERNATIVES.md` §3.5。
+
 ### Changed（忽略分三层：宿主 `ignore` + `.gitignore` 基础层 + 产物目录数据表）
 
 - **通用产物目录名册从引擎常量变成数据表**（`src/data/build-output-dirs.ts`）：`node_modules` · `dist` · `build` · `out` ·

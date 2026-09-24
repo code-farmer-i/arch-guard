@@ -277,7 +277,7 @@ export default {
 }
 ```
 
-`fsd()` 把 FSD 的三层模型全部落成**数据**（38 条角色描述符）：
+`fsd()` 把 FSD 的三层模型全部落成**数据**（45 条角色描述符）：
 
 | FSD 概念                                         | 落成什么                                                                                     |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
@@ -312,10 +312,28 @@ FSD 用**黑名单**判"按内容命名"（社区官方 linter steiger 的
 但 `assets` 与 `providers` **在**名单里，因此 `fsd()` 的默认片段**故意不含这两个**（它们太常见，很多项目会踩）：
 
 ```js
-fsd() // 默认：合规集
-fsd({ sharedSegments: ['ui', 'lib', 'api', 'config', 'i18n', 'styles'] }) // 加自定义片段（styles 合规）
-fsd({ appSegments: ['router', 'styles', 'i18n', 'providers'] }) // 明知会被 linter 警告才这么写
+fsd() // 默认：官方典型段（shared: ui/lib/api/config/routes/i18n；app: router/routes/store/styles/entrypoint/i18n）
+fsd({ sharedSegments: ['ui', 'lib', 'api', 'config', 'i18n', 'routes', 'styles'] }) // 加自定义片段（styles 合规）
+fsd({ appSegments: ['router', 'routes', 'store', 'styles', 'entrypoint', 'i18n', 'providers'] }) // 明知会被 linter 警告才这么写
 ```
+
+#### 与官方规范 v2.1 的对照（逐条，含回归测试）
+
+| 官方规范（[layers](https://feature-sliced.design/docs/reference/layers) · [slices-segments](https://feature-sliced.design/docs/reference/slices-segments) · [public-api](https://feature-sliced.design/docs/reference/public-api)） | 本预设                                     | 说明                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| 七层：App · Processes**（已弃用）** · Pages · Widgets · Features · Entities · Shared                                                                                                                                                | ✅ 六层                                    | `processes` 官方已建议避免，默认不含；要就 `slicedLayers` 加回                                                          |
+| 切片只能引用**严格更下层**的切片                                                                                                                                                                                                    | ✅ S21（层号 ≤ 自己）+ S22（同层切片隔离） | 两条合起来等价于"严格向下"                                                                                              |
+| App / Shared 是"层即切片"、只有片段、**片段间可自由互引**                                                                                                                                                                           | ✅                                         | 两者角色同层号 → S21 放行；S22 不作用于它们（无切片维度）                                                               |
+| 切片只在 pages / widgets / features / entities                                                                                                                                                                                      | ✅                                         |                                                                                                                         |
+| 每个切片必须有公开面（`index.ts`），外部只能经它引用                                                                                                                                                                                | ✅ S23                                     | 外加 S11 禁 `export *`（官方把通配再导出也列为坏实践）                                                                  |
+| 环境特定公开面 `index.server.ts` / `index.client.ts`                                                                                                                                                                                | ✅                                         | 本轮补上                                                                                                                |
+| 切片可分组，组文件夹里**不许共享代码**                                                                                                                                                                                              | ✅ `slicesGrouped`                         | 组文件夹里的散件直接 S01                                                                                                |
+| 官方片段：`ui` / `api` / `model` / `lib` / `config`                                                                                                                                                                                 | ✅ 默认集完全一致                          |                                                                                                                         |
+| shared 典型段 `api`/`ui`/`lib`/`config`/`routes`/`i18n`；app 典型段 `routes`/`store`/`styles`/`entrypoint`                                                                                                                          | ✅ 都认                                    | 另保留本仓既有的 `router` / `i18n`                                                                                      |
+| "你可以自由加片段"（按用途命名）                                                                                                                                                                                                    | ⚠️ **封闭枚举**：没登记 → S01              | 本仓 D3（白名单 > 黑名单）；用 `segments` / `appSegments` / `sharedSegments` 显式加                                     |
+| **`@x` 跨引用公开面**（entities 之间）                                                                                                                                                                                              | ❌ **未实现**                              | 官方唯一的"同层跨切片"合法通道。要做得给 S22 开例外并限制在 entities 层；当前替代是把它提到更高层（官方也说"尽量少用"） |
+
+> 对照有回归保护：`tests/fsd-conformance.test.mjs` —— 官方写法必须不被误报；`@x` 的当前行为也被**故意钉住**，实现后必须改那条断言。
 
 `uiKit(…)` 是**正交轴**（组件库 ≠ 目录规范）：不用组件库写 `uiKit(noneKit())`，用 antd 写 `uiKit(antdKit())`
 （换库只改这一行；自研设计系统也可以只写一个 adapter 对象）。它同时声明了读它的那 5 条规则（D10/D10b/P05/P11/H06）——

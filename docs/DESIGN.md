@@ -634,7 +634,7 @@ presets: [
 ]
 ```
 
-**预设列表**：`canonical()`（三根应用）/ `library()`（库 / CLI：入口 + 目录表）/ **`fsd()`**（Feature-Sliced Design：
+**预设列表**：`canonical()`（三根应用）/ `library()`（库 / CLI：入口 + 目录表）/ **`fsd()`**（Feature-Sliced Design（**与官方 v2.1 的逐条对照见 `ALTERNATIVES.md` §3.5**）：
 六层 + 切片 + 片段 + 公开面，全部落成数据，判定走通用规则 S21/S22/S23）/ `designSystem()` / `copy()` / `deps()` /
 `metrics()` / `hygiene()` / `uiKit(adapter)` / **`i18n(adapter)`**（i18n 能力，与 uiKit 同形）/ **`stack(options)`**（域轴组合方案）。预设是**规范的家**（`canonical()` 也是规范），引擎里不得出现任何方法论字面量。
 

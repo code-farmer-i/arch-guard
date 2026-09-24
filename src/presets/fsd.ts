@@ -38,8 +38,10 @@ export interface FsdOptions {
  * 需要就显式加：`fsd({ sharedSegments: [..., 'assets'], appSegments: [..., 'providers'] })`。
  */
 const DEFAULT_SEGMENTS = ['ui', 'model', 'api', 'lib', 'config']
-const DEFAULT_SHARED_SEGMENTS = ['ui', 'lib', 'api', 'config', 'i18n']
-const DEFAULT_APP_SEGMENTS = ['router', 'styles', 'i18n']
+// 官方 shared 典型段：api / ui / lib / config / routes / i18n
+const DEFAULT_SHARED_SEGMENTS = ['ui', 'lib', 'api', 'config', 'i18n', 'routes']
+// 官方 app 典型段：routes / store / styles / entrypoint（`router` 与 `i18n` 是本仓既有命名，一并保留）
+const DEFAULT_APP_SEGMENTS = ['router', 'routes', 'store', 'styles', 'entrypoint', 'i18n']
 
 /**
  * Feature-Sliced Design 范式的角色表 [^fsd]。
@@ -51,7 +53,18 @@ const DEFAULT_APP_SEGMENTS = ['router', 'styles', 'i18n']
  * 层序单向 = S21 · 同层切片不许互引 = S22 · 切片必须有公开面且不许绕过 = S23 ·
  * 层名/片段名的封闭枚举 = S01（`processes` 这层被删掉后也自动报出来）。
  *
- * [^fsd]: <https://feature-sliced.design/> —— 本预设跟随社区规范；规范演进时改这里，规则不动。
+ * **与官方规范 v2.1 的对照**（[layers](https://feature-sliced.design/docs/reference/layers) ·
+ * [slices-segments](https://feature-sliced.design/docs/reference/slices-segments) ·
+ * [public-api](https://feature-sliced.design/docs/reference/public-api)）：
+ *
+ *   ✅ 六层（`processes` 官方已弃用，默认不含；要就 `slicedLayers` 加回）
+ *   ✅ 层序单向 · 切片维度只在 pages/widgets/features/entities · app/shared 无切片且段间自由互引
+ *   ✅ 片段默认集 = 官方 `ui/api/model/lib/config`；app/shared 的典型段（routes/store/styles/entrypoint/i18n）也认
+ *   ✅ 每个切片必须公开面（`index.ts`）· 同层切片不许互引 · 切片分组（组文件夹里不许共享代码）
+ *   ✅ 环境特定公开面 `index.server.{ts,tsx}` / `index.client.{ts,tsx}`
+ *   ⚠️ **片段是封闭枚举**（没登记 → S01）：官方说"可以自由加片段"，本仓要求显式声明（D3 白名单 > 黑名单）
+ *   ❌ **`@x` 跨引用公开面未实现**：官方的 `entities/A/@x/B.ts` 写法会被判 S01。它是一个**有意的松绑**
+ *      （同层跨切片），要做得给 S22 开例外并限制在 entities 层 —— 见 docs/ALTERNATIVES.md 的对照表。
  */
 export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
   const src = options.src ?? 'src'
@@ -71,6 +84,12 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
   // app：**无切片层** —— 直接就是片段（FSD 的 sliceless layer）
   roles.push(
     { id: 'fsd:app:index', pattern: `${src}/app/index.{ts,tsx}`, layer: appLayer },
+    // 环境特定入口（官方 public-api 页：`index.server.ts` / `index.client.ts`）
+    {
+      id: 'fsd:app:index',
+      pattern: `${src}/app/index.{server,client}.{ts,tsx}`,
+      layer: appLayer,
+    },
     { id: 'fsd:app:main', pattern: `${src}/app/main.{ts,tsx}`, layer: appLayer },
     ...appSegments.map((segment) => ({
       id: `fsd:app:${segment}`,
@@ -85,6 +104,14 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
     roles.push({
       id: `fsd:${layer}:index`,
       pattern: `${src}/${layer}/${slice}/index.{ts,tsx}`,
+      layer: layerNumber,
+      group: 'slice',
+      entry: true,
+    })
+    // 环境特定公开面（官方 public-api 页）：同样是这个切片的公开面
+    roles.push({
+      id: `fsd:${layer}:index`,
+      pattern: `${src}/${layer}/${slice}/index.{server,client}.{ts,tsx}`,
       layer: layerNumber,
       group: 'slice',
       entry: true,
