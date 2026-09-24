@@ -148,11 +148,18 @@ export interface ExceptionReport {
  * **JSON 报告的契约版本**（消费方启动时断言自己认识的版本；不认识就明说"不认识这版报告"，
  * 而不是少读几个字段继续装绿）。
  *
+ * 版本史：
+ *   - **v1**：首个带版本的报告（coded notices / `paths` / 补齐人读里的数字）。
+ *   - **v2**：**`ok` 语义收窄**（破坏性）—— 从"判过的东西没有 error"改成
+ *     "**判过的东西没有 error，而且确实判了**"（`--paths` 零匹配、或全量下 0 个文件被判定时为 `false`）。
+ *     起因：`--paths` 零匹配时退出码是 2、而 `ok` 还是 `true`，只读 stdout JSON 的消费方会把
+ *     "请求没被满足"当成通过 —— 同一个「静默假绿」在新字段上复发了一次。
+ *
  * 规矩（见 docs/DESIGN.md §6.9）：**增删顶层字段、增删 `notices[].code`、改字段含义 → 必须动这个号**；
  * 而"必须动"由 `tests/report-contract.test.mjs` 的**冻结测试**保证 —— 否则版本号只是个装饰
  * （本仓刚在 `exempt` 上踩过"装饰性配置"：写了但没人读）。
  */
-export const REPORT_API_VERSION = 1
+export const REPORT_API_VERSION = 2
 
 export interface JsonReport {
   /** 报告契约版本（`REPORT_API_VERSION`） */
@@ -198,7 +205,19 @@ export function toJsonReport(input: ReportInput): JsonReport {
   const { errors, warnings } = summarize(input.findings, input.ruleIndex)
   return {
     apiVersion: REPORT_API_VERSION,
-    ok: errors === 0,
+    /**
+     * `ok` 回答「**判下来的结论是不是通过**」，**不是**「要不要拦」——后者是退出码的事，两者故意不同：
+     *
+     * | 通道 | 回答 | 反例（两者不一致是**设计**） |
+     * | --- | --- | --- |
+     * | 退出码 | 要不要拦 | `--report-only`（有 error 也退 0）、`--local-only`（跳过了全局违规仍退 0） |
+     * | `ok` | 结论是否通过 | `--paths` 零匹配（退出 2，但这里必须是 `false`：**请求没被满足**） |
+     *
+     * 所以判据是两条：**判过的东西没有 error**，**而且确实判了**。
+     * 缺后半句的后果实测过：`ok: true` + 退出 2 并存，只读 stdout JSON、拿不到退出码的
+     * CI 脚本 / PR bot 会把"你要求判的东西一件都没判"读成通过。
+     */
+    ok: errors === 0 && (input.paths === null || input.paths.matched > 0) && input.scopeFiles > 0,
     errors,
     warnings,
     scope: input.scope,

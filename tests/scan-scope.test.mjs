@@ -151,7 +151,11 @@ test('--paths：一个文件都没匹配上时必须自述（路径打错 = 什�
     const miss = JSON.parse(missed.out)
     assert.equal(miss.paths.matched, 0, '机读侧要能直接判"一个都没匹配上"')
     assert.ok(miss.notices.some((notice) => notice.code === 'paths-no-match'))
-    assert.equal(miss.ok, true, '没有违规，所以 ok 仍是 true —— 靠 paths/退出码区分"没判"')
+    assert.equal(
+      miss.ok,
+      false,
+      '`ok` 是"结论是否通过"：没判成东西 → 不是通过（退出码是另一条通道）',
+    )
     assert.equal(missed.code, 2, '请求无法满足（什么都没判）→ 非零退出，CI 里路径打错不会静默变绿')
 
     const hit = JSON.parse(

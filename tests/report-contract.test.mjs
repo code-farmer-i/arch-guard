@@ -100,6 +100,11 @@ test('契约版本带着走，且消费方能拒绝不认识的版本', async ()
   try {
     const json = await report(dir)
     assert.equal(json.apiVersion, REPORT_API_VERSION)
+    assert.equal(
+      json.apiVersion,
+      2,
+      'v2 = `ok` 语义收窄（破坏性变更，动它必须同时改这里 + §6.9 + CHANGELOG）',
+    )
     assert.equal(typeof json.apiVersion, 'number')
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -175,6 +180,7 @@ test('--paths 零匹配：退出码 2 + paths.matched=0 + code=paths-no-match（
     const missed = await runCli(['--paths=src/typo/**', '--format=json'], dir)
     const json = JSON.parse(missed.out)
     assert.equal(missed.code, 2, '请求无法满足 → 非零（CI 里打错路径不会静默变绿）')
+    assert.equal(json.ok, false, '`ok` 必须与"请求被满足"一致，否则只读 stdout 的消费方会当成通过')
     assert.deepEqual(json.paths, { requested: ['src/typo/**'], matched: 0 })
     assert.ok(json.notices.some((notice) => notice.code === 'paths-no-match'))
 
@@ -255,4 +261,44 @@ test('消费方用法：漏接一个 code 必须能被发现（TS 靠 Record 编
     NOTICE_CODES.filter((code) => !(code in full)),
     [],
   )
+})
+
+test('ok 的语义：结论是否通过（≠ 要不要拦）；"什么都没判"一律不是通过', async () => {
+  const dir = makeProject()
+  const empty = mkdtempSync(join(tmpdir(), 'ag-empty-'))
+  try {
+    // ① 正常：有 error → false；无 error → true
+    const json = await report(dir)
+    assert.equal(json.ok, false, 'S11 违规 → 不是通过')
+
+    // ② --paths 零匹配：退出码 2，ok 必须也是 false（否则只读 stdout 的消费方当成通过）
+    const missed = JSON.parse((await runCli(['--paths=src/typo/**', '--format=json'], dir)).out)
+    assert.equal(missed.ok, false)
+
+    // ③ --report-only：有 error 也退 0，但 ok 仍是 false —— 两条通道故意不同
+    const advisory = await runCli(['--report-only', '--format=json'], dir)
+    assert.equal(advisory.code, 0, '--report-only 是显式的"只看不拦"')
+    assert.equal(JSON.parse(advisory.out).ok, false, '但结论仍然不是"通过"')
+
+    // ④ 全量下一个文件都没判 → 也不是通过。
+    //    这里刻意用 `include: []`（不限扫描域）的空仓：include 非空时由 S24 报 error 兜住，
+    //    只有"不限扫描域 + 0 个源码"这一格没有任何 error，正好单独验证 scopeFiles 那半句。
+    writeFileSync(
+      join(empty, 'package.json'),
+      JSON.stringify({ name: 'empty', private: true, type: 'module' }),
+    )
+    writeFileSync(
+      join(empty, 'arch.config.mjs'),
+      `import { canonical, tsPack } from '${INDEX_URL}'\n` +
+        `export default { packs: [tsPack], presets: [canonical()], overrides: { include: [] } }\n`,
+    )
+    const nothing = JSON.parse((await runCli(['--format=json'], empty)).out)
+    assert.equal(nothing.errors, 0, '这一格没有任何 error —— `ok: false` 只能来自"什么都没判"')
+    assert.equal(nothing.scopeFiles, 0)
+    assert.equal(nothing.ok, false, '0 个文件被判定 → 不是通过（S24 的同一条道理）')
+    assert.ok(nothing.notices.some((notice) => notice.code === 'scan-empty'))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(empty, { recursive: true, force: true })
+  }
 })
