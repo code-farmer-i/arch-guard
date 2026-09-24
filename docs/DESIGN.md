@@ -14,7 +14,7 @@
 | 某个特性的规格                       | `.scratch/<feature-slug>/spec.md`                               |
 | 不装本门禁用什么 / 竞品盘点          | [`ALTERNATIVES.md`](./ALTERNATIVES.md)                          |
 
-文中 `tools/arch-guard/` 对应本仓库根；`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
+文中路径都是**本仓库根相对路径**（本体源码在 `src/`，见 §6.2）；`arch.config.mjs` / `arch.baseline.json` 属于宿主项目。
 
 **本文件只写「怎么实现」与「还没做什么」。** 遇到过时章节：原 §2/§3/§4 已迁到 `PARADIGM.md`（避免两处真相），§7.5 同理；原 §8/§9/§10/§11/§13/§15（交付物清单 / superhive 落地 / 分期 / 验收 / 待拍板 / 归属与抽取）已删除——它们要么属于状态（README + CHANGELOG + CI），要么已被"独立仓库 + P1–P4 自检"这个事实取代。
 
@@ -24,11 +24,11 @@
 
 形态是三层分离：
 
-| 层       | 内容                                                 | 与宿主的关系                                  |
-| -------- | ---------------------------------------------------- | --------------------------------------------- |
-| 通用范式 | 三条公理 + 10 个检测原语 + 4 张表 + 棘轮机制         | 写在 `tools/arch-guard/PARADIGM.md`，整篇可搬 |
-| 通用引擎 | `tools/arch-guard/`，解析 / 建图 / 规则 / 报告       | **零项目字面量**（P2/P3 自检）                |
-| 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明） | 每个仓库一份，约 60 行                        |
+| 层       | 内容                                                    | 与宿主的关系                   |
+| -------- | ------------------------------------------------------- | ------------------------------ |
+| 通用范式 | 三条公理 + 10 个检测原语（分类词汇）+ 4 张表 + 棘轮机制 | 写在 `PARADIGM.md`，整篇可搬   |
+| 通用引擎 | `src/`，解析 / 建图 / 规则 / 报告                       | **零项目字面量**（P2/P3 自检） |
+| 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明）    | 每个仓库一份，约 60 行         |
 
 **红线只落在可判定等级 L1–L3**；L5 语义判断一律不写进红线，只列在「门禁管不到」清单里，保证零误报。
 
@@ -58,7 +58,10 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 - 不做 L5 语义判断（清单见 §5.6）。
 - v1 不做自动修复（`--fix` 只留给未来确定性极高的少数规则）。
-- 不引入任何**运行时**依赖；引擎只依赖目标仓库本来就有的 `typescript`。
+- **运行时依赖只有显式登记的少数几个**：引擎自己的解析依赖 `typescript`（peer，宿主本来就有），CLI 参数解析用
+  `commander`。这不是"零依赖洁癖"，而是一道**审查门** —— 门禁要读宿主的全量源码并跑在 CI 里，新依赖必须有人看过、
+  且不能把宿主拖进版本冲突。名单在 `src/engine/portability.ts` 的 `ALLOWED_BARE_IMPORTS`，由 `--self-check-portability`（P1）强制；
+  加依赖要同时改那份名单与 `package.json`，并在 CHANGELOG 写明理由。**不引入任何运行时依赖**是早期口径，已按此更新。
 - 不替代 CI/发布流程，只产出「过/不过 + 逐条修法」。
 
 ---
@@ -69,7 +72,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ## 3. 通用范式
 
-**规范在 [`PARADIGM.md`](../PARADIGM.md) §1（三条公理）、§3（十个检测原语）、§5（五条设计律）、§4（四张表）。** 本文不再重复。
+**规范在 [`PARADIGM.md`](../PARADIGM.md) §1（三条公理）、§3（十个检测原语 = 分类词汇）、§5（五条设计律）、§4（四张表）。** 本文不再重复。
 
 ## 4. 目录契约（范式约定的项目结构）
 
@@ -214,6 +217,8 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | P03 | 幽灵依赖：import 了未声明的包                                                                                           | 图 + `package.json`     | L3   | error |
 | P11 | **适配表声明的库必须真的被用**：既没 import 它声明的包，也没有任何 vendor 选择器/变量 → D10 / D10b / P05 / H06 等于没跑 | 适配表 + 图 + CSS       | L2   | warn  |
 
+> P06 / P07（能力指纹与疑似自造轮子）与 P09 / P10 的定义**只在 §16.2 写一处**，本表不重复 —— 同一份表写两处就是文档漂移的来源。
+
 ### 5.5 反退化（H）
 
 | ID  | 红线                                                                                                                  | 判据         | 等级 | 级别  |
@@ -278,7 +283,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | `tree-sitter`                          | 有（native）        | 极快 | 容错好，但引入查询语言生态                                                                                                                                        |
 | 纯正则                                 | 无                  | 极快 | 已在 §6.1 排除                                                                                                                                                    |
 
-**关键边界：规则不消费 TS AST。** `node.mjs` 把 AST 归一成**事实模型（facts）**，规则只读 facts：
+**关键边界：规则不消费 TS AST。** `src/engine/facts.ts` 把 AST 归一成**事实模型（facts）**，规则只读 facts：
 
 ```js
 f = {
@@ -301,35 +306,55 @@ f = {
 ### 6.2 目录与模块职责
 
 ```
-tools/arch-guard/
-  index.mjs        CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 基线 → 报告
-  scan.mjs         遍历、按扩展名选解析器、算角色（L1）
-  resolve.mjs      别名与扩展名解析（别名从 tsconfig paths 读，不重复配置）
-  node.mjs         AST 访问器：imports / exports / 字符串 / 调用 / JSX 属性 / 行号
-  packs/react/     框架包：parse.mjs（ts.createSourceFile，只 parse 不启 Program）+ 角色表变体 + 语言相关规则 + fixtures
-  parse/css.mjs    极简 CSS 结构化扫描器（框架无关）
-  parse/json.mjs
-  graph.mjs        import 图 + 令牌引用图 + 可达 / 环 / 入度来源
-  adapters.mjs     defineAdapter：字段白名单 / 类型 / 正则 / 冲突校验 + 冻结（§7.4）
-  registry.mjs     能力协商：requires 未满足的规则不注册，并记入 skipped
-  detectors/{structure,design,copy,deps,hygiene}.mjs
-  presets/{canonical,design-system,copy,deps,hygiene}.mjs
-  presets/{ui-kits,data-layers,routers,styles,i18n}/<name>.mjs   各面适配器（纯数据）
-  data/kit-fingerprints.mjs        已知组件库指纹（纯数据）
-  baseline.mjs     棘轮
-  report.mjs       按域/等级分组，带修法提示
-  self-test.mjs    --self-test：跑 __fixtures__
-  __fixtures__/    每条规则一对「违规必报 × 合规不报」样例
-arch.config.mjs    项目实例（约 60 行）
+src/
+  index.ts          公共 API（宿主的唯一导入面）
+  cli.ts            CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 基线 → 报告
+  engine/           引擎（与框架、与宿主布局都无关）
+    scan.ts           遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign
+    facts.ts          事实模型：AST/JSON → imports / exports / strings / calls / functions / comments
+    facts-cache.ts    facts 的持久缓存（按文件内容 + rel + role）
+    graph.ts          import 图 + 令牌引用图（可达 / 环 / 入度来源）
+    config.ts         配置加载与合并（预设 + overrides），fail-closed 校验都在这里
+    defaults.ts       阈值与命名契约的**唯一默认值**
+    adapters.ts       defineAdapter：字段白名单 / 类型 / 正则 / 冲突校验 + 冻结
+    registry.ts       能力协商：requires 未满足的规则不注册并记入 skipped
+    rule.ts           createRule：域 ↔ id 前缀、error 只落 L1–L3（代码强制）
+    pack.ts           definePack：框架包声明
+    run.ts            编排：scope / 棘轮 / 报告 / --stats
+    git.ts            scope 的 git 事实（changed / staged 的 index 内容 / since）
+    baseline.ts       棘轮    report.ts  渲染    coverage.ts  M 域产物的解析
+    deps.ts/deps-audit.ts  依赖事实与策略    i18n.ts  文案资源索引    css.ts  CSS 结构化扫描
+    portability.ts    P1–P4 自检    self-test.ts  夹具回归    util.ts/ts-api.ts/output.ts
+    types.ts          规则面向的契约（事实模型 / 配置 / 规则 / 发现项）
+  packs/react/      框架包：index.ts（pack 定义）+ rules/{structure,structure-graph,structure-declared,
+                    design-tokens,design-vendor,design-styles,design-shared,copy,deps,deps-adapters,
+                    hygiene-context,metrics,placement}.ts
+  presets/          范式（canonical / library / fsd）+ 域预设（design-system / copy / hygiene / metrics /
+                    stack / kit）+ 各面适配器（ui-kits/ · i18n-kits/，**纯数据**）
+  data/             纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 元框架扩展名
+                    （framework-sources）—— 引擎零库名，由 P4 自检强制
+__fixtures__/       27 个夹具项目：每条规则一对「违规必报 × 合规不报」样例
+examples/minimal/   干净的宿主示例（可搬运性验证）
+arch.config.mjs     门禁自己的配置（库范式 + 配置豁免）
 ```
 
-规则是纯函数，只消费已解析好的上下文：
+规则是纯函数，只消费事实模型（**不碰 TS AST**）—— 形状示意（权威实现见
+`src/packs/react/rules/structure.ts` 的 `noBarrel`，此处不照抄，避免文档变成第二处真相）：
 
-```js
-export function noBarrel(ctx) {
-  return ctx.tsFiles.flatMap((f) =>
-    f.exports.filter((e) => e.isStar).map((e) => f.report('S11', e.node, '禁 barrel 再导出')),
-  )
+```ts
+// 取 facts → 过滤出违规形态 → 产出带 文件/行/修法 的 finding
+export const noBarrel: Rule = {
+  id: 'S11',
+  domain: 'structure',
+  level: 'L2',
+  severity: 'error',
+  title: '禁 barrel 再导出',
+  run: (ctx) =>
+    ctx.records.flatMap((record) =>
+      (ctx.facts.get(record.rel)?.exports ?? [])
+        .filter((entry) => entry.isStar && !entry.typeOnly)
+        .map((entry) => finding('S11', record.rel, entry.line, '禁 barrel：export * from ...')),
+    ),
 }
 ```
 
@@ -391,11 +416,12 @@ ctx = {
 ### 6.7 自检（四条）
 
 1. `--self-test`：每条规则的违规样例必须报、合规样例必须不报。
-2. **角色表互斥完备**：`src` 下每个文件恰好命中一个角色。
-3. **本体自包含（P1–P3）**：依赖登记（P1）· 无宿主字面量（P2）· 引擎不假设布局（P3）。
-4. **库名只在数据表与适配器面（P4）**：`engine/**`、`packs/**` 与**通用预设**（`presets/*.ts`）里
-   不得出现已登记库名 —— 名单从 `data/*` 与 `presets/<面>/*` 里按约定登记（`from` / `packages` / `preferred`
-   数组，或常量名含 `Packages`/`Kits`/`Names`）**自己长出来**，不新增第二份名单。轻量版（含 §7.3 的完整口径）。
+2. **角色表互斥完备**：`src` 下每个文件恰好命中一个角色（命中 0 个 = 无处安放，≥2 个 = 歧义）。
+   注意它的**落地形态是规则**（S00 解析失败 / S01 目录白名单与互斥完备 / S03 域根只许 routes），
+   跟随每次运行报告 —— 不是一条单独的 `--self-check-*` 命令。
+3. **本体自包含（P1–P4）**：依赖登记（P1）· 无宿主字面量（P2）· 引擎不假设布局（P3）· 库名只在数据表与适配器面（P4）。
+4. **库名名单不新增第二份**：P4 的名单从 `data/*` 与 `presets/<面>/*` 里按约定登记（`from` / `packages` / `preferred`
+   数组，或常量名含 `Packages`/`Kits`/`Names`）**自己长出来**，新增 kit 自动纳入扫描（见 §7.3）。
 
 ### 6.8 检测范围（scope）：全量与增量
 
@@ -418,10 +444,15 @@ ctx = {
 
 ```
 解析（贵）  per-file facts
-            缓存键 = 文件内容哈希 + 规则集版本 + 配置哈希 + ts 版本 + pack/适配器哈希
+            单文件键 = rel + role + 内容 sha1（三者任一变化都不复用）
+            整份缓存键 = FACTS_CACHE_SPEC（事实模型版本）+ TypeScript 版本
 图 + 全局谓词（便宜）每次从 facts 重建 —— O(边数)，毫秒级
 报告（scope）只输出范围内的 finding
 ```
+
+**缓存键里没有"配置哈希 / 规则集版本"，这是有意的**：facts 只由「文件内容 + rel + role」决定，与规则集、
+报告范围、适配器都无关（这也是规则不碰 AST 的直接好处）。配置改了只影响 role —— 而 role 已经在键里。
+`FACTS_CACHE_SPEC` 是留给"事实模型形状变了"的人为开关：改 `facts.ts` 的产出必须 +1。
 
 这样"增量"不会引入 **stale-cache 假绿**（改了 A 影响 B 的判定、而 B 不在重算范围里）—— 这是增量门禁最经典的坑。
 
@@ -472,7 +503,7 @@ scope: { default: 'full', preCommit: 'staged', devLoop: 'changed', ci: 'full' }
 ## 7. 配置与预设形态
 
 ```js
-// arch.config.mjs —— 唯一导入面（抽成包时只改这一行）
+// arch.config.mjs —— 宿主的唯一导入面（换宿主/换版本只改这一行）
 import {
   canonical,
   designSystem,
@@ -482,7 +513,7 @@ import {
   uiKit,
   antdKit,
   reactPack,
-} from './tools/arch-guard/index.mjs'
+} from 'arch-guard/presets' // 子路径导出：presets / packs/* / data/*
 
 export default {
   packs: [reactPack], // 框架包（一个项目一个）：规则集由它给；CLI 不再硬编码规则数组
@@ -519,7 +550,7 @@ export default {
 | `structure.{order,isolate,publicApi}`         | **加法**（布尔取或、数组并集） | 多个预设可以叠加结构声明                                             |
 | `adapters` / `params`                         | 逐键覆盖（后者胜）             | 每个预设只写自己的 facet / 键                                        |
 | `include` / `ignore` / `entries` / `addRoles` | **拼接**                       | 只增不减                                                             |
-| `thresholds` / `naming`                       | 逐键覆盖                       | —                                                                    |
+| `thresholds` / `naming`                       | 逐键覆盖                       | 默认值只有一份（`src/engine/defaults.ts`）—— 各预设不再各抄一遍数字  |
 | `roles`                                       | **整体替换**                   | 范式角色表；要**追加**用 `addRoles`（如项目自己的 `src/legacy/**`）  |
 | `paradigm`                                    | **只能有一个**                 | `canonical` / `library` / `fsd` 三选一 —— 混用 `loadConfig` 直接报错 |
 
@@ -605,7 +636,7 @@ presets: [
 | `detachedApis`    | 脱离上下文的全局 API 与替代写法                            | H06                                |
 
 ```js
-// presets/ui-kits/antd.mjs —— 约 30 行，这就是"换框架"的全部成本
+// src/presets/ui-kits/antd.ts —— 约 30 行，这就是"换框架"的全部成本
 export default () => ({
   id: 'antd',
   packages: ['antd', '@ant-design/icons', '@ant-design/x'],
@@ -643,12 +674,12 @@ export default () => ({
 **三种用法**：
 
 1. **用 antd**（superhive 现状）：`uiKit(antd())`。
-2. **换任何库**：写一份约 30 行的适配器；`presets/ui-kits/` 里会附带 `none` 与 `antd`，并给出 `mui` 的骨架示例。
+2. **换任何库**：写一份约 30 行的适配器；本体附带 `src/presets/ui-kits/{antd,none}.ts` 两份可照抄的样例（换 MUI 就照 antd 那份改字段，**不另存骨架文件** —— 数据表越少越好）。
 3. **不用组件库**：`uiKit(noneKit())` —— `packages: []`、无 vendor 选择器。D10/D10b/P04/P05 自动失效，组件来源阶梯只剩「`shared/components/ui` 自研 + 复用」。**预设贡献规则：没声明的能力不产生规则**，不留空转红线。
 
-**换库是可验收的**：`data/kit-fingerprints.mjs` 内置已知组件库指纹（antd `.ant-`/`--ant-`、Element `.el-`、Mantine `.mantine-`、Chakra `.chakra-`、Arco `.arco-`、Semi `.semi-`、Naive `.n-`、MUI `.Mui`/`@mui/*`、Vue `.vue`/`@apply`/`dark:` …）。换库后 D11 会扫出**旧库残留一条不剩** —— 这是可判定的迁移验收条件。
+**换库是可验收的**：`src/data/kit-fingerprints.ts` 内置已知组件库指纹（antd `.ant-`/`--ant-`、Element `.el-`、Mantine `.mantine-`、Chakra `.chakra-`、Arco `.arco-`、Semi `.semi-`、Naive `.n-`、MUI `.Mui`/`@mui/*`、Vue `.vue`/`@apply`/`dark:` …）。换库后 D11 会扫出**旧库残留一条不剩** —— 这是可判定的迁移验收条件。
 
-**元自检加强**：`tools/arch-guard/**` 与通用 `presets/**` 不得出现任何**具体框架/库名**（组件库、数据层、路由、样式方案、i18n 库），只许出现在 `presets/<面>/<name>.mjs` 与 `data/*`；违反即门禁自身报错。这条覆盖 §7.2 的全部适配器，是「同一引擎能服务多种宿主与范式」的总保证。
+**元自检加强（P4）**：`src/engine/**`、`src/packs/**` 与**通用预设**（`src/presets/*.ts`）不得出现任何**具体框架/库名**（组件库、数据层、路由、样式方案、i18n 库），只许出现在 `src/presets/<面>/<name>.ts` 与 `src/data/*`；违反即门禁自身报错。这条覆盖 §7.2 的全部适配器，是「同一引擎能服务多种宿主与范式」的总保证。
 
 **元框架轴（本期范围）**：`metaFramework` 是独立一轴，取值表在 `src/data/framework-sources.ts`（纯数据，引擎里不出现框架名）。
 v1 只有 React pack。**认不出、或还没有 pack 的框架一律 fail-closed 报错** —— 拿 Vue 跑只会得到「0 个文件 → ✔ 通过」的假绿，
@@ -683,14 +714,15 @@ v1 只有 React pack。**认不出、或还没有 pack 的框架一律 fail-clos
 
 **（2）统一适配器契约**
 
-所有适配器同形：`{ id, capabilities, rules }` —— **适配器贡献规则，引擎只负责调度**。未声明的能力对应的规则**不注册**（沿用「预设贡献规则」），所以「不用某个能力」不会留下一堆空转红线。
+所有适配器同形：**纯数据** `{ facet, id, specVersion, …面内字段 }`（经 `defineAdapter` 白名单校验并冻结）；
+把适配器包成预设的那一层（`uiKit(adapter)` / `i18n(adapter)`）**贡献消费这些字段的规则**。
+未声明的能力对应的规则**不注册**（`requires` + 能力协商，沿用「预设贡献规则」），所以「不用某个能力」不会留下一堆空转红线。
+适配器本身**不携带** `rules` / `capabilities` 字段 —— 那会把数据变成插件（ADR-0002）。
 
 ```
-presets/ui-kits/{antd,none}.mjs            UI 组件库
-presets/data-layers/{tanstack-query}.mjs   服务端状态 + 客户端状态
-presets/routers/{react-router}.mjs         路由模式与出口
-presets/styles/{css-modules}.mjs           样式方案
-presets/i18n/{i18next}.mjs                 文案形态
+src/presets/ui-kits/{antd,none}.ts           UI 组件库            ✅ 已建
+src/presets/i18n-kits/{i18next,none}.ts     文案 / i18n 形态      ✅ 已建
+src/presets/{data-layers,routers,styles}/   数据层 / 路由 / 样式   ⏳ T1 未建（无规则消费者，故未建）
 ```
 
 T2 的适配器留同名目录与加载点，v1 只给默认值（默认值 = 现在的行为），不阻塞落地。
@@ -731,19 +763,24 @@ P01 依赖白名单与 `AGENTS.md` 选型表不能各写一份；目录契约与
 
 每条规则声明 `requires`（能力路径），registry 按适配器实际声明注册：
 
-```js
-// detectors/design.mjs
-export const vendorSelectorConfined = {
+```ts
+// src/packs/react/rules/design-vendor.ts
+export const vendorSelectorConfined = createRule({
   id: 'D10',
+  domain: 'design',
+  level: 'L1',
+  title: '组件库选择器只许在 vendor 目录',
   requires: ['uiKit.vendorSelectors'],
-  run: (ctx) => use(ctx.adapters.uiKit.vendorSelectors /* … */),
-}
+  run: (ctx) => ctx.adapters.uiKit.vendorSelectors /* … */,
+})
 ```
 
-```js
-// registry.mjs
-const enabled = RULES.filter((r) => r.requires.every((cap) => hasCapability(ctx, cap)))
-const skipped = RULES.filter((r) => !enabled.includes(r))
+```ts
+// src/engine/registry.ts（形状示意）
+const enabled = RULES.filter((rule) =>
+  (rule.requires ?? []).every((cap) => hasCapability(config, cap)),
+)
+const skipped = RULES.filter((rule) => !enabled.includes(rule))
 ```
 
 未满足能力的规则**跳过并在 `--report` 里明列**（「因能力未声明而停用：D10 / D10b / P05」）—— 避免「以为在跑、其实没跑」这种最危险的静默失能。
@@ -795,7 +832,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 - **规则集变体**：语言相关规则换实现（JSX 裸文本 → 模板插值；`use*` hooks → composables；SFC `<style scoped>` 是新规则）
 - **fixtures**：pack 自带违规 / 合规样例
 
-**跨 pack 复用、无需重写的部分**：三条公理、10 个原语、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、棘轮与三条元自检。
+**跨 pack 复用、无需重写的部分**：三条公理、10 个原语（分类词汇，见 §3.1）、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、棘轮与三条元自检。
 
 **加一个 Vue pack 的量级**：SFC parser ~350 行 + 角色表变体 ~80 行 + React 专属规则替换（S13 / C01 / H06 等约 10 条）+ Vue 专属规则（模板插值、scoped 样式约 6 条）+ fixtures ~30 个文件 ≈ **半个引擎**。所以 Vue 不进 v1；但 **pack 边界必须在 v1 就划出来**（即使只有一个 React pack），否则将来加 Vue 是重写而不是加法。
 
@@ -816,7 +853,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 ## 14. 已知缺口（未实现）
 
-**只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` / `definePack` / config·baseline 的 `specVersion` 均已落地，从本表移除）
+**只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` 的**本地对账部分** / `definePack` / config·baseline 的 `specVersion` 均已落地，从本表移除）
 已落地的能力见 [`CHANGELOG.md`](../CHANGELOG.md)，进度见 [`README.md`](../README.md) 的 Roadmap。
 
 | ID   | 缺口                                                                                                                                                                                                                                                                                                                  | 影响                                                 |
@@ -827,8 +864,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 | E2   | 适配器面清单（facet）仍硬编码在引擎里（已支持 i18n 面；新增面仍要动引擎）                                                                                                                                                                                                                                             | 加一个新面要动引擎                                   |
 | D 域 | **11 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（stylelint 的值白名单 + eslint 的 `no-restricted-syntax`，见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖   |
 | C 域 | **5 条已落地**（C02–C06：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键）；C01 裸文案委派给 `eslint-plugin-i18next`                                                                                                                                                                                         | 动态键（`t(\`ns.${x}\`)`）只按静态前缀放行，不做求值 |
-| P07  | 弱指纹 + 命名指纹的「疑似自造轮子」判定未实现（见 `.scratch/wheel-detection/spec.md`）                                                                                                                                                                                                                                | 自研 `debounce` / `deepClone` 抓不到                 |
-| —    | `--verify-deps`（联网查 npm 成熟度）未实现                                                                                                                                                                                                                                                                            | 新增依赖的成熟度只能靠人评审                         |
+| —    | **`--verify-deps` 的联网那半未实现**：命令只做本地对账（适配表声明的包 vs `package.json`），不查 npm 成熟度                                                                                                                                                                                                           | 新增依赖的成熟度只能靠人评审                         |
 
 ## 16. 选型纪律：优先成熟开源方案（反造轮子）
 
@@ -861,14 +897,15 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 3. `allowOwn: true` 的能力（query string、debounce、validation）只提示不报错。
 4. 需要零运行时依赖的项目走 `exempt` 整体豁免，**理由写进配置**，豁免可见。
 
-### 16.4 可选的成熟度校验
+### 16.4 可选的成熟度校验（**未实现**）
 
-`--verify-deps`：查 npm 周下载量 / 最近发布时间 / 是否废弃 / license，阈值可配、结果缓存到 `.arch-guard-cache/`。默认关闭（网络不确定 + 慢），只在 CI 或依赖变更时跑。
+设计意图：`--verify-deps` 查 npm 周下载量 / 最近发布时间 / 是否废弃 / license，阈值可配、结果缓存到 `.arch-guard-cache/`。默认关闭（网络不确定 + 慢），只在 CI 或依赖变更时跑。
+现状：该命令只做**本地对账**（适配表声明的包 vs `package.json`），联网那半没有实现。
 
 ### 16.5 落地顺序
 
-已落地 P01/P02/P04–P07；**P03（幽灵依赖）/ P08（声明但未使用）按 §4.9 委派给 knip · depcheck，不在本体实现**；
-剩余部分见 `.scratch/wheel-detection/spec.md` 与 [`README.md`](../README.md) 的 Roadmap。
+已落地 P01/P02/P04–P07/P11；**P03（幽灵依赖）/ P08（声明但未使用）按 §4.9 委派给 knip · depcheck，不在本体实现**；
+P09 并入 P06、P10 是 P01 的 fail-closed 表述，都不另立规则；剩余部分见 [`README.md`](../README.md) 的 Roadmap。
 
 ## Comments
 
@@ -881,3 +918,4 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 - 2026-09-23 补充 §6.1.1 解析后端选型：确定 TS Compiler API parser-only（零新增依赖）；**规则只消费归一化事实模型（facts），不直接消费 TS AST** —— 换 parser 只重写 pack 的 parse/事实提取层，规则不动；Vue/Svelte pack 用各自框架自带的编译器，保持零新增依赖。同时记录 fail-closed 所需的语法诊断只能走 `transpileModule` 或非公开字段，必须由 fixtures 锁住行为。
 - 2026-09-23 补充 §6.8 检测范围（scope）：确立 **scope 只过滤报告、不过滤正确性** —— facts 按文件缓存（增量），图与全局谓词每轮全量重建（防 stale-cache 假绿）；支持 `full/changed/staged/since` + 路径/域/规则/等级/严重度/格式筛选；不可归属的全局违规默认仍然失败，禁止静默降级与静默丢弃；pre-commit 跑 index blob；CI 必须 full。据此把 R7 从"缺口"改为"已设计"。
 - 2026-09-23 补充 §15 门禁本体的归属与抽取：本体收进 `tools/arch-guard/` 单目录（含自带 `package.json`、唯一导入面 `index.mjs`、通用范式 `PARADIGM.md`），项目只留 `arch.config.mjs` / `arch.baseline.json` / `ARCHITECTURE.md`；确立本体自包含三条可机检不变式 P1–P3（只依赖 `node:*`+`typescript`+本体相对路径、无项目字面量、项目事实只经 `--config`）；抽取时只改 config 一行 import，不引入 workspace。`scripts/arch-baseline.json` → `arch.baseline.json`，范式文档 → `tools/arch-guard/PARADIGM.md`。
+  **（已过时，勿照做）** 本体后来独立成 `@arch-guard/core` 并以 npm 包发布：源码在 `src/`（TS，构建产物 `es/`），导入面是包名 `arch-guard/presets`，不再是单目录复制。现行口径见 §6.2 与本文件开头。

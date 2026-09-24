@@ -120,16 +120,17 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 
 ## 引擎不绑宿主
 
-本包以 npm 包发布，宿主只写 `arch.config.mjs`。三条可机检的不变式由 `arch-guard --self-check-portability` 强制：
+本包以 npm 包发布，宿主只写 `arch.config.mjs`。**四条**可机检的不变式由 `arch-guard --self-check-portability` 强制：
 
 | 不变式 | 内容                                                               | 为什么                                                                |
 | ------ | ------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | P1     | 依赖必须**显式登记**（`node:*` 与白名单第三方）                    | 门禁读你全量源码、跑在 CI：新增依赖要有理由，且不得把宿主拖进版本冲突 |
 | P2     | 不得出现宿主项目字面量（宿主名、绝对路径）                         | 换宿主不用改引擎                                                      |
 | P3     | 引擎层不得假设项目布局（`engine/**` 不许出现 `'src/'` 这类字面量） | 范式可换：`canonical` / `library` / 自定义目录都靠它                  |
+| P4     | 库名只许出现在数据表（`data/*`）与适配器面（`presets/<面>/*`）     | 同一引擎要能服务多种宿主与技术选型；名单从允许位置自己长出来          |
 
 **P1 是审查门，不是"零依赖"洁癖**：要加依赖就改 [portability.ts](./src/engine/portability.ts) 的白名单并说清理由 ——
-它挡的是"顺手引进来的依赖没人看过"。P2/P3 与发布方式无关，是引擎能同时服务多种范式的根本。
+它挡的是"顺手引进来的依赖没人看过"。P2/P3 与发布方式无关，是引擎能同时服务多种范式的根本；P4 是"同一引擎服务多种技术选型"的总保证。
 
 于是「换一个宿主」是加法：换 `arch.config.mjs` 即可，引擎一行不改。
 
@@ -149,35 +150,38 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 pnpm build                     # pagoda-cli 构建（es/ ESM + lib/ CJS + d.ts）
 pnpm typecheck                 # tsc --noEmit
 pnpm lint                      # eslint（禁 any / 非空断言 / console）
-pnpm test                      # node --test（引擎 API + 夹具端到端 + 单元分支，112 项）
-pnpm coverage                  # 覆盖率报告（Node 内置）：98.84% 行 / 93.61% 分支
-pnpm check                     # ★ 提交前的完整门禁：build + 类型 + lint + 格式 + 测试 + 三项自检
+pnpm test                      # node --test（引擎 API + 夹具端到端 + 单元分支）
+pnpm coverage                  # 覆盖率报告（Node 内置）
+pnpm check                     # ★ 提交前的完整门禁：build + 类型 + lint + 格式 + 测试 + 覆盖率 + 三项自检 + 示例宿主 + 狗粮
 pnpm self-test                 # 夹具回归：每条规则违规必报 × 合规不报
-pnpm self-check-portability    # P1 / P2 / P3
+pnpm self-check-portability    # P1 / P2 / P3 / P4
 pnpm guard:sample              # 拿 examples/minimal 当宿主跑一遍
 pnpm guard:self                # 狗粮：门禁跑自己（library() 范式 + 配置豁免）
 ```
 
 ## 文档
 
-- [`PARADIGM.md`](./PARADIGM.md) —— **通用范式**：三条公理、十个检测原语、五条设计律、目录契约、判定等级、适配器契约、scope 语义。可直接搬到别的仓库当规约。
+- [`PARADIGM.md`](./PARADIGM.md) —— **通用范式**：三条公理、十个检测原语（分类词汇）、五条设计律、目录契约、判定等级、适配器契约、scope 语义。可直接搬到别的仓库当规约。
 - [`docs/DESIGN.md`](./docs/DESIGN.md) —— 怎么实现 + 还没做什么：引擎机制、规则清单、已知缺口。
 - [`docs/ALTERNATIVES.md`](./docs/ALTERNATIVES.md) —— **替代组合与竞品盘点**：不装本门禁能覆盖多少（≈30/53）、FSD 场景怎么拼、我们立得住的是什么。
+- [`docs/adr/`](./docs/adr/) —— 为什么这么设计（可判定性优先 / 适配器是数据 / 两类工程范式 / 只发 ESM / 白名单显式 / 原语是词汇）。
 
 ## Roadmap
 
 - [x] 体积阈值默认 500 且可配（`overrides.thresholds`）
 - [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 棘轮 / scope / 自检
-- [x] 结构域与反退化域第一批规则（S00–S16、H01–H05）
-- [x] 设计系统域 D01–D18：颜色唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / `!important` / vendor 边界 / 框架残留 / 魔法数字三族 / 内联样式 / 样式落点 / CSS Module 契约 / 只消费语义令牌（已覆盖并替代 `check-theme`）
-- [x] 依赖域 P01 · P02 · P04–P07：登记白名单 / 禁用库 / 适配表与实际依赖一致 / 图标来源唯一 / 能力必须用登记方案 / 疑似自造轮子（P03 幽灵依赖、P08 声明但未使用按 §4.9 委派给 knip · depcheck）
-- [x] 共 **55 条规则**（结构 S · 设计 D · 文案 C · 依赖 P · 退化 H · 度量 M；以 `--stats` 为准）
+- [x] 结构域：角色表与目录契约（S00–S06、S09、S11–S16、S19–S23）——含**层序 / 组隔离 / 公开面**三条通用图规则
+- [x] 设计系统域（D03–D08 / D10 / D10b / D11 / D16 / D17 / D21）：色值唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / vendor 边界与反向封闭 / 框架残留 / 样式落点 / CSS Module 契约 / 声明与事实对账
+- [x] 文案域（C02–C07）：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账
+- [x] 依赖域（P01 · P02 · P04–P07 · P11）：登记白名单 / 禁用库 / 适配表与实际依赖一致 / 图标来源唯一 / 能力必须用登记方案 / 疑似自造轮子（P03 幽灵依赖、P08 声明但未使用按 §4.9 委派给 knip · depcheck；P09 并入 P06）
+- [x] 反退化域（H06）：脱离上下文的全局 API（H01–H05 委派给 eslint）
+- [x] 度量域（M02–M09）：覆盖率棘轮、变更必须被覆盖、产物不得过期
+- [x] 共 **55 条规则**（结构 S · 设计 D · 文案 C · 依赖 P · 退化 H · 度量 M；以 `--stats` 为准），**55/55 有夹具**
 - [x] **与 lint 生态不交叉**：单文件语法卫生、颜色/`!important`/数值白名单、幽灵依赖、
       文案键存在性等全部**委派**给 eslint / oxlint / stylelint / knip（见 `docs/DESIGN.md` 的「委派清单」）
-- [ ] P07 疑似自造轮子（弱指纹 + 命名指纹）、`--verify-deps` 联网成熟度
-- [x] 文案域 C01–C06：裸文案 / 键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键
-- [ ] P3 图规则补齐：层序、域隔离、公开面、可达性、无环
-- [ ] 自适应器补齐：数据层 / 路由 / 样式 / i18n（T1）
+- [x] **可替换面**：UI 组件库（`ui-kit`）与 i18n（`i18n-kits`）建成适配器；结构声明化为数据（`canonical` / `library` / `fsd` 三范式 + `stack()` 组合）
+- [ ] `--verify-deps` 的**联网成熟度**查询（本地对账已是默认能力）
+- [ ] 其余 T1 适配器：数据层 / 路由 / 样式（`presets/{data-layers,routers,styles}/`）
 - [ ] 文档管理块渲染（`--render-docs` / `--check-docs`）
 - [ ] Vue / Svelte 框架包（pack 边界已留出）
 

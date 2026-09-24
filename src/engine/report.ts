@@ -15,6 +15,8 @@ export interface ReportInput {
   scope: string
   scopeFiles: number
   globalFindings: number
+  /** 因 `--local-only` 被跳过的不可归属全局违规条数（0 = 没跳过任何东西） */
+  skippedGlobals: number
   durationMs: number
   rulesEnabled: number
   rulesTotal: number
@@ -103,6 +105,7 @@ export function renderSummary(input: ReportInput): void {
     input.scopeFiles > 0 ? `${input.scopeFiles} 个文件` : null,
     '全量谓词在全项目快照上求值',
     `全局违规 ${input.globalFindings}`,
+    input.skippedGlobals > 0 ? `--local-only 跳过全局违规 ${input.skippedGlobals}` : null,
     `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
     `豁免 ${input.exemptedCount}`,
     input.exemptedFiles > 0 ? `配置豁免 ${input.exemptedFiles} 个文件` : null,
@@ -124,6 +127,8 @@ export interface JsonReport {
   findings: (Finding & { domain?: Domain; level?: Level; severity: Severity })[]
   skipped: { rule: string; reason: string }[]
   exempted: number
+  /** 因 `--local-only` 跳过的全局违规条数（机读侧同样不许静默丢弃） */
+  skippedGlobals: number
   /** 契约扫描域（空 = 全树），以及域外不判契约的文件数 */
   contractScope: string[]
   outsideContract: number
@@ -148,6 +153,7 @@ export function toJsonReport(input: ReportInput): JsonReport {
     }),
     skipped: input.skipped,
     exempted: input.exemptedCount,
+    skippedGlobals: input.skippedGlobals,
     contractScope: input.contractScope,
     outsideContract: input.outsideContract,
     durationMs: input.durationMs,

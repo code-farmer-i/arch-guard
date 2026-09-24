@@ -4,6 +4,36 @@
 
 ## [Unreleased]
 
+### Fixed（scope 的安全语义：承诺了却没实现的那两条）
+
+- **`--scope=staged` 现在真的读 index 内容**（`git show :<path>`），不再读工作区文件。这是 pre-commit 的经典 bug：
+  用户 `git add` 之后继续改文件时，工作区是"下一版"、index 才是"这次要提交的" —— 旧实现会报出用户没打算提交的改动
+  （假红，hook 被绕过），也会漏掉 index 里的违规（假绿）。取不到 index blob 的（staged 删除 / git 报错）退回工作区内容，
+  并在报告里明列文件名 —— 不许静默换语义。新增 `tests/scope-safety.test.mjs`（index 干净 × 工作区违规、反向两组对照）。
+- **`--local-only` 跳过的全局违规条数必须可见**：以前只是把不可归属的全局违规从报告里滤掉，摘要仍旧显示"全局违规 0"
+  （DESIGN §6.8 退出码表要求"零，但打印跳过条数"）。现在 notice、摘要行、`RunResult.skippedGlobals` 与 JSON 报告
+  四处都给出条数；默认行为不变（全局违规仍然失败）。
+- 文档/实现对齐（本仓自己的公理 1：真相唯一）：`--staged` 的语义、P07 的实现状态（已落地，此前三处文档写"未实现"）、
+  `--verify-deps`（本地对账已落地 / 联网成熟度未实现）、facts 缓存键（`rel + role + 内容 sha1`，不含"配置哈希/规则集版本"，
+  因为 facts 与规则无关）、§6.2 目录树（`src/**/*.ts`，不再写已不存在的 `tools/arch-guard/*.mjs`）、§1.2 依赖口径
+  （改为"显式登记的审查门"，与 `commander` + P1 白名单一致）、README 的四条不变式（补 P4）与 Roadmap。
+
+### Changed（真相收敛）
+
+- **阈值与命名契约只剩一份默认值**（`src/engine/defaults.ts`）：此前 `config.ts` 的兜底、`canonical()`、`library()` 各写一遍
+  （`hygiene()` 里还有第四份 `functionLines: 150`），改一处另外几处静默漂移。现在三者都从同一处取，行为不变；
+  `tests/presets.test.mjs` 加了一条守卫（三个范文的阈值/命名必须等于唯一默认值）。
+- **删掉死字段 `Config.addRoles`**：它被赋值却无人读（`roles` 已含追加结果），留着就是同一事实的第二处存放、
+  将来谁读了就会把角色重复计入。`addRoles` 仍然可以作为宿主的 `overrides` / 预设输入使用（新增 `ConfigOverrides` 类型承载它）。
+- `--verify-deps` 的输出不再暗示"依赖成熟度已把关"；PARADIGM §12.5 / DESIGN §16.4 标注联网部分未实现。
+
+### Added（可判定性的锚点写清）
+
+- `docs/adr/0006-primitives-are-vocabulary.md`：十个检测原语是**分类词汇**，不是引擎里的一层（实现里没有 primitives 模块）。
+  可机检的锚点是「`createRule()` 契约 + 每条规则的夹具对」；PARADIGM §3.1、CONTEXT.md、DESIGN §6.7 同步写明。
+- README「质量保障」补 P4 自检与 `pnpm check` 的实际链路；`/coverage.txt` 移出版本控制并加进 `.gitignore`
+  （它是本地日志，README 的测试数/覆盖率数字跟着它一起过期过）。
+
 ### Changed（原子化收尾：落点不兜底、死参数删除、`all` 语义写清）
 
 - **D 域落点不再兜底三根路径**：`designParams()` 只认项目/范式声明过的落点，依赖落点的 8 条规则

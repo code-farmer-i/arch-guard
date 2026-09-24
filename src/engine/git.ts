@@ -50,6 +50,40 @@ export function rootRelativePattern(pattern: string, root: string): string {
   return `${relative(realRoot, real(literal)).split('\\').join('/')}${tail}`
 }
 
+/**
+ * `--scope=staged` 的**内容**来源：`git show :<path>` 取 index 里的 blob，而不是磁盘上的工作区文件。
+ *
+ * 为什么必须这样（pre-commit 的经典 bug）：用户 `git add` 之后常常继续改文件 ——
+ * 工作区里是"还没打算提交的下一版"，index 里才是"这次要提交的东西"。读工作区会得到两种错误：
+ * ① 报出用户根本没打算提交的改动（假红，hook 被绕过）；② 漏掉 index 里的违规（假绿）。
+ *
+ * 取不到 index blob 的（staged 删除、或 git 本身出错）不在这里猜：调用方退回工作区内容，
+ * 并把文件名列表原样带出去，由报告明说 —— 不许静默换语义。
+ */
+export function stagedContentsOf(
+  root: string,
+  files: string[],
+): { contents: Map<string, string>; missing: string[] } {
+  const contents = new Map<string, string>()
+  const missing: string[] = []
+  for (const rel of files) {
+    try {
+      contents.set(
+        rel,
+        execFileSync('git', ['-C', root, 'show', `:${rel}`], {
+          encoding: 'utf8',
+          // 同 gitChangedFiles：git 自己的报错不透传到用户屏幕，由 missing 列表交代
+          stdio: ['ignore', 'pipe', 'ignore'],
+          maxBuffer: 16 * 1024 * 1024,
+        }),
+      )
+    } catch {
+      missing.push(rel)
+    }
+  }
+  return { contents, missing }
+}
+
 /** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
 export function gitChangedFiles(
   root: string,

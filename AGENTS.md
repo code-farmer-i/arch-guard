@@ -16,7 +16,7 @@
 pnpm --filter . exec arch-guard --stats        # 看每条规则的耗时与命中（规则该不该留）
 pnpm --filter . exec arch-guard --verify-deps   # 适配表 vs 实际依赖对账
 pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint → format → test → coverage
-              #   → 夹具回归 → 本体自包含(P1/P2/P3) → 示例宿主 → 狗粮(自己查自己)
+              #   → 夹具回归 → 本体自包含(P1–P4) → 示例宿主 → 狗粮(自己查自己)
 ```
 
 本仓库**不使用托管 CI**：门禁就是 `pnpm check`，谁提交谁在本地跑。所以别跳过它 —— 它同时承担 Node 22.18 与 24 的兼容性检查（`nvm exec 22.18.0 pnpm check`）。
@@ -28,15 +28,15 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 
 ## 目录
 
-| 位置                  | 是什么                                                                      |
-| --------------------- | --------------------------------------------------------------------------- |
-| `src/engine/**`       | 引擎：扫描 / 事实模型 / 图 / 注册表 / 棘轮 / 报告 / scope / 依赖事实 / 自检 |
-| `src/packs/react/**`  | 框架包：语言相关规则（`rules/{structure,deps,hygiene}.ts`）                 |
-| `src/presets/**`      | 预置与适配器：`canonical`（应用）/ `library`（库）/ `hygiene` / `ui-kits/*` |
-| `src/data/**`         | 纯数据表：组件库指纹、轮子指纹（引擎零库名）                                |
-| `__fixtures__/**`     | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                |
-| `examples/minimal/**` | 干净的宿主示例（可搬运性验证）                                              |
-| `arch.config.mjs`     | 门禁自己的配置（库范式 + 配置豁免）                                         |
+| 位置                  | 是什么                                                                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/engine/**`       | 引擎：扫描 / 事实模型 / 图 / 注册表 / 棘轮 / 报告 / scope / 依赖事实 / 自检                                                             |
+| `src/packs/react/**`  | 框架包：语言相关规则（`rules/{structure,structure-graph,structure-declared,design-*,copy,deps*,hygiene-context,metrics,placement}.ts`） |
+| `src/presets/**`      | 预置与适配器：`canonical`（应用）/ `library`（库）/ `hygiene` / `ui-kits/*`                                                             |
+| `src/data/**`         | 纯数据表：组件库指纹、轮子指纹（引擎零库名）                                                                                            |
+| `__fixtures__/**`     | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                                                                            |
+| `examples/minimal/**` | 干净的宿主示例（可搬运性验证）                                                                                                          |
+| `arch.config.mjs`     | 门禁自己的配置（库范式 + 配置豁免）                                                                                                     |
 
 ## Agent skills
 

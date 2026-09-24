@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../es/engine/defaults.js'
 import {
   canonical,
   fsd,
@@ -9,6 +10,31 @@ import {
   libraryRoleTable,
   roleTable,
 } from '../es/presets/index.js'
+
+test('presets：阈值与命名契约只有一份默认值（范式不再各抄一份数字）', () => {
+  // 这条盯的是「同一个事实的第二处存放」：阈值原先在引擎兜底 / canonical / library 各写一遍，
+  // 改一处另外两处就静默漂移。现在三个范式都从 engine/defaults.ts 取。
+  for (const [name, preset] of [
+    ['canonical', canonical()],
+    ['library', library()],
+    ['fsd', fsd()],
+  ]) {
+    assert.deepEqual(
+      preset.thresholds ?? null,
+      DEFAULT_THRESHOLDS,
+      `${name} 的阈值必须等于唯一默认值`,
+    )
+    assert.deepEqual(preset.naming ?? null, DEFAULT_NAMING, `${name} 的命名契约必须等于唯一默认值`)
+  }
+  // 库范式不声明落点、但阈值照样有默认值（由引擎兜底取同一份常量）
+  assert.deepEqual(DEFAULT_THRESHOLDS, {
+    fileLines: 500,
+    viewLines: 500,
+    functionLines: 150,
+    exportsPerFile: 6,
+    componentsPerFile: 3,
+  })
+})
 
 test('presets：canonical 默认就是范式三根目录', () => {
   const preset = canonical()

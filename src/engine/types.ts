@@ -257,13 +257,23 @@ export interface Preset {
   exempt?: ExemptEntry[]
 }
 
+/**
+ * 宿主 `overrides` 的形状：Config 的逐键覆盖，**外加一个 Config 上不存在的字段** `addRoles`。
+ *
+ * 为什么单独建模：`addRoles` 是"在范式角色表之上追加"的**输入**，不是解析结果的一部分 ——
+ * 解析后追加结果已经并进 `Config.roles`。曾经 Config 上也留了一份 `addRoles`，赋值后无人读，
+ * 是同一事实的第二处存放（读它就会把角色重复计入）；现在只留在输入侧。
+ */
+export type ConfigOverrides = Partial<Config> & {
+  /** 在范式角色表之上**追加**角色（不是替换；要整体替换用 `roles`） */
+  addRoles?: RoleDescriptor[]
+}
+
 export interface Config {
   root: string
   srcRoot: string
   layout: { app: string; modules: string; shared: string }
   roles: RoleDescriptor[]
-  /** 追加角色（在 `roles` 之上，不替换）—— 项目自己的目录加在范式角色表之上 */
-  addRoles: RoleDescriptor[]
   naming: NamingRules
   thresholds: Thresholds
   adapters: Record<string, Adapter>

@@ -46,7 +46,8 @@ _Avoid_: 严重度（那是 error/warn）、优先级
 
 **检测原语（primitive）**：
 十条可复用的判据形态（`exclusiveOwner` / `mustReference` / `referenceIntegrity` …）。规则都是它们的组合。
-_Avoid_: 规则类型、检查器
+**这是分类词汇，不是引擎里的一层** —— 实现里没有 primitives 模块，可机检的锚点是「规则契约（`createRule`）+ 每条规则的夹具对」。
+_Avoid_: 规则类型、检查器、DSL
 
 **全局谓词（global predicate）**：
 必须全项目求值才成立的判据（唯一性、可达性、无环）。这类发现项带 `global` 标记，在 `--scope=changed` 下默认仍然失败。

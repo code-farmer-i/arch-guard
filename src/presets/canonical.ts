@@ -1,3 +1,4 @@
+import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../engine/defaults.js'
 import type { Preset, RoleDescriptor } from '../engine/types.js'
 
 export interface CanonicalOptions {
@@ -103,14 +104,10 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     roles: roleTable({ src, app, modules, shared }),
     layout: { app, modules, shared },
     srcRoot: src,
-    naming: { hookPrefix: 'use', viewSuffix: 'Page' },
-    thresholds: {
-      fileLines: 500,
-      viewLines: 500,
-      functionLines: 150,
-      exportsPerFile: 6,
-      componentsPerFile: 3,
-    },
+    // 阈值与命名契约取自**唯一默认值**（engine/defaults.ts）：这里不再抄一份数字，
+    // 否则改默认值要记得改三处（引擎兜底 / canonical / library），漏一处就是静默漂移。
+    naming: { ...DEFAULT_NAMING },
+    thresholds: { ...DEFAULT_THRESHOLDS },
     entries: [`${app}/main.tsx`],
     // 契约扫描域：只有 src 下的 ts/css 参与角色判定。域外（vite.config.ts / e2e / scripts /
     // 生成代码）既不该被要求"落位"，也不该每次全量解析；但它们仍留在文件集里供 import 解析。

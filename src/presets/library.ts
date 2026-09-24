@@ -1,3 +1,4 @@
+import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../engine/defaults.js'
 import type { Preset, RoleDescriptor } from '../engine/types.js'
 
 export interface LibraryOptions {
@@ -67,14 +68,9 @@ export function library(options: LibraryOptions = {}): Preset {
     // `${srcRoot}/modules` 假装检查过（那曾经是假绿来源，见 structure-graph 的 rootsOf 注释）。
     layout: { app: src, modules: '', shared: '' },
     srcRoot: src,
-    naming: { hookPrefix: 'use', viewSuffix: 'Page' },
-    thresholds: {
-      fileLines: 500,
-      viewLines: 500,
-      functionLines: 150,
-      exportsPerFile: 6,
-      componentsPerFile: 3,
-    },
+    // 与 canonical() 同一份默认值：库范式只是工程形态不同，阈值与命名契约并不因此改变
+    naming: { ...DEFAULT_NAMING },
+    thresholds: { ...DEFAULT_THRESHOLDS },
     entries: (options.entry ?? ['index.ts']).map((file) => `${src}/${file}`),
     // 契约扫描域：只有 src 下的 ts/css 参与角色判定。构建产物、示例宿主、夹具、工具配置
     // 都在域外 —— 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。

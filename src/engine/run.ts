@@ -24,7 +24,7 @@ import {
 import { scanProject } from './scan.js'
 import type { Pack } from './pack.js'
 import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
-import { gitChangedFiles, gitHeadTimeMs, rootRelativePattern } from './git.js'
+import { gitChangedFiles, gitHeadTimeMs, rootRelativePattern, stagedContentsOf } from './git.js'
 import { globToRegExp, readText } from './util.js'
 
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
@@ -75,6 +75,8 @@ export interface RunResult {
   active: Finding[]
   scope: string
   scopeFiles: string[]
+  /** `--local-only` 跳过的全局违规条数（0 = 没跳过；程序化调用方也拿得到这个事实） */
+  skippedGlobals: number
   durationMs: number
   stats: RuleStat[]
 }
@@ -129,6 +131,24 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const facts = new Map<string, Facts>()
   const cssTexts = new Map<string, string>()
 
+  /* ---- scope 提前算：`staged` 要影响**读哪份内容**（index blob vs 工作区），所以必须在解析之前 ---- */
+  const scope = options.scope ?? 'full'
+  const changed = scope === 'full' ? null : gitChangedFiles(config.root, scope)
+  const scanned = new Set([...scan.records, ...scan.outside].map((record) => record.rel))
+  const staged =
+    scope === 'staged' && changed !== null
+      ? // 只向 git 要会被解析的文件：变更集里可能有图片等非源码，读它们的 blob 没意义
+        stagedContentsOf(
+          config.root,
+          changed.files.filter((rel) => scanned.has(rel)),
+        )
+      : null
+  if (staged && staged.missing.length > 0) {
+    notices.push(
+      `staged：${staged.missing.length} 个文件取不到 index 内容（staged 删除或 git 报错），已退回工作区内容：${staged.missing.slice(0, 5).join(' , ')}${staged.missing.length > 5 ? ' …' : ''}`,
+    )
+  }
+
   // facts 缓存：解析结果只由「文件内容 + rel + role」决定，可以跨进程复用（见 facts-cache.ts）
   const cache =
     options.cache === false
@@ -139,7 +159,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   // 前者判定用，后者只为依赖图完整（测试作为可达根、跨域 import 边）。
   for (const record of [...scan.records, ...scan.outside]) {
     try {
-      const text = readText(record.abs)
+      // staged 的内容取自 index（pre-commit 检查的是"将提交的东西"，不是工作区）
+      const text = staged?.contents.get(record.rel) ?? readText(record.abs)
       texts.set(record.rel, text)
       if (record.kind === 'ts') {
         const cached = cache.get(record, text)
@@ -201,10 +222,6 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       (config.adapters.i18n as { resourceDir?: string } | undefined)?.resourceDir ?? '',
     ),
   })
-
-  /* ---- scope 提前算：M05（变更文件必须被覆盖）要用同一份变更集，后面报告过滤复用 ---- */
-  const scope = options.scope ?? 'full'
-  const changed = scope === 'full' ? null : gitChangedFiles(config.root, scope)
 
   /* ---- 度量产物：门禁只读，不跑测试；读不到就交给 M06 fail-closed ---- */
   const metricsAdapter = config.adapters.metrics as
@@ -322,6 +339,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
 
   /* ---- scope 过滤：只过滤报告，不过滤正确性 ---- */
   let scopeFiles: string[] = []
+  /** `--local-only` 丢掉的全局违规条数：必须可机读（JSON）也可人读（notice），不许静默 */
+  let skippedGlobals = 0
   if (scope !== 'full') {
     if (changed === null) {
       notices.push(`scope=${scope} 无法取得 git 变更集（无 git 或无提交），已降级为全量`)
@@ -331,9 +350,22 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       const set = new Set(changed.files)
       active = active.filter((finding) => {
         if (set.has(finding.file)) return true
-        if (finding.global) return options.localOnly !== true
+        if (finding.global) {
+          // 不可归属的全局违规**默认仍然失败**；只有显式 --local-only 才放行 ——
+          // 且放行多少条必须打出来（否则"零 error"就成了静默丢弃，见 DESIGN §6.8 退出码表）
+          if (options.localOnly === true) {
+            skippedGlobals += 1
+            return false
+          }
+          return true
+        }
         return false
       })
+      if (skippedGlobals > 0) {
+        notices.push(
+          `--local-only：跳过 ${skippedGlobals} 条不可归属的全局违规（架构级，需全量运行才可见）`,
+        )
+      }
     }
   }
   const globalFindings = active.filter((finding) => finding.global).length
@@ -369,6 +401,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     scope,
     scopeFiles: scopeFiles.length,
     globalFindings,
+    skippedGlobals,
     durationMs: Date.now() - started,
     rulesEnabled: registry.enabled.length,
     rulesTotal: rules.length,
@@ -403,6 +436,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     active,
     scope,
     scopeFiles,
+    skippedGlobals,
     durationMs: Date.now() - started,
     stats,
   }

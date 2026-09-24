@@ -62,6 +62,7 @@ const baseInput = (overrides = {}) => ({
   scope: 'full',
   scopeFiles: 0,
   globalFindings: 0,
+  skippedGlobals: 0,
   durationMs: 1,
   rulesEnabled: 19,
   rulesTotal: 19,
@@ -107,6 +108,7 @@ test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线',
         scope: 'staged',
         scopeFiles: 3,
         globalFindings: 1,
+        skippedGlobals: 2,
         exemptedCount: 2,
         exemptedFiles: 1,
         skipped: [{ rule: 'D10', reason: '能力未声明：uiKit.vendorSelectors' }],
@@ -118,6 +120,7 @@ test('report：摘要自述 scope / 配置豁免 / 停用规则 / 过期基线',
   )
   assert.match(text, /scope=staged \| 3 个文件/)
   assert.match(text, /配置豁免 1 个文件/)
+  assert.match(text, /--local-only 跳过全局违规 2/, '跳过的全局违规必须自述（不许静默丢弃）')
   assert.match(text, /✖ 架构守卫失败：1 个 error/)
 })
 

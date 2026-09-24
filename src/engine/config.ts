@@ -9,8 +9,9 @@ import {
   frameworkSources,
   implementedFrameworks,
 } from '../data/framework-sources.js'
+import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
-import type { Adapter, Config, Preset, Thresholds } from './types.js'
+import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
 import { exists, mergePresets } from './util.js'
 
 export interface RawProjectConfig {
@@ -23,7 +24,7 @@ export interface RawProjectConfig {
    */
   packs?: Pack[]
   /** 项目差异只写这里；与预设合并后即最终配置 */
-  overrides?: Partial<Config>
+  overrides?: ConfigOverrides
 }
 
 export interface LoadedConfig {
@@ -32,19 +33,6 @@ export interface LoadedConfig {
   path: string
   /** 实际生效的框架包（恰好一个，或空数组 = 调用方直接给了规则集） */
   packs: Pack[]
-}
-
-const DEFAULT_THRESHOLDS: Thresholds = {
-  fileLines: 500,
-  viewLines: 500,
-  functionLines: 150,
-  exportsPerFile: 6,
-  componentsPerFile: 3,
-}
-
-const DEFAULT_NAMING = {
-  hookPrefix: 'use',
-  viewSuffix: 'Page',
 }
 
 let importCounter = 0
@@ -260,8 +248,10 @@ export async function loadConfig(options: {
     root,
     srcRoot: overrides.srcRoot ?? preset.srcRoot ?? 'src',
     layout,
-    // 追加角色：项目自己的目录（`src/legacy/**`）加在范式角色表之上，不必整份重写
-    addRoles: [...(preset.addRoles ?? []), ...(overrides.addRoles ?? [])],
+    // 角色表：范式角色表**整体替换**（`overrides.roles`），再在其上**追加** addRoles
+    // （预设的 addRoles 与 overrides 的 addRoles 都追加 —— 项目自己的目录不必重写范式角色表）。
+    // 注：Config 上不再单独保留 `addRoles` 字段 —— 它曾被赋值却无人读，而 roles 已含追加结果，
+    // 留着就是同一个事实的第二处存放（将来谁读了它就会把角色重复计入）。
     roles: [
       ...(overrides.roles ?? preset.roles ?? []),
       ...(preset.addRoles ?? []),

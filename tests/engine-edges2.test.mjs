@@ -37,6 +37,7 @@ test('report：基线里的失效豁免要单独提示（否则没人敢动基�
       scope: 'full',
       scopeFiles: 0,
       globalFindings: 0,
+      skippedGlobals: 0,
       durationMs: 1,
       rulesEnabled: 0,
       rulesTotal: 0,

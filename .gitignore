@@ -3,6 +3,9 @@ node_modules
 *.log
 .arch-guard-cache/
 
+# 本地跑门禁时的输出日志（曾经误提交过一份，结果 README 引用的测试数/覆盖率跟着它一起过期）
+/coverage.txt
+
 # 构建产物（pagoda-cli build 生成）
 # **必须锚定到仓库根**：裸写 `lib/` 会连 `__fixtures__/*/src/shared/lib/` 一起吞掉，
 # 夹具文件于是从来没进过 git —— 干净克隆下 6 个夹具缺文件、门禁必红。

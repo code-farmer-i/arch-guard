@@ -204,6 +204,7 @@ test('report：严重度统计与 JSON 形状', () => {
     scope: 'full',
     scopeFiles: 0,
     globalFindings: 0,
+    skippedGlobals: 0,
     durationMs: 1,
     rulesEnabled: 2,
     rulesTotal: 2,
