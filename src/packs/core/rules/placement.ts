@@ -36,16 +36,22 @@ export function placementHint(rel: string, config: Config): string {
   if (rel.startsWith(`${modules}/`)) {
     // 域入口叫什么由**方案面**声明（`router.routeFiles`，默认 routes.ts / routes.tsx）——
     // 提示念的是同一份词汇，不然"该放哪"会指着一个本方案不存在的文件名
-    const routes = routeFilesOf(config).join(' / ') || '域入口文件'
+    const routeFiles = routeFilesOf(config)
+    const routes = routeFiles.join(' / ')
     const inDomain = rel.slice(modules.length + 1).split('/')
     if (inDomain.length === 2) {
       return (
-        `域根只放 ${routes}：页面进 views/、域内类型与常量进 model/、` +
-        '纯函数进 lib/、域内组件进 components/'
+        (routeFiles.length > 0 ? `域根只放 ${routes}` : '域根不该有文件（本方案未声明入口文件）') +
+        '：页面进 views/、域内类型与常量进 model/、纯函数进 lib/、域内组件进 components/'
       )
     }
+    // 词汇为空时"槽位表"里不含域入口 —— 别念一个不存在的槽位（那时是六个，不是七个）
+    const slots =
+      routeFiles.length > 0
+        ? `七个槽位（${routes} / views/ / components/ / hooks/ / model/ / lib/ / assets/）`
+        : '六个槽位（views/ / components/ / hooks/ / model/ / lib/ / assets/）'
     return (
-      `域内只有七个槽位（${routes} / views/ / components/ / hooks/ / model/ / lib/ / assets/）：` +
+      `域内只有${slots}：` +
       '放进其中之一；端点与契约类型统一进 shared/api/，客户端状态进 shared/stores/'
     )
   }

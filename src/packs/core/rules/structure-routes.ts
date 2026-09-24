@@ -34,8 +34,8 @@ export const domainRootOnlyRoutes: Rule = {
      * S01 已经把域根散件让给了 S03，这里再放行就等于域根没有任何规则看着 —— 静默失能。
      * 所以"没有入口文件名"只改变文案，不改变判定。
      */
-    const names = routeFiles.length > 0 ? routeFiles.join(' / ') : '本方案未声明任何入口文件'
     const allowed = new Set(routeFiles)
+    const names = routeFiles.join(' / ')
     const out: Finding[] = []
     for (const rel of [...ctx.scan.missing, ...ctx.scan.ambiguous.map((entry) => entry.rel)]) {
       if (!rel.startsWith(`${modulesRoot}/`)) continue
@@ -49,7 +49,10 @@ export const domainRootOnlyRoutes: Rule = {
           'S03',
           rel,
           1,
-          `域根目录只许 ${names}，出现了 ${segments[1]}`,
+          // 词汇为空时另起一句：写成「域根只许 <空>」会被读成"这个文件叫这个名字"
+          routeFiles.length > 0
+            ? `域根目录只许 ${names}，出现了 ${segments[1]}`
+            : `域根不该有文件（本方案未声明入口文件），出现了 ${segments[1]}`,
           placementHint(rel, ctx.config),
         ),
       )

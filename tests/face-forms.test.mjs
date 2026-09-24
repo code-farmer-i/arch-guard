@@ -175,8 +175,8 @@ test('S03：域根散件照报 —— 入口词汇为空时也不放行（S01 �
     graph: { edges: new Map(), importers: new Map() },
   })
   assert.equal(empty.length, 1)
-  assert.match(empty[0].text, /本方案未声明任何入口文件/)
-  assert.match(empty[0].hint, /域根只放 域入口文件/)
+  assert.match(empty[0].text, /本方案未声明入口文件/)
+  assert.match(empty[0].hint, /域根不该有文件/)
 })
 
 test('路线规则：入口词汇为空时不判（不是"用默认词汇硬判"）', () => {
