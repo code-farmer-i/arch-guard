@@ -16,7 +16,7 @@
 pnpm --filter . exec arch-guard --stats        # 看每条规则的耗时与命中（规则该不该留）
 pnpm --filter . exec arch-guard --verify-deps   # 适配表 vs 实际依赖对账
 pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint → format → test → coverage
-              #   → 夹具回归 → 本体自包含(P1–P4) → 示例宿主 → 狗粮(自己查自己)
+              #   → 夹具回归 → 本体自包含(P1–P4) → 文档同步(--check-docs) → 示例宿主 → 狗粮(自己查自己)
 ```
 
 本仓库**不使用托管 CI**：门禁就是 `pnpm check`，谁提交谁在本地跑。所以别跳过它 —— 它同时承担 Node 22.18 与 24 的兼容性检查（`nvm exec 22.18.0 pnpm check`）。
@@ -36,7 +36,50 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 | `src/data/**`         | 纯数据表：组件库指纹、轮子指纹（引擎零库名）                                                                                         |
 | `__fixtures__/**`     | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                                                                         |
 | `examples/minimal/**` | 干净的宿主示例（可搬运性验证）                                                                                                       |
-| `arch.config.mjs`     | 门禁自己的配置（库范式 + 依赖选型 P + 度量 M07/M09 + 配置豁免）                                                                      |
+| `arch.config.mjs`     | 门禁自己的配置（库范式 + 依赖选型 P + 度量 M07/M09）                                                                                 |
+
+## 当前配置（由 `arch-guard --render-docs` 生成，**别手改**）
+
+<!-- arch-guard:begin roles -->
+
+| 角色          | 路径 glob                               | 层号 | 槽位    | 组  | 公开面 |
+| ------------- | --------------------------------------- | ---- | ------- | --- | ------ |
+| `test`        | `**/*.test.{ts,tsx,mts,cts,js,mjs,cjs}` | 99   | —       | —   | —      |
+| `test`        | `**/*.spec.{ts,tsx,mts,cts,js,mjs,cjs}` | 99   | —       | —   | —      |
+| `lib:entry`   | `src/index.ts`                          | 10   | `entry` | —   | —      |
+| `lib:entry`   | `src/cli.ts`                            | 10   | `entry` | —   | —      |
+| `lib:data`    | `src/data/**`                           | 1    | —       | —   | —      |
+| `lib:engine`  | `src/engine/**`                         | 2    | —       | —   | —      |
+| `lib:packs`   | `src/packs/**`                          | 4    | —       | —   | —      |
+| `lib:presets` | `src/presets/**`                        | 4    | —       | —   | —      |
+
+<!-- arch-guard:end roles -->
+
+<!-- arch-guard:begin deps -->
+
+**能力表**（`deps({ capabilities })`）：这个能力必须用哪个方案（驱动 P06 手搓指纹）
+
+| 能力       | 首选方案    |
+| ---------- | ----------- |
+| `cli-args` | `commander` |
+
+**批准清单**（`deps({ allow })`，**非空才开启** P01「未登记即拒」）：
+
+- `commander`
+
+<!-- arch-guard:end deps -->
+
+<!-- arch-guard:begin thresholds -->
+
+| 阈值         | 值  | 被判的规则 |
+| ------------ | --- | ---------- |
+| 文件行数     | 500 | S16        |
+| 页面行数     | 500 | S16        |
+| 函数行数     | 150 | S16        |
+| 单文件导出值 | 6   | S19        |
+| 单文件组件数 | 3   | S19        |
+
+<!-- arch-guard:end thresholds -->
 
 ## Agent skills
 

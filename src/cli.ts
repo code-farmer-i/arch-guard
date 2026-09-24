@@ -1,10 +1,11 @@
-import { readFileSync, realpathSync } from 'node:fs'
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { Command, CommanderError } from 'commander'
 
 import { loadConfig } from './engine/config.js'
+import { collectDocDiffs } from './engine/docs.js'
 import { explainPaths, renderExplanations } from './engine/explain.js'
 import { rootRelativePattern } from './engine/git.js'
 import { err, out } from './engine/output.js'
@@ -47,6 +48,8 @@ interface CliOptions {
   cache?: boolean
   verifyDeps?: boolean
   explain?: string
+  renderDocs?: boolean
+  checkDocs?: boolean
   coverageReport?: string
   updateCoverage?: boolean
   reportOnly?: boolean
@@ -82,6 +85,11 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--stats', '打印每条规则的耗时与命中数（排查「为什么这么慢」）')
     .option('--no-cache', '不做 facts 持久缓存（每轮全量解析；排查缓存相关问题时用）')
     .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
+    .option(
+      '--render-docs',
+      '把文档里的管理块（<!-- arch-guard:begin X --> …）按 arch.config.mjs 重写',
+    )
+    .option('--check-docs', '只校验文档管理块与 arch.config.mjs 是否一致（漂移即失败）')
     .option(
       '--explain <paths>',
       '讲清一批路径的契约（角色 / 能依赖谁 / 该放哪 / 适用规则），写代码之前用；逗号分隔，可绝对路径',
@@ -199,6 +207,10 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     return explain(options.explain, options.config, options.format)
   }
 
+  if (options.renderDocs === true || options.checkDocs === true) {
+    return syncDocs(options.config, options.checkDocs === true)
+  }
+
   try {
     const result = await runGuard({
       cwd: process.cwd(),
@@ -229,6 +241,55 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     return result.exitCode
   } catch (error) {
     // fail closed：引擎异常永远非零
+    err(color.red(`✖ 引擎异常：${(error as Error).message}`))
+    return 2
+  }
+}
+
+/**
+ * `--render-docs` / `--check-docs`：文档管理块与 `arch.config.mjs` 对账。
+ *
+ * 文档里那些表是**手抄**的，而 agent 读到的"规范"必须与门禁判的是同一份 ——
+ * 渲染结果与文件不符即红（DESIGN §7.3）。`--render-docs` 负责重写，`--check-docs` 只校验。
+ */
+async function syncDocs(configPath: string | undefined, checkOnly: boolean): Promise<number> {
+  try {
+    const cwd = process.cwd()
+    const loaded = await loadConfig({
+      root: cwd,
+      ...(configPath ? { configPath } : {}),
+      fallbackPacks: [reactPack],
+    })
+    const { diffs, errors, filesWithBlocks } = collectDocDiffs(cwd, loaded.config)
+    if (errors.length > 0) {
+      for (const error of errors) err(color.red(`✖ ${error}`))
+      return 2
+    }
+    if (filesWithBlocks === 0) {
+      out(
+        color.dim(
+          '（没有任何文档管理块：在文档里加 <!-- arch-guard:begin deps --> … <!-- arch-guard:end deps --> 就能从 config 渲染）',
+        ),
+      )
+      return 0
+    }
+    if (diffs.length === 0) {
+      out(color.green(`✔ 文档管理块与 arch.config.mjs 一致（${filesWithBlocks} 个文件）`))
+      return 0
+    }
+    if (checkOnly) {
+      for (const diff of diffs) {
+        err(color.red(`✖ ${diff.file}：块 ${diff.changed.join(' / ')} 与 arch.config.mjs 不一致`))
+      }
+      out(color.red(`✖ 文档漂移：${diffs.length} 个文件 —— 跑 \`arch-guard --render-docs\` 同步`))
+      return 1
+    }
+    for (const diff of diffs) {
+      writeFileSync(join(cwd, diff.file), diff.rendered, 'utf8')
+      out(color.green(`✔ 已更新 ${diff.file}：${diff.changed.join(' / ')}`))
+    }
+    return 0
+  } catch (error) {
     err(color.red(`✖ 引擎异常：${(error as Error).message}`))
     return 2
   }

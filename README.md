@@ -84,6 +84,7 @@ npx arch-guard --scope=changed           # 只报告 git 变更文件（含未�
 npx arch-guard --domain=D --format=json  # 只看设计系统，输出 JSON（给 agent / CI）
 npx arch-guard --update-coverage         # 刷新覆盖率棘轮快照（M04；不是豁免违规）
 npx arch-guard --explain src/modules/crew/views/CrewList.tsx  # ★ 写之前问契约（角色/依赖/落点/规则）
+npx arch-guard --check-docs              # 文档里那几张表与 arch.config.mjs 是否一致（漂移即红）
 ```
 
 ## 三种用法：用库 / 换库 / 不用库
@@ -97,6 +98,29 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 
 换库 = 写一份约 30 行的适配器（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。
 `data/kit-fingerprints.ts` 内置已知组件库指纹，于是**换库后旧库残留一条不剩是可判定验收条件**。
+
+## 文档与门禁同一份真相
+
+`arch.config.mjs` 是唯一机读真相，但文档里的表是**手抄**的 —— 改一处忘一处就漂移，而 agent 最容易被过时文档带偏。
+把要同步的片段包起来，剩下的交给命令：
+
+```md
+## 选型表
+
+<!-- arch-guard:begin deps -->
+
+（本节由 `arch-guard --render-docs` 生成，别手改）
+<!-- arch-guard:end deps -->
+```
+
+```bash
+arch-guard --render-docs   # 按 arch.config.mjs 重写块内容
+arch-guard --check-docs    # 只校验：不一致即红（进 pnpm check 链路）
+```
+
+可用块名：`deps`（能力表 + 批准清单）· `thresholds` · `layout` · `structure` · `scan-scope`（include / ignore）·
+`roles`（角色表）· `params`（落点参数）· `exceptions`（规则级例外）。**块名拼错直接报错** ——
+否则"文档已同步"会变成假象。没有任何块时 `--check-docs` 会明说（不是安静地通过）。
 
 ## 写之前问契约（`--explain`）
 
@@ -225,7 +249,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 - [x] **可替换面**：UI 组件库（`ui-kit`）与 i18n（`i18n-kits`）建成适配器；结构声明化为数据（`canonical` / `library` / `fsd` 三范式 + `stack()` 组合）
 - [ ] `--verify-deps` 的**联网成熟度**查询（本地对账已是默认能力）
 - [ ] 其余 T1 适配器：数据层 / 路由 / 样式（`presets/{data-layers,routers,styles}/`）
-- [ ] 文档管理块渲染（`--render-docs` / `--check-docs`）
+- [x] **文档管理块渲染**（`--render-docs` / `--check-docs`）：文档里的角色表 / 选型表 / 阈值表从 `arch.config.mjs` 生成，漂移即红
 - [ ] Vue / Svelte 框架包（pack 边界已留出）
 
 ## 许可

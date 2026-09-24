@@ -129,6 +129,7 @@ test('cli：commander 注册了全部对外开关（防止重构时丢参数）'
     .options.map((option) => option.long)
     .sort()
   assert.deepEqual(options, [
+    '--check-docs',
     '--config',
     '--coverage-report',
     '--domain',
@@ -139,6 +140,7 @@ test('cli：commander 注册了全部对外开关（防止重构时丢参数）'
     '--no-cache',
     '--only',
     '--paths',
+    '--render-docs',
     '--report-only',
     '--scope',
     '--self-check-portability',

@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+### Added（`--render-docs` / `--check-docs`：文档与门禁同一份真相）
+
+- **文档里的那几张表改为从 `arch.config.mjs` 渲染**（DESIGN §7.3 承诺了很久，现在落地）。在文档里包一块：
+  ```md
+  <!-- arch-guard:begin deps -->
+  <!-- arch-guard:end deps -->
+  ```
+  `--render-docs` 重写块内容，`--check-docs` 只校验（不符即红）。`pnpm check` 已接 `--check-docs`。
+- **块名即登记名**（`src/engine/docs.ts` 的 `DOC_BLOCKS`）：`deps`（能力表 + 批准清单）· `thresholds` · `layout` ·
+  `structure` · `scan-scope`（include / ignore）· `roles`（角色表）· `params`（落点）· `exceptions`（规则级例外）。
+  **拼错直接报错**；未闭合 / 不配对 / 嵌块同样报错；一个块都没有时明说"没有任何文档管理块"（不许安静通过）。
+- 本仓 `AGENTS.md` 已接三个块（`roles` / `deps` / `thresholds`）—— 在此之前 AGENTS 目录表与 `arch.config.mjs` 是**两处手抄**。
+- 两条狗粮踩出来的边界（都写进实现与测试）：
+  ① **围栏代码块里的示范标记不算真块** —— 否则"在文档里示范块语法"会把自己判红（本仓 README / CHANGELOG 正是这么踩的）；
+  ② **排版不算漂移** —— `prettier --write` 会把表格按列对齐、把分隔行按列宽拉长，所以比较前先归一化空白与分隔线长度
+  （事实是单元格内容，不是留白；否则引擎就得去复刻 prettier 的排版算法，那是第二份真相）。
+- 新增 `tests/docs.test.mjs`（8 条）：块名拼错 / 未闭合 / 不配对 / 嵌块、只改块内内容且幂等、
+  `--check-docs` 指名文件与块、`--render-docs` 后转绿、config 一改块就变（阈值 × 批准清单）、
+  没有块时明说、`docs/**` 里的块也扫。
+
 ### Added（`--explain`：把约束前移到写之前）
 
 - **新增 `arch-guard --explain <路径>`**：给出这个路径的**契约** —— 角色（id / 层号 / 槽位 / 域 / 组）、

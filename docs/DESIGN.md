@@ -325,6 +325,7 @@ src/
     git.ts            scope 的 git 事实（changed / staged 的 index 内容 / since）
     filters.ts        scope / --paths / --severity（只过滤报告且必须自述）
     explain.ts        --explain：角色 / 依赖 / 落点 / 适用规则（与 scan 共用角色匹配）
+    docs.ts           文档管理块：块渲染 + 标记解析（--render-docs / --check-docs）
     report.ts         渲染    coverage.ts  M 域产物的解析
     deps.ts/deps-audit.ts  依赖事实与策略    i18n.ts  文案资源索引    css.ts  CSS 结构化扫描
     portability.ts    P1–P4 自检    self-test.ts  夹具回归    util.ts/ts-api.ts/output.ts
@@ -412,6 +413,7 @@ ctx = {
 - 100 文件量级：扫描 + parse + 建图 <300ms；L1 规则先跑、失败先停。
 - 默认只跑 L1–L3；`--type-aware` 走 tsc Program 跑 L4（CI 可选）。
 - `--domain=<域>`、`--only=<ID>`、`--report`、`--update-coverage`（刷新覆盖率棘轮快照）、`--self-test`。
+- `--render-docs` / `--check-docs`：文档管理块与 `arch.config.mjs` 对账（渲染 / 校验）。
 - `--explain <路径>`：**写之前**给出契约（角色 / 能依赖谁 / 该放哪 / 适用规则）。不跑规则、零误报、退出码恒 0 ——
   与判定共用 `scan.ts` 的角色匹配实现（`buildRoleIndex` / `resolveRole`），不另写一套。
 
@@ -758,13 +760,16 @@ T2 的适配器留同名目录与加载点，v1 只给默认值（默认值 = �
 
 **（4）v1 明确不支持（不假装「配置即可」）**：元框架 Vue / Svelte；文件路由（Next / Remix / Nuxt）下的域结构规则；monorepo 多包；CSS-in-JS；TS 对象令牌；JS-only 项目。每项在文档里写「不支持」而不是「可配置」。
 
-### 7.3 两处真相的收敛
+### 7.3 两处真相的收敛（已实现）
 
 P01 依赖白名单与 `AGENTS.md` 选型表不能各写一份；目录契约与 `ARCHITECTURE.md`、环境约定与 `THEME-ARCHITECTURE.md` 同理。规则：
 
-- **`arch.config.mjs` 是唯一机读真相**（选型白名单、令牌前缀、层表、阈值）。
+- **`arch.config.mjs` 是唯一机读真相**（选型白名单、层表、阈值、角色表、落点参数、例外）。
 - 各文档中对应的块用**标记包起来**（`<!-- arch-guard:begin deps -->` … `<!-- arch-guard:end deps -->`），由 `--render-docs` 渲染。
-- CI 加 `--check-docs`：渲染结果与文件不符即报错 —— 文档漂移变成可判定红线。
+- CI 加 `--check-docs`：渲染结果与文件不符即报错 —— 文档漂移变成可判定红线。本仓 `pnpm check` 已接。
+- **登记的块**（`src/engine/docs.ts` 的 `DOC_BLOCKS`，块名即登记名）：`deps` · `thresholds` · `layout` · `structure` ·
+  `scan-scope` · `roles` · `params` · `exceptions`。**块名拼错直接报错**（否则"文档已同步"是假象）；
+  未闭合 / 不配对 / 嵌块同样是错误；没有任何块时明确说"没有块"而不是安静通过。
 
 ### 7.4 适配器通信协议
 
