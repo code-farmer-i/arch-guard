@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S08",
+      "file": "src/engine/a.ts"
+    }
+  ],
+  "exact": true
+}

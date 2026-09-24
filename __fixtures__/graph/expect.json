@@ -33,12 +33,8 @@
       "file": "src/modules/crews/views/CrewsPage.tsx"
     },
     {
-      "rule": "S21",
+      "rule": "S08",
       "file": "src/shared/api/a.ts"
-    },
-    {
-      "rule": "S21",
-      "file": "src/shared/lib/format.ts"
     },
     {
       "rule": "S09",
@@ -87,6 +83,14 @@
     {
       "rule": "S18",
       "file": "src/shared/lib/crewOnly.ts"
+    },
+    {
+      "rule": "S21",
+      "file": "src/shared/api/a.ts"
+    },
+    {
+      "rule": "S21",
+      "file": "src/shared/lib/format.ts"
     }
   ],
   "exact": true

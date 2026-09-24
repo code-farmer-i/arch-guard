@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S34",
+      "file": "src/hub/api.ts"
+    },
+    {
+      "rule": "S34",
+      "file": "src/leaves/a.ts"
+    }
+  ],
+  "exact": true
+}

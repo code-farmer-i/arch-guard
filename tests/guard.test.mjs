@@ -31,6 +31,7 @@ test('违规夹具：该报的违规全部报出，且没有多报', async () =>
     'S13 src/shared/lib/helpers.ts',
     'S14 src/modules/crews/views/Bad.tsx',
     'S15 src/shared/lib/helpers.ts', // 该文件不可达（合成夹具里没有入口引用它）
+    'S33 src/shared/lib/helpers.ts', // barrel 指向不存在的文件（悬空说明符，故意留的）
   ])
   assert.equal(result.exitCode, 1)
 })

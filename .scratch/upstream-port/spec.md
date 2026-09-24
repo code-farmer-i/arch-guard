@@ -38,7 +38,7 @@ Status: in-progress
 2. ✅ **组规则**：S35（原 S24 组必须有片段）· S25 保留名目录 · S26 组数量上限 · S27 目录子项上限 + `structure-util.ts` + 夹具
 3. ✅ **图规则**：S28 组的外部引用下限（死切片）· S32 导入局部性 + 夹具
 4. ✅ **命名**：S29 组名撞单元 · S30 重复词 · S31 单复数一致性 + `src/data/plural-forms.ts` + `pluralize` 采纳（登记三处：`portability.ts` 白名单 / `package.json` / 狗粮 `arch.config.mjs` 的 `deps({ allow })`）
-5. ⬜ **依赖图三件**：S08 依赖环 · S33 未解析导入 · S34 文件级入/出度 + 夹具（顺带修上游同样存在的两处坏路径：`examples/minimal` 的 `@/shared/lib/format`、`structure-isolate` 夹具里少写一层 `..` 的 import）
+5. ✅ **依赖图三件**：S08 依赖环 · S33 未解析导入 · S34 文件级入/出度 + 夹具
 6. ⬜ **适配面**：E2（`defineFacet` 开放注册）· T1（`router()` / `dataLayer()` / `styles()` + kit）· P12 同类方案不许混入 + `src/data/solution-alternatives.ts` + `reactPack` 的面声明
 7. ⬜ **FSD 预设对齐**：单文件片段（`model.ts`）· 入口认代码扩展名 · shared 每个片段都要公开面（含根入口豁免子目录）· 重名查组路径段（先读上游 v2.1 的 `fsd.ts`，在其上增量改）+ 三个夹具（`fsd-parity` / `fsd-boundaries` / `fsd-import-locality`）
 8. ⬜ **文档增量**：CHANGELOG / README / PARADIGM / DESIGN / ALTERNATIVES / CONTEXT，按上游当前口径写（不再提基线；豁免用"规则级例外"），并跑 `--render-docs` 更新生成块
@@ -64,3 +64,9 @@ Status: in-progress
   AGENTS.md 生成块（`--render-docs` → `pnpm format`）与狗粮 M07 依赖预算 1→2）。
   夹具 `structure-name-collisions` / `structure-repetitive-naming` / `structure-plural-consistency`（各 exact: true）。
   双 Node `pnpm check` EXIT=0（276 测试 / 37 夹具）。
+- 2026-09-24 Step 5 完成并提交：S08 / S33 / S34 落地，`structureGraphRules` 与 `library()` 接上。
+  上线当天抓到三处真实问题：`structure-isolate` 夹具里少写一层 `..` 的 import（已修）、
+  `violations` 夹具里**故意**的悬空再导出（写进注释并纳入期望）、`graph` 夹具里无意的 `shared/api` 依赖环
+  （按"不为让规则变绿而改被测树"的原则保留，补注释与期望，成为 S08 第二个样例）。
+  注意：上游 `examples/minimal` 的坏路径**已经不存在**（与 wip 判断不同）—— 扫过全仓与 40 个夹具，只有上述三处。
+  双 Node `pnpm check` EXIT=0（280 测试 / 40 夹具）。

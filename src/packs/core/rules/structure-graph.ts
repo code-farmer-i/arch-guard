@@ -286,13 +286,141 @@ export const sharedUsedByOneDomain: Rule = {
   },
 }
 
+/* ---------------- S08 依赖环 ---------------- */
+
+/**
+ * 判据：图里的环（`graph.cycles`）。至少有一个**契约内文件**的环才报 ——
+ * 纯外部脚本之间的环不属于这份契约（`include` 之外的文件照常进图，但不归目录契约管）。
+ *
+ * 与 S15（可达性）的分工：S15 说"没人用"，S08 说"互相用"。
+ * 一条环只报一次，锚在环内字典序最小的文件上（报告稳定，棘轮要靠它）。
+ */
+export const noCycles: Rule = {
+  id: 'S08',
+  domain: 'structure',
+  level: 'L3',
+  severity: 'error',
+  title: '依赖环',
+  hint: '环让"依赖单向"失效：把共用部分下沉到更低的层，或用依赖倒置把环拆开',
+  run: (ctx) => {
+    const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
+    const out: Finding[] = []
+    for (const cycle of ctx.graph.cycles) {
+      if (!cycle.some((rel) => byRel.has(rel))) continue
+      const anchor = [...cycle].sort()[0] as string
+      const head = cycle.length > 6 ? [...cycle.slice(0, 6), '…'] : cycle
+      out.push(
+        finding(
+          'S08',
+          anchor,
+          1,
+          `依赖环：${head.join(' → ')} → ${cycle[0]}（共 ${cycle.length} 个文件）`,
+        ),
+      )
+    }
+    return out
+  },
+}
+
+/* ---------------- S33 导入必须解析得到 ---------------- */
+
+/**
+ * 判据：契约内文件的相对 / 别名说明符**解析不到**（`graph.unresolved`）。
+ *
+ * 为什么必须有这条：解析不到的边在图上**不存在**，于是所有图规则都看不见它 ——
+ * 把跨层违规写成 `../dash/ui/Dash`（少一层 `..`）是零成本的绕过口子。
+ * 只判契约内的文件：`include` 之外（构建配置、脚本）写错路径不归目录契约管。
+ */
+export const unresolvedImports: Rule = {
+  id: 'S33',
+  domain: 'structure',
+  level: 'L3',
+  severity: 'error',
+  title: '导入必须解析得到',
+  hint: '项目内的相对 / 别名路径必须指向真实文件：写错路径会让这条依赖在图上消失，门禁看不见它',
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      const specs = ctx.graph.unresolved.get(record.rel)
+      if (!specs || specs.length === 0) continue
+      const imports = ctx.facts.get(record.rel)?.imports ?? []
+      for (const spec of [...new Set(specs)].sort()) {
+        const line = imports.find((item) => item.spec === spec)?.line ?? 1
+        out.push(
+          finding(
+            'S33',
+            record.rel,
+            line,
+            `导入解析不到：${spec}（路径写错 / 文件被删 / 别名没配）`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- S34 文件级入/出度上限 ---------------- */
+
+/**
+ * 判据：命中声明角色的文件，**项目内**入度 / 出度超过 `structure.degreeLimits` 给的上限。
+ *
+ * 与 S26/S28 的分工：那两条看**组**（切片维度），这条看**单个文件** ——
+ * 「被 80 个文件引用」（改动波及全项目）与「引用了 40 个模块」（神模块）在组粒度上都看不见。
+ * 只数项目内边（包依赖另有 M07 `depsBudget` 管），阈值由宿主动声明（`maxIn` / `maxOut` 至少给一个）。
+ */
+export const degreeLimits: Rule = {
+  id: 'S34',
+  domain: 'structure',
+  level: 'L3',
+  severity: 'error',
+  title: '文件级入/出度上限',
+  hint: '入度太高说明改动会波及全项目（抽接口或拆分）；出度太高说明这个文件什么都干（按职责拆）',
+  run: (ctx) => {
+    const limits = ctx.config.structure.degreeLimits ?? []
+    if (limits.length === 0) return []
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      for (const limit of limits) {
+        if (record.role !== limit.role) continue
+        const fanIn = ctx.graph.importers.get(record.rel)?.size ?? 0
+        const fanOut = ctx.graph.edges.get(record.rel)?.size ?? 0
+        if (limit.maxIn !== undefined && fanIn > limit.maxIn) {
+          out.push(
+            finding(
+              'S34',
+              record.rel,
+              1,
+              `入度 ${fanIn} 个文件，超过上限 ${limit.maxIn}：太多地方依赖它，改动会波及全项目（抽接口 / 拆分 / 收窄公开面）`,
+            ),
+          )
+        }
+        if (limit.maxOut !== undefined && fanOut > limit.maxOut) {
+          out.push(
+            finding(
+              'S34',
+              record.rel,
+              1,
+              `出度 ${fanOut} 个项目内文件，超过上限 ${limit.maxOut}：这个文件什么都干（按职责拆，或把工具性代码下沉）`,
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+}
+
 export const structureGraphRules: Rule[] = [
   domainImportWhitelist,
   crossDomainViaRoutes,
   viewsArePrivate,
-  // 依赖环委派给 import/no-cycle 或 dependency-cruiser 的 no-circular（纯图属性，不需要角色表）
+  // 依赖环不再委派：`graph.cycles` 本来就算好了，委派出去只会让不装 dc / eslint 的宿主失去覆盖
+  noCycles,
   layoutsDoNotImportModules,
   reachability,
   duplicateExportNames,
   sharedUsedByOneDomain,
+  unresolvedImports,
+  degreeLimits,
 ]

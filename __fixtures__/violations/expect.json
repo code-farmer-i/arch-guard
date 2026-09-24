@@ -27,6 +27,10 @@
     {
       "rule": "S15",
       "file": "src/shared/lib/helpers.ts"
+    },
+    {
+      "rule": "S33",
+      "file": "src/shared/lib/helpers.ts"
     }
   ],
   "exact": true
