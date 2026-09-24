@@ -104,8 +104,38 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 `--format=json` 给 CI 注解 / PR bot / IDE 插件 / agent 用，所以它和规则一样是契约：
 
 - **带 `apiVersion`**：消费方启动时断言自己认识的版本；不认识就明说"不认识这版报告"，别少读几个字段装绿。
-- **自述是结构不是散文**：`notices: [{ code, text }]` —— 按 `code` 判（`paths-no-match` / `severity-filtered` /
-  `scan-empty` / `facts-cache`…），**文案随便改都不破坏契约**。
+- **自述是结构不是散文**：`notices: [{ code, text }]` —— 按 `code` 判，**文案随便改都不破坏契约**。
+  消费方两种写法都行（常量表与守卫都从**同一份** code 数组派生，不是第二份清单）：
+
+  ```ts
+  import { NOTICE, isNoticeCode, type NoticeCode } from '@arch-guard/core'
+
+  // ① 已知 code → 逐个接。TS 消费方写穷举映射：**我们新增 code 时你的构建会红**
+  //    （实测漏一个会报 TS2741: Property '"scan-empty"' is missing），而不是静默走 default
+  const handle: Record<NoticeCode, (text: string) => void> = {
+    [NOTICE.PATHS_NO_MATCH]: (text) => showNotJudged(text),
+    [NOTICE.SEVERITY_FILTERED]: (text) => showFiltered(text),
+    [NOTICE.SCAN_EMPTY]: () => showNothingJudged(),
+    // …其余每个 code 都要有（漏一个 = 编译错误）
+  }
+  for (const notice of report.notices) {
+    if (isNoticeCode(notice.code)) handle[notice.code](notice.text)
+  }
+
+  // ② 未知 code → 明说，别当它不存在（这是「不许静默少显示一类信息」的消费方那一半）
+  const unknown = report.notices.filter((n) => !isNoticeCode(n.code))
+  if (unknown.length > 0) warn('这版报告里有我不认识的 code', unknown)
+  ```
+
+  没有类型系统（`.mjs` adapter / shell / CI 脚本）就用常量表 `NOTICE.PATHS_NO_MATCH` 防拼写、用守卫防未知；
+  **穷举护栏也能要**——拿同一份 `NOTICE_CODES` 当清单自查：
+
+  ```js
+  const handlers = { [NOTICE.PATHS_NO_MATCH]: showNotJudged, [NOTICE.SCAN_EMPTY]: showNothing }
+  const uncovered = NOTICE_CODES.filter((code) => !(code in handlers))
+  if (uncovered.length > 0) warn('这些 code 没接：', uncovered) // 我们新增 code 时这里会告诉你
+  ```
+
 - **机读 ⊇ 人读**：摘要行里的每个数字，JSON 里都有（`scopeFiles` / `rulesEnabled` / `rulesTotal` / `globalFindings`…）。
 - **「没判任何东西」可判定**：`--paths` 一个都没匹配上 → `paths.matched = 0` + `code: 'paths-no-match'` + **退出码 2**
   （「没问」是 `paths: null`，「问了没命中」是 `matched: 0`）。

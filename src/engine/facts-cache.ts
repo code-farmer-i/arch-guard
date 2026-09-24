@@ -5,7 +5,8 @@ import { gunzipSync, gzipSync } from 'node:zlib'
 
 import ts from 'typescript'
 
-import type { Diagnostic, Facts, FileRecord } from './types.js'
+import type { Diagnostic } from './codes.js'
+import type { Facts, FileRecord } from './types.js'
 
 /**
  * facts 持久缓存（见 .scratch/facts-cache/spec.md）。

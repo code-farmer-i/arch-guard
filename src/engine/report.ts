@@ -1,14 +1,6 @@
 import { out } from './output.js'
-import type {
-  Config,
-  Diagnostic,
-  Domain,
-  Finding,
-  Level,
-  Rule,
-  Severity,
-  SkippedRule,
-} from './types.js'
+import type { Diagnostic, SkippedRule } from './codes.js'
+import type { Config, Domain, Finding, Level, Rule, Severity } from './types.js'
 import { color } from './util.js'
 
 /** 输出格式（CLI 与 explain 共用同一份取值） */

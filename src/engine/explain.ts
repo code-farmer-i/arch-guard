@@ -1,6 +1,7 @@
 import { buildRoleIndex, resolveRole, type RoleIndex, type RoleResolution } from './scan.js'
 import { DOMAIN_LABEL, type ReportFormat } from './report.js'
-import type { Config, Rule, SkippedRule } from './types.js'
+import type { SkippedRule } from './codes.js'
+import type { Config, Rule } from './types.js'
 import { exists } from './util.js'
 
 /**

@@ -13,12 +13,17 @@ export type * from './engine/types.js'
  * 「断言报告版本」「按 code 判自述」是机读契约的一部分，拿不到就等于没有。
  */
 export {
+  NOTICE,
   NOTICE_CODES,
+  SKIP,
   SKIP_CODES,
+  isNoticeCode,
+  isSkipCode,
   type Diagnostic,
   type NoticeCode,
   type SkipCode,
-} from './engine/types.js'
+  type SkippedRule,
+} from './engine/codes.js'
 export { REPORT_API_VERSION } from './engine/report.js'
 export { loadConfig, aliasesFromTsconfig } from './engine/config.js'
 export { scanProject } from './engine/scan.js'

@@ -7,7 +7,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { run } from '../es/cli.js'
 // 从**包入口**导入：消费方只有这一条路（`exports` 映射不暴露 ./engine/*）
-import { NOTICE_CODES, REPORT_API_VERSION, SKIP_CODES } from '../es/index.js'
+import {
+  NOTICE,
+  NOTICE_CODES,
+  REPORT_API_VERSION,
+  SKIP,
+  SKIP_CODES,
+  isNoticeCode,
+  isSkipCode,
+} from '../es/index.js'
 
 /**
  * **JSON 报告的对外契约**（DESIGN §6.9）。
@@ -210,4 +218,41 @@ test('冻结：skipped[].code 清单，且「没跑」的原因不是散文', as
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('契约枚举的常量表是**派生**的（不是第二份清单），且守卫能挡住不认识的 code', () => {
+  // 派生规则：kebab-case → SCREAMING_SNAKE
+  assert.equal(NOTICE.PATHS_NO_MATCH, 'paths-no-match')
+  assert.equal(NOTICE.SEVERITY_FILTERED, 'severity-filtered')
+  assert.equal(NOTICE.FACTS_CACHE_RESET, 'facts-cache-reset')
+  assert.equal(SKIP.CAPABILITY_MISSING, 'capability-missing')
+
+  // 完备性：每个 code 恰好一个常量名，且没有多余的键（加 code 只改数组一处）
+  const screaming = (code) => code.toUpperCase().replace(/-/g, '_')
+  assert.deepEqual(Object.keys(NOTICE).sort(), [...NOTICE_CODES].map(screaming).sort())
+  assert.deepEqual(Object.values(NOTICE).sort(), [...NOTICE_CODES].sort())
+  assert.deepEqual(Object.keys(SKIP).sort(), [...SKIP_CODES].map(screaming).sort())
+
+  // 守卫：消费方解析 JSON 时 fail-closed，而不是静默少处理一类
+  assert.equal(isNoticeCode('paths-no-match'), true)
+  assert.equal(isNoticeCode('paths-nomatch'), false, '拼错必须被挡住（JS 消费方没有类型系统）')
+  assert.equal(isNoticeCode(undefined), false)
+  assert.equal(isNoticeCode(42), false)
+  assert.equal(isSkipCode('capability-missing'), true)
+  assert.equal(isSkipCode('capability-gone'), false)
+})
+
+test('消费方用法：漏接一个 code 必须能被发现（TS 靠 Record 编译期，JS 靠 NOTICE_CODES 自查）', () => {
+  // JS 消费方（没有类型系统）的自查写法 —— 用同一份清单，不抄第二份
+  const handlers = { [NOTICE.PATHS_NO_MATCH]: () => 'x', [NOTICE.SCAN_EMPTY]: () => 'y' }
+  const uncovered = NOTICE_CODES.filter((code) => !(code in handlers))
+  assert.equal(uncovered.length, NOTICE_CODES.length - 2, '漏接的必须全被数出来')
+  assert.ok(uncovered.includes('severity-filtered'))
+
+  // 全接上时应当为空
+  const full = Object.fromEntries(NOTICE_CODES.map((code) => [code, () => code]))
+  assert.deepEqual(
+    NOTICE_CODES.filter((code) => !(code in full)),
+    [],
+  )
 })

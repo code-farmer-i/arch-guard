@@ -11,7 +11,8 @@ import {
 } from '../data/framework-sources.js'
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
-import type { Adapter, Config, ConfigOverrides, Preset, Diagnostic } from './types.js'
+import type { Diagnostic } from './codes.js'
+import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
 import { exists, mergePresets } from './util.js'
 
 export interface RawProjectConfig {

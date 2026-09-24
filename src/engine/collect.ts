@@ -2,7 +2,8 @@ import { relative } from 'node:path'
 
 import { disabledFactsCache, openFactsCache } from './facts-cache.js'
 import { extractFacts, factInputOf } from './facts.js'
-import type { Config, Diagnostic, Facts, FileRecord } from './types.js'
+import type { Diagnostic } from './codes.js'
+import type { Config, Facts, FileRecord } from './types.js'
 import { readText } from './util.js'
 
 /**

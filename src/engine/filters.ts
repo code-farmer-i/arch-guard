@@ -1,6 +1,7 @@
 import { rootRelativePattern } from './git.js'
 import { severityOf } from './report.js'
-import type { Diagnostic, Finding, Rule, Severity } from './types.js'
+import type { Diagnostic } from './codes.js'
+import type { Finding, Rule, Severity } from './types.js'
 import { globToRegExp } from './util.js'
 
 /**

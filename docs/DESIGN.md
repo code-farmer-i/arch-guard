@@ -545,6 +545,40 @@ scope: { default: 'full', preCommit: 'staged', devLoop: 'changed', ci: 'full' }
 `facts-cache`…），**文案不是契约**（随时可改）。`code` 清单是 `types.ts` 的 `NOTICE_CODES`（单一出处，编译期与测试双重把关）。
 `--format=github` 目前仍是纯文本注解，没有 code —— 消费方要判状态请用 `--format=json`。
 
+**（2.0.1）契约变更分两级（别把两件事混成一件）**
+
+| 级别           | 例子                                                 | `apiVersion`  | 消费方会怎样                                                                                                         |
+| -------------- | ---------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **破坏性**     | 删除/改名 code、改字段含义、删顶层字段、改退出码语义 | **必须 bump** | 断言版本 → 直接拒绝运行                                                                                              |
+| **兼容性新增** | 新增 code、新增顶层字段                              | **不 bump**   | 用穷举映射的**编译期就红**（被迫处理）；用守卫的运行期可判；两者都不用会静默忽略 → 所以**必须在 CHANGELOG 单独标注** |
+
+> 「新增字段不 bump」看着像放水，其实不是：**"必须动"由冻结测试保证**（`tests/report-contract.test.mjs` 里顶层字段集与 code 清单都被写死，
+> 任何增删都必须改那两处 + CHANGELOG），而"消费方会红或可判"由**穷举映射**（TS）与 **`isNoticeCode` 守卫**（JS）保证。
+> 只加一个版本号、却没人强制 bump 的机制就是装饰 —— 本仓刚在 `exempt` 上踩过。
+
+**（2.0.2）消费方契约（四条，按这个写就不会被骗）**
+
+1. **断言 `apiVersion`**：不认识就明说「不认识这版报告」，别少读几个字段继续装绿；
+2. **未知 code 必须明说**：`notices.filter((n) => !isNoticeCode(n.code))` 非空就报警 —— 这是「不许静默少显示一类信息」的消费方那一半；
+3. **已知 code 用穷举映射接**（`Record<NoticeCode, Handler>` / `switch` + `never`），这样我们**新增 code 时你的构建会红**；
+4. **永远不要匹配 `text`**：文案是本仓随时可改的内部细节，把它当契约就是第二处真相。
+
+**（2.1）契约枚举的标准形状**
+
+JSON 里的枚举值（`notices[].code` · `skipped[].code`；将来若加 `severity` / `domain` 同理）**一律照这个模子**，
+不要各自发明，更不要手写第二份字符串清单（那就是新的"两处真相"）：
+
+1. **单一出处**：一份 `as const` 数组（`NOTICE_CODES` / `SKIP_CODES`）—— 编译期 union 与运行期可枚举**同源**；
+2. **派生常量表**：`NOTICE.PATHS_NO_MATCH`（kebab-case → `SCREAMING_SNAKE`，类型层用模板字面量推导，
+   所以名字写错编译期即报错）。它是给**没有类型系统**的消费方（`.mjs` adapter / shell / CI 脚本）用的：
+   拼错的字符串字面量在 JS 里只会安静地 `false`，而这里会编译期/守卫期就炸；
+   TS 消费方其实不需要它 —— `NoticeCode` union 已经能抓住拼错的比较（实测：`code === 'paths-no-matchh'` 是编译错误）；
+3. **派生守卫**：`isNoticeCode()` / `isSkipCode()` —— 消费方解析 JSON 时 fail-closed：
+   不认识的 code 应当**明说**，而不是当它不存在然后静默少处理一类情况。
+
+三条都由 `tests/report-contract.test.mjs` 冻结（含"常量表必须与数组完备对应"这条，防止有人手写漏一个）。
+**从包入口导出**（`exports` 映射不暴露 `./engine/*`，拿不到就等于没有）。
+
 **（3）机读 ⊇ 人读**
 
 人读摘要里出现的每个数字，机读侧都必须有：`scopeFiles` · `globalFindings` · `rulesEnabled` / `rulesTotal` ·

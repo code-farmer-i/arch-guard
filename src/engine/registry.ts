@@ -1,5 +1,6 @@
 import { CAPABILITY_ROOTS, capabilityValue, isCapabilityPresent } from './adapters.js'
-import type { Config, Domain, Level, Rule, SkippedRule } from './types.js'
+import type { SkippedRule } from './codes.js'
+import type { Config, Domain, Level, Rule } from './types.js'
 
 /**
  * 能力协商：未声明的能力对应规则**不注册**，并记入 skipped 供报告展示。

@@ -7,11 +7,32 @@
 > - 发布时把 `[Unreleased]` 按类型**切分成版本段落**（`## [x.y.z] - YYYY-MM-DD`），不要留在 `Unreleased` 里。
 > - **契约变更必须单独标注**：JSON 报告动过 `apiVersion`、`NOTICE_CODES` / `SKIP_CODES`，
 >   或退出码语义有变 → 在该版本段落里写明「破坏性」与迁移方式（参照本轮 Unreleased 的写法）。
+> - **0.3.0–0.3.3 的章节是按 git 标签区间事后回填的**（此前全堆在 `[Unreleased]` 里，版本无从回溯）；
+>   回填只搬位置、不改内容，归属依据是「该小节首次出现在哪个标签区间」。
 > - 理由：**0.3.0 / 0.3.1 / 0.3.2 没有独立章节**（内容都还堆在 `[Unreleased]` 里，事后无从回溯哪个版本动了什么）。
 >   那次恰好一口气给 JSON 加了五个字段而无人可察 —— 消费方只能靠猜。版本记录是契约变更唯一的审计落点，
 >   没有它，`apiVersion` 也只是一句口号。
 
 ## [Unreleased]
+
+### Added（契约枚举的常量表与守卫，**派生**不是第二份清单）
+
+- 导出 `NOTICE.PATHS_NO_MATCH` 这类常量（kebab-case → `SCREAMING_SNAKE`，类型层用模板字面量推导）
+  与 `isNoticeCode()` / `isSkipCode()` 守卫，给**没有类型系统**的消费方（`.mjs` adapter / shell / CI 脚本）用：
+  JS 里拼错字符串只会安静地 `false`，而这里会编译期/守卫期就炸；TS 消费方本来就有 `NoticeCode` union 保护
+  （实测 `code === 'paths-no-matchh'` 是编译错误），常量表只是方便。
+- **两者都从 `NOTICE_CODES` / `SKIP_CODES` 派生**（`constantsOf()` / `codeGuard()`）：加一个 code 只改数组一处，
+  不存在"数组改了忘记改常量表"的可能。`tests/report-contract.test.mjs` 冻结了完备性（常量名集合 ↔ 数组一一对应）。
+- 这条形状写进 DESIGN §6.9「契约枚举的标准形状」：**单一 const 数组 → 派生 union + 常量表 + 守卫 + 冻结测试**，
+  将来的 `severity` / `domain` 等契约枚举照这个模子来（**有消费者才加**，不预先造没人用的表）。
+- **「按 code 做对应操作」是另一件事**：常量表防**拼写**，穷举映射防**漏处理**。TS 消费方写
+  `Record<NoticeCode, Handler>`（或 `switch` + `never`）就有编译期护栏 —— 实测漏掉一个 code 会报
+  `TS2741: Property '"scan-empty"' is missing`，即**我们新增 code 时消费方的构建会红**，而不是静默走 `default`。
+  契约变更因此分两级写进 §6.9：**破坏性**（删/改名、改含义、删字段、改退出码 → 必须 bump `apiVersion`）与
+  **兼容性新增**（新增 code/字段 → 不 bump，但必须在 CHANGELOG 标注）。
+- 模块整理：契约枚举与守卫搬到 `src/engine/codes.ts`（`types.ts` 涨到 508 行，既顶 lint 的 500 行上限、也踩了狗粮的 S16 —— 抽模块而不是抬阈值）。
+
+## [0.3.3] - 2026-09-24
 
 ### Changed（**破坏性**：JSON 报告成为带版本的对外契约）
 
@@ -37,6 +58,19 @@
 - 顺带：`fsd()` 关于 `assets` / `providers` 的注释现在**点明这是上游自相矛盾**（`segments-by-purpose` 把
   `providers` 列为 React 坏片段名且对无切片层也生效，源码链接已附），本预选明确"站 linter"。
 
+### Fixed（S12 报文指向真正的修法）
+
+- 新判据「组件目录（`:ui` / `:components:*`）里的 `.tsx` 必须 PascalCase」**压力是对的**，但报文说的是
+  「组件文件必须 PascalCase」—— 而 `ui/useThing.tsx` 的真实问题是"hook 住错了目录"。提示指错地方，
+  agent 就会去改名字而不是挪文件。现在按**文件的真实形态**分三种说法（`hasJsx` 来自事实模型，判据不动）：
+  - 名字以 `naming.hookPrefix` 开头 → 「hook 不该住在组件目录：把 X 挪到 model/ 或 hooks/」
+  - 真有 JSX → 「组件文件必须 PascalCase」（它确实是组件，只是名字不对 —— 原报文准确）
+  - 没有 JSX 也不是组件名 → 「X 不是组件却住在组件目录：这份 .tsx 里没有 JSX，纯逻辑请放 model/、或改成 .ts」
+    三者都带上修法提示（pretty 报告渲染成 `→ …`）：组件目录只放组件，hook 与纯逻辑另有位置。
+    回归见 `tests/paradigm-consistency.test.mjs` 第 ⑥ 条。
+
+## [0.3.2] - 2026-09-24
+
 ### Fixed（五处「声明了却不生效」——同一类病，来自一次真实反馈）
 
 全部先复现、再修；每一条都配了回归测试（`tests/paradigm-consistency.test.mjs`，7 条）：
@@ -61,17 +95,6 @@
    （styleDir / tokenDir / vendorDir），文案改成"全局 CSS 只许放声明的样式落点"；同时 `fsd()` 的
    `styleDir` 归位到官方的 `app/styles`（全局样式），令牌与第三方覆盖仍在 `shared/ui/styles/{tokens,vendor}`。
 
-### Fixed（S12 报文指向真正的修法）
-
-- 新判据「组件目录（`:ui` / `:components:*`）里的 `.tsx` 必须 PascalCase」**压力是对的**，但报文说的是
-  「组件文件必须 PascalCase」—— 而 `ui/useThing.tsx` 的真实问题是"hook 住错了目录"。提示指错地方，
-  agent 就会去改名字而不是挪文件。现在按**文件的真实形态**分三种说法（`hasJsx` 来自事实模型，判据不动）：
-  - 名字以 `naming.hookPrefix` 开头 → 「hook 不该住在组件目录：把 X 挪到 model/ 或 hooks/」
-  - 真有 JSX → 「组件文件必须 PascalCase」（它确实是组件，只是名字不对 —— 原报文准确）
-  - 没有 JSX 也不是组件名 → 「X 不是组件却住在组件目录：这份 .tsx 里没有 JSX，纯逻辑请放 model/、或改成 .ts」
-    三者都带上修法提示（pretty 报告渲染成 `→ …`）：组件目录只放组件，hook 与纯逻辑另有位置。
-    回归见 `tests/paradigm-consistency.test.mjs` 第 ⑥ 条。
-
 ### Changed（适配表边界：`packages` 是"必须装的"，不是"整套库的清单"）
 
 - **`antdKit().packages` 去掉 `@ant-design/x`**（AI 界面套件，antd 生态的**可选扩展**）。
@@ -87,6 +110,8 @@
 - 新增 `tests/kit-packages.test.mjs`（5 条）：不装它不再违规 · 装了它 P04 不报 · `allow` 开启时要自己登记 ·
   **反向没被削弱**（装了 `element-plus` 照样报）。
 
+## [0.3.1] - 2026-09-24
+
 ### Changed（`fsd()` 按官方 v2.1 对齐）
 
 - **补上官方 shared 典型段 `routes`**，app 典型段补 `routes` / `store` / `entrypoint`
@@ -99,6 +124,8 @@
   要支持得给 S22 开例外并限制在 entities 层；当前替代是把这类联系提到更高层（官方也说"尽量少用"）。
   源码注释与 `ALTERNATIVES.md` §3.5 的对照表都写明了这一点，免得下次又被当成 bug。
 - 逐条对照表（含 ✅/⚠️/❌）落在 `docs/ALTERNATIVES.md` §3.5。
+
+## [0.3.0] - 2026-09-24
 
 ### Changed（忽略分三层：宿主 `ignore` + `.gitignore` 基础层 + 产物目录数据表）
 
@@ -708,21 +735,6 @@
   `Facts` 类型与 `__fixtures__` 的断言同步收缩，并在 `extractFacts` 上写明「加字段前先确认有规则在读」。
 - 两部分合计 **5.75s → 4.63s（−20%）**，峰值内存 277MB → 264MB。
 
-### Fixed
-
-- **没有 git 时不再把 git 自己的报错透传到用户屏幕**（`致命错误：不是 git 仓库…`）：`execFileSync` 的 stderr 默认透传，
-  而三处 git 调用本来就 `catch` 掉走「明确降级」分支。改为 `stdio: ['ignore','pipe','ignore']`；
-  另外 `headTimeMs`（只有 M06 会读）改成**配了 metrics 适配器才算**，没配就不起子进程。
-  测试输出里的该类噪音 14 处 → 0。
-- **`.gitignore` 的 `lib/` / `es/` 未锚定仓库根**，把 `__fixtures__/*/src/shared/lib/**` 一并吞掉：
-  夹具文件从来没进过 git，干净克隆下 6 个夹具缺文件、自检与 2 个测试恒失败。已改为 `/lib/` `/es/`，
-  并**补齐了全部 14 个缺失文件**（见下）。`pnpm self-test` 恢复 **17/17**，测试 **131 通过 / 0 失败**。
-- **`M02` 的发现项改用配置根相对路径**（原来是覆盖率产物的绝对路径 `report.path`，与 M06 不一致）：
-  绝对路径写进报告与棘轮基线后，换机器/换 CI 必然对不上 —— 这是真·假红来源。
-  夹具里那两处机器相关数据（`coverage-summary.json` 的键、`expect.json` 里 M02 的 `file`）同步改成相对路径。
-- `tests/fixtures.test.mjs` 读的是不存在的 `item.reason`（`runSelfTest` 给的字段是 `message`），
-  导致夹具失败原因一直打印成 `undefined` —— 夹具回归红的时候看不见为什么红。
-
 ### 补齐的夹具（曾被 `.gitignore` 吞掉，按 `expect.json` 的期望重建）
 
 `violations` / `adapters` / `graph` / `hygiene-context` / `rules` / `coverage` 六组共 14 个文件：
@@ -860,6 +872,21 @@
   （tsconfig references、baseUrl、损坏基线、git scope 三种模式、CLI 失败分支）。
 - **测试缝**：`run(argv, { packageRoot })` 与 `createProgram(version)` 可注入，CLI 失败分支得以同进程覆盖
   （spawn 子进程的执行不会被父进程覆盖率统计合并）。
+
+### Fixed
+
+- **没有 git 时不再把 git 自己的报错透传到用户屏幕**（`致命错误：不是 git 仓库…`）：`execFileSync` 的 stderr 默认透传，
+  而三处 git 调用本来就 `catch` 掉走「明确降级」分支。改为 `stdio: ['ignore','pipe','ignore']`；
+  另外 `headTimeMs`（只有 M06 会读）改成**配了 metrics 适配器才算**，没配就不起子进程。
+  测试输出里的该类噪音 14 处 → 0。
+- **`.gitignore` 的 `lib/` / `es/` 未锚定仓库根**，把 `__fixtures__/*/src/shared/lib/**` 一并吞掉：
+  夹具文件从来没进过 git，干净克隆下 6 个夹具缺文件、自检与 2 个测试恒失败。已改为 `/lib/` `/es/`，
+  并**补齐了全部 14 个缺失文件**（见下）。`pnpm self-test` 恢复 **17/17**，测试 **131 通过 / 0 失败**。
+- **`M02` 的发现项改用配置根相对路径**（原来是覆盖率产物的绝对路径 `report.path`，与 M06 不一致）：
+  绝对路径写进报告与棘轮基线后，换机器/换 CI 必然对不上 —— 这是真·假红来源。
+  夹具里那两处机器相关数据（`coverage-summary.json` 的键、`expect.json` 里 M02 的 `file`）同步改成相对路径。
+- `tests/fixtures.test.mjs` 读的是不存在的 `item.reason`（`runSelfTest` 给的字段是 `message`），
+  导致夹具失败原因一直打印成 `undefined` —— 夹具回归红的时候看不见为什么红。
 
 ## [0.1.4] - 2026-09-23
 

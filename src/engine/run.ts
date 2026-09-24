@@ -22,16 +22,8 @@ import {
 } from './report.js'
 import { scanProject, type ScanResult } from './scan.js'
 import type { Pack } from './pack.js'
-import type {
-  Config,
-  Diagnostic,
-  Domain,
-  Finding,
-  Level,
-  Rule,
-  RuleContext,
-  Severity,
-} from './types.js'
+import type { Diagnostic } from './codes.js'
+import type { Config, Domain, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { applyReportFilters } from './filters.js'
 import { gitChangedFiles, gitHeadTimeMs, gitIgnoredPaths, stagedContentsOf } from './git.js'
 import { exists, globToRegExp } from './util.js'
