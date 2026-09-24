@@ -1,8 +1,15 @@
 import { fingerprintsOf } from '../../../data/kit-fingerprints.js'
 import { contrastRatio, flatten, resolveColor } from '../../../engine/css.js'
-import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
+import type { Finding, Rule } from '../../../engine/types.js'
 
-import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-shared.js'
+import {
+  cssFiles,
+  designParams,
+  finding,
+  isTokenFile,
+  tryRead,
+  vendorPatterns,
+} from './design-shared.js'
 
 /* ---------------- D07 对比度基线 ---------------- */
 
@@ -100,16 +107,6 @@ export const storageKeyTwins: Rule = {
 
 /* ---------------- D10 / D10b vendor 边界 ---------------- */
 
-function vendorPatterns(ctx: RuleContext): { selectors: RegExp[]; vars: RegExp[] } | null {
-  const adapter = Object.values(ctx.config.adapters).find((item) => item.facet === 'ui-kit') as
-    { vendorSelectors?: string[]; vendorVars?: string[] } | undefined
-  if (!adapter?.vendorSelectors?.length) return null
-  return {
-    selectors: adapter.vendorSelectors.map((pattern) => new RegExp(pattern)),
-    vars: (adapter.vendorVars ?? []).map((pattern) => new RegExp(pattern)),
-  }
-}
-
 export const vendorSelectorsConfined: Rule = {
   id: 'D10',
   domain: 'design',
@@ -122,11 +119,14 @@ export const vendorSelectorsConfined: Rule = {
     const params = designParams(ctx)
     const patterns = vendorPatterns(ctx)
     if (!patterns) return []
+    const hitSelector = (selector: string): boolean =>
+      patterns.selectors.some((regex) => regex.test(selector))
+    const hitVar = (name: string): boolean => patterns.vars.some((regex) => regex.test(name))
     const out: Finding[] = []
     for (const file of cssFiles(ctx)) {
       if (file.rel.startsWith(`${params.vendorDir}/`)) continue
       for (const item of file.selectors) {
-        if (patterns.selectors.some((regex) => regex.test(item.selector))) {
+        if (hitSelector(item.selector)) {
           out.push(
             finding(
               'D10',
@@ -134,6 +134,22 @@ export const vendorSelectorsConfined: Rule = {
               item.line,
               `组件库选择器出现在 vendor 之外：${item.selector.slice(0, 40)}`,
             ),
+          )
+        }
+      }
+      // 变量前缀同样只许出现在 vendor 目录（DESIGN §5.2 的 D10 就是这么定的）——
+      // 定义（`--ant-x: …`）与引用（`var(--ant-x)`）都算：直接消费组件库变量就是没走语义令牌
+      for (const item of file.vars) {
+        if (hitVar(item.name)) {
+          out.push(
+            finding('D10', file.rel, item.line, `组件库变量出现在 vendor 之外：${item.name}`),
+          )
+        }
+      }
+      for (const item of file.varRefs) {
+        if (hitVar(item.name)) {
+          out.push(
+            finding('D10', file.rel, item.line, `组件库变量出现在 vendor 之外：var(${item.name})`),
           )
         }
       }

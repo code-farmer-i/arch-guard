@@ -116,6 +116,38 @@ export function cssFiles(ctx: RuleContext): CssFile[] {
     })
 }
 
+/**
+ * 适配表声明的 vendor 选择器 / 变量前缀（编译成正则）。
+ *
+ * **D10 / D10b / P11 共用这一份** —— 曾经各自 `new RegExp(pattern)` 并拿**整份文件文本**去 test，
+ * 于是 `vendorVars: ['^--ant-']` 里的 `^`（本意是"变量名开头"）变成了"文件开头"：
+ * 变量不在第一行就检测不到 → D10 漏检、P11 误报「零使用」。
+ * 匹配必须落在**结构化结果**上：选择器比选择器、变量比变量名（见 `usesVendorPatterns`）。
+ */
+export function vendorPatterns(ctx: RuleContext): { selectors: RegExp[]; vars: RegExp[] } | null {
+  const adapter = Object.values(ctx.config.adapters).find((item) => item.facet === 'ui-kit') as
+    { vendorSelectors?: string[]; vendorVars?: string[] } | undefined
+  const selectors = (adapter?.vendorSelectors ?? []).map((pattern) => new RegExp(pattern))
+  const vars = (adapter?.vendorVars ?? []).map((pattern) => new RegExp(pattern))
+  if (selectors.length === 0 && vars.length === 0) return null
+  return { selectors, vars }
+}
+
+/** 这个 CSS 文件里有没有出现适配表声明的 vendor 选择器 / 变量（定义与引用都算） */
+export function usesVendorPatterns(
+  file: CssFile,
+  patterns: { selectors: RegExp[]; vars: RegExp[] },
+): boolean {
+  const selectorHit = (selector: string): boolean =>
+    patterns.selectors.some((regex) => regex.test(selector))
+  const varHit = (name: string): boolean => patterns.vars.some((regex) => regex.test(name))
+  return (
+    file.selectors.some((item) => selectorHit(item.selector)) ||
+    file.vars.some((item) => varHit(item.name)) ||
+    file.varRefs.some((item) => varHit(item.name))
+  )
+}
+
 export const isTokenFile = (rel: string, params: DesignParams): boolean =>
   rel.startsWith(`${params.tokenDir}/`)
 

@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D10",
+      "file": "src/shared/components/ui/Card.module.css"
+    }
+  ],
+  "exact": true
+}

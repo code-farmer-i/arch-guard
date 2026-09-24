@@ -2,6 +2,7 @@ import { fingerprintsOf } from '../../../data/kit-fingerprints.js'
 import type { Adapter } from '../../../engine/types.js'
 import { wheelFingerprints } from '../../../data/wheel-fingerprints.js'
 import { createRule } from '../../../engine/rule.js'
+import { cssFiles, usesVendorPatterns, vendorPatterns } from './design-shared.js'
 import { knownIconPackages } from '../../../data/icon-packages.js'
 import type { Facts, Finding, Rule } from '../../../engine/types.js'
 
@@ -238,19 +239,11 @@ export const adapterActuallyUsed: Rule = createRule({
     if (packages.length === 0) return []
     // ① TS 侧：有没有 import 它声明的包
     if (packages.some((pkg) => ctx.graph.externals.has(pkg))) return []
-    // ② CSS 侧：有没有出现它声明的 vendor 选择器 / 变量前缀（有项目只在样式里用组件库）
-    const patterns = [...(adapter?.vendorSelectors ?? []), ...(adapter?.vendorVars ?? [])]
-    const usedInCss =
-      patterns.length > 0 &&
-      patterns.some((pattern) => {
-        const regex = new RegExp(pattern)
-        return ctx.records.some((record) => {
-          if (record.kind !== 'css') return false
-          const text = ctx.sourceOf(record.rel)
-          return text !== undefined && regex.test(text)
-        })
-      })
-    if (usedInCss) return []
+    // ② CSS 侧：有没有出现它声明的 vendor 选择器 / 变量前缀（有项目只在样式里用组件库）。
+    //    匹配必须落在**解析后的选择器 / 变量名**上：拿整份文件文本去 test 时，
+    //    `^--ant-` 这种锚点只命中"文件开头"，变量不在第一行就被判成"零使用"（实测误报）。
+    const patterns = vendorPatterns(ctx)
+    if (patterns && cssFiles(ctx).some((file) => usesVendorPatterns(file, patterns))) return []
     return [
       finding(
         'P11',

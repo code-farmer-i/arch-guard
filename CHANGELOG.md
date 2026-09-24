@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### Fixed（vendor 边界：D10 漏检变量、P11 锚点误报）
+
+- **D10 现在也守变量前缀**（DESIGN §5.2 一直是这么写的：「选择器前缀**与变量前缀**只许出现在 `styles/vendor/**`」，
+  而实现只遍历了 `file.selectors`）：`--ant-*` 出现在 vendor 目录之外——无论定义（`--ant-local: …`）
+  还是引用（`var(--ant-color-primary)`）——都报错。实测漏检：把变量放进 `src/shared/ui/styles/base.css`，
+  `--only=D10,D10b` **零报告**，正是这条规则要防的假绿。
+- **P11 不再误报「零使用」**：原先拿适配器的原始正则去 test **整份文件文本**，而 `vendorVars` 写的是 `^--ant-`
+  （本意是"变量名开头"，没有 `m` 标志时却成了"文件开头"）—— 变量不在第一行就检测不到，
+  于是**只在 CSS 里用组件库变量**（不 import 包）的项目被无端 warn。现在 D10 / D10b / P11
+  **共用 `design-shared.ts` 的 `vendorPatterns` / `usesVendorPatterns`**：编译一份，匹配**解析后**的选择器与变量名。
+- 夹具与测试：新增 `__fixtures__/vendor-var-leak`（变量漏到 vendor 之外，同时钉住 P11 不误报）+
+  `tests/vendor-boundary.test.mjs`（4 条：D10 定义/引用各报一条、vendor 内合法零噪音、
+  P11 认出 CSS-only 用法、P11 真的零使用仍报 warn）。
+
 ### Fixed（过滤器与空扫描域：三条「绿而不自述」的洞）
 
 - **新增规则 S24「契约扫描域不得为空」**：`include` 非空却一个源码文件都没匹配到 → **error**，并标为全局

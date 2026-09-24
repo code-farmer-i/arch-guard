@@ -1,0 +1,4 @@
+.card {
+  --ant-local: red;
+  color: var(--ant-color-primary);
+}
