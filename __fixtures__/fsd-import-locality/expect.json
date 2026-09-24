@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S32",
+      "file": "src/pages/crews/ui/CrewsPage.tsx"
+    },
+    {
+      "rule": "S32",
+      "file": "src/entities/crew/ui/CrewCard.tsx"
+    }
+  ],
+  "exact": true
+}

@@ -51,6 +51,35 @@ const DEFAULT_SHARED_SEGMENTS = ['ui', 'lib', 'api', 'config', 'i18n', 'routes']
 const DEFAULT_APP_SEGMENTS = ['router', 'routes', 'store', 'styles', 'entrypoint', 'i18n']
 
 /**
+ * 入口文件的扩展名集合。
+ *
+ * 社区的文件系统模型认**任何** `index.*`（`isIndex` 只看文件名前缀），我们只认**代码**扩展名 ——
+ * `index.css` / `index.json` 不是公开面，把它们当入口等于把"模块的接口"交给一份样式表。
+ * 这是唯一一处**有意更严**（见 docs/ALTERNATIVES.md 的「已知边界」）。
+ */
+const INDEX_EXT = '{ts,tsx,js,jsx,mjs,cjs}'
+/** 这些片段**根**不要求 index，改为要求一级子目录各有 index（每个组件 / 模块一个目录） */
+const CHILD_INDEX_SEGMENTS = new Set(['ui', 'lib'])
+/**
+ * 常规片段名（社区 `conventionalSegmentNames`）—— 只用于 S25 的保留名表：
+ * 片段**内部**再出现这些名字会让人分不清层级（`shared/lib/ui/…`）。
+ */
+const CONVENTIONAL_SEGMENTS = ['ui', 'api', 'lib', 'model', 'config']
+
+/** 片段清单只解析一次：角色表与结构声明必须看到同一份（两处真相会静默走偏） */
+function segmentLists(options: FsdOptions): {
+  segments: string[]
+  sharedSegments: string[]
+  appSegments: string[]
+} {
+  return {
+    segments: options.segments ?? DEFAULT_SEGMENTS,
+    sharedSegments: options.sharedSegments ?? DEFAULT_SHARED_SEGMENTS,
+    appSegments: options.appSegments ?? DEFAULT_APP_SEGMENTS,
+  }
+}
+
+/**
  * Feature-Sliced Design 范式的角色表 [^fsd]。
  *
  * 三层模型全部落成**数据**：层 → 层号；切片 → `group: 'slice'`（组维度）；
@@ -78,9 +107,10 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
   const sliced = options.slicedLayers ?? { pages: 5, widgets: 4, features: 3, entities: 2 }
   const appLayer = options.appLayer ?? 6
   const sharedLayer = options.sharedLayer ?? 1
-  const segments = options.segments ?? DEFAULT_SEGMENTS
-  const sharedSegments = options.sharedSegments ?? DEFAULT_SHARED_SEGMENTS
-  const appSegments = options.appSegments ?? DEFAULT_APP_SEGMENTS
+  const lists = segmentLists(options)
+  const segments = lists.segments
+  const sharedSegments = lists.sharedSegments
+  const appSegments = lists.appSegments
   const grouped = options.slicesGrouped === true
 
   const roles: RoleDescriptor[] = [
@@ -90,14 +120,14 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
 
   // app：**无切片层** —— 直接就是片段（FSD 的 sliceless layer）
   roles.push(
-    { id: 'fsd:app:index', pattern: `${src}/app/index.{ts,tsx}`, layer: appLayer },
+    { id: 'fsd:app:index', pattern: `${src}/app/index.${INDEX_EXT}`, layer: appLayer },
     // 环境特定入口（官方 public-api 页：`index.server.ts` / `index.client.ts`）
     {
       id: 'fsd:app:index',
-      pattern: `${src}/app/index.{server,client}.{ts,tsx}`,
+      pattern: `${src}/app/index.{server,client}.${INDEX_EXT}`,
       layer: appLayer,
     },
-    { id: 'fsd:app:main', pattern: `${src}/app/main.{ts,tsx}`, layer: appLayer },
+    { id: 'fsd:app:main', pattern: `${src}/app/main.${INDEX_EXT}`, layer: appLayer },
     ...appSegments.map((segment) => ({
       id: `fsd:app:${segment}`,
       pattern: `${src}/app/${segment}/**`,
@@ -110,7 +140,7 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
   for (const [layer, layerNumber] of Object.entries(sliced)) {
     roles.push({
       id: `fsd:${layer}:index`,
-      pattern: `${src}/${layer}/${slice}/index.{ts,tsx}`,
+      pattern: `${src}/${layer}/${slice}/index.${INDEX_EXT}`,
       layer: layerNumber,
       group: 'slice',
       entry: true,
@@ -118,31 +148,79 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
     // 环境特定公开面（官方 public-api 页）：同样是这个切片的公开面
     roles.push({
       id: `fsd:${layer}:index`,
-      pattern: `${src}/${layer}/${slice}/index.{server,client}.{ts,tsx}`,
+      pattern: `${src}/${layer}/${slice}/index.{server,client}.${INDEX_EXT}`,
       layer: layerNumber,
       group: 'slice',
       entry: true,
     })
     roles.push(
-      ...segments.map((segment) => ({
-        id: `fsd:${layer}:${segment}`,
-        pattern: `${src}/${layer}/${slice}/${segment}/**`,
-        layer: layerNumber,
-        group: 'slice',
-        // `pages` 层的 `ui` 片段就是页面组件本身 → S16 对它用 `viewLines`
-        // （注意：改 `slicedLayers` 把页面层改名后这里不再匹配，会退化成 fileLines —— 见 S16 的告警）
-        ...(layer === 'pages' && segment === 'ui' ? { pageLike: true as const } : {}),
-      })),
+      // 片段两种形态都算：`model/` 目录，以及**单文件片段** `model.ts`
+      // （社区模型按"去掉扩展名后的名字"认片段，`entities/user/model.ts` 在它眼里是合法切片；
+      //   只认目录形态会把这个常见写法误报成「文件不在目录契约内」）
+      ...segments.flatMap((segment) => [
+        {
+          id: `fsd:${layer}:${segment}`,
+          pattern: `${src}/${layer}/${slice}/${segment}/**`,
+          layer: layerNumber,
+          group: 'slice',
+          // `pages` 层的 `ui` 片段就是页面组件本身 → S16 对它用 `viewLines`
+          // （注意：改 `slicedLayers` 把页面层改名后这里不再匹配，会退化成 fileLines —— 见 S16 的告警）
+          ...(layer === 'pages' && segment === 'ui' ? { pageLike: true as const } : {}),
+        },
+        {
+          id: `fsd:${layer}:${segment}:file`,
+          pattern: `${src}/${layer}/${slice}/${segment}.{ts,tsx}`,
+          layer: layerNumber,
+          group: 'slice',
+          ...(layer === 'pages' && segment === 'ui' ? { pageLike: true as const } : {}),
+        },
+      ]),
     )
   }
 
-  // shared：无切片层
+  // shared：无切片层。片段的**入口**单独成角色，且标 `exclusive`：
+  // `src/shared/ui/**` 会把 `src/shared/ui/button/index.ts` 也吃掉，一个文件命中两个角色 = 歧义（S01）。
+  // 入口仍是角色表里的数据（`entry: true`），规则不认文件名。
   roles.push(
-    ...sharedSegments.map((segment) => ({
-      id: `fsd:shared:${segment}`,
-      pattern: `${src}/shared/${segment}/**`,
-      layer: sharedLayer,
-    })),
+    ...sharedSegments.flatMap((segment) => {
+      const entryRoles = CHILD_INDEX_SEGMENTS.has(segment)
+        ? [
+            // 一级子目录各有入口（每个组件 / 模块一个目录）
+            {
+              id: `fsd:shared:${segment}:index`,
+              pattern: `${src}/shared/${segment}/{child}/index.${INDEX_EXT}`,
+              layer: sharedLayer,
+              entry: true,
+              exclusive: true,
+            },
+            // 片段**根**的入口：有它就整段跳过子目录检查（与社区模型同口径 ——
+            // 它先看片段根有没有 index，有就不再逐个要求子目录）
+            {
+              id: `fsd:shared:${segment}:root-index`,
+              pattern: `${src}/shared/${segment}/index.${INDEX_EXT}`,
+              layer: sharedLayer,
+              entry: true,
+              exclusive: true,
+            },
+          ]
+        : [
+            {
+              id: `fsd:shared:${segment}:index`,
+              pattern: `${src}/shared/${segment}/index.${INDEX_EXT}`,
+              layer: sharedLayer,
+              entry: true,
+              exclusive: true,
+            },
+          ]
+      return [
+        ...entryRoles,
+        {
+          id: `fsd:shared:${segment}`,
+          pattern: `${src}/shared/${segment}/**`,
+          layer: sharedLayer,
+        },
+      ]
+    }),
   )
 
   return roles
@@ -163,6 +241,18 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
  */
 export function fsd(options: FsdOptions = {}): Preset {
   const src = options.src ?? 'src'
+  const lists = segmentLists(options)
+  // 层号只解析一次：角色表与结构声明必须看到同一份
+  const slicedLayers = options.slicedLayers ?? { pages: 5, widgets: 4, features: 3, entities: 2 }
+  const layers = {
+    app: options.appLayer ?? 6,
+    pages: slicedLayers.pages ?? 5,
+    entities: slicedLayers.entities ?? 2,
+  }
+  // shared 的片段角色：**全部**登记的片段（不是只算常规 5 个）。
+  // 社区模型的 `getSegments(layer)` 是"除 index 外的所有子项"，所以 `shared/i18n` 同样要公开面、
+  // 同样进重名词汇表；规则里再按"真实存在"过滤一次。
+  const sharedSegmentRoles = lists.sharedSegments.map((segment) => `fsd:shared:${segment}`)
   return {
     ...library({ src, entry: [] }),
     // 覆盖 library 的范式标识：FSD 也是一个范式，不能和库范式混用
@@ -181,10 +271,45 @@ export function fsd(options: FsdOptions = {}): Preset {
       storageFile: `${src}/shared/config/storage.ts`,
       i18nDir: `${src}/shared/i18n/locales`,
     },
-    // FSD 的三条结构规矩，全部由**通用规则**判：
-    //   order     → S21 层序单向（app 6 > pages 5 > widgets 4 > features 3 > entities 2 > shared 1）
-    //   isolate   → S22 同层切片不许互相引用
-    //   publicApi → S23 切片必须有 index.ts，且不许绕过它直引内部
-    structure: { order: true, isolate: ['slice'], publicApi: ['slice'] },
+    // FSD 的结构规矩，全部由**通用规则**判（引擎里没有一行 FSD 字面量）：
+    //   order            → S21 层序单向（app 6 > pages 5 > widgets 4 > features 3 > entities 2 > shared 1）
+    //   isolate          → S22 同层切片不许互相引用
+    //   publicApi        → S23①② 切片必须有 index.ts，且不许绕过它直引内部
+    //   publicApiUnits   → S23③ shared 的**每个**片段都要有公开面（ui / lib 改为要求一级子目录各有 index）
+    //   segmentedGroups  → S35 切片不能只有 index.ts 这个空壳
+    //   reservedNames    → S25 片段内部不许再嵌套 ui / lib 这种片段名目录
+    //   groupCountLimits → S26 同一层超过 20 个切片就该分组了（社区默认值）
+    //   directoryItemLimits → S27 `shared/lib` 一级子项超过 15 就该分组了
+    //   groupInDegree    → S28 死切片：零引用必报；只被 app 引用放过；pages 层整层跳过
+    //   nameCollisions   → S29 切片名 / 组路径段撞上 shared 的片段名
+    //   repetitiveNaming → S30 同一层每个组名都带同一个词
+    //   pluralConsistency→ S31 `entities` 层单复数混用
+    structure: {
+      order: true,
+      isolate: ['slice'],
+      publicApi: ['slice'],
+      publicApiUnits: sharedSegmentRoles.map((role) => ({
+        role,
+        ...(CHILD_INDEX_SEGMENTS.has(role.slice(role.lastIndexOf(':') + 1))
+          ? { children: true }
+          : {}),
+      })),
+      segmentedGroups: ['slice'],
+      // `@x` 是 FSD 留给"跨引用公开面"的保留名，和常规片段名一样不许随便当目录名
+      reservedNames: [...new Set([...CONVENTIONAL_SEGMENTS, '@x'])],
+      groupCountLimits: [{ dimension: 'slice', max: 20 }],
+      directoryItemLimits: [{ role: 'fsd:shared:lib', max: 15 }],
+      groupInDegree: [
+        {
+          dimension: 'slice',
+          min: 1,
+          exceptLayers: [layers.pages],
+          singleFromLayers: [layers.app],
+        },
+      ],
+      nameCollisions: [{ dimension: 'slice', vocabularyRoles: sharedSegmentRoles }],
+      repetitiveNaming: ['slice'],
+      pluralConsistency: [{ dimension: 'slice', layers: [layers.entities] }],
+    },
   }
 }

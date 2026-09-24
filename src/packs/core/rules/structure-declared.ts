@@ -1,26 +1,14 @@
 import type { Finding, Rule } from '../../../engine/types.js'
 
+import { finding, unitDirOf } from './structure-util.js'
+
 /**
- * **声明驱动**的结构规则（S21–S23）。
+ * **声明驱动**的结构规则：分层单向、组隔离、公开面（S21–S23）。
  *
  * 这一组不认识任何具体方法论：层号、组、入口全部来自
- * `structure: { order, isolate, publicApi }` 与角色描述符上的 `group` / `entry`。
+ * `structure: { order, isolate, publicApi, publicApiUnits }` 与角色描述符上的 `group` / `entry`。
  * 所以同一份引擎能表达三根拓扑、FSD、Atomic Design —— 换范式只改声明，不改这里。
  */
-
-const finding = (
-  rule: string,
-  file: string,
-  line: number,
-  text: string,
-  hint?: string,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-})
 
 /* ---------------- S21 分层单向（通用：库 / 自定义范式） ---------------- */
 
@@ -117,9 +105,11 @@ export const groupIsolation: Rule = {
 /* ---------------- S23 公开面（组必须有入口，且组外不许绕过它） ---------------- */
 
 /**
- * 两条判据（都由 `structure.publicApi` 里的组维度触发）：
+ * 三条判据（前两条由 `structure.publicApi` 里的组维度触发，第三条由 `structure.publicApiUnits` 触发）：
  *   ① 某个组一个入口文件都没有 → 报一条（锚在组内字典序最小的文件上，保证报告稳定）；
- *   ② 从**组外**（或同维度另一个组）直接引用组内**非入口**文件 = 绕过公开面。
+ *   ② 从**组外**（或同维度另一个组）直接引用组内**非入口**文件 = 绕过公开面；
+ *   ③ 没有组维度的"单元"（如 `shared/ui`：角色 pattern 里没有 `{name}` 捕获）也必须有入口；
+ *      `children: true` 时改为要求它的一级子目录各有入口。
  *
  * "入口"由角色描述符的 `entry: true` 标记 —— 仍然是角色表里的一份数据，不是硬编码文件名：
  * 我们三根范式的入口是 `routes.tsx`，FSD 的是 `index.ts`，同一条规则都能表达。
@@ -133,7 +123,8 @@ export const declaredPublicApi: Rule = {
   hint: '组必须有公开面入口（三根是 routes.tsx、FSD 是 index.ts），且组外只能从入口进',
   run: (ctx) => {
     const dimensions = new Set(ctx.config.structure.publicApi)
-    if (dimensions.size === 0) return []
+    const units = ctx.config.structure.publicApiUnits ?? []
+    if (dimensions.size === 0 && units.length === 0) return []
     const entryRoles = new Set(
       ctx.config.roles.filter((role) => role.entry === true).map((role) => role.id),
     )
@@ -193,6 +184,65 @@ export const declaredPublicApi: Rule = {
           ),
         )
       }
+    }
+
+    // ③ 无组维度的单元（没有 {name} 捕获的角色目录）也要有公开面
+    for (const unit of units) {
+      const roleRecords = ctx.records.filter((record) => record.role === unit.role)
+      const dir = unitDirOf(ctx.config.roles, unit.role, roleRecords)
+      if (dir === null) continue
+      // 单元里的文件按**目录**收，不按角色收：入口文件自己的角色是另一个 id（`…:index`），
+      // 只按单元角色收会把入口漏掉，于是"有 index.ts 也说没有"（实测踩过）。
+      const members = ctx.records
+        .map((record) => record.rel)
+        .filter((rel) => rel.startsWith(`${dir}/`))
+        .sort()
+      if (members.length === 0) continue
+      if (unit.children === true) {
+        // 片段根自己就有入口 → 不再逐个要求一级子目录（与社区文件系统模型同口径：
+        // 它先看 `getIndexes(segment)`，非空就整段跳过；否则会对着"已经用 barrel 收口"的项目刷一堆误报）
+        const rootDepth = dir.split('/').length + 1
+        const rootHasEntry = members.some(
+          (rel) =>
+            rel.split('/').length === rootDepth && entryRoles.has(byRel.get(rel)?.role ?? ''),
+        )
+        if (rootHasEntry) continue
+        // 要求**一级子目录**各有入口（FSD 的 shared/ui、shared/lib 是这个形状）
+        const children = new Map<string, string>()
+        for (const rel of members) {
+          const rest = rel === dir ? '' : rel.slice(dir.length + 1)
+          const [head, ...tail] = rest.split('/')
+          if (head === undefined || head === '' || tail.length === 0) continue
+          if (!children.has(head)) children.set(head, rel)
+        }
+        for (const [child, anchor] of children) {
+          const hasEntry = members.some(
+            (rel) =>
+              rel.startsWith(`${dir}/${child}/`) && entryRoles.has(byRel.get(rel)?.role ?? ''),
+          )
+          if (hasEntry) continue
+          out.push(
+            finding(
+              'S23',
+              anchor,
+              1,
+              `单元 ${dir} 的子目录「${child}」没有公开面入口（单元外只能从入口进）`,
+              `在 ${dir}/${child}/ 放一个入口文件，或在角色表里把该文件标记为 entry: true`,
+            ),
+          )
+        }
+        continue
+      }
+      const hasEntry = members.some((rel) => entryRoles.has(byRel.get(rel)?.role ?? ''))
+      if (hasEntry) continue
+      out.push(
+        finding(
+          'S23',
+          members[0] as string,
+          1,
+          `单元 ${dir} 没有公开面入口：目录里的文件都没命中标记为 entry 的角色`,
+        ),
+      )
     }
     return out
   },

@@ -1,0 +1,1 @@
+export { CrewCard } from './model'

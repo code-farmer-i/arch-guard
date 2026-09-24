@@ -141,16 +141,18 @@ test('组合：addRoles 追加在范式角色表之上，roles 仍是整体替�
   )
 
   // 整体替换：overrides.roles 一给，范式那套就不在了（老语义不变）。
-  // 但 `fsd()` 还声明着结构（组维度 `slice` / 角色选择器），替换后的角色表必须能"认领"它们，
-  // 否则那条声明永远不会生效 —— 结构声明校验会直接报错（fail-closed，见 engine/structure.ts）。
+  // 用 `library()` 演示这条语义：它只有层序声明，没有"指向具体角色"的结构声明。
   const replaced = await load(
-    'fsd()',
-    ", overrides: { roles: [{ id: 'only', pattern: 'src/{slice}/**', layer: 1, group: 'slice' }] }",
+    'library({ entry: [] })',
+    ", overrides: { roles: [{ id: 'only', pattern: 'src/**', layer: 1 }] }",
   )
   assert.deepEqual(
     replaced.roles.map((role) => role.id),
     ['only'],
   )
+  // 换掉角色表却仍留着 `fsd()` 会 fail-fast：它的结构声明指向 fsd 自己的角色与组维度，
+  // 整体替换后这些声明永远不生效 —— 结构声明校验直接报错（见 engine/structure.ts）。
+  // 要自己的角色表就用 library()/canonical()，别留着 fsd()。
   await assert.rejects(
     () => load('fsd()', ", overrides: { roles: [{ id: 'only', pattern: 'src/**', layer: 1 }] }"),
     /没有任何角色用它做组维度/,

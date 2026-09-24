@@ -141,7 +141,40 @@ test('presets：fsd() 把 FSD 三层模型落成数据（层号 + 切片维度 +
     '未登记的片段不该出现在角色表里',
   )
   // 三条结构规矩全部走通用规则
-  assert.deepEqual(preset.structure, { order: true, isolate: ['slice'], publicApi: ['slice'] })
+  // 结构声明全在数据里（规则不认方法论）：公开面 / 空壳组 / 保留名 / 规模阈值 / 死切片 / 命名
+  assert.deepEqual(preset.structure, {
+    order: true,
+    isolate: ['slice'],
+    publicApi: ['slice'],
+    publicApiUnits: [
+      { role: 'fsd:shared:ui', children: true },
+      { role: 'fsd:shared:lib', children: true },
+      { role: 'fsd:shared:api' },
+      { role: 'fsd:shared:config' },
+      { role: 'fsd:shared:i18n' },
+      { role: 'fsd:shared:routes' },
+    ],
+    segmentedGroups: ['slice'],
+    reservedNames: ['ui', 'api', 'lib', 'model', 'config', '@x'],
+    groupCountLimits: [{ dimension: 'slice', max: 20 }],
+    directoryItemLimits: [{ role: 'fsd:shared:lib', max: 15 }],
+    groupInDegree: [{ dimension: 'slice', min: 1, exceptLayers: [5], singleFromLayers: [6] }],
+    nameCollisions: [
+      {
+        dimension: 'slice',
+        vocabularyRoles: [
+          'fsd:shared:ui',
+          'fsd:shared:lib',
+          'fsd:shared:api',
+          'fsd:shared:config',
+          'fsd:shared:i18n',
+          'fsd:shared:routes',
+        ],
+      },
+    ],
+    repetitiveNaming: ['slice'],
+    pluralConsistency: [{ dimension: 'slice', layers: [2] }],
+  })
   // FSD 没有三根的「域 / 共享层」：置空让应用专属规则自然空转，而不是查不存在的目录假装检查过
   assert.equal(preset.layout.modules, '')
   assert.equal(preset.layout.shared, '')
@@ -243,4 +276,44 @@ test('presets：方案面（router / data-layer / styles）各自贡献 P12，ki
   // 组件库 / i18n 也纳入 P12（声明 antd 又 import mui 是同类混用）
   assert.equal(uiKit(antdKit()).enable.includes('P12'), true)
   assert.equal(i18n(i18nextKit({ languages: ['zh-CN'] })).enable.includes('P12'), true)
+})
+
+test('presets：fsd() 与社区文件系统模型对齐的几处形态', () => {
+  const roles = fsd().roles
+  const byId = (id) => roles.find((role) => role.id === id)
+
+  // ① 入口认**代码扩展名**（社区模型认任何 `index.*`；我们只认代码扩展名，见 ALTERNATIVES 的「已知边界」）
+  assert.match(byId('fsd:pages:index')?.pattern ?? '', /\{ts,tsx,js,jsx,mjs,cjs\}/)
+  assert.equal(byId('fsd:app:main')?.pattern, 'src/app/main.{ts,tsx,js,jsx,mjs,cjs}')
+  // 环境特定公开面（上游 v2.1 对齐）仍是公开面
+  assert.equal(byId('fsd:pages:index')?.entry, true)
+  assert.ok(
+    [...roles].some((role) =>
+      role.pattern.includes('index.{server,client}.{ts,tsx,js,jsx,mjs,cjs}'),
+    ),
+  )
+
+  // ② 单文件片段（`entities/user/model.ts`）合法，不是 S01
+  assert.equal(byId('fsd:entities:model:file')?.pattern, 'src/entities/{slice}/model.{ts,tsx}')
+  assert.equal(byId('fsd:entities:model:file')?.group, 'slice')
+
+  // ③ shared 片段有**根入口**角色：根有 index 就整段跳过子目录检查（与社区模型同口径）
+  assert.equal(
+    byId('fsd:shared:ui:root-index')?.pattern,
+    'src/shared/ui/index.{ts,tsx,js,jsx,mjs,cjs}',
+  )
+  assert.equal(byId('fsd:shared:ui:root-index')?.entry, true)
+  assert.equal(
+    byId('fsd:shared:ui:index')?.pattern,
+    'src/shared/ui/{child}/index.{ts,tsx,js,jsx,mjs,cjs}',
+  )
+  // 非常规片段（i18n / routes）的入口就是片段根的 index
+  assert.equal(
+    byId('fsd:shared:i18n:index')?.pattern,
+    'src/shared/i18n/index.{ts,tsx,js,jsx,mjs,cjs}',
+  )
+
+  // ④ 切片身份不受影响：入口仍带组维度，片段仍带 `group: 'slice'`
+  assert.equal(byId('fsd:pages:index')?.group, 'slice')
+  assert.equal(byId('fsd:pages:ui')?.group, 'slice')
 })

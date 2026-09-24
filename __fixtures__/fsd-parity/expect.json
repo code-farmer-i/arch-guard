@@ -1,0 +1,49 @@
+{
+  "findings": [
+    {
+      "rule": "S23",
+      "file": "src/shared/api/contract.ts"
+    },
+    {
+      "rule": "S23",
+      "file": "src/shared/lib/loose/util.ts"
+    },
+    {
+      "rule": "S25",
+      "file": "src/shared/config/lib/env.ts"
+    },
+    {
+      "rule": "S25",
+      "file": "src/shared/ui/card/ui/inner.ts"
+    },
+    {
+      "rule": "S26",
+      "file": "src/entities/crew/index.ts"
+    },
+    {
+      "rule": "S27",
+      "file": "src/shared/lib/format/index.ts"
+    },
+    {
+      "rule": "S28",
+      "file": "src/features/dead/ui/Dead.tsx"
+    },
+    {
+      "rule": "S29",
+      "file": "src/pages/config/index.ts"
+    },
+    {
+      "rule": "S30",
+      "file": "src/widgets/crews-widget/index.ts"
+    },
+    {
+      "rule": "S31",
+      "file": "src/entities/crew/index.ts"
+    },
+    {
+      "rule": "S35",
+      "file": "src/pages/empty/index.ts"
+    }
+  ],
+  "exact": true
+}
