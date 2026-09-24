@@ -1,12 +1,11 @@
 import { writeFileSync } from 'node:fs'
 import { aggregate, readCoverageReport, type CoverageReport } from './coverage.js'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 
 import { loadConfig } from './config.js'
 import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
-import { extractFacts, factInputOf } from './facts.js'
-import { disabledFactsCache, openFactsCache } from './facts-cache.js'
+import { collectSources } from './collect.js'
 import { buildGraph } from './graph.js'
 import { collectI18n } from './i18n.js'
 import { json, out } from './output.js'
@@ -23,10 +22,10 @@ import {
 } from './report.js'
 import { scanProject } from './scan.js'
 import type { Pack } from './pack.js'
-import type { Config, Domain, Facts, Finding, Level, Rule, RuleContext, Severity } from './types.js'
+import type { Config, Domain, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { applyReportFilters } from './filters.js'
-import { gitChangedFiles, gitHeadTimeMs, stagedContentsOf } from './git.js'
-import { exists, globToRegExp, readText } from './util.js'
+import { gitChangedFiles, gitHeadTimeMs, gitIgnoredPaths, stagedContentsOf } from './git.js'
+import { exists, globToRegExp } from './util.js'
 
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
 
@@ -124,21 +123,21 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     )
   }
 
-  const scan = scanProject(config)
+  // git 判定「不在仓库里」的路径（.gitignore / info/exclude / 全局）：
+  // **作为基础**叠加在宿主显式 `ignore` 之上，只作用于契约域外；取不到 git 就整层降级关闭。
+  const vcsIgnored = gitIgnoredPaths(config.root)
+  const scan = scanProject(config, vcsIgnored ? { vcsIgnored } : {})
   // 收窄扫描域是行为变更（域外文件不再报 S01），必须自述 —— 不许静默
   if (config.include.length > 0) {
     notices.push(
       `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
     )
   } else if (scan.records.length === 0) {
+    // 走到这里说明 include 不限（引擎默认）；下面还会单独说 ignore 的跳过数
     // include 不限（引擎默认）且全树 0 个源码：没有任何东西被判定，必须说出来。
     // include 非空的情况由 S24 报错（那是配置写错，不是空仓库）。
     notices.push('include 未限制，但全项目 0 个 ts/css 文件：本次没有任何东西被判定')
   }
-  const texts = new Map<string, string>()
-  const facts = new Map<string, Facts>()
-  const cssTexts = new Map<string, string>()
-
   /* ---- scope 提前算：`staged` 要影响**读哪份内容**（index blob vs 工作区），所以必须在解析之前 ---- */
   const scope = options.scope ?? 'full'
   const changed = scope === 'full' ? null : gitChangedFiles(config.root, scope)
@@ -157,45 +156,29 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     )
   }
 
-  // facts 缓存：解析结果只由「文件内容 + rel + role」决定，可以跨进程复用（见 facts-cache.ts）
-  const cache =
-    options.cache === false
-      ? disabledFactsCache()
-      : openFactsCache(config.root, (m) => notices.push(m))
-
-  // 契约域内的文件 + 域外文件（角色 `(outside)`）都要解析：
-  // 前者判定用，后者只为依赖图完整（测试作为可达根、跨域 import 边）。
-  for (const record of [...scan.records, ...scan.outside]) {
-    try {
-      // staged 的内容取自 index（pre-commit 检查的是"将提交的东西"，不是工作区）
-      const text = staged?.contents.get(record.rel) ?? readText(record.abs)
-      texts.set(record.rel, text)
-      if (record.kind === 'ts') {
-        const cached = cache.get(record, text)
-        if (cached) {
-          // 绝对路径不进缓存语义（换机器/换目录后必须刷新），其余字段都由内容决定
-          cached.file = record.abs
-          facts.set(record.rel, cached)
-        } else {
-          const extracted = extractFacts(factInputOf(record, text))
-          facts.set(record.rel, extracted)
-          cache.set(record, text, extracted)
-        }
-      } else if (record.kind === 'css') cssTexts.set(record.rel, text)
-    } catch (error) {
-      notices.push(`读取失败：${record.rel}（${(error as Error).message}）`)
-    }
-  }
-  cache.save()
-  const cacheStats = cache.stats()
-  if (options.cache !== false && cacheStats.hits + cacheStats.misses > 0) {
-    // 命中数必须自述：不然「缓存到底有没有生效、写在哪」只能靠猜
-    const where = cacheStats.path === null ? '(未落盘)' : relative(config.root, cacheStats.path)
+  // `ignore`（项目边界）跳过了什么必须自述：它是"别碰"，被跳过的东西**不进文件集、不解析、不进图**，
+  // 而报告此前完全不提它 —— 宿主把某个源码目录误写进 ignore 时，表现就是"悄无声息地不判了"
+  if (scan.vcsIgnored.length > 0) {
     notices.push(
-      `facts 缓存 ${where}：命中 ${cacheStats.hits}/${cacheStats.hits + cacheStats.misses}` +
-        (cacheStats.hits > 0 ? '（省下的就是解析）' : '（首次或缓存作废，本轮全量解析）'),
+      `因 .gitignore（git 判定）跳过 ${scan.vcsIgnored.length} 个文件：契约域外、不进文件集也不解析`,
     )
   }
+  if (scan.ignored.length > 0) {
+    notices.push(
+      `ignore（项目边界）命中 ${scan.ignored.length} 个文件，未进文件集也不解析：${config.ignore.join(' , ')}`,
+    )
+  }
+
+  // 读源码 → 提事实 → 缓存（见 collect.ts：契约域内 + 域外都要解析，staged 取 index 内容）
+  const collected = collectSources({
+    config,
+    records: scan.records,
+    outside: scan.outside,
+    staged: staged ? staged.contents : null,
+    useCache: options.cache !== false,
+    notice: (message) => notices.push(message),
+  })
+  const { texts, facts, cssTexts } = collected
 
   const graph = buildGraph({ config, files: scan.files, facts, cssTexts })
   const sourceOf = (rel: string): string | undefined => texts.get(rel)
@@ -436,7 +419,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   return {
     exitCode,
     config,
-    cache: { hits: cacheStats.hits, misses: cacheStats.misses },
+    cache: { hits: collected.cacheHits, misses: collected.cacheMisses },
     all,
     active,
     scope,

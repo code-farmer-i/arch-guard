@@ -311,7 +311,8 @@ src/
   index.ts          公共 API（宿主的唯一导入面）
   cli.ts            CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 报告
   engine/           引擎（与框架、与宿主布局都无关）
-    scan.ts           遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign
+    scan.ts           遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign；
+                      三层"别碰"：宿主 ignore / .gitignore（git 判定，只作用于契约域外）/ 产物目录数据表
     facts.ts          事实模型：AST/JSON → imports / exports / strings / calls / functions / comments
     facts-cache.ts    facts 的持久缓存（按文件内容 + rel + role）
     graph.ts          import 图 + 令牌引用图（可达 / 环 / 入度来源）
@@ -321,8 +322,10 @@ src/
     registry.ts       能力协商：requires 未满足的规则不注册并记入 skipped
     rule.ts           createRule：域 ↔ id 前缀、error 只落 L1–L3（代码强制）
     pack.ts           definePack：框架包声明
+    git.ts            scope 的 git 事实 + git 判定「不在仓库里」的路径（.gitignore 基础层）
     run.ts            编排：scope / 过滤器 / 报告 / --stats
     git.ts            scope 的 git 事实（changed / staged 的 index 内容 / since）
+    collect.ts        读源 + 提事实 + facts 缓存（契约域内与域外都解析；staged 取 index 内容）
     filters.ts        scope / --paths / --severity（只过滤报告且必须自述）
     explain.ts        --explain：角色 / 依赖 / 落点 / 适用规则（与 scan 共用角色匹配）
     docs.ts           文档管理块：块渲染 + 标记解析（--render-docs / --check-docs）
@@ -339,6 +342,7 @@ src/
   presets/          范式（canonical / library / fsd）+ 域预设（design-system / copy / hygiene / metrics /
                     stack / kit）+ 各面适配器（ui-kits/ · i18n-kits/，**纯数据**）
   data/             纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 源码形态扩展名
+                    （framework-sources）· 通用产物目录（build-output-dirs：walk 的兜底跳过名单）
                     （framework-sources）—— 引擎零库名，由 P4 自检强制
 __fixtures__/       27 个夹具项目：每条规则一对「违规必报 × 合规不报」样例
 examples/minimal/   干净的宿主示例（可搬运性验证）

@@ -138,6 +138,11 @@ export function explainPaths(input: ExplainInput): PathExplanation[] {
     if (resolution.status === 'ignored') {
       notes.push('被 ignore 命中：完全不属于这个项目（不进文件集、不解析）')
     }
+    if (resolution.status === 'vcs-ignored') {
+      notes.push(
+        '契约域外且被 .gitignore 忽略（git 判定）：连解析都不做 —— 想让它参与判定就把它移进契约域，或在 ignore 里显式声明',
+      )
+    }
     if (resolution.status === 'missing') {
       notes.push('无处安放：没有任何角色命中它 —— 按下面的槽位表选一个位置')
     }
@@ -204,6 +209,7 @@ const STATUS_LABEL: Record<RoleResolution['status'], string> = {
   missing: '无处安放',
   ambiguous: '歧义',
   outside: '契约扫描域之外',
+  'vcs-ignored': '契约域外 + 被 git 忽略',
   ignored: '被 ignore',
   resource: '资源文件',
 }

@@ -165,3 +165,44 @@ test('--paths：一个文件都没匹配上时必须自述（路径打错 = 什�
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('项目边界：通用产物目录默认不进文件集（data 表兜底，宿主忘了写 ignore 也不吃亏）', async () => {
+  const dir = makeProject()
+  try {
+    for (const name of ['.next', 'dist', '.svelte-kit']) {
+      mkdirSync(join(dir, name, 'deep'), { recursive: true })
+      writeFileSync(join(dir, name, 'deep', 'generated.ts'), "export * from './x'\n")
+    }
+    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    assert.equal(
+      result.all.some(
+        (finding) => finding.file.includes('.next/') || finding.file.includes('dist/'),
+      ),
+      false,
+      '产物目录里的代码不该被判定（也不该拖慢解析）',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('ignore（项目边界）跳过了什么必须自述 —— 否则"悄无声息地不判了"', async () => {
+  const dir = makeProject({ include: ['src/**'] })
+  try {
+    mkdirSync(join(dir, 'legacy'), { recursive: true })
+    writeFileSync(join(dir, 'legacy', 'old.ts'), "export * from './x'\n")
+    writeFileSync(
+      join(dir, 'arch.config.mjs'),
+      `import { canonical } from '${INDEX_URL}'\n` +
+        `export default { presets: [canonical()], overrides: { include: ['src/**'], ignore: ['legacy/**'] } }\n`,
+    )
+    const cli = await runCli([], dir)
+    // 计数里还会含 canonical() 默认 ignore 的 arch.config.mjs —— 断言"报出来了且有数"，不锁死具体数字
+    assert.match(cli.out, /ignore（项目边界）命中 \d+ 个文件/)
+    assert.match(cli.out, /legacy\/\*\*/)
+    const json = JSON.parse((await runCli(['--format=json'], dir)).out)
+    assert.ok(json.notices.some((notice) => notice.includes('ignore（项目边界）命中')))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

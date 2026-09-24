@@ -33,7 +33,7 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 | `src/engine/**`       | 引擎：扫描 / 事实模型 / 图 / 注册表 / 过滤器 / 报告 / scope / 依赖事实 / 自检                                                        |
 | `src/packs/**`        | 框架包 = 源码形态的落地：`core/`（共享规则实现）· `typescript/`（`tsPack`）· `react/`（`reactPack`）；后两者今天共用 `core` 的规则集 |
 | `src/presets/**`      | 预置与适配器：`canonical`（应用）/ `library`（库）/ `fsd` / `hygiene` / `ui-kits/*` / `i18n-kits/*`                                  |
-| `src/data/**`         | 纯数据表：组件库指纹、轮子指纹（引擎零库名）                                                                                         |
+| `src/data/**`         | 纯数据表：组件库指纹、轮子指纹、源码形态扩展名、通用产物目录（引擎零库名、零逻辑）                                                   |
 | `__fixtures__/**`     | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                                                                         |
 | `examples/minimal/**` | 干净的宿主示例（可搬运性验证）                                                                                                       |
 | `arch.config.mjs`     | 门禁自己的配置（库范式 + 依赖选型 P + 度量 M07/M09）                                                                                 |

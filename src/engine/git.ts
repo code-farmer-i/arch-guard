@@ -84,7 +84,64 @@ export function stagedContentsOf(
   return { contents, missing }
 }
 
+/**
+ * git 判定为「**不在仓库里**」的路径（`.gitignore` + `.git/info/exclude` + 全局 excludes 一起生效）。
+ *
+ * 为什么要问 git、而不是自己解析 `.gitignore`：否定 `!`、锚定 `/build`、目录专属 `build/`、
+ * **子目录里各自的 `.gitignore`**、`.git/info/exclude`、全局 excludes —— 自己解析写错任何一条，
+ * 后果都是"多跳了 = 静默不判"（这是最难发现的假绿）。git 的输出就是权威。
+ *
+ * 语义边界（都来自 git 自己，不需要我们猜）：
+ *   - **只列未跟踪且被忽略的路径**：被跟踪的文件永远不受 `.gitignore` 影响 —— 所以"提交在仓库里的源码"
+ *     不会被这一层误跳（`__fixtures__/`、`.scratch/` 这类仍归宿主的 `ignore` 管）；
+ *   - `--directory` 会把整个被忽略的目录收成一条 `dir/`（我们按前缀匹配）；
+ *   - 注意 git 自己的语义：**被忽略的目录内部无法再用 `!` 把文件救回来** —— 想让某个文件被看见，
+ *     要写成 `gen/*` + `!gen/keep.ts`（父目录本身不被忽略）。我们不做任何"修正"，照 git 的判定走。
+ *
+ * 取不到 git（不存在 / 不是仓库 / 命令失败）返回 null：这一层**降级关闭**，行为回到内置产物名单。
+ */
+export function gitIgnoredPaths(
+  root: string,
+): { files: Set<string>; dirs: string[]; count: number } | null {
+  try {
+    const git = (args: string[]): string =>
+      execFileSync('git', ['-C', root, ...args], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+    const top = git(['rev-parse', '--show-toplevel']).trim()
+    const raw = git(['ls-files', '--others', '--ignored', '--exclude-standard', '--directory'])
+    const real = (path: string): string => {
+      try {
+        return realpathSync(path)
+      } catch {
+        return path
+      }
+    }
+    const realRoot = real(root)
+    const realTop = real(top)
+    const files = new Set<string>()
+    for (const line of raw
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)) {
+      // 目录条目带结尾斜杠（`--directory` 的收拢形态）：**先记住再归一化**，
+      // 因为 `path.relative` 会把 `gen/` 吃成 `gen`，那样前缀匹配就失效了
+      const isDir = line.endsWith('/')
+      const rel = relative(realRoot, real(join(realTop, line)))
+        .split('\\')
+        .join('/')
+      files.add(isDir ? `${rel}/` : rel)
+    }
+    const dirs = [...files].filter((rel) => rel.endsWith('/'))
+    return { files, dirs, count: files.size }
+  } catch {
+    return null
+  }
+}
+
 /** git 变更集：untracked 必须纳入，rename 按改名处理（见 docs/DESIGN.md §6.8） */
+
 export function gitChangedFiles(
   root: string,
   scope: string,

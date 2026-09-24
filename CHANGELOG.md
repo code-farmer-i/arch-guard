@@ -4,6 +4,27 @@
 
 ## [Unreleased]
 
+### Changed（忽略分三层：宿主 `ignore` + `.gitignore` 基础层 + 产物目录数据表）
+
+- **通用产物目录名册从引擎常量变成数据表**（`src/data/build-output-dirs.ts`）：`node_modules` · `dist` · `build` · `out` ·
+  `coverage` · `.next` · `.nuxt` · `.output` · `.svelte-kit` · `.angular` · `.parcel-cache` · `.vite` · `.cache` ·
+  `.pnpm-store` · `.yarn` · `bower_components` · `.git` · `.turbo` · `.arch-guard-cache`。宿主忘了把它们写进 `ignore`
+  也不会去解析一堆生成代码；名单是可评审、可扩展的纯数据，引擎只负责用它。
+- **`.gitignore` 作为基础层自动生效**（新增 `gitIgnoredPaths()`）：**问 git** 而不是自己解析 ——
+  `.git/info/exclude`、全局 excludes、子目录各自的 `.gitignore`、`!` 否定全部算数；自己写的解析器错一条就是"多跳了 = 静默不判"。
+  宿主 `ignore` 仍在它之上继续追加（两层叠加，谁都没被替代）。三条边界规矩：
+  ① **只作用于契约域外**（契约域内即使被 gitignore 也照判 —— 宁可吵，不可静默不判）；
+  ② 只列**未跟踪**的忽略项（被跟踪的文件永远不受 `.gitignore` 影响，所以提交在仓库里的源码不会被误跳）；
+  ③ 没有 git / 不是仓库时**整层降级关闭**，回到 ①+③。
+- **跳过什么必须自述**：新增 `因 .gitignore（git 判定）跳过 N 个文件`（与 `ignore（项目边界）命中 N 个` 同级）。
+- 顺带修掉一个解析坑：`git ls-files --directory` 对目录输出 `gen/`，而 `path.relative` 会把结尾斜杠吃掉 →
+  **先记住再归一化**，否则前缀匹配失效（测试当场抓到）。
+- **`ignore` 跳过数现在会自述**：`ignore（项目边界）命中 N 个文件，未进文件集也不解析：<glob 列表>`。
+  此前报告完全不提它 —— 宿主把某个源码目录误写进 `ignore` 时，表现是"悄无声息地不判了"。
+- 顺带把编排里的「读源码 → 提事实 → 缓存」抽成 `src/engine/collect.ts`（`runGuard` 又顶到了函数长度上限，
+  与 `git.ts` / `filters.ts` 同一处理方式：抽模块，不抬阈值）。
+- 新增 2 条测试：产物目录默认不进文件集、`ignore` 跳过数在报告与 JSON 里都可见。
+
 ### Added（`--render-docs` / `--check-docs`：文档与门禁同一份真相）
 
 - **文档里的那几张表改为从 `arch.config.mjs` 渲染**（DESIGN §7.3 承诺了很久，现在落地）。在文档里包一块：
