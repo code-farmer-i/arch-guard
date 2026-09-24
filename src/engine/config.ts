@@ -12,6 +12,7 @@ import {
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
 import type { Diagnostic } from './codes.js'
+import { resolveStructure } from './structure.js'
 import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
 import { exists, mergePresets } from './util.js'
 
@@ -245,38 +246,34 @@ export async function loadConfig(options: {
     adapters.i18n = { ...i18nAdapter, resourceDir: params.i18nDir } as Adapter
   }
 
+  // 追加角色：项目自己的目录（`src/legacy/**`）加在范式角色表之上，不必整份重写
+  const roles = [
+    ...(overrides.roles ?? preset.roles ?? []),
+    ...(preset.addRoles ?? []),
+    ...(overrides.addRoles ?? []),
+  ]
+
   const config: Config = {
     root,
     srcRoot: overrides.srcRoot ?? preset.srcRoot ?? 'src',
     layout,
     // 角色表：范式角色表**整体替换**（`overrides.roles`），再在其上**追加** addRoles
     // （预设的 addRoles 与 overrides 的 addRoles 都追加 —— 项目自己的目录不必重写范式角色表）。
-    // 注：Config 上不再单独保留 `addRoles` 字段 —— 它曾被赋值却无人读，而 roles 已含追加结果，
-    // 留着就是同一个事实的第二处存放（将来谁读了它就会把角色重复计入）。
-    roles: [
-      ...(overrides.roles ?? preset.roles ?? []),
-      ...(preset.addRoles ?? []),
-      ...(overrides.addRoles ?? []),
-    ],
+    // 注：Config 上不再单独保留 `addRoles` 字段 —— 它曾被赋值却无人读，而 `roles` 已含追加结果，
+    // 留着就是同一个事实的第二处存放。结构声明的校验也要看到**同一份** roles，所以先算成局部常量。
+    roles,
     naming: { ...DEFAULT_NAMING, ...preset.naming, ...overrides.naming },
     thresholds: { ...DEFAULT_THRESHOLDS, ...preset.thresholds, ...overrides.thresholds },
     adapters,
     // `overrides.enable` 仍是"我全都要自己定"的总开关（整体替换）；预设之间是并集（见 mergePresets）
     enable: overrides.enable ?? preset.enable ?? 'all',
     disable: [...new Set([...(preset.disable ?? []), ...(overrides.disable ?? [])])],
-    // 结构声明同样是加法：预设与 overrides 合并（布尔取或、数组取并集）
-    structure: {
-      order: preset.structure?.order === true || overrides.structure?.order === true,
-      isolate: [
-        ...new Set([...(preset.structure?.isolate ?? []), ...(overrides.structure?.isolate ?? [])]),
-      ],
-      publicApi: [
-        ...new Set([
-          ...(preset.structure?.publicApi ?? []),
-          ...(overrides.structure?.publicApi ?? []),
-        ]),
-      ],
-    },
+    // 结构声明同样是加法：预设与 overrides 合并后**统一校验**（维度/角色必须真实存在，见 resolveStructure）
+    structure: resolveStructure({
+      preset: preset.structure,
+      overrides: overrides.structure,
+      roles,
+    }),
     params,
     entries,
     ignore: [...(preset.ignore ?? []), ...(overrides.ignore ?? [])],

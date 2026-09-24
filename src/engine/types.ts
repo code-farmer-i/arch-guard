@@ -2,6 +2,7 @@
  * 规则面向的契约：事实模型、配置、规则与发现项。
  * 规则只依赖这里定义的结构，不依赖任何 parser 或框架（见 docs/DESIGN.md §6.1.1）。
  */
+import type { ResolvedStructure, StructureSpec } from './structure-spec.js'
 
 export type FileKind = 'ts' | 'css' | 'json' | 'other'
 
@@ -130,28 +131,6 @@ export interface RoleDescriptor {
 
 /* ---------------- 配置与适配器 ---------------- */
 
-/**
- * 结构声明：把"目录规范"变成宿主可声明的数据，规则从声明推导。
- *
- * 三个字段**各被一条规则消费**（S21 / S22 / S23）—— 不做"声明了没人读"的配置。
- * 参照系：ArchUnit / import-linter / go-arch-lint / Nx tags 都是这个形状。
- */
-export interface StructureSpec {
-  /** 层序单向：只许依赖**层号 ≤ 自己**的文件（S21）。应用范式与库/FSD 都声明它 —— 一套机制 */
-  order?: boolean
-  /** 组隔离：组维度名列表（捕获名）。同维度、同层、不同组之间**不许互相引用**（S22） */
-  isolate?: string[]
-  /** 公开面：组维度名列表。这些维度的组**必须有入口文件**，且组外不许直接引用组内非入口文件（S23） */
-  publicApi?: string[]
-}
-
-/** 归一化后的结构声明：宿主只声明一部分，配置加载后三个字段都补齐 */
-export interface ResolvedStructure {
-  order: boolean
-  isolate: string[]
-  publicApi: string[]
-}
-
 export interface Thresholds {
   fileLines: number
   viewLines: number
@@ -232,6 +211,47 @@ export interface I18nAdapter {
   examples?: AdapterExamples
 }
 
+/**
+ * 路由适配器（T1）：项目用哪个路由方案。
+ * 库名只许出现在 `presets/router-kits/*`（P4 自检拦住别处）。
+ */
+export interface RouterAdapter {
+  facet: 'router'
+  id: string
+  specVersion?: string
+  packages: string[]
+  /** 声明式导航组件名（如 `Link`）——"内部跳转必须走它"这类规则的锚点 */
+  routerLink?: string
+  /** 路由定义文件的形态（如 `routes.tsx`） */
+  routeFile?: string
+  examples?: AdapterExamples
+}
+
+/**
+ * 数据层适配器（T1）：服务端状态的取数方案。
+ * `queryKeyFrom` 是"缓存键唯一出处"的落点 —— 项目决定路径，适配器只声明形态。
+ */
+export interface DataLayerAdapter {
+  facet: 'data-layer'
+  id: string
+  specVersion?: string
+  packages: string[]
+  /** 查询键的唯一落点（如 `src/shared/api/queryKeys.ts`） */
+  queryKeyFrom?: string
+  examples?: AdapterExamples
+}
+
+/** 样式适配器（T1）：项目用哪个样式方案（CSS Module / CSS-in-JS / 原子类…） */
+export interface StylesAdapter {
+  facet: 'styles'
+  id: string
+  specVersion?: string
+  packages: string[]
+  /** CSS Module 的文件名形态（正则可编译） */
+  modulePattern?: string
+  examples?: AdapterExamples
+}
+
 export interface GenericAdapter {
   facet: string
   id: string
@@ -241,7 +261,20 @@ export interface GenericAdapter {
   [key: string]: unknown
 }
 
-export type Adapter = UiKitAdapter | I18nAdapter | GenericAdapter
+export type Adapter =
+  UiKitAdapter | I18nAdapter | RouterAdapter | DataLayerAdapter | StylesAdapter | GenericAdapter
+
+export type {
+  DegreeLimit,
+  DirectoryItemLimit,
+  GroupCountLimit,
+  GroupInDegree,
+  NameCollisionSpec,
+  PluralConsistencySpec,
+  PublicApiUnit,
+  ResolvedStructure,
+  StructureSpec,
+} from './structure-spec.js'
 
 export interface Preset {
   /**

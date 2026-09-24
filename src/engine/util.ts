@@ -4,6 +4,7 @@ import type { Dirent } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import type { Preset } from './types.js'
+import { mergeStructureSpec } from './structure.js'
 
 export interface WalkOptions {
   skip?: Set<string>
@@ -167,15 +168,8 @@ export function mergePresets(presets: Preset[]): Preset {
     if (preset.enable === 'all' || out.enable === 'all') out.enable = 'all'
     else if (preset.enable) out.enable = [...new Set([...(out.enable ?? []), ...preset.enable])]
     if (preset.disable) out.disable = [...new Set([...(out.disable ?? []), ...preset.disable])]
-    // 结构声明是**加法**：布尔取或、数组取并集（和 enable/disable 一个道理）
-    if (preset.structure) {
-      const prev = out.structure ?? {}
-      out.structure = {
-        ...(prev.order || preset.structure.order ? { order: true } : {}),
-        isolate: [...new Set([...(prev.isolate ?? []), ...(preset.structure.isolate ?? [])])],
-        publicApi: [...new Set([...(prev.publicApi ?? []), ...(preset.structure.publicApi ?? [])])],
-      }
-    }
+    // 结构声明是**加法**：布尔取或、数组取并集、带键数组拼接（见 mergeStructureSpec）
+    if (preset.structure) out.structure = mergeStructureSpec(out.structure, preset.structure)
     if (preset.entries) out.entries = [...(out.entries ?? []), ...preset.entries]
     if (preset.ignore) out.ignore = [...(out.ignore ?? []), ...preset.ignore]
     if (preset.include) out.include = [...(out.include ?? []), ...preset.include]
