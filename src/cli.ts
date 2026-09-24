@@ -4,13 +4,18 @@ import { fileURLToPath } from 'node:url'
 
 import { Command, CommanderError } from 'commander'
 
+import { loadConfig } from './engine/config.js'
+import { explainPaths, renderExplanations } from './engine/explain.js'
+import { rootRelativePattern } from './engine/git.js'
 import { err, out } from './engine/output.js'
+import { createRegistry } from './engine/registry.js'
 import { checkPortability } from './engine/portability.js'
 import { runGuard } from './engine/run.js'
 import { runSelfTest } from './engine/self-test.js'
 import type { Domain, Level, Severity } from './engine/types.js'
 import { color } from './engine/util.js'
 import { coreRules } from './packs/core/index.js'
+import { placementHint } from './packs/core/rules/placement.js'
 import { reactPack } from './packs/react/index.js'
 
 const LEVELS: Level[] = ['L1', 'L2', 'L3', 'L4']
@@ -41,6 +46,7 @@ interface CliOptions {
   stats?: boolean
   cache?: boolean
   verifyDeps?: boolean
+  explain?: string
   coverageReport?: string
   updateCoverage?: boolean
   reportOnly?: boolean
@@ -76,6 +82,10 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--stats', '打印每条规则的耗时与命中数（排查「为什么这么慢」）')
     .option('--no-cache', '不做 facts 持久缓存（每轮全量解析；排查缓存相关问题时用）')
     .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
+    .option(
+      '--explain <paths>',
+      '讲清一批路径的契约（角色 / 能依赖谁 / 该放哪 / 适用规则），写代码之前用；逗号分隔，可绝对路径',
+    )
     .option('--coverage-report <path>', '覆盖率产物路径（覆盖 metrics 适配器里的配置）')
     .option(
       '--update-coverage',
@@ -185,6 +195,10 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     return verifyDeps(options.config)
   }
 
+  if (options.explain) {
+    return explain(options.explain, options.config, options.format)
+  }
+
   try {
     const result = await runGuard({
       cwd: process.cwd(),
@@ -215,6 +229,47 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     return result.exitCode
   } catch (error) {
     // fail closed：引擎异常永远非零
+    err(color.red(`✖ 引擎异常：${(error as Error).message}`))
+    return 2
+  }
+}
+
+/**
+ * `--explain <路径>`：**写之前**把契约讲清楚。
+ *
+ * 与判定路径的分工：判定说"你错了"，解释说"该怎么做"。它一条规则都不跑，
+ * 数据全部来自角色表 + 布局 + 结构声明 + `params` —— 所以零误报，也永远不需要维护第二份规范。
+ * 退出码恒为 0（这是查询，不是判决）。
+ */
+async function explain(
+  pathsInput: string,
+  configPath: string | undefined,
+  format: string,
+): Promise<number> {
+  try {
+    const cwd = process.cwd()
+    const loaded = await loadConfig({
+      root: cwd,
+      ...(configPath ? { configPath } : {}),
+      fallbackPacks: [reactPack],
+    })
+    const registry = createRegistry(coreRules, loaded.config)
+    const paths = pathsInput
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      // 绝对路径要归一成配置根相对（IDE / agent 按文件传参时给的就是绝对路径）
+      .map((item) => rootRelativePattern(item, cwd))
+    const list = explainPaths({
+      config: loaded.config,
+      paths,
+      enabled: registry.enabled,
+      skipped: registry.skipped,
+      placement: placementHint,
+    })
+    out(renderExplanations(list, format === 'json' ? 'json' : 'pretty'))
+    return 0
+  } catch (error) {
     err(color.red(`✖ 引擎异常：${(error as Error).message}`))
     return 2
   }

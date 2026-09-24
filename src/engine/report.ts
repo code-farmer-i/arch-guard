@@ -2,6 +2,9 @@ import { out } from './output.js'
 import type { Config, Domain, Finding, Level, Rule, Severity } from './types.js'
 import { color } from './util.js'
 
+/** 输出格式（CLI 与 explain 共用同一份取值） */
+export type ReportFormat = 'pretty' | 'json' | 'github'
+
 export interface ReportInput {
   config: Config
   ruleIndex: Map<string, Rule>
@@ -30,7 +33,7 @@ export interface ReportInput {
   outsideContract: number
 }
 
-const DOMAIN_LABEL: Record<Domain, string> = {
+export const DOMAIN_LABEL: Record<Domain, string> = {
   structure: '结构',
   design: '设计系统',
   copy: '文案',

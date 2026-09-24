@@ -14,7 +14,7 @@ export const CSS_EXTENSIONS = ['.css', '.scss', '.less']
 
 const SLOT = '__AG_SLOT__'
 
-interface CompiledRole extends RoleDescriptor {
+export interface CompiledRole extends RoleDescriptor {
   regex: RegExp
   names: string[]
 }
@@ -59,6 +59,102 @@ function kindOf(rel: string): FileKind {
   return 'other'
 }
 
+/** 角色匹配用的编译结果（glob → 正则），构建一次、反复用 */
+export interface RoleIndex {
+  roles: CompiledRole[]
+  ignore: RegExp[]
+  include: RegExp[]
+}
+
+/**
+ * 角色匹配的**唯一实现**：全量扫描与 `--explain` 共用。
+ * 为什么要抽出来：一旦"解释"和"判定"各写一套匹配逻辑，两者迟早会给出不同答案 ——
+ * 而 agent 会照着解释去写代码，错的那一份就成了新的假绿来源。
+ */
+export function buildRoleIndex(config: Config): RoleIndex {
+  return {
+    roles: config.roles.map((descriptor) => ({ ...descriptor, ...compile(descriptor.pattern) })),
+    ignore: config.ignore.map(globToRegExp),
+    include: config.include.map(globToRegExp),
+  }
+}
+
+export type RoleResolution =
+  | { status: 'ignored' }
+  /** json / html 等资源：只进文件集（供图解析），不参与角色判定 */
+  | { status: 'resource'; kind: FileKind }
+  /** 契约扫描域之外：不判目录契约，但仍进依赖图 */
+  | { status: 'outside'; kind: FileKind }
+  /** 无处安放：没有任何角色命中 */
+  | { status: 'missing'; kind: FileKind }
+  /** 歧义：命中多个角色（结构不完备） */
+  | { status: 'ambiguous'; kind: FileKind; roles: string[] }
+  | {
+      status: 'matched'
+      kind: FileKind
+      descriptor: CompiledRole
+      captured: Record<string, string>
+    }
+
+export function resolveRole(index: RoleIndex, rel: string): RoleResolution {
+  if (index.ignore.some((regex) => regex.test(rel))) return { status: 'ignored' }
+  // 只有代码与样式参与角色判定；json / html 等资源只进文件集（供图解析用）
+  const kind = kindOf(rel)
+  if (kind !== 'ts' && kind !== 'css') return { status: 'resource', kind }
+  /**
+   * 契约扫描域：域外的 ts/css **不参与角色判定，也不报「不在目录契约内」** ——
+   * vite.config.ts / e2e / scripts / 生成代码本来就不该被要求"落位"。
+   *
+   * 但它们**仍进 `outside` 并被解析**：import 边与「测试是独立可达根」都靠 facts，
+   * 少了它们，只被域外测试引用的 src 文件会被误判成孤儿（S15）。
+   * 领域外的一大片生成代码怎么省掉解析，见 .scratch/include-scope/spec.md 的非目标。
+   */
+  if (index.include.length > 0 && !index.include.some((matcher) => matcher.test(rel))) {
+    return { status: 'outside', kind }
+  }
+  const hits: { descriptor: CompiledRole; captured: Record<string, string> }[] = []
+  for (const descriptor of index.roles) {
+    const match = rel.match(descriptor.regex)
+    if (!match) continue
+    const captured: Record<string, string> = {}
+    descriptor.names.forEach((name, position) => {
+      captured[name] = match[position + 1] ?? ''
+    })
+    if (descriptor.exclusive === true) {
+      hits.length = 0
+      hits.push({ descriptor, captured })
+      break
+    }
+    hits.push({ descriptor, captured })
+  }
+  if (hits.length === 0) return { status: 'missing', kind }
+  if (hits.length > 1)
+    return { status: 'ambiguous', kind, roles: hits.map((hit) => hit.descriptor.id) }
+  const hit = hits[0] as { descriptor: CompiledRole; captured: Record<string, string> }
+  return { status: 'matched', kind, descriptor: hit.descriptor, captured: hit.captured }
+}
+
+/** 命中角色的文件 → `FileRecord`（组身份在这里派生，扫描与解释共用） */
+export function recordOf(
+  root: string,
+  rel: string,
+  matched: { kind: FileKind; descriptor: CompiledRole; captured: Record<string, string> },
+): FileRecord {
+  const groupName = matched.descriptor.group ?? null
+  return {
+    rel,
+    abs: join(root, rel),
+    role: matched.descriptor.id,
+    layer: matched.descriptor.layer,
+    domain: matched.captured.domain ?? null,
+    slot: matched.descriptor.slot ?? null,
+    captures: { ...matched.captured },
+    group: groupName ? (matched.captured[groupName] ?? null) : null,
+    groupName: groupName && matched.captured[groupName] ? groupName : null,
+    kind: matched.kind,
+  }
+}
+
 /**
  * 扫出「文件 + 角色」。
  * 每个文件必须**恰好命中一个角色**（0 个 = 无处安放；≥1 个 = 歧义）—— 结构自检的基础。
@@ -89,12 +185,7 @@ export function scanProject(config: Config): ScanResult {
     return false
   })
 
-  const roles: CompiledRole[] = config.roles.map((descriptor) => ({
-    ...descriptor,
-    ...compile(descriptor.pattern),
-  }))
-  const ignore = config.ignore.map(globToRegExp)
-  const include = config.include.map(globToRegExp)
+  const index = buildRoleIndex(config)
 
   const records: FileRecord[] = []
   const missing: string[] = []
@@ -103,74 +194,37 @@ export function scanProject(config: Config): ScanResult {
   const outside: FileRecord[] = []
 
   for (const rel of files) {
-    if (ignore.some((regex) => regex.test(rel))) {
-      ignored.push(rel)
-      continue
-    }
-    // 只有代码与样式参与角色判定；json / html 等资源只进文件集（供图解析用）
-    const fileKind = kindOf(rel)
-    if (fileKind !== 'ts' && fileKind !== 'css') continue
-    /**
-     * 契约扫描域：域外的 ts/css **不参与角色判定，也不报「不在目录契约内」** ——
-     * vite.config.ts / e2e / scripts / 生成代码本来就不该被要求"落位"。
-     *
-     * 但它们**仍进 `outside` 并被解析**：import 边与「测试是独立可达根」都靠 facts，
-     * 少了它们，只被域外测试引用的 src 文件会被误判成孤儿（S15）。
-     * 领域外的一大片生成代码怎么省掉解析，见 .scratch/include-scope/spec.md 的非目标。
-     */
-    if (include.length > 0 && !include.some((matcher) => matcher.test(rel))) {
-      outside.push({
-        rel,
-        abs: join(root, rel),
-        role: '(outside)',
-        layer: 0,
-        domain: null,
-        slot: null,
-        captures: {},
-        group: null,
-        groupName: null,
-        kind: fileKind,
-      })
-      continue
-    }
-    const hits: { descriptor: CompiledRole; captured: Record<string, string> }[] = []
-    for (const descriptor of roles) {
-      const match = rel.match(descriptor.regex)
-      if (!match) continue
-      const captured: Record<string, string> = {}
-      descriptor.names.forEach((name, index) => {
-        captured[name] = match[index + 1] ?? ''
-      })
-      if (descriptor.exclusive === true) {
-        hits.length = 0
-        hits.push({ descriptor, captured })
+    const resolution = resolveRole(index, rel)
+    switch (resolution.status) {
+      case 'ignored':
+        ignored.push(rel)
         break
-      }
-      hits.push({ descriptor, captured })
+      case 'resource':
+        break
+      case 'outside':
+        outside.push({
+          rel,
+          abs: join(root, rel),
+          role: '(outside)',
+          layer: 0,
+          domain: null,
+          slot: null,
+          captures: {},
+          group: null,
+          groupName: null,
+          kind: resolution.kind,
+        })
+        break
+      case 'missing':
+        missing.push(rel)
+        break
+      case 'ambiguous':
+        ambiguous.push({ rel, roles: resolution.roles })
+        break
+      case 'matched':
+        records.push(recordOf(root, rel, resolution))
+        break
     }
-    if (hits.length === 0) {
-      missing.push(rel)
-      continue
-    }
-    if (hits.length > 1) {
-      ambiguous.push({ rel, roles: hits.map((hit) => hit.descriptor.id) })
-      continue
-    }
-    const hit = hits[0] as { descriptor: CompiledRole; captured: Record<string, string> }
-    // 组身份：角色声明了 `group: '<捕获名>'` 时，把该捕获的值当作"组名"
-    const groupName = hit.descriptor.group ?? null
-    records.push({
-      rel,
-      abs: join(root, rel),
-      role: hit.descriptor.id,
-      layer: hit.descriptor.layer,
-      domain: hit.captured.domain ?? null,
-      slot: hit.descriptor.slot ?? null,
-      captures: { ...hit.captured },
-      group: groupName ? (hit.captured[groupName] ?? null) : null,
-      groupName: groupName && hit.captured[groupName] ? groupName : null,
-      kind: kindOf(rel),
-    })
   }
 
   return { files, records, missing, ambiguous, ignored, outside, foreign }

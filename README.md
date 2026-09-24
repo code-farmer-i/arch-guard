@@ -83,6 +83,7 @@ npx arch-guard                          # 全项目检查
 npx arch-guard --scope=changed           # 只报告 git 变更文件（含未跟踪）
 npx arch-guard --domain=D --format=json  # 只看设计系统，输出 JSON（给 agent / CI）
 npx arch-guard --update-coverage         # 刷新覆盖率棘轮快照（M04；不是豁免违规）
+npx arch-guard --explain src/modules/crew/views/CrewList.tsx  # ★ 写之前问契约（角色/依赖/落点/规则）
 ```
 
 ## 三种用法：用库 / 换库 / 不用库
@@ -96,6 +97,30 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 
 换库 = 写一份约 30 行的适配器（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。
 `data/kit-fingerprints.ts` 内置已知组件库指纹，于是**换库后旧库残留一条不剩是可判定验收条件**。
+
+## 写之前问契约（`--explain`）
+
+门禁平时只在**事后**说"你错了"，agent 于是靠试错逼近规范。`--explain` 把约束前移：
+
+```bash
+arch-guard --explain src/modules/crew/views/CrewList.tsx
+#  src/modules/crew/views/CrewList.tsx
+#    状态       命中角色
+#    角色       module:views · 层 10 · 槽位 views · 域 crew · 组 crew
+#    依赖       层序单向：只许依赖层号 ≤ 10 的文件（S21）
+#               域内只许：./ 、@/src/modules/<自己> 、@/src/shared/ 、第三方包（S04）
+#               域外只许 @/src/modules/<域>/routes；views 对域外私有（S05 / S06）
+#    命名       hook 前缀 `use` · 页面后缀 `Page`
+#    落点参数   styleDir=src/shared/styles · i18nDir=src/shared/i18n/locales
+#    启用规则   18 条（结构 11 · 依赖 5 · 度量 2）→ 逐条给出 id / 标题 / 修法
+#    因能力停用 P05 / P11 / …（缺能力，不是通过）
+```
+
+- **一条规则都不用跑**：数据全部来自角色表 + 布局 + 结构声明 + `params`，所以**零误报**，
+  也不需要维护第二份规范（与判定共用同一份角色表）。
+- 路径还**没写**也照样能问：命中不了任何角色 → 它会告诉你**该放哪**（`placementHint` 同一份提示）。
+- 域外 / `ignore` / 歧义都会明确说清（歧义会点出全部命中角色）。
+- `--format=json` 输出结构化结果，适合 agent 消费；退出码恒为 0（这是查询，不是判决）。
 
 ## 检测范围（scope）
 
@@ -186,7 +211,8 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 ## Roadmap
 
 - [x] 体积阈值默认 500 且可配（`overrides.thresholds`）
-- [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 豁免通道 / scope / 自检
+- [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 例外通道 / scope / 自检
+- [x] `--explain <路径>`：写之前给出角色 / 能依赖谁 / 该放哪 / 适用规则（零误报，与判定共用同一份角色表）
 - [x] 结构域：角色表与目录契约（S00–S06、S09、S11–S16、S19–S23）——含**层序 / 组隔离 / 公开面**三条通用图规则
 - [x] 设计系统域（D03–D08 / D10 / D10b / D11 / D16 / D17 / D21）：色值唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / vendor 边界与反向封闭 / 框架残留 / 样式落点 / CSS Module 契约 / 声明与事实对账
 - [x] 文案域（C02–C07）：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账

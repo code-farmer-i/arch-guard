@@ -324,6 +324,7 @@ src/
     run.ts            编排：scope / 过滤器 / 报告 / --stats
     git.ts            scope 的 git 事实（changed / staged 的 index 内容 / since）
     filters.ts        scope / --paths / --severity（只过滤报告且必须自述）
+    explain.ts        --explain：角色 / 依赖 / 落点 / 适用规则（与 scan 共用角色匹配）
     report.ts         渲染    coverage.ts  M 域产物的解析
     deps.ts/deps-audit.ts  依赖事实与策略    i18n.ts  文案资源索引    css.ts  CSS 结构化扫描
     portability.ts    P1–P4 自检    self-test.ts  夹具回归    util.ts/ts-api.ts/output.ts
@@ -411,6 +412,8 @@ ctx = {
 - 100 文件量级：扫描 + parse + 建图 <300ms；L1 规则先跑、失败先停。
 - 默认只跑 L1–L3；`--type-aware` 走 tsc Program 跑 L4（CI 可选）。
 - `--domain=<域>`、`--only=<ID>`、`--report`、`--update-coverage`（刷新覆盖率棘轮快照）、`--self-test`。
+- `--explain <路径>`：**写之前**给出契约（角色 / 能依赖谁 / 该放哪 / 适用规则）。不跑规则、零误报、退出码恒 0 ——
+  与判定共用 `scan.ts` 的角色匹配实现（`buildRoleIndex` / `resolveRole`），不另写一套。
 
 ### 6.6 例外通道（规则级，只有一条）
 
