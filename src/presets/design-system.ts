@@ -8,8 +8,6 @@ export interface ContrastPair {
 }
 
 export interface DesignSystemOptions {
-  /** 刻度令牌名，例如 --spacing */
-  spacing?: string
   /** 主题名集合（明暗两套时是 ['dark','light']） */
   themes?: string[]
   /** 令牌目录（palette/foundation/scales/theme 都在这里） */
@@ -71,42 +69,9 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
        * 光看其余参数分不出来：`designParams()` 带内置默认路径。
        */
       designSystemDeclared: true,
-      spacing: options.spacing ?? '--spacing',
       themes: options.themes ?? ['dark', 'light'],
       htmlKeys: options.htmlKeys ?? ['theme'],
       contrastPairs: options.contrastPairs ?? [],
-      // 魔法数字（长度域）：这些属性必须走刻度令牌
-      lengthProps: [
-        'padding',
-        'padding-top',
-        'padding-right',
-        'padding-bottom',
-        'padding-left',
-        'margin',
-        'margin-top',
-        'margin-right',
-        'margin-bottom',
-        'margin-left',
-        'gap',
-        'row-gap',
-        'column-gap',
-        'width',
-        'min-width',
-        'max-width',
-        'height',
-        'min-height',
-        'max-height',
-        'top',
-        'right',
-        'bottom',
-        'left',
-        'inset',
-        'border-radius',
-        'font-size',
-        'line-height',
-      ],
-      // 结构性常数：0 与 1px 细线允许裸写
-      allowLengthValues: ['0', '1px'],
       // 落点：用户显式给的（paths）放最后，压过任何默认推导
       ...paths,
     },

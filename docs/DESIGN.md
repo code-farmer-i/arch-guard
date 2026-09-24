@@ -553,7 +553,12 @@ export default {
 3. **`overrides` 是"我全都要自己定"**：`overrides.enable` / `overrides.roles` **整体替换**（要追加用 `addRoles`），
    `overrides.disable` 做减法；预设之间才是并集。
 
-4. **范式唯一性是 fail-closed 的**：`[canonical(), fsd()]` 这种组合以前会得到
+4. **落点不设兜底默认**：`styleDir` / `tokenDir` / `vendorDir` / `paletteFile` / `themeFile` / `storageFile`
+   由范式声明或项目显式给；**缺了就靠 `requires: ['designSystem.<字段>']` 让依赖它的规则明列停用**
+   （实测：`library() + designSystem()` 不声明落点 → `D03/D06/D07/D08/D10/D10b/D16/D21` 明列停用），
+   而不是悄悄用三根范式的路径去量一个不存在的目录。没有消费者的参数（`spacing` / `lengthProps` /
+   `allowLengthValues` / `tokenPrefix`）已删除 —— 与"声明必须有消费者"一致。
+5. **范式唯一性是 fail-closed 的**：`[canonical(), fsd()]` 这种组合以前会得到
    "角色表来自后者、`layout` 逐键混合、`structure` 取并集"的静默错误状态，现在直接报错并指路 `addRoles`。
 
 **组合方案（`stack()`）**：把**原子预设**拼成一套组合，供 `presets: [范式(), ...stack({ … })]` 使用。

@@ -12,6 +12,7 @@ import { designParams, finding } from './design-shared.js'
 export const stylesInModules: Rule = {
   id: 'D16',
   domain: 'design',
+  requires: ['designSystem.styleDir'],
   level: 'L1',
   severity: 'error',
   title: '自研样式只在 *.module.css',

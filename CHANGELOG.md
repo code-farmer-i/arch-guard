@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Changed（原子化收尾：落点不兜底、死参数删除、`all` 语义写清）
+
+- **D 域落点不再兜底三根路径**：`designParams()` 只认项目/范式声明过的落点，依赖落点的 8 条规则
+  （D03 / D06 / D07 / D08 / D10 / D10b / D16 / D21）改成 `requires: ['designSystem.<字段>']` —— 缺落点则**明列停用**。
+  实测：`library() + designSystem()`（不声明落点）→ `因能力未声明而停用 8 条规则：D03 / D06 / D07 / D08 / D10 / D10b / D16 / D21`；
+  以前它们会悄悄去量 `src/shared/styles`（只有 D21 的"零匹配"警告算线索）。
+- **删掉三个没有消费者的参数**：`spacing` / `lengthProps` / `allowLengthValues` —— 它们是"魔法数字三族"（D12–D14）的输入，
+  而那几条已委派 stylelint / eslint。实现时按 `requires: ['designSystem.<字段>']` 加回。
+- **`enable: 'all'` 的语义写清并加测试**：它是"该 pack 的全部规则"（应用范式 `canonical()` 的有意默认）；
+  收窄用 `disable`（减法），`overrides.enable` 是**整体替换** —— 三条都有单测钉住。
+- 文档：DESIGN §7.0 组合语义表补 `all` 说明 + 新增「落点不设兜底默认」一条。
+
 ### Added（组合方案 `stack()`：原子预设 + 一层不含硬编码的糖）
 
 - 新增 **`stack(options)`**：把域预设按需装配成 `presets: [范式(), ...stack({ … })]`。三条约束写进实现与文档：

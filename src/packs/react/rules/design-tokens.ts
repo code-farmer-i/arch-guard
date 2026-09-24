@@ -8,6 +8,7 @@ import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-
 export const paletteColorUnique: Rule = {
   id: 'D03',
   domain: 'design',
+  requires: ['designSystem.paletteFile'],
   level: 'L2',
   severity: 'error',
   title: '色板色值唯一',
@@ -140,6 +141,7 @@ export const noDeadTokens: Rule = {
 export const themeTwinBlocks: Rule = {
   id: 'D06',
   domain: 'design',
+  requires: ['designSystem.themeFile'],
   level: 'L2',
   severity: 'error',
   title: '明暗令牌双份齐全',
@@ -205,6 +207,7 @@ export const themeTwinBlocks: Rule = {
 export const declaredDesignSystem: Rule = {
   id: 'D21',
   domain: 'design',
+  requires: ['designSystem.paletteFile', 'designSystem.tokenDir'],
   level: 'L1',
   severity: 'warn',
   title: '声明了设计系统就必须真有令牌文件',

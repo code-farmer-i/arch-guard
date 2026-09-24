@@ -9,6 +9,7 @@ import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-
 export const contrastBaseline: Rule = {
   id: 'D07',
   domain: 'design',
+  requires: ['designSystem.themeFile'],
   level: 'L2',
   severity: 'error',
   title: '对比度基线',
@@ -71,6 +72,7 @@ export const contrastBaseline: Rule = {
 export const storageKeyTwins: Rule = {
   id: 'D08',
   domain: 'design',
+  requires: ['designSystem.storageFile'],
   level: 'L2',
   severity: 'error',
   title: 'storage key 与 index.html 一致',
@@ -114,7 +116,7 @@ export const vendorSelectorsConfined: Rule = {
   level: 'L1',
   severity: 'error',
   title: '组件库选择器只许在 vendor 目录',
-  requires: ['uiKit.vendorSelectors'],
+  requires: ['designSystem.vendorDir', 'uiKit.vendorSelectors'],
   hint: '第三方组件的选择器覆盖集中放 vendor/，别散在各处',
   run: (ctx) => {
     const params = designParams(ctx)
@@ -146,7 +148,7 @@ export const vendorDirClosed: Rule = {
   level: 'L1',
   severity: 'error',
   title: 'vendor 目录反向封闭',
-  requires: ['uiKit.vendorSelectors'],
+  requires: ['designSystem.vendorDir', 'uiKit.vendorSelectors'],
   hint: 'vendor/ 只放组件库覆盖；业务类名不该出现在这里',
   run: (ctx) => {
     const params = designParams(ctx)

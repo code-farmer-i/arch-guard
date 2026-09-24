@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { hasCapability, loadConfig } from '../es/index.js'
+import { createRegistry, hasCapability, loadConfig, reactRules } from '../es/index.js'
 
 /**
  * 预设**组合语义**：从"用户选一个目录规范，域预设自由叠加"这个用例出发，
@@ -106,6 +106,21 @@ test('组合：i18n 落点同样跟着范式走（`copy()` 不再写死默认值
   assert.equal(resourceDirOf(lib), undefined)
   assert.equal(hasCapability(lib, 'i18n.resourceDir'), false, '没落点 = 没能力（不静默跑）')
   assert.equal(hasCapability(canon, 'i18n.resourceDir'), true, '范式声明了落点 = 有能力')
+})
+test('组合：`all` 是「应用范式默认全查」，仍可被收窄（disable / overrides.enable）', async () => {
+  const enabledIds = (config) => createRegistry(reactRules, config).enabled.map((rule) => rule.id)
+
+  const all = await load('canonical(), copy(), i18n(i18nextKit())')
+  assert.ok(enabledIds(all).includes('C03'), '应用范式默认全查')
+
+  const narrowed = await load(
+    'canonical(), copy(), i18n(i18nextKit())',
+    ", overrides: { disable: ['C03'] }",
+  )
+  assert.equal(enabledIds(narrowed).includes('C03'), false, 'disable 能收窄')
+
+  const replaced = await load('canonical()', ", overrides: { enable: ['S01'] }")
+  assert.deepEqual(enabledIds(replaced), ['S01'], 'overrides.enable 是整体替换（我全都要自己定）')
 })
 test('组合：addRoles 追加在范式角色表之上，roles 仍是整体替换', async () => {
   const base = await load('fsd()')

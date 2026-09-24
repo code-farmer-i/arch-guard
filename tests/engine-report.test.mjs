@@ -160,8 +160,11 @@ test('report：停用规则与未知规则在 report 里明列（防「以为在
 
 test('presets：designSystem / copy / deps 的默认值与自定义值', () => {
   const defaults = designSystem()
-  assert.equal(defaults.params?.spacing, '--spacing')
   assert.deepEqual(defaults.params?.themes, ['dark', 'light'])
+
+  // spacing / lengthProps / allowLengthValues 已删：它们没有任何消费者（D12–D14 未实现，已委派 stylelint/eslint）
+  assert.equal(defaults.params?.spacing, undefined)
+  assert.equal(defaults.params?.lengthProps, undefined)
 
   const custom = designSystem({ themes: ['light'] })
   assert.deepEqual(custom.params?.themes, ['light'])

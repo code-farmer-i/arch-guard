@@ -16,8 +16,16 @@ export interface ContrastPair {
 /** 令牌前缀（`--sh-*`）曾在这里作为参数 —— 但**没有任何规则读它**（D02/D18 未实现），
  * 而且是宿主 superhive 的前缀，不该做通用默认。删掉；将来实现 D02/D18 时再作为
  * `designSystem({ tokenPrefix })` + `requires: ['designSystem.tokenPrefix']` 加回。 */
+/**
+ * 设计系统的**项目事实**。落点（`styleDir` / `tokenDir` / `vendorDir` / `paletteFile` /
+ * `themeFile` / `storageFile`）**不设兜底默认**：它们由范式声明（`canonical()` / `fsd()` → `params`）
+ * 或项目显式给（`designSystem({ … })`）；缺了就由 `requires: ['designSystem.<字段>']` 让依赖它的规则
+ * **明列停用** —— 而不是悄悄用三根范式的路径去量一个不存在的目录。
+ *
+ * `spacing` / `lengthProps` / `allowLengthValues` 曾在这里，但**没有任何规则读**（D12–D14 魔法数字族未实现、
+ * 已委派 stylelint/eslint）—— 按"声明必须有消费者"删掉，实现时再加回。
+ */
 export interface DesignParams {
-  spacing: string
   themes: string[]
   styleDir: string
   tokenDir: string
@@ -27,21 +35,11 @@ export interface DesignParams {
   storageFile: string
   htmlKeys: string[]
   contrastPairs: ContrastPair[]
-  lengthProps: string[]
-  allowLengthValues: string[]
 }
 
-const DEFAULTS: Omit<
-  DesignParams,
-  'contrastPairs' | 'lengthProps' | 'allowLengthValues' | 'themes' | 'htmlKeys'
-> = {
-  spacing: '--spacing',
-  styleDir: 'src/shared/styles',
-  tokenDir: 'src/shared/styles/tokens',
-  vendorDir: 'src/shared/styles/vendor',
-  paletteFile: 'src/shared/styles/tokens/palette.css',
-  themeFile: 'src/shared/styles/tokens/theme.css',
-  storageFile: 'src/shared/config/storage.ts',
+const DEFAULTS: Pick<DesignParams, 'themes' | 'htmlKeys'> = {
+  themes: ['dark', 'light'],
+  htmlKeys: ['theme'],
 }
 
 /**
@@ -55,21 +53,18 @@ const DEFAULTS: Omit<
  */
 export function designParams(ctx: RuleContext): DesignParams {
   const p = ctx.config.params as Partial<DesignParams>
-  const pick = <K extends keyof typeof DEFAULTS>(key: K): (typeof DEFAULTS)[K] =>
-    (p[key] as (typeof DEFAULTS)[K] | undefined) ?? DEFAULTS[key]
   return {
-    spacing: pick('spacing'),
-    styleDir: pick('styleDir'),
-    tokenDir: pick('tokenDir'),
-    vendorDir: pick('vendorDir'),
-    paletteFile: pick('paletteFile'),
-    themeFile: pick('themeFile'),
-    storageFile: pick('storageFile'),
-    themes: p.themes ?? ['dark', 'light'],
-    htmlKeys: p.htmlKeys ?? ['theme'],
+    // 落点：只认项目/范式声明过的（缺了就是空串，而依赖它的规则已被能力协商停用）
+    styleDir: p.styleDir ?? '',
+    tokenDir: p.tokenDir ?? '',
+    vendorDir: p.vendorDir ?? '',
+    paletteFile: p.paletteFile ?? '',
+    themeFile: p.themeFile ?? '',
+    storageFile: p.storageFile ?? '',
+    // 约定（可覆盖）：明暗主题名与 index.html 里的键名
+    themes: p.themes ?? DEFAULTS.themes,
+    htmlKeys: p.htmlKeys ?? DEFAULTS.htmlKeys,
     contrastPairs: p.contrastPairs ?? [],
-    lengthProps: p.lengthProps ?? [],
-    allowLengthValues: p.allowLengthValues ?? ['0'],
   }
 }
 
