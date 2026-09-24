@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S30",
+      "file": "src/features/crews-widget/index.ts"
+    }
+  ],
+  "exact": true
+}

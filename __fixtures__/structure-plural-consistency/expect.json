@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S31",
+      "file": "src/entities/notifications/index.ts"
+    }
+  ],
+  "exact": true
+}

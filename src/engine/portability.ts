@@ -20,7 +20,13 @@ import { readText, relOf, walk } from './util.js'
  * 所以要看的是「门禁读你全量源码、跑在 CI —— 新依赖有没有人看过、会不会把宿主拖进版本冲突」。
  * 要加依赖：改这里 + `package.json`，并在 CHANGELOG 写明理由。
  */
-const ALLOWED_BARE_IMPORTS = new Set(['typescript', 'commander'])
+const ALLOWED_BARE_IMPORTS = new Set([
+  'typescript',
+  'commander',
+  // 词形判定（S31）：`pluralize` 有十多年迭代的词表；手写表在 315 个真实名字的语料上有 2.9% 分歧
+  // （含 `alias`/`atlas` 误报、`apis` 漏报的真 bug）。库名只出现在 `src/data/plural-forms.ts`（P4 允许数据表）。
+  'pluralize',
+])
 /** 宿主项目名（换宿主时改这里；本体不该认识任何具体宿主） */
 const HOST_MARKERS = ['superhive']
 const SELF_FILE = 'src/engine/portability.ts'

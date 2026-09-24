@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S29",
+      "file": "src/pages/config/index.ts"
+    }
+  ],
+  "exact": true
+}

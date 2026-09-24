@@ -180,8 +180,13 @@ test('阈值：默认 500 行，且可按项目覆盖', async () => {
   assert.equal(tight.thresholds.fileLines, 40, '夹具覆盖了阈值')
 })
 
-test('manifest：运行时依赖不得被误删（commander 只在 es/ 里被 import，漏装即运行时崩溃）', () => {
+test('manifest：运行时依赖清单是审查门（每加一个都要有人看过；漏装即运行时崩溃）', () => {
   const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'))
-  assert.deepEqual(Object.keys(pkg.dependencies ?? {}), ['commander'], '运行时依赖清单被改动过？')
+  // commander：CLI 参数解析。pluralize：S31 的词形判定（手写表在语料上有真 bug，见 data/plural-forms.ts）。
+  assert.deepEqual(
+    Object.keys(pkg.dependencies ?? {}),
+    ['commander', 'pluralize'],
+    '运行时依赖清单被改动过？',
+  )
   assert.equal(pkg.peerDependencies.typescript, '>=5.4.0 <7', 'peer 范围必须排除 typescript@7')
 })

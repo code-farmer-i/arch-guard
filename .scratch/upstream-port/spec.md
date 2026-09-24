@@ -37,7 +37,7 @@ Status: in-progress
 1. ✅ **声明与类型扩展**：`engine/structure-spec.ts`（新，拆出结构声明词汇表，`types.ts` 触到 500 行上限）+ `engine/structure.ts`（解析 / 校验 / 加法合并 / overrides 覆盖）+ `config.ts` / `util.ts` 接线 + `tests/structure-declarations.test.mjs`
 2. ✅ **组规则**：S35（原 S24 组必须有片段）· S25 保留名目录 · S26 组数量上限 · S27 目录子项上限 + `structure-util.ts` + 夹具
 3. ✅ **图规则**：S28 组的外部引用下限（死切片）· S32 导入局部性 + 夹具
-4. ⬜ **命名**：S29 组名撞单元 · S30 重复词 · S31 单复数一致性 + `src/data/plural-forms.ts` + `pluralize` 采纳（登记三处：`portability.ts` 白名单 / `package.json` / 狗粮 `arch.config.mjs` 的 `deps({ allow })`）
+4. ✅ **命名**：S29 组名撞单元 · S30 重复词 · S31 单复数一致性 + `src/data/plural-forms.ts` + `pluralize` 采纳（登记三处：`portability.ts` 白名单 / `package.json` / 狗粮 `arch.config.mjs` 的 `deps({ allow })`）
 5. ⬜ **依赖图三件**：S08 依赖环 · S33 未解析导入 · S34 文件级入/出度 + 夹具（顺带修上游同样存在的两处坏路径：`examples/minimal` 的 `@/shared/lib/format`、`structure-isolate` 夹具里少写一层 `..` 的 import）
 6. ⬜ **适配面**：E2（`defineFacet` 开放注册）· T1（`router()` / `dataLayer()` / `styles()` + kit）· P12 同类方案不许混入 + `src/data/solution-alternatives.ts` + `reactPack` 的面声明
 7. ⬜ **FSD 预设对齐**：单文件片段（`model.ts`）· 入口认代码扩展名 · shared 每个片段都要公开面（含根入口豁免子目录）· 重名查组路径段（先读上游 v2.1 的 `fsd.ts`，在其上增量改）+ 三个夹具（`fsd-parity` / `fsd-boundaries` / `fsd-import-locality`）
@@ -59,3 +59,8 @@ Status: in-progress
 - 2026-09-24 Step 3 完成并提交：S28（入度下限，`exceptLayers` / `singleFromLayers` 两条例外照社区口径）+
   S32（`structure-locality.ts`，默认关）。夹具 `group-in-degree` / `import-locality`（各 `exact: true`）。
   双 Node `pnpm check` EXIT=0（270 测试 / 34 夹具）。
+- 2026-09-24 Step 4 完成并提交：命名三条 + `src/data/plural-forms.ts` + `pluralize`（三处登记：
+  portability 白名单、package.json、狗粮 `deps({ allow })`；另按门禁要求同步了 tripwire 测试、
+  AGENTS.md 生成块（`--render-docs` → `pnpm format`）与狗粮 M07 依赖预算 1→2）。
+  夹具 `structure-name-collisions` / `structure-repetitive-naming` / `structure-plural-consistency`（各 exact: true）。
+  双 Node `pnpm check` EXIT=0（276 测试 / 37 夹具）。

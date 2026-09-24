@@ -62,13 +62,15 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 
 **能力表**（`deps({ capabilities })`）：这个能力必须用哪个方案（驱动 P06 手搓指纹）
 
-| 能力       | 首选方案    |
-| ---------- | ----------- |
-| `cli-args` | `commander` |
+| 能力         | 首选方案    |
+| ------------ | ----------- |
+| `cli-args`   | `commander` |
+| `word-forms` | `pluralize` |
 
 **批准清单**（`deps({ allow })`，**非空才开启** P01「未登记即拒」）：
 
 - `commander`
+- `pluralize`
 
 <!-- arch-guard:end deps -->
 

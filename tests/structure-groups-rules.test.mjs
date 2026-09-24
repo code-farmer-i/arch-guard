@@ -370,3 +370,92 @@ test('S28 min > 1：只有一个外部引用者时报，唯一引用者是 app �
     'used 的唯一引用者是 app → 放过；lonely 来源不是 app → 报；dead 零引用 → 报',
   )
 })
+
+test('S29 组名撞单元名：词汇表只收真实存在的角色目录', () => {
+  const records = [
+    record('src/pages/config/index.ts', {
+      layer: 5,
+      role: 'pages:index',
+      group: 'config',
+      groupName: 'slice',
+    }),
+    record('src/shared/config/index.ts', { layer: 1, role: 'fsd:shared:config' }),
+  ]
+  const roles = [
+    {
+      id: 'pages:index',
+      pattern: 'src/pages/{slice}/index.ts',
+      layer: 5,
+      group: 'slice',
+      entry: true,
+    },
+    { id: 'fsd:shared:config', pattern: 'src/shared/config/**', layer: 1 },
+    { id: 'fsd:shared:api', pattern: 'src/shared/api/**', layer: 1 },
+  ]
+  const structure = {
+    nameCollisions: [
+      { dimension: 'slice', vocabularyRoles: ['fsd:shared:config', 'fsd:shared:api'] },
+    ],
+  }
+  const findings = run('S29', context({ records, roles, structure }))
+  assert.deepEqual(
+    findings.map((finding) => finding.file),
+    ['src/pages/config/index.ts'],
+  )
+  // 词汇角色一个文件都没有（shared/api 不存在）→ 进"config"这个切片的词表只剩 config
+  const noConfig = context({
+    records: [
+      records[0],
+      record('src/shared/api/contract.ts', { layer: 1, role: 'fsd:shared:api' }),
+    ],
+    roles,
+    structure,
+  })
+  assert.deepEqual(run('S29', noConfig), [], 'shared/config 不存在时不该报 config 这个切片名')
+})
+
+test('S30 重复词：桶内 > 2 个名字且每个都带同一个词才报', () => {
+  const three = [
+    record('src/widgets/a-widget/index.ts', { layer: 4, group: 'a-widget', groupName: 'slice' }),
+    record('src/widgets/b-widget/index.ts', { layer: 4, group: 'b-widget', groupName: 'slice' }),
+    record('src/widgets/c-widget/index.ts', { layer: 4, group: 'c-widget', groupName: 'slice' }),
+  ]
+  const structure = { repetitiveNaming: ['slice'] }
+  assert.equal(run('S30', context({ records: three, structure })).length, 1)
+  assert.deepEqual(
+    run('S30', context({ records: three.slice(0, 2), structure })),
+    [],
+    '只有两个名字不算重复（社区口径：> 2）',
+  )
+})
+
+test('S31 单复数一致性：中性词不参与、两类都出现才报、按多数派给建议', () => {
+  const structure = { pluralConsistency: [{ dimension: 'slice', layers: [2] }] }
+  const mixed = [
+    record('src/entities/user/index.ts', { layer: 2, group: 'user', groupName: 'slice' }),
+    record('src/entities/order/index.ts', { layer: 2, group: 'order', groupName: 'slice' }),
+    record('src/entities/notifications/index.ts', {
+      layer: 2,
+      group: 'notifications',
+      groupName: 'slice',
+    }),
+  ]
+  const findings = run('S31', context({ records: mixed, structure }))
+  assert.equal(findings.length, 1)
+  assert.match(findings[0].text, /统一成单数/)
+  assert.match(findings[0].text, /notifications 改成 notification/)
+
+  const allPlural = [
+    record('src/entities/users/index.ts', { layer: 2, group: 'users', groupName: 'slice' }),
+    record('src/entities/orders/index.ts', { layer: 2, group: 'orders', groupName: 'slice' }),
+    record('src/entities/media/index.ts', { layer: 2, group: 'media', groupName: 'slice' }),
+  ]
+  assert.deepEqual(
+    run('S31', context({ records: allPlural, structure })),
+    [],
+    '全复数 + 中性词 → 不报',
+  )
+  // 只查声明的层：别的层混用不管
+  const otherLayer = mixed.map((item) => ({ ...item, layer: 3 }))
+  assert.deepEqual(run('S31', context({ records: otherLayer, structure })), [])
+})

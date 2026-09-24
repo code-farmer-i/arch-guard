@@ -1,6 +1,7 @@
 import type { Finding, Rule } from '../../../engine/types.js'
 
-import { bucketsOf, extraDirsOf, finding, unitDirOf } from './structure-util.js'
+import { NEUTRAL_WORDS, classifyWord, toPlural, toSingular } from '../../../data/plural-forms.js'
+import { bucketsOf, dirOfPattern, extraDirsOf, finding, unitDirOf } from './structure-util.js'
 
 /**
  * 声明驱动的**组与目录**规则：组完整性（S35）· 保留名目录（S25）· 规模阈值（S26/S27）。
@@ -310,10 +311,165 @@ export const groupInDegree: Rule = {
   },
 }
 
+/* ---------------- S29 组名与其它单元重名 ---------------- */
+
+/**
+ * 判据：组名（分组切片的每一段）落在 `structure.nameCollisions` 声明的**保留词汇**里 → 报。
+ *
+ * 词汇表由角色推导并**只收真实存在的目录**："项目里有个片段叫 config，同时有个切片也叫 config"
+ * 才是歧义；声明一整张静态词表会把项目里根本不存在的单元也算进来（那是误报）。
+ */
+export const nameCollisions: Rule = {
+  id: 'S29',
+  domain: 'structure',
+  level: 'L1',
+  severity: 'error',
+  title: '组名与其它单元重名',
+  hint: '组名撞上单元名，读的人分不清这是哪一层；改名，或把它并进那个单元',
+  run: (ctx) => {
+    const specs = ctx.config.structure.nameCollisions ?? []
+    if (specs.length === 0) return []
+    const out: Finding[] = []
+    for (const spec of specs) {
+      const vocabulary = new Set<string>()
+      for (const roleId of spec.vocabularyRoles) {
+        const pattern = ctx.config.roles.find((role) => role.id === roleId)?.pattern
+        if (pattern === undefined) continue
+        const dir = dirOfPattern(pattern)
+        if (dir === null) continue
+        if (!ctx.records.some((record) => record.rel.startsWith(`${dir}/`))) continue
+        vocabulary.add(dir.slice(dir.lastIndexOf('/') + 1))
+      }
+      if (vocabulary.size === 0) continue
+      for (const bucket of bucketsOf(ctx, spec.dimension).values()) {
+        // 叶子组名与**组路径段**都要查：分组切片的组名（`{group}`）同样会与单元名撞车
+        // （社区 linter 也是逐段比对整条切片路径，不是只看叶子）
+        const leaf = [...bucket.names].sort().find((name) => vocabulary.has(name))
+        const ancestor =
+          leaf === undefined
+            ? [...bucket.ancestors].sort().find((name) => vocabulary.has(name))
+            : undefined
+        if (leaf === undefined && ancestor === undefined) continue
+        out.push(
+          finding(
+            'S29',
+            bucket.anchor,
+            1,
+            leaf !== undefined
+              ? `第 ${bucket.layer} 层的组名「${leaf}」与另一个已存在的单元同名：读的人分不清这是组还是单元`
+              : `第 ${bucket.layer} 层的组路径段「${ancestor}」与另一个已存在的单元同名：读的人分不清哪一层是组、哪一层是单元`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- S30 组名里的重复词 ---------------- */
+
+/** 与社区 linter 相同的分词：`CrewsWidget` / `crews-widget` / `crews_widget` 都切成两个词 */
+const WORD_PATTERN = /(?:[A-Z]+|[a-z]+)[a-z]*/g
+
+/**
+ * 判据：同一桶里**每个**组名都含某个词，且桶内组数 > 2 → 报。
+ * 这一层已经表达了用途（`pages/` 下的都是页面），组名里再重复一遍只是噪音。
+ */
+export const repetitiveNaming: Rule = {
+  id: 'S30',
+  domain: 'structure',
+  level: 'L1',
+  severity: 'error',
+  title: '组名里的重复词',
+  hint: '同一层每个组名都带同一个词：那一层已经说明用途了，组名里去掉它',
+  run: (ctx) => {
+    const dimensions = ctx.config.structure.repetitiveNaming ?? []
+    if (dimensions.length === 0) return []
+    const out: Finding[] = []
+    for (const dimension of dimensions) {
+      for (const bucket of bucketsOf(ctx, dimension).values()) {
+        const names = [...bucket.names]
+        if (names.length <= 2) continue
+        const counts = new Map<string, number>()
+        for (const name of names) {
+          const words = new Set((name.match(WORD_PATTERN) ?? []).map((word) => word.toLowerCase()))
+          for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1)
+        }
+        for (const [word, count] of [...counts].sort(([a], [b]) => (a < b ? -1 : 1))) {
+          if (count < names.length) continue
+          out.push(
+            finding(
+              'S30',
+              bucket.anchor,
+              1,
+              `第 ${bucket.layer} 层的 ${names.length} 个组名里都出现「${word}」：用途已经由层表达，组名里不必重复`,
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- S31 组名单复数一致性 ---------------- */
+
+/**
+ * 判据：同一桶里既有单数名又有复数名 → 报，并指出该统一成哪种（多数派；数量相等时偏向复数）。
+ *
+ * 词形判定来自 `src/data/plural-forms.ts` 的**数据表**，不是"名字好不好"这类语义判断 ——
+ * 判据是"同一层内是否一致"，机械可判定，所以可以进 error 红线（见 ADR-0001）。
+ */
+export const pluralConsistency: Rule = {
+  id: 'S31',
+  domain: 'structure',
+  level: 'L1',
+  severity: 'error',
+  title: '组名单复数一致性',
+  hint: '同一层里单复数混用：读的人会以为 `user` 与 `users` 是两种东西',
+  run: (ctx) => {
+    const specs = ctx.config.structure.pluralConsistency ?? []
+    if (specs.length === 0) return []
+    const out: Finding[] = []
+    for (const spec of specs) {
+      const layers = spec.layers && spec.layers.length > 0 ? new Set(spec.layers) : null
+      const neutral =
+        spec.neutralWords && spec.neutralWords.length > 0 ? spec.neutralWords : NEUTRAL_WORDS
+      for (const bucket of bucketsOf(ctx, spec.dimension, layers).values()) {
+        const names = [...bucket.names].sort()
+        const plurals = names.filter((name) => classifyWord(name, neutral) === 'plural')
+        const singulars = names.filter((name) => classifyWord(name, neutral) === 'singular')
+        if (plurals.length === 0 || singulars.length === 0) continue
+        const preferPlural = plurals.length >= singulars.length
+        const wrong = preferPlural ? singulars : plurals
+        const suggested = wrong.map((name) => (preferPlural ? toPlural(name) : toSingular(name)))
+        out.push(
+          finding(
+            'S31',
+            bucket.anchor,
+            1,
+            `第 ${bucket.layer} 层的组名单复数混用：${singulars.join(' / ')} 是单数、${plurals.join(' / ')} 是复数` +
+              `；统一成${preferPlural ? '复数' : '单数'}（把 ${wrong.join(' / ')} 改成 ${suggested.join(' / ')}）`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/**
+ * 按「层 + 父桶」归拢某一维度的组：桶内是**叶子组名**的集合（分组切片取 `{slice}` 那一段）。
+ * S26 / S29 / S30 / S31 共用它 —— 分桶口径只有一处真相。
+ */
+
 export const structureGroupRules: Rule[] = [
   segmentedGroups,
   reservedFolderNames,
   groupCountLimits,
   directoryItemLimits,
   groupInDegree,
+  nameCollisions,
+  repetitiveNaming,
+  pluralConsistency,
 ]
