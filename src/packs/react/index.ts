@@ -1,40 +1,21 @@
 import { definePack } from '../../engine/pack.js'
-import type { Rule } from '../../engine/types.js'
 
-import { copyRules } from './rules/copy.js'
-import { adapterRules } from './rules/deps-adapters.js'
-import { depsRules } from './rules/deps.js'
-import { contextHygieneRules } from './rules/hygiene-context.js'
-import { designStyleRules } from './rules/design-styles.js'
-import { designTokenRules } from './rules/design-tokens.js'
-import { designVendorRules } from './rules/design-vendor.js'
-import { metricsRules } from './rules/metrics.js'
-import { declaredStructureRules } from './rules/structure-declared.js'
-import { structureGraphRules } from './rules/structure-graph.js'
-import { structureRules } from './rules/structure.js'
+import { coreRules } from '../core/index.js'
 
 /**
- * React 框架包：parser（事实提取）+ 角色表变体 + 语言相关规则 + fixtures。
- * v1 只有这一个 pack；Vue / Svelte 是加法（见 PARADIGM.md §11 可扩展性三层）。
+ * **React 源码形态**的框架包：`framework: 'react'` 表示这个宿主是 React 应用 ——
+ * 它决定"哪些扩展名归本包管"（`.tsx` 由 parser 按扩展名处理，见 `facts.ts` 的 `SCRIPT_KIND`）
+ * 以及 S20 的报错文案。
+ *
+ * 与 `tsPack` 的关系：今天两者引用**同一份** `coreRules`，所以规则与适配面完全相同 ——
+ * v1 没有任何 JSX 专属的**已实现**规则（C01 裸文案、D15 内联样式按 §4.9 委派给 eslint）。
+ * 命名在这里仍有意义：将来 JSX 专属规则（内联样式形态、模板插值等）落地时，
+ * 它们的家是 **`packs/react/rules/`**（本目录），而框架无关的规则留在 `packs/core/rules/`。
  */
-export const reactRules: Rule[] = [
-  ...structureRules,
-  ...structureGraphRules,
-  ...declaredStructureRules,
-  ...designTokenRules,
-  ...designVendorRules,
-  ...designStyleRules,
-  ...copyRules,
-  ...depsRules,
-  ...adapterRules,
-  ...metricsRules,
-  ...contextHygieneRules,
-]
-
 export const reactPack = definePack({
   id: 'react',
   framework: 'react',
-  rules: reactRules,
+  rules: coreRules,
   // 只列**真有规则消费**的 facet（router / styles / data-layer 没有消费者，已删）；metrics 反而以前漏了
   adapters: ['ui-kit', 'i18n', 'metrics'],
 })

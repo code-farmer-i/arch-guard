@@ -116,7 +116,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   if (rules.length === 0) {
     throw new Error(
       '没有任何可跑的规则：配置里没有框架包，调用方也没给 rules\n' +
-        '（在 arch.config.mjs 里写 packs: [reactPack]，或让调用方传 fallbackPacks）',
+        '（在 arch.config.mjs 里写 packs: [tsPack] 或 [reactPack]，或让调用方传 fallbackPacks）',
     )
   }
 

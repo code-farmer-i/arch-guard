@@ -9,7 +9,7 @@ import {
   hasCapability,
   loadConfig,
   noneI18nKit,
-  reactRules,
+  coreRules,
   stack,
 } from '../es/index.js'
 
@@ -36,8 +36,8 @@ function project(presetsExpr) {
 }
 
 const load = (expr) => loadConfig({ root: project(expr) }).then((r) => r.config)
-const enabledIds = (config) => createRegistry(reactRules, config).enabled.map((rule) => rule.id)
-const skippedIds = (config) => createRegistry(reactRules, config).skipped.map((item) => item.rule)
+const enabledIds = (config) => createRegistry(coreRules, config).enabled.map((rule) => rule.id)
+const skippedIds = (config) => createRegistry(coreRules, config).skipped.map((item) => item.rule)
 const stackWith = (expr) => `...stack(${expr})`
 
 test('stack()：默认声明空能力（组件库 / i18n 都不替项目选型），对应规则明列停用', () => {

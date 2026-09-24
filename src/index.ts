@@ -58,7 +58,9 @@ export { metrics } from './presets/metrics.js'
 export { hygiene } from './presets/hygiene.js'
 export { i18n, i18nextKit, noneI18nKit, uiKit, antdKit, noneKit, stack } from './presets/index.js'
 
-export { reactPack, reactRules } from './packs/react/index.js'
+export { coreRules } from './packs/core/index.js'
+export { tsPack } from './packs/typescript/index.js'
+export { reactPack } from './packs/react/index.js'
 export { kitFingerprints, fingerprintsOf } from './data/kit-fingerprints.js'
 export {
   wheelFingerprints,

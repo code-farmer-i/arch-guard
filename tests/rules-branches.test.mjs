@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { extractFacts } from '../es/engine/facts.js'
-import { reactRules } from '../es/packs/react/index.js'
+import { coreRules } from '../es/index.js'
 
 /** 造一个够用的规则上下文：只填被测规则真正会读的字段 */
 function makeContext({
@@ -82,7 +82,7 @@ function makeContext({
 test('规则：有记录但事实缺失（解析失败的文件）时跳过而不是崩', () => {
   const records = ['src/shared/lib/broken.ts']
   const ctx = makeContext({ records, files: { 'unrelated.ts': 'export const x = 1' } })
-  for (const rule of reactRules) {
+  for (const rule of coreRules) {
     assert.doesNotThrow(() => rule.run(ctx), `${rule.id} 在没有 facts 时抛异常`)
   }
 })
@@ -120,7 +120,7 @@ function layeredGraph(pairs) {
 }
 
 test('S21：门控是声明（structure.order），不是猜 layout', () => {
-  const rule = reactRules.find((item) => item.id === 'S21')
+  const rule = coreRules.find((item) => item.id === 'S21')
   assert.ok(rule)
   assert.equal(
     rule.run(layeredContext({ order: false })).length,
@@ -131,7 +131,7 @@ test('S21：门控是声明（structure.order），不是猜 layout', () => {
 })
 
 test('同一份引擎换范式：Atomic Design 的 atoms < molecules < organisms 也能表达（引擎零改动）', () => {
-  const rule = reactRules.find((item) => item.id === 'S21')
+  const rule = coreRules.find((item) => item.id === 'S21')
   const ctx = makeContext({ scan: {}, structure: { order: true, isolate: [], publicApi: [] } })
   // 三个层的角色全部由**声明**给出 —— 引擎里没有任何 atoms/molecules 字面量
   ctx.config.roles = [
@@ -168,13 +168,13 @@ test('同一份引擎换范式：Atomic Design 的 atoms < molecules < organisms
 
 test('S22 / S23：没声明就不跑（声明了才判，避免与外部工具重复报）', () => {
   const ctx = makeContext({ scan: {} })
-  assert.equal(reactRules.find((item) => item.id === 'S22').run(ctx).length, 0)
-  assert.equal(reactRules.find((item) => item.id === 'S23').run(ctx).length, 0)
+  assert.equal(coreRules.find((item) => item.id === 'S22').run(ctx).length, 0)
+  assert.equal(coreRules.find((item) => item.id === 'S23').run(ctx).length, 0)
 })
 
 test('S01 / S03：提示要指路（闭集枚举只说"你错了"没用，要说"放哪"）', () => {
-  const s01 = reactRules.find((rule) => rule.id === 'S01')
-  const s03 = reactRules.find((rule) => rule.id === 'S03')
+  const s01 = coreRules.find((rule) => rule.id === 'S01')
+  const s03 = coreRules.find((rule) => rule.id === 'S03')
   assert.ok(s01 && s03)
 
   const scanFor = (missing) => ({
@@ -232,7 +232,7 @@ test('D 域：storage.ts 里找不到 htmlKeys 指定的键时明确报出来', 
     files,
     params: { storageFile: 'src/shared/config/storage.ts', htmlKeys: ['theme'] },
   })
-  const findings = reactRules.find((rule) => rule.id === 'D08')?.run(ctx) ?? []
+  const findings = coreRules.find((rule) => rule.id === 'D08')?.run(ctx) ?? []
   assert.equal(findings.length, 1)
   assert.match(findings[0]?.text ?? '', /STORAGE_KEYS 里找不到 theme/)
 })
@@ -253,6 +253,6 @@ test('D 域：对比度基线的令牌解析不了时跳过（不猜、不误报
       ],
     },
   })
-  const findings = reactRules.find((rule) => rule.id === 'D07')?.run(ctx) ?? []
+  const findings = coreRules.find((rule) => rule.id === 'D07')?.run(ctx) ?? []
   assert.deepEqual(findings, [], '解析不了的配色要跳过，而不是报一个假对比度')
 })

@@ -27,8 +27,9 @@ _Avoid_: 目录约定、分层表、白名单
 _Avoid_: 模板、profile、配置
 
 **框架包（pack）**：
-换元框架才需要的东西：parser + 角色表变体 + 语言相关规则 + fixtures。v1 只有 React。
-_Avoid_: 适配器（那是数据，pack 是代码）
+一种**源码形态**的落地：parser + 角色表变体 + 语言相关规则 + fixtures。`framework` 指形态（`typescript` / `react` / `vue` …），
+不是"用了哪个框架"；一个项目只允许一个。v1 有 `tsPack`（框架无关的 TS/JS）与 `reactPack`，**两者今天共用同一份规则集**。
+_Avoid_: 适配器（那是数据，pack 是代码）、元框架（那是形态轴上的旧叫法）
 
 **适配器（adapter）**：
 **数据，不是插件**：声明一个可替换面的库事实（包名、选择器前缀、全局 API、样式入口）。引擎从不回调它。

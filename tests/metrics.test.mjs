@@ -5,10 +5,10 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 
 import { aggregate, readCoverageReport } from '../es/engine/coverage.js'
-import { reactRules } from '../es/packs/react/index.js'
+import { coreRules } from '../es/index.js'
 
 const ruleOf = (id) => {
-  const rule = reactRules.find((item) => item.id === id)
+  const rule = coreRules.find((item) => item.id === id)
   assert.ok(rule, `${id} 不存在`)
   return rule
 }

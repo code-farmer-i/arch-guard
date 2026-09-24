@@ -3,14 +3,14 @@ import { test } from 'node:test'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { reactRules } from '../es/packs/react/index.js'
+import { coreRules } from '../es/index.js'
 import { runSelfTest } from '../es/engine/self-test.js'
 
 /** 夹具根目录（测试文件在 tests/ 下） */
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 test('夹具回归在测试进程内跑：每条规则的违规必报与合规不报都被覆盖', async () => {
-  const result = await runSelfTest(PACKAGE_ROOT, reactRules)
+  const result = await runSelfTest(PACKAGE_ROOT, coreRules)
   assert.ok(result.total >= 11, `夹具数量异常：${result.total}`)
   assert.equal(
     result.failures.length,
@@ -34,6 +34,6 @@ test('夹具覆盖了全部已实现规则（防「加了规则没加夹具」�
       /* 没有 expect.json 的夹具目录跳过 */
     }
   }
-  const missing = reactRules.map((rule) => rule.id).filter((id) => !covered.has(id))
+  const missing = coreRules.map((rule) => rule.id).filter((id) => !covered.has(id))
   assert.deepEqual(missing, [], `这些规则没有「违规必报」夹具：${missing.join(', ')}`)
 })

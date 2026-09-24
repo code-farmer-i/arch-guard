@@ -1,22 +1,33 @@
 /**
- * 元框架 → 源码扩展名（**纯数据**）。
+ * **源码形态** → 源码扩展名（**纯数据**）。
+ *
+ * 为什么叫源码形态而不是"元框架"：pack 的 `framework` 实际只决定两件事 ——
+ * ① 哪些扩展名归本包管（`scan.ts`，其余框架的源码进 `foreign` 由 S20 报出）；
+ * ② 报错文案里说"哪个包量不了这些文件"。**没有任何规则按它分支**。
+ * 所以一个纯 TS 库该用 `tsPack`（framework: `typescript`），而不是被一个叫 "react" 的包量 ——
+ * React 只是 TS 家族里带 JSX 约定的特化，扩展名与 `typescript` 相同。
  *
  * 为什么是数据表：引擎层与通用预设里不许出现具体框架名（见 PARADIGM §7.1「元自检加强」），
- * 「本工具认识哪些框架、哪个已经有 pack」这份真相只在这里存一份。
+ * 「本工具认识哪些源码形态、哪个已经有 pack」这份真相只在这里存一份。
  *
- * `implemented: false` 的框架不是「以后支持」，而是**现在量不了** —— 配置里声明它必须
+ * `implemented: false` 的不是「以后支持」，而是**现在量不了** —— 配置里声明它必须
  * fail-closed 报错，绝不能出现「0 个文件 → ✔ 通过」这种假绿。
  */
 export interface FrameworkSource {
-  /** 框架标识（配置里 `metaFramework` 的取值） */
+  /** 源码形态标识（配置里 `metaFramework` 的取值、pack 的 `framework`） */
   id: string
-  /** 该框架的源码文件扩展名 */
+  /** 该形态的源码文件扩展名 */
   extensions: string[]
-  /** 本工具是否已经有这个框架的 pack */
+  /** 本工具是否已经有这个形态的 pack */
   implemented: boolean
 }
 
 export const frameworkSources: FrameworkSource[] = [
+  {
+    id: 'typescript',
+    extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
+    implemented: true,
+  },
   {
     id: 'react',
     extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'],
@@ -27,9 +38,12 @@ export const frameworkSources: FrameworkSource[] = [
   { id: 'astro', extensions: ['.astro'], implemented: false },
 ]
 
-/** 引擎默认框架：取第一个已实现的 pack，避免在引擎里写字面量 */
+/**
+ * 引擎默认源码形态：取第一个已实现的 pack 的形态，避免在引擎里写字面量。
+ * 第一个是 `typescript` —— 引擎对**没声明形态**的调用方默认按 TS/JS 处理，不假设前端框架。
+ */
 export const defaultFramework: string =
-  frameworkSources.find((item) => item.implemented)?.id ?? 'react'
+  frameworkSources.find((item) => item.implemented)?.id ?? 'typescript'
 
 /**
  * 把配置里的取值解析成**一个可用的**框架 id。

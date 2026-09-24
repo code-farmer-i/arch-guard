@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { createRegistry, hasCapability, loadConfig, reactRules } from '../es/index.js'
+import { createRegistry, hasCapability, loadConfig, coreRules } from '../es/index.js'
 
 /**
  * 预设**组合语义**：从"用户选一个目录规范，域预设自由叠加"这个用例出发，
@@ -108,7 +108,7 @@ test('组合：i18n 落点同样跟着范式走（`copy()` 不再写死默认值
   assert.equal(hasCapability(canon, 'i18n.resourceDir'), true, '范式声明了落点 = 有能力')
 })
 test('组合：`all` 是「应用范式默认全查」，仍可被收窄（disable / overrides.enable）', async () => {
-  const enabledIds = (config) => createRegistry(reactRules, config).enabled.map((rule) => rule.id)
+  const enabledIds = (config) => createRegistry(coreRules, config).enabled.map((rule) => rule.id)
 
   const all = await load('canonical(), copy(), i18n(i18nextKit())')
   assert.ok(enabledIds(all).includes('C03'), '应用范式默认全查')

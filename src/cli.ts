@@ -10,6 +10,7 @@ import { runGuard } from './engine/run.js'
 import { runSelfTest } from './engine/self-test.js'
 import type { Domain, Level, Severity } from './engine/types.js'
 import { color } from './engine/util.js'
+import { coreRules } from './packs/core/index.js'
 import { reactPack } from './packs/react/index.js'
 
 const LEVELS: Level[] = ['L1', 'L2', 'L3', 'L4']
@@ -122,7 +123,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   const options = program.opts<CliOptions>()
 
   if (options.selfTest) {
-    const result = await runSelfTest(packageRoot, reactPack.rules)
+    const result = await runSelfTest(packageRoot, coreRules)
     if (result.failures.length > 0) {
       out(color.red(`✖ 夹具回归失败：${result.failures.length}/${result.total}`))
       for (const failure of result.failures) out(`  ${failure.fixture}: ${failure.message}`)
@@ -184,7 +185,14 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   try {
     const result = await runGuard({
       cwd: process.cwd(),
-      // 规则集由框架包决定（配置里可写 packs: [...]）；CLI 只提供兜底的包
+      /**
+       * 规则集由框架包决定（配置里可写 `packs: [...]`）；CLI 只提供**兜底的包**。
+       *
+       * 兜底为什么仍是 `reactPack`（而不是更"通用"的 `tsPack`）：
+       * 两者的规则集今天完全相同，差别只在声明支持的适配面 —— 而 `reactPack` 是唯一能配
+       * `uiKit(...)` 的历史入口。**忘了写 `packs` 的 React 宿主靠它继续可用**，不静默变红。
+       * 泛 TS 宿主（库 / CLI）请在 `arch.config.mjs` 里显式写 `packs: [tsPack]`。
+       */
       fallbackPacks: [reactPack],
       cache: options.cache !== false,
       format: options.format as 'pretty' | 'json' | 'github',

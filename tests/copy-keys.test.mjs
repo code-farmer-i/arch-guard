@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { extractFacts } from '../es/engine/facts.js'
 import { collectI18n } from '../es/engine/i18n.js'
-import { keysExist, noDeadKeys } from '../es/packs/react/rules/copy.js'
+import { keysExist, noDeadKeys } from '../es/packs/core/rules/copy.js'
 
 const DIR = 'src/shared/i18n/locales'
 

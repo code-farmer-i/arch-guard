@@ -76,7 +76,7 @@ test('presets：只传部分参数时其余走范式默认（src 推导 app/modu
 })
 
 test('能力提供者必须启用消费它的规则（防"适配器装了却静默失效"）', async () => {
-  const { reactRules, copy, designSystem, metrics, uiKit, antdKit } = await import('../es/index.js')
+  const { coreRules, copy, designSystem, metrics, uiKit, antdKit } = await import('../es/index.js')
   // 能力前缀 → **负责启用**该能力对应规则的预设。
   // 注意：能力（适配器）与规则集是两件事 —— i18n 的能力由 `i18n(i18nextKit())` 给，
   // 但"启用 C 域规则"永远是 `copy()`；所以这张表查的是"谁启用"，不是"谁提供适配器"。
@@ -87,7 +87,7 @@ test('能力提供者必须启用消费它的规则（防"适配器装了却静�
     uiKit: uiKit(antdKit()),
   }
   const missing = []
-  for (const rule of reactRules) {
+  for (const rule of coreRules) {
     for (const capability of rule.requires ?? []) {
       const prefix = capability.split('.')[0]
       const provider = providers[prefix]

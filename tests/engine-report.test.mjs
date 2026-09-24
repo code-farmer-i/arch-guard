@@ -14,7 +14,7 @@ import {
   i18n,
   i18nextKit,
   loadConfig,
-  reactRules,
+  coreRules,
   renderReport,
   renderSummary,
   runGuard,
@@ -52,7 +52,7 @@ const copyFixture = (name) => {
 
 const baseInput = (overrides = {}) => ({
   config: { params: {} },
-  ruleIndex: new Map(reactRules.map((rule) => [rule.id, rule])),
+  ruleIndex: new Map(coreRules.map((rule) => [rule.id, rule])),
   findings: [],
   exemptedCount: 0,
   unusedBaseline: [],
@@ -205,12 +205,12 @@ test('presets：library 与 canonical 是两套角色表，且都完备', () => 
 test('run：--update-baseline 写入基线，第二次运行即被豁免', async () => {
   const dir = copyFixture('violations')
   try {
-    const first = await runGuard({ cwd: dir, rules: reactRules, quiet: true, updateBaseline: true })
+    const first = await runGuard({ cwd: dir, rules: coreRules, quiet: true, updateBaseline: true })
     assert.equal(first.exitCode, 0, '写入基线后本轮不报')
     const baseline = JSON.parse(readFileSync(join(dir, 'arch.baseline.json'), 'utf8'))
     assert.ok(baseline.entries.length >= 5, '委派了一批规则后条目变少')
 
-    const second = await runGuard({ cwd: dir, rules: reactRules, quiet: true })
+    const second = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
     assert.equal(second.active.length, 0, '存量违规被豁免')
     assert.equal(second.exitCode, 0)
   } finally {
@@ -222,7 +222,7 @@ test('run：增量 scope 下禁止写基线（会写出不完整的基线）', a
   const dir = copyFixture('violations')
   try {
     await assert.rejects(
-      runGuard({ cwd: dir, rules: reactRules, quiet: true, scope: 'staged', updateBaseline: true }),
+      runGuard({ cwd: dir, rules: coreRules, quiet: true, scope: 'staged', updateBaseline: true }),
       /只能在全量 scope/,
     )
   } finally {
@@ -235,7 +235,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
   try {
     const scoped = await runGuard({
       cwd: dir,
-      rules: reactRules,
+      rules: coreRules,
       quiet: true,
       paths: ['src/orphans/**'],
     })
@@ -244,7 +244,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
       ['src/orphans/thing.ts'],
     )
 
-    const advisory = await runGuard({ cwd: dir, rules: reactRules, quiet: true, reportOnly: true })
+    const advisory = await runGuard({ cwd: dir, rules: coreRules, quiet: true, reportOnly: true })
     assert.equal(advisory.exitCode, 0, 'report-only 永远 0')
     assert.ok(advisory.active.length > 0)
 
@@ -259,7 +259,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
     })
     const crashed = await runGuard({
       cwd: dir,
-      rules: [...reactRules, boom],
+      rules: [...coreRules, boom],
       quiet: true,
       only: ['H99'],
     })
@@ -273,7 +273,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
 test('run：能力未声明时规则不注册，且报告里能看到 skipped', async () => {
   const result = await runGuard({
     cwd: `${PACKAGE_ROOT}examples/minimal`,
-    rules: reactRules,
+    rules: coreRules,
     quiet: true,
   })
   assert.equal(result.exitCode, 0)

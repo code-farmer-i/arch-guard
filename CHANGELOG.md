@@ -28,6 +28,21 @@
   将来谁读了就会把角色重复计入。`addRoles` 仍然可以作为宿主的 `overrides` / 预设输入使用（新增 `ConfigOverrides` 类型承载它）。
 - `--verify-deps` 的输出不再暗示"依赖成熟度已把关"；PARADIGM §12.5 / DESIGN §16.4 标注联网部分未实现。
 
+### Changed（狗粮配置：只留真有消费者的轴）
+
+- **`arch.config.mjs` 去掉 `hygiene()`**：它只贡献 H06，而 H06 需要 `uiKit.detachedApis` 能力 ——
+  本项目永远不会用组件库，所以那是一条**净贡献 0、永远停用**的声明（实测：去掉它启用规则数不变）。
+  H 域在本仓靠 eslint 那侧覆盖（H01–H05 按 §4.9 委派）。**这是取舍不是缺陷**：想让"H 域评估过"留在报告里，加回一行即可。
+- **`arch.config.mjs` 补 `metrics()`**：M 域（8 条规则）此前一条都没在本仓跑过。现在装两条**没有产物依赖**的：
+  `tests.checkChain` → **M09**（`check` 链路必须真的包含 test 与 coverage —— 门禁自己漏跑只有门禁自己能查）、
+  `depsBudget.runtime: 1` → **M07**（本体只许一个运行时依赖；加第二个要改配置，diff 可见）。
+  实测狗粮从 15/55 → **17/55**，新增两条今天就是绿的，且都真的会失败（把 `pnpm test` 从 check 里摘掉 → M09 立即报错）。
+  依赖覆盖率产物的 M02–M06 与 M08 仍是**明列停用**：M06 要求产物比 HEAD 新，装上会让 `pnpm guard:self`
+  变成"必须先跑覆盖率"；M08 要求源文件被测试 import 或同名配对，而本仓测试是**分组测试 + 跑构建产物**（import `es/`），
+  实测会一次报 24 条结构性 error（不是代码问题），装上等于削弱门禁。
+- `arch.config.mjs` 另补：`specVersion: '1'`（配置格式版本不一致时显式报错）、`packs: [reactPack]`（不再依赖 CLI 兜底包，
+  让 `pack.adapters` 的 facet 白名单校验真正生效）、`.scratch/**` 进 `ignore`（一次性 spike 不属于项目源码树）。
+
 ### Added（可判定性的锚点写清）
 
 - `docs/adr/0006-primitives-are-vocabulary.md`：十个检测原语是**分类词汇**，不是引擎里的一层（实现里没有 primitives 模块）。

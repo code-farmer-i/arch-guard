@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { run } from '../es/cli.js'
-import { reactRules, runGuard } from '../es/index.js'
+import { coreRules, runGuard } from '../es/index.js'
 
 /**
  * scope 的安全语义（docs/DESIGN.md §6.8 / PARADIGM.md §9）—— 这一组测试盯的是
@@ -83,7 +83,7 @@ test('scope=staged：判的是 index 内容，工作区里未暂存的改动不�
 
     const stagedClean = await runGuard({
       cwd: dir,
-      rules: reactRules,
+      rules: coreRules,
       scope: 'staged',
       quiet: true,
     })
@@ -93,7 +93,7 @@ test('scope=staged：判的是 index 内容，工作区里未暂存的改动不�
       '工作区里那份 barrel 还没 add，staged 不该报它（否则 hook 会拦住用户没打算提交的改动）',
     )
     // 对照组：同一个文件在全量下确实会报 —— 证明上一条不是"规则根本没跑"
-    const full = await runGuard({ cwd: dir, rules: reactRules, scope: 'full', quiet: true })
+    const full = await runGuard({ cwd: dir, rules: coreRules, scope: 'full', quiet: true })
     assert.ok(
       full.active.some(
         (finding) => finding.rule === 'S11' && finding.file === 'src/shared/lib/a.ts',
@@ -105,7 +105,7 @@ test('scope=staged：判的是 index 内容，工作区里未暂存的改动不�
     git('add', '-A')
     const stagedDirty = await runGuard({
       cwd: dir,
-      rules: reactRules,
+      rules: coreRules,
       scope: 'staged',
       quiet: true,
     })
@@ -131,7 +131,7 @@ test('scope=staged：取不到 index blob 的文件要明说退回工作区，�
     // staged 删除：index 里没有它的 blob（文件还在工作区）
     git('rm', '--cached', 'src/shared/lib/a.ts')
 
-    const staged = await runGuard({ cwd: dir, rules: reactRules, scope: 'staged', quiet: true })
+    const staged = await runGuard({ cwd: dir, rules: coreRules, scope: 'staged', quiet: true })
     assert.ok(
       staged.active.some((finding) => finding.file === 'src/shared/lib/a.ts'),
       'blob 取不到时退回工作区内容（宁多报不漏报）',
@@ -156,7 +156,7 @@ test('scope=changed + --local-only：跳过的全局违规条数在 API / notice
     writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 2\n')
 
     // 默认：不可归属的全局违规仍然失败（不许静默丢弃）
-    const strict = await runGuard({ cwd: dir, rules: reactRules, scope: 'changed', quiet: true })
+    const strict = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
     const globalCount = strict.active.filter((finding) => finding.global).length
     assert.ok(globalCount > 0, '默认必须仍然报全局违规')
     assert.equal(strict.skippedGlobals, 0)
@@ -165,7 +165,7 @@ test('scope=changed + --local-only：跳过的全局违规条数在 API / notice
     // --local-only：放行，但条数必须交代
     const local = await runGuard({
       cwd: dir,
-      rules: reactRules,
+      rules: coreRules,
       scope: 'changed',
       localOnly: true,
       quiet: true,
@@ -203,7 +203,7 @@ test('scope=changed：rename 后的新路径必须进变更集（否则改名 = 
     mkdirSync(join(dir, 'src/shared/lib/nested'), { recursive: true })
     git('mv', 'src/shared/lib/a.ts', 'src/shared/lib/nested/a.ts')
 
-    const changed = await runGuard({ cwd: dir, rules: reactRules, scope: 'changed', quiet: true })
+    const changed = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
     assert.ok(
       changed.scopeFiles.includes('src/shared/lib/nested/a.ts'),
       '改名后的新路径必须在变更集里（否则改名 = 免检）',
@@ -241,7 +241,7 @@ test('scope=changed：配置根不是仓库根时，变更路径换算到配置�
     git('commit', '-m', 'init')
     writeFileSync(join(dir, 'src/shared/lib/a.ts'), "export * from './c'\n")
 
-    const changed = await runGuard({ cwd: dir, rules: reactRules, scope: 'changed', quiet: true })
+    const changed = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
     assert.deepEqual(
       changed.scopeFiles,
       ['src/shared/lib/a.ts'],

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { reactRules } from '../es/packs/react/index.js'
+import { coreRules } from '../es/index.js'
 
 /**
  * 空项目上下文：没有记录、没有事实、没有图、没有 i18n、没有适配器。
@@ -59,7 +59,7 @@ function emptyContext() {
 test('每条规则在空项目上都安静通过（早退分支的健壮性）', () => {
   const ctx = emptyContext()
   const noisy = []
-  for (const rule of reactRules) {
+  for (const rule of coreRules) {
     let findings
     try {
       findings = rule.run(ctx)
@@ -75,7 +75,7 @@ test('每条规则在空项目上都安静通过（早退分支的健壮性）',
 
 test('规则契约：id 唯一、都有 title/hint、error 级必须在 L1–L3', () => {
   const seen = new Set()
-  for (const rule of reactRules) {
+  for (const rule of coreRules) {
     assert.equal(seen.has(rule.id), false, `规则 id 重复：${rule.id}`)
     seen.add(rule.id)
     assert.ok(rule.title.length > 0, `${rule.id} 缺 title`)
@@ -86,5 +86,5 @@ test('规则契约：id 唯一、都有 title/hint、error 级必须在 L1–L3'
     }
     assert.equal(typeof rule.run, 'function')
   }
-  assert.ok(reactRules.length >= 40, `规则数不应该低于 40，实际 ${reactRules.length}`)
+  assert.ok(coreRules.length >= 40, `规则数不应该低于 40，实际 ${coreRules.length}`)
 })

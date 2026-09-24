@@ -63,10 +63,10 @@ test('mergePresets：数组拼接、对象浅合并；enable / disable 都取并
 })
 
 test('预设贡献规则集：并集起来正好覆盖各域已实现的规则（防"加了规则没挂进预设"）', async () => {
-  const { reactRules, canonical, designSystem, copy, deps, metrics, hygiene } =
+  const { coreRules, canonical, designSystem, copy, deps, metrics, hygiene } =
     await import('../es/index.js')
   const byDomain = new Map()
-  for (const rule of reactRules) {
+  for (const rule of coreRules) {
     const list = byDomain.get(rule.domain) ?? []
     list.push(rule.id)
     byDomain.set(rule.domain, list)

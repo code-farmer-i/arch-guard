@@ -9,8 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { aliasesFromTsconfig, loadConfig } from '../es/engine/config.js'
 import { parseLocaleFile } from '../es/engine/i18n.js'
 import { describeTypeScriptProblem } from '../es/engine/ts-api.js'
-import { reactRules } from '../es/packs/react/index.js'
-import { reactPack, runGuard } from '../es/index.js'
+import { coreRules, reactPack, runGuard } from '../es/index.js'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const INDEX_URL = pathToFileURL(join(PACKAGE_ROOT, 'es/index.js')).href
@@ -71,13 +70,14 @@ test('config：metaFramework 认不出 / 还没有 pack 时直接拒绝（防「
     write('vue')
     await assert.rejects(() => loadConfig({ root: dir }), /还没有 vue 框架包/)
 
-    // 不写就是已实现的那个（react），必须能正常加载
+    // 不写就用**默认源码形态**（data 表里第一个已实现的：typescript）——
+    // 引擎不假设前端框架，所以这里不是 'react'
     writeFileSync(
       join(dir, 'arch.config.mjs'),
       `import { canonical } from '${INDEX_URL}'\nexport default { presets: [canonical()] }\n`,
     )
     const { config } = await loadConfig({ root: dir })
-    assert.equal(config.metaFramework, 'react')
+    assert.equal(config.metaFramework, 'typescript')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -191,7 +191,7 @@ test('ts-api：非对象导出给出可执行报错，而不是让人看 undefin
 test('run：没有 git 时 scope=changed 降级全量并显式给出 notice', async () => {
   const dir = makeProject()
   try {
-    const result = await runGuard({ cwd: dir, rules: reactRules, scope: 'changed', quiet: true })
+    const result = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
     assert.ok(result.all.length > 0)
     assert.equal(result.scope, 'changed')
   } finally {
@@ -221,7 +221,7 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
       'export function a(): void {\n  console.log("改过的文件")\n  debugger\n}\n',
     )
 
-    const changed = await runGuard({ cwd: dir, rules: reactRules, scope: 'changed', quiet: true })
+    const changed = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
     // scope 只过滤**报告**（active），不影响正确性判定（all）—— 这是防「假绿」的设计
     assert.deepEqual(changed.scopeFiles, ['src/shared/lib/a.ts'])
     assert.ok(changed.active.some((finding) => finding.file === 'src/shared/lib/a.ts'))
@@ -235,7 +235,7 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
       '但 all 里必须仍然保留它（否则增量会变成假绿）',
     )
 
-    const staged = await runGuard({ cwd: dir, rules: reactRules, scope: 'staged', quiet: true })
+    const staged = await runGuard({ cwd: dir, rules: coreRules, scope: 'staged', quiet: true })
     assert.equal(
       staged.active.some((finding) => finding.file === 'src/shared/lib/a.ts'),
       false,
@@ -243,10 +243,10 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
     )
 
     git('add', '-A')
-    const stagedNow = await runGuard({ cwd: dir, rules: reactRules, scope: 'staged', quiet: true })
+    const stagedNow = await runGuard({ cwd: dir, rules: coreRules, scope: 'staged', quiet: true })
     assert.ok(stagedNow.active.some((finding) => finding.file === 'src/shared/lib/a.ts'))
 
-    const since = await runGuard({ cwd: dir, rules: reactRules, scope: 'since:HEAD', quiet: true })
+    const since = await runGuard({ cwd: dir, rules: coreRules, scope: 'since:HEAD', quiet: true })
     assert.ok(Array.isArray(since.all))
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -260,7 +260,7 @@ test('run：--paths 接受绝对路径（IDE / lint 工具按文件传参的形�
     writeFileSync(join(dir, 'src/modules/demo/helper.ts'), 'export const helper = 1\n')
     const absolute = await runGuard({
       cwd: dir,
-      rules: reactRules,
+      rules: coreRules,
       quiet: true,
       paths: [join(dir, 'src/modules/demo/helper.ts')],
     })
@@ -271,7 +271,7 @@ test('run：--paths 接受绝对路径（IDE / lint 工具按文件传参的形�
     )
     const relativeRun = await runGuard({
       cwd: dir,
-      rules: reactRules,
+      rules: coreRules,
       quiet: true,
       paths: ['src/modules/demo/helper.ts'],
     })

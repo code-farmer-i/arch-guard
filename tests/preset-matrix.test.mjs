@@ -16,7 +16,7 @@ import {
   hygiene,
   library,
   metrics,
-  reactRules,
+  coreRules,
 } from '../es/index.js'
 
 /**
@@ -286,8 +286,8 @@ export default {
     assert.equal(disabled.config.enable.includes('D11'), true, 'enable 仍记着 D11 的贡献（并集）')
     assert.deepEqual(disabled.config.disable, ['D11'], '减法记在 disable 上')
 
-    const before = createRegistry(reactRules, plain.config)
-    const after = createRegistry(reactRules, disabled.config)
+    const before = createRegistry(coreRules, plain.config)
+    const after = createRegistry(coreRules, disabled.config)
     assert.equal(
       before.enabled.some((rule) => rule.id === 'D11'),
       true,

@@ -6,7 +6,7 @@ import {
   depsPolicyFrom,
   policyConflicts,
   readProjectDeps,
-  reactRules,
+  coreRules,
   runGuard,
 } from '../es/index.js'
 
@@ -15,7 +15,7 @@ const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const run = (fixture, options = {}) =>
   runGuard({
     cwd: `${PACKAGE_ROOT}__fixtures__/${fixture}`,
-    rules: reactRules,
+    rules: coreRules,
     quiet: true,
     ...options,
   })
@@ -87,7 +87,7 @@ test('P 域：手搓日期格式化被抓，而正确使用 dayjs 的文件不�
 
 test('P 域：命中指纹但确实在用登记方案时不报（本体即正例）', async () => {
   // 本体用 process.argv.slice（命中 cli-args 强指纹），同时真的 import 了 commander → P06 不该报
-  const result = await runGuard({ cwd: PACKAGE_ROOT, rules: reactRules, quiet: true })
+  const result = await runGuard({ cwd: PACKAGE_ROOT, rules: coreRules, quiet: true })
   const deps = result.all.filter((finding) => finding.rule.startsWith('P'))
   assert.deepEqual(
     deps.map((finding) => `${finding.rule} ${finding.text}`),

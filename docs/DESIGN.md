@@ -326,12 +326,15 @@ src/
     deps.ts/deps-audit.ts  依赖事实与策略    i18n.ts  文案资源索引    css.ts  CSS 结构化扫描
     portability.ts    P1–P4 自检    self-test.ts  夹具回归    util.ts/ts-api.ts/output.ts
     types.ts          规则面向的契约（事实模型 / 配置 / 规则 / 发现项）
-  packs/react/      框架包：index.ts（pack 定义）+ rules/{structure,structure-graph,structure-declared,
-                    design-tokens,design-vendor,design-styles,design-shared,copy,deps,deps-adapters,
-                    hygiene-context,metrics,placement}.ts
+  packs/           框架包 = **源码形态**的落地（一个项目一个）
+    core/            共享规则实现：rules/{structure,structure-graph,structure-declared,design-tokens,
+                   design-vendor,design-styles,design-shared,copy,deps,deps-adapters,
+                   hygiene-context,metrics,placement}.ts + index.ts 组装 coreRules
+    typescript/      tsPack（framework: typescript）—— 库 / CLI / 纯 TS 项目
+    react/           reactPack（framework: react）—— React 应用；JSX 专属规则将来的家
   presets/          范式（canonical / library / fsd）+ 域预设（design-system / copy / hygiene / metrics /
                     stack / kit）+ 各面适配器（ui-kits/ · i18n-kits/，**纯数据**）
-  data/             纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 元框架扩展名
+  data/             纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 源码形态扩展名
                     （framework-sources）—— 引擎零库名，由 P4 自检强制
 __fixtures__/       27 个夹具项目：每条规则一对「违规必报 × 合规不报」样例
 examples/minimal/   干净的宿主示例（可搬运性验证）
@@ -339,7 +342,7 @@ arch.config.mjs     门禁自己的配置（库范式 + 配置豁免）
 ```
 
 规则是纯函数，只消费事实模型（**不碰 TS AST**）—— 形状示意（权威实现见
-`src/packs/react/rules/structure.ts` 的 `noBarrel`，此处不照抄，避免文档变成第二处真相）：
+`src/packs/core/rules/structure.ts` 的 `noBarrel`，此处不照抄，避免文档变成第二处真相）：
 
 ```ts
 // 取 facts → 过滤出违规形态 → 产出带 文件/行/修法 的 finding
@@ -684,8 +687,9 @@ export default () => ({
 
 **元自检加强（P4）**：`src/engine/**`、`src/packs/**` 与**通用预设**（`src/presets/*.ts`）不得出现任何**具体框架/库名**（组件库、数据层、路由、样式方案、i18n 库），只许出现在 `src/presets/<面>/<name>.ts` 与 `src/data/*`；违反即门禁自身报错。这条覆盖 §7.2 的全部适配器，是「同一引擎能服务多种宿主与范式」的总保证。
 
-**元框架轴（本期范围）**：`metaFramework` 是独立一轴，取值表在 `src/data/framework-sources.ts`（纯数据，引擎里不出现框架名）。
-v1 只有 React pack。**认不出、或还没有 pack 的框架一律 fail-closed 报错** —— 拿 Vue 跑只会得到「0 个文件 → ✔ 通过」的假绿，
+**源码形态轴（本期范围）**：`metaFramework` 是一独立轴，取值表在 `src/data/framework-sources.ts`（纯数据，引擎里不出现形态名）。
+v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`react`）—— 后者只是前者的 JSX 约定版本，
+**今天共用同一份规则集**（`packs/core/rules/`）。**认不出、或还没有 pack 的形态一律 fail-closed 报错** —— 拿 Vue 跑只会得到「0 个文件 → ✔ 通过」的假绿，
 所以宁可拒绝执行；已经混进 `.vue` 的项目由 **S20** 报出来（那些文件会被 `walk` 丢掉，不报就是静默失能）。
 换 Vue / Svelte 需要换 parser 与整套规则集，属预留轴，不在本期。
 
@@ -826,18 +830,21 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 | --------------- | ---------------- | ------------------------------------------- | ----------------------------------------------------------------------- |
 | **配置**        | 项目专有事实     | 数据表                                      | 路径、令牌前缀、阈值、白名单                                            |
 | **适配器**      | 同一元框架内的库 | **纯数据表**（§7.4）                        | antd ↔ MUI、Zustand ↔ Jotai、CSS Modules ↔ Tailwind、i18next ↔ vue-i18n |
-| **框架包 pack** | 元框架本身       | **代码**（随引擎分发、经评审、带 fixtures） | React pack（v1 唯一）、Vue pack、Svelte pack                            |
+| **框架包 pack** | **源码形态**     | **代码**（随引擎分发、经评审、带 fixtures） | `tsPack` · `reactPack`（v1 共用规则集）、Vue pack、Svelte pack          |
 
-**pack 的职责**（决定「换元框架」的边界）：
+**pack 的职责**（决定「换源码形态」的边界）。**v1 的实况**：两个 pack 都从 `packs/core/rules/` 取规则 ——
+还没有任何语言专属的已实现规则，所以差异只在 `framework`（扩展名分派）与报错文案；
 
-- **parser**：React pack = `ts.createSourceFile`（TSX）；Vue pack = `vue/compiler-sfc`（template / script / style 三块）
+职责清单（Vue/Svelte 落地时要各自补齐）：
+
+- **parser**：TS/React pack 都用 `ts.createSourceFile`（按扩展名选 `ScriptKind`，见 `facts.ts`）；Vue pack = `vue/compiler-sfc`（template / script / style 三块）
 - **角色表变体**：文件形态判据（`views/*.vue`、`<script setup>`、SFC 天然 default export）
 - **规则集变体**：语言相关规则换实现（JSX 裸文本 → 模板插值；`use*` hooks → composables；SFC `<style scoped>` 是新规则）
 - **fixtures**：pack 自带违规 / 合规样例
 
 **跨 pack 复用、无需重写的部分**：三条公理、10 个原语（分类词汇，见 §3.1）、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、棘轮与三条元自检。
 
-**加一个 Vue pack 的量级**：SFC parser ~350 行 + 角色表变体 ~80 行 + React 专属规则替换（S13 / C01 / H06 等约 10 条）+ Vue 专属规则（模板插值、scoped 样式约 6 条）+ fixtures ~30 个文件 ≈ **半个引擎**。所以 Vue 不进 v1；但 **pack 边界必须在 v1 就划出来**（即使只有一个 React pack），否则将来加 Vue 是重写而不是加法。
+**加一个 Vue pack 的量级**：SFC parser ~350 行 + 角色表变体 ~80 行 + React 专属规则替换（S13 / C01 / H06 等约 10 条）+ Vue 专属规则（模板插值、scoped 样式约 6 条）+ fixtures ~30 个文件 ≈ **半个引擎**。所以 Vue 不进 v1；但 **pack 边界必须在 v1 就划出来**（现在已划：`packs/core/rules` 是共享规则、各自 pack 的 `rules/` 是语言专属规则的家），否则将来加 Vue 是重写而不是加法。
 
 ---
 
