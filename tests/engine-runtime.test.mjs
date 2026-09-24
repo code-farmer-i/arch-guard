@@ -28,7 +28,15 @@ test('registry：能力未声明的规则不注册，并给出原因', () => {
     result.enabled.map((rule) => rule.id),
     ['H02'],
   )
-  assert.deepEqual(result.skipped, [{ rule: 'H01', reason: '能力未声明：uiKit.vendorSelectors' }])
+  // 停用原因也是契约：`code` 稳定可判，`missing` 直接给出缺哪个能力，`reason` 只给人看
+  assert.deepEqual(result.skipped, [
+    {
+      rule: 'H01',
+      code: 'capability-missing',
+      missing: ['uiKit.vendorSelectors'],
+      reason: '能力未声明：uiKit.vendorSelectors',
+    },
+  ])
 })
 
 test('registry：启用名单、未知 id、以及 only/domain/level 过滤', () => {

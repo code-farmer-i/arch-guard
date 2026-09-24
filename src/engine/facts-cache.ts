@@ -5,7 +5,7 @@ import { gunzipSync, gzipSync } from 'node:zlib'
 
 import ts from 'typescript'
 
-import type { Facts, FileRecord } from './types.js'
+import type { Diagnostic, Facts, FileRecord } from './types.js'
 
 /**
  * facts 持久缓存（见 .scratch/facts-cache/spec.md）。
@@ -81,25 +81,35 @@ export function disabledFactsCache(): FactsCache {
   }
 }
 
-export function openFactsCache(root: string, notice: (message: string) => void): FactsCache {
+export function openFactsCache(root: string, notice: (diagnostic: Diagnostic) => void): FactsCache {
   const path = join(cacheDirOf(root), CACHE_FILE)
   let loaded: CachePayload | null = null
 
   try {
     const raw = JSON.parse(gunzipSync(readFileSync(path)).toString('utf8')) as CachePayload
     if (raw.spec !== FACTS_CACHE_SPEC) {
-      notice(`facts 缓存作废：规范版本 ${raw.spec} ≠ ${FACTS_CACHE_SPEC}（事实模型变过，重算）`)
+      notice({
+        code: 'facts-cache-reset',
+        text: `facts 缓存作废：规范版本 ${raw.spec} ≠ ${FACTS_CACHE_SPEC}（事实模型变过，重算）`,
+      })
     } else if (raw.typescript !== ts.version) {
-      notice(`facts 缓存作废：TypeScript ${raw.typescript} ≠ ${ts.version}（解析器变过，重算）`)
+      notice({
+        code: 'facts-cache-reset',
+        text: `facts 缓存作废：TypeScript ${raw.typescript} ≠ ${ts.version}（解析器变过，重算）`,
+      })
     } else if (raw.files === null || typeof raw.files !== 'object') {
-      notice('facts 缓存损坏：files 不是对象，重算')
+      notice({ code: 'facts-cache-reset', text: 'facts 缓存损坏：files 不是对象，重算' })
     } else {
       loaded = raw
     }
   } catch (error) {
     // 缓存不可用从来不是错误：首次运行、文件被删、写坏了都走这里 —— 但要说清楚
     const code = (error as NodeJS.ErrnoException).code
-    if (code !== 'ENOENT') notice(`facts 缓存不可用（${(error as Error).message}），全量重算`)
+    if (code !== 'ENOENT')
+      notice({
+        code: 'facts-cache-unavailable',
+        text: `facts 缓存不可用（${(error as Error).message}），全量重算`,
+      })
   }
 
   const entries = loaded?.files ?? {}
@@ -145,7 +155,10 @@ export function openFactsCache(root: string, notice: (message: string) => void):
         writeFileSync(path, gzipSync(JSON.stringify(payload)), 'utf8')
       } catch (error) {
         // 写不进去（只读盘、权限）不该让门禁失败 —— 缓存是加速手段，不是正确性依赖
-        notice(`facts 缓存写入失败（${(error as Error).message}），本次不影响判定`)
+        notice({
+          code: 'facts-cache-write-failed',
+          text: `facts 缓存写入失败（${(error as Error).message}），本次不影响判定`,
+        })
       }
     },
     // path 一律给出：它是缓存文件的位置（`save()` 会写到那儿），不是「本次有没有命中」

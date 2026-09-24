@@ -19,6 +19,9 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
               #   → 夹具回归 → 本体自包含(P1–P4) → 文档同步(--check-docs) → 示例宿主 → 狗粮(自己查自己)
 ```
 
+**发布时**：把 CHANGELOG 的 `[Unreleased]` 切分成版本段落；契约变更（`apiVersion` / `NOTICE_CODES` /
+`SKIP_CODES` / 退出码语义）必须在版本段落里标注「破坏性」与迁移方式 —— 版本记录是契约变更唯一的审计落点。
+
 本仓库**不使用托管 CI**：门禁就是 `pnpm check`，谁提交谁在本地跑。所以别跳过它 —— 它同时承担 Node 22.18 与 24 的兼容性检查（`nvm exec 22.18.0 pnpm check`）。
 
 两个不查文档就会踩的点：

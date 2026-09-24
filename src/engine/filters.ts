@@ -1,6 +1,6 @@
 import { rootRelativePattern } from './git.js'
 import { severityOf } from './report.js'
-import type { Finding, Rule, Severity } from './types.js'
+import type { Diagnostic, Finding, Rule, Severity } from './types.js'
 import { globToRegExp } from './util.js'
 
 /**
@@ -31,16 +31,19 @@ export interface ReportFilterInput {
   severity?: Severity
   localOnly?: boolean
   /** 自述性提示的收集处（报告与 JSON 都会输出） */
-  notices: string[]
+  notices: Diagnostic[]
 }
 
 export interface ReportFilterResult {
   active: Finding[]
+  /** 本次 scope 覆盖、且**会被判定**的文件（full 模式下为空 —— 那个数字由 runGuard 用契约域内的文件填） */
   scopeFiles: string[]
   /** `--local-only` 丢掉的全局违规条数 */
   skippedGlobals: number
   /** `--severity` 过滤掉的 finding 条数 */
   filteredBySeverity: number
+  /** `--paths` 实际匹配到的文件数；没给 `--paths` 时为 null（0 = 什么都没判 → 退出码非零） */
+  pathsMatched: number | null
 }
 
 export function applyReportFilters(input: ReportFilterInput): ReportFilterResult {
@@ -48,14 +51,20 @@ export function applyReportFilters(input: ReportFilterInput): ReportFilterResult
   let active = input.active
   let scopeFiles: string[] = []
   let skippedGlobals = 0
+  let pathsMatched: number | null = null
 
   /* ---- scope：只过滤报告，不过滤正确性 ---- */
   if (input.scope !== 'full') {
     if (input.changed === null) {
-      notices.push(`scope=${input.scope} 无法取得 git 变更集（无 git 或无提交），已降级为全量`)
+      notices.push({
+        code: 'scope-degraded-no-git',
+        text: `scope=${input.scope} 无法取得 git 变更集（无 git 或无提交），已降级为全量`,
+      })
     } else {
-      if (input.changed.notice) notices.push(input.changed.notice)
-      scopeFiles = input.changed.files
+      if (input.changed.notice)
+        notices.push({ code: 'scope-changed-relocated', text: input.changed.notice })
+      // 只数**会被判定**的：变更集里完全可能有 README / 图片，它们不进解析集也不进判定
+      scopeFiles = input.changed.files.filter((rel) => input.scanned.has(rel))
       const inScope = new Set(input.changed.files)
       active = active.filter((finding) => {
         if (inScope.has(finding.file)) return true
@@ -71,9 +80,10 @@ export function applyReportFilters(input: ReportFilterInput): ReportFilterResult
         return false
       })
       if (skippedGlobals > 0) {
-        notices.push(
-          `--local-only：跳过 ${skippedGlobals} 条不可归属的全局违规（架构级，需全量运行才可见）`,
-        )
+        notices.push({
+          code: 'local-only-globals-skipped',
+          text: `--local-only：跳过 ${skippedGlobals} 条不可归属的全局违规（架构级，需全量运行才可见）`,
+        })
       }
     }
   }
@@ -89,18 +99,21 @@ export function applyReportFilters(input: ReportFilterInput): ReportFilterResult
     const matchedFiles = [...input.scanned].filter((rel) =>
       matchers.some((matcher) => matcher.test(rel)),
     )
+    pathsMatched = matchedFiles.length
     if (matchedFiles.length === 0) {
-      notices.push(
-        `--paths 没有匹配到任何文件：${input.paths.join(', ')} —— 本次 0 个文件被判定，别当成"通过"`,
-      )
+      notices.push({
+        code: 'paths-no-match',
+        text: `--paths 没有匹配到任何文件：${input.paths.join(', ')} —— 本次 0 个文件被判定，别当成"通过"`,
+      })
     }
     const globalsBefore = active.filter((finding) => finding.global).length
     active = active.filter((finding) => matchers.some((matcher) => matcher.test(finding.file)))
     const globalsAfter = active.filter((finding) => finding.global).length
     if (globalsBefore > globalsAfter) {
-      notices.push(
-        `--paths 只报匹配的文件：本次另有 ${globalsBefore - globalsAfter} 条全局违规（架构级）被过滤，需全量运行才可见`,
-      )
+      notices.push({
+        code: 'paths-globals-filtered',
+        text: `--paths 只报匹配的文件：本次另有 ${globalsBefore - globalsAfter} 条全局违规（架构级）被过滤，需全量运行才可见`,
+      })
     }
   }
 
@@ -111,11 +124,12 @@ export function applyReportFilters(input: ReportFilterInput): ReportFilterResult
     active = active.filter((finding) => severityOf(finding, input.ruleIndex) === input.severity)
     filteredBySeverity = before - active.length
     if (filteredBySeverity > 0) {
-      notices.push(
-        `--severity=${input.severity}：另有 ${filteredBySeverity} 条 finding 被过滤（含 error），需去掉该参数才可见`,
-      )
+      notices.push({
+        code: 'severity-filtered',
+        text: `--severity=${input.severity}：另有 ${filteredBySeverity} 条 finding 被过滤（含 error），需去掉该参数才可见`,
+      })
     }
   }
 
-  return { active, scopeFiles, skippedGlobals, filteredBySeverity }
+  return { active, scopeFiles, skippedGlobals, filteredBySeverity, pathsMatched }
 }

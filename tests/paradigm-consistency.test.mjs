@@ -218,3 +218,44 @@ test('⑤ D16：官方 app/styles 片段放行；其它位置的裸 CSS 照报�
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+/* ---------------- ⑥ S12 的报文要指向真正的修法（判据不动） ---------------- */
+
+test('⑥ S12：组件目录里的非 PascalCase 文件，按**真实形态**给三种说法', async () => {
+  const dir = makeProject('s12-message', 'fsd(), designSystem()', '', {
+    'src/app/index.tsx': 'export const app = 1\n',
+    'src/pages/tools/index.ts': 'export { P } from "./ui/P"\n',
+    // ① 名字像 hook（且没有 JSX）→ 真实问题是"住错了目录"
+    'src/pages/tools/ui/useThing.tsx':
+      'import { useEffect } from "react"\nexport const useThing = (): void => useEffect(() => {}, [])\n',
+    // ② 有 JSX 但名字不是 PascalCase → 它确实是组件，只是名字不对
+    'src/shared/ui/misnamed.tsx': 'export const misnamed = () => <div />\n',
+    // ③ 没有 JSX 也不是组件 → 它根本不是组件
+    'src/shared/ui/lower.tsx': 'export const lower = (): number => 1\n',
+    // 对照组：合规的组件
+    'src/shared/ui/Pure.tsx': 'export const Pure = (): number => 1\n',
+  })
+  try {
+    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const byFile = new Map(
+      result.all
+        .filter((finding) => finding.rule === 'S12')
+        .map((finding) => [finding.file, finding]),
+    )
+    assert.equal(byFile.size, 3, `只该报这三个：${[...byFile.keys()].join(' , ')}`)
+    assert.match(
+      byFile.get('src/pages/tools/ui/useThing.tsx')?.text ?? '',
+      /hook 不该住在组件目录.*挪到 model\/ 或 hooks\//,
+      'hook 被点名时必须说"挪走"，而不是"改名字"',
+    )
+    assert.match(byFile.get('src/shared/ui/misnamed.tsx')?.text ?? '', /组件文件必须 PascalCase/)
+    assert.match(byFile.get('src/shared/ui/lower.tsx')?.text ?? '', /不是组件却住在组件目录/)
+    // 提示指修法（pretty 报告里渲染成 `→ …`）
+    assert.match(
+      byFile.get('src/pages/tools/ui/useThing.tsx')?.hint ?? '',
+      /组件目录（ui \/ components）只放组件/,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

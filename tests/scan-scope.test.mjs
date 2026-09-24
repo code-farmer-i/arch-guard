@@ -102,8 +102,9 @@ test('include 未限制 + 空仓库：不报 error，但必须自述"没有任�
     const cli = await runCli([], dir)
     assert.match(cli.out, /全项目 0 个 ts\/css 文件/)
     const json = JSON.parse((await runCli(['--format=json'], dir)).out)
+    // 按**稳定 code** 判（文案不是契约，想改就改）
     assert.ok(
-      json.notices.some((notice) => notice.includes('没有任何东西被判定')),
+      json.notices.some((notice) => notice.code === 'scan-empty'),
       '机读侧也要看得到（不然 CI 只看 exit 0）',
     )
   } finally {
@@ -137,7 +138,7 @@ test('--severity：过滤掉 error 时必须自述，且 API / notice / JSON 三
 
     const json = JSON.parse((await runCli(['--severity=warn', '--format=json'], dir)).out)
     assert.equal(json.filteredBySeverity, strict.active.length - warnCount, '机读侧不许静默丢弃')
-    assert.ok(json.notices.some((notice) => notice.includes('--severity=warn')))
+    assert.ok(json.notices.some((notice) => notice.code === 'severity-filtered'))
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -146,17 +147,19 @@ test('--severity：过滤掉 error 时必须自述，且 API / notice / JSON 三
 test('--paths：一个文件都没匹配上时必须自述（路径打错 = 什么都没查）', async () => {
   const dir = makeProject()
   try {
-    const miss = JSON.parse((await runCli(['--paths=src/typo/**', '--format=json'], dir)).out)
-    assert.ok(
-      miss.notices.some((notice) => notice.includes('没有匹配到任何文件')),
-      '0 个文件被匹配必须说出来，不能只显示"通过"',
-    )
+    const missed = await runCli(['--paths=src/typo/**', '--format=json'], dir)
+    const miss = JSON.parse(missed.out)
+    assert.equal(miss.paths.matched, 0, '机读侧要能直接判"一个都没匹配上"')
+    assert.ok(miss.notices.some((notice) => notice.code === 'paths-no-match'))
+    assert.equal(miss.ok, true, '没有违规，所以 ok 仍是 true —— 靠 paths/退出码区分"没判"')
+    assert.equal(missed.code, 2, '请求无法满足（什么都没判）→ 非零退出，CI 里路径打错不会静默变绿')
 
     const hit = JSON.parse(
       (await runCli(['--paths=src/shared/lib/a.ts', '--format=json'], dir)).out,
     )
+    assert.equal(hit.paths.matched, 1, '匹配上了就给出命中数')
     assert.equal(
-      hit.notices.some((notice) => notice.includes('没有匹配到任何文件')),
+      hit.notices.some((notice) => notice.code === 'paths-no-match'),
       false,
       '匹配上了就不该有这条提示',
     )
@@ -201,7 +204,7 @@ test('ignore（项目边界）跳过了什么必须自述 —— 否则"悄无�
     assert.match(cli.out, /ignore（项目边界）命中 \d+ 个文件/)
     assert.match(cli.out, /legacy\/\*\*/)
     const json = JSON.parse((await runCli(['--format=json'], dir)).out)
-    assert.ok(json.notices.some((notice) => notice.includes('ignore（项目边界）命中')))
+    assert.ok(json.notices.some((notice) => notice.code === 'ignore-skipped'))
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

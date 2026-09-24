@@ -128,6 +128,88 @@ export interface RoleDescriptor {
   pageLike?: boolean
 }
 
+/**
+ * 机读自述（notice）的**稳定 code 清单** —— **这是对外契约的一部分，文案不是**。
+ *
+ * 为什么要有它：`notices` 原来是 `string[]`，消费方只能去**字符串匹配中文措辞**才能判定
+ * 「这次到底判了没有」。而措辞是随时可以改的内部细节 —— 把它变成契约等于制造第二处真相。
+ * 现在按 `code` 判：文案随便改，code 不变。
+ *
+ * 增删或改名 code 都是**破坏性变更**，要按 `REPORT_API_VERSION` 的规矩走（见 docs/DESIGN.md §6.9）。
+ */
+export const NOTICE_CODES = [
+  /** 别名取自 tsconfig（含"取自哪个 tsconfig"这类说明） */
+  'config-aliases',
+  /** 项目根没有 package.json：依赖类规则跳过 */
+  'config-no-manifest',
+  /** scope 需要 git 变更集但取不到（无 git / 无提交）→ 降级为全量 */
+  'scope-degraded-no-git',
+  /** 仓库根 ≠ 配置根：变更路径做过换算（说明一下，免得读者算错） */
+  'scope-changed-relocated',
+  /** `--local-only` 跳过了不可归属的全局违规 */
+  'local-only-globals-skipped',
+  /** `--paths` 一个文件都没匹配上：什么都没判（**退出码也会非零**） */
+  'paths-no-match',
+  /** `--paths` 之外还有全局违规被过滤掉 */
+  'paths-globals-filtered',
+  /** `--severity` 过滤掉了 finding（含 error） */
+  'severity-filtered',
+  /** `include` 非空：域外的 ts/css 不参与契约判定（仍进依赖图） */
+  'scan-scope-outside',
+  /** `include` 未限制，但全项目 0 个 ts/css：本次没有任何东西被判定 */
+  'scan-empty',
+  /** `staged` 有文件取不到 index 内容，已退回工作区内容 */
+  'staged-fallback',
+  /** 配了 `viewLines` 但本范式没有页面级角色：这条阈值不会生效 */
+  'viewlines-no-page-role',
+  /** 因 `.gitignore`（git 判定）跳过：契约域外、不解析 */
+  'vcs-ignored-skipped',
+  /** `ignore`（项目边界）命中：不解析、不进图 */
+  'ignore-skipped',
+  /** 能力表只驱动 P06，未开启 P01 白名单 */
+  'deps-allow-not-enabled',
+  /** facts 缓存命中情况（省下的就是解析） */
+  'facts-cache',
+  /** facts 缓存作废（规范版本 / TS 版本 / 内容损坏）：本轮全量重算 */
+  'facts-cache-reset',
+  /** facts 缓存不可用（读写异常）：全量重算，不影响判定 */
+  'facts-cache-unavailable',
+  /** facts 缓存写入失败（不影响判定） */
+  'facts-cache-write-failed',
+  /** 某个文件读不出来（解析不了 → 那部分检查没跑） */
+  'read-failed',
+  /** `--update-coverage` 写入了覆盖率快照 */
+  'coverage-updated',
+  /** `--update-coverage` 没能写快照（未启用棘轮或读不到产物） */
+  'coverage-update-skipped',
+  /** 检测到 arch.baseline.json：基线机制已移除 */
+  'legacy-baseline',
+] as const
+
+export type NoticeCode = (typeof NOTICE_CODES)[number]
+
+/**
+ * 规则**没跑**的原因（`skipped[].code`）—— 同样是契约，消费方不许匹配中文 `reason`。
+ * 目前只有一种（能力未声明）；加新的就在这里加，并同步冻结测试。
+ */
+export const SKIP_CODES = ['capability-missing'] as const
+export type SkipCode = (typeof SKIP_CODES)[number]
+
+/** 一条「这条规则本次没跑」的记录：`code` 稳定可判，`reason` 只给人看 */
+export interface SkippedRule {
+  rule: string
+  code: SkipCode
+  /** 缺哪些能力（`code === 'capability-missing'` 时非空）—— 机读侧不必去解析 reason */
+  missing: string[]
+  reason: string
+}
+
+/** 一条机读自述：`code` 稳定可判，`text` 只给人看 */
+export interface Diagnostic {
+  code: NoticeCode
+  text: string
+}
+
 /* ---------------- 配置与适配器 ---------------- */
 
 /**

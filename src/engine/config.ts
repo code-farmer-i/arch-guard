@@ -11,7 +11,7 @@ import {
 } from '../data/framework-sources.js'
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
-import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
+import type { Adapter, Config, ConfigOverrides, Preset, Diagnostic } from './types.js'
 import { exists, mergePresets } from './util.js'
 
 export interface RawProjectConfig {
@@ -29,7 +29,7 @@ export interface RawProjectConfig {
 
 export interface LoadedConfig {
   config: Config
-  notices: string[]
+  notices: Diagnostic[]
   path: string
   /** 实际生效的框架包（恰好一个，或空数组 = 调用方直接给了规则集） */
   packs: Pack[]
@@ -142,7 +142,7 @@ export async function loadConfig(options: {
     )
   }
 
-  const notices: string[] = []
+  const notices: Diagnostic[] = []
   const presetList = raw.presets ?? []
   /**
    * 一个配置只能有**一个范式预设**。角色表是整体替换的，两个范式混用会得到
@@ -216,7 +216,7 @@ export async function loadConfig(options: {
   }
 
   const tsconfigAliases = aliasesFromTsconfig(root)
-  if (tsconfigAliases.notice) notices.push(tsconfigAliases.notice)
+  if (tsconfigAliases.notice) notices.push({ code: 'config-aliases', text: tsconfigAliases.notice })
 
   const aliases: Record<string, string> = { ...tsconfigAliases.aliases, ...overrides.aliases }
   const entries = overrides.entries ?? preset.entries ?? [`${layout.app}/main.tsx`]
@@ -311,7 +311,10 @@ export async function loadConfig(options: {
     )
   }
   if (!exists(join(root, 'package.json')))
-    notices.push('项目根没有 package.json：依赖类规则会被跳过')
+    notices.push({
+      code: 'config-no-manifest',
+      text: '项目根没有 package.json：依赖类规则会被跳过',
+    })
 
   return { config, notices, path, packs }
 }

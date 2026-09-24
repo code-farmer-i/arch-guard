@@ -8,6 +8,18 @@
  */
 
 export type * from './engine/types.js'
+/**
+ * 消费方要的东西必须从**包入口**拿得到（`exports` 映射不暴露 `./engine/*`）：
+ * 「断言报告版本」「按 code 判自述」是机读契约的一部分，拿不到就等于没有。
+ */
+export {
+  NOTICE_CODES,
+  SKIP_CODES,
+  type Diagnostic,
+  type NoticeCode,
+  type SkipCode,
+} from './engine/types.js'
+export { REPORT_API_VERSION } from './engine/report.js'
 export { loadConfig, aliasesFromTsconfig } from './engine/config.js'
 export { scanProject } from './engine/scan.js'
 export { extractFacts, factInputOf, TS_EXTENSIONS } from './engine/facts.js'

@@ -81,7 +81,7 @@ export default {
 ```bash
 npx arch-guard                          # 全项目检查
 npx arch-guard --scope=changed           # 只报告 git 变更文件（含未跟踪）
-npx arch-guard --domain=D --format=json  # 只看设计系统，输出 JSON（给 agent / CI）
+npx arch-guard --domain=D --format=json  # 只看设计系统，输出 JSON（给 agent / CI；带 apiVersion 契约）
 npx arch-guard --update-coverage         # 刷新覆盖率棘轮快照（M04；不是豁免违规）
 npx arch-guard --explain src/modules/crew/views/CrewList.tsx  # ★ 写之前问契约（角色/依赖/落点/规则）
 npx arch-guard --check-docs              # 文档里那几张表与 arch.config.mjs 是否一致（漂移即红）
@@ -98,6 +98,18 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 
 换库 = 写一份约 30 行的适配器（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。
 `data/kit-fingerprints.ts` 内置已知组件库指纹，于是**换库后旧库残留一条不剩是可判定验收条件**。
+
+## JSON 报告是对外契约（`apiVersion`）
+
+`--format=json` 给 CI 注解 / PR bot / IDE 插件 / agent 用，所以它和规则一样是契约：
+
+- **带 `apiVersion`**：消费方启动时断言自己认识的版本；不认识就明说"不认识这版报告"，别少读几个字段装绿。
+- **自述是结构不是散文**：`notices: [{ code, text }]` —— 按 `code` 判（`paths-no-match` / `severity-filtered` /
+  `scan-empty` / `facts-cache`…），**文案随便改都不破坏契约**。
+- **机读 ⊇ 人读**：摘要行里的每个数字，JSON 里都有（`scopeFiles` / `rulesEnabled` / `rulesTotal` / `globalFindings`…）。
+- **「没判任何东西」可判定**：`--paths` 一个都没匹配上 → `paths.matched = 0` + `code: 'paths-no-match'` + **退出码 2**
+  （「没问」是 `paths: null`，「问了没命中」是 `matched: 0`）。
+- 契约变更（增删顶层字段 / 增删 code）**必须动 `apiVersion`**，而这是被 `tests/report-contract.test.mjs` **冻结**住的。
 
 ## 文档与门禁同一份真相
 

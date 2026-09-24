@@ -1,5 +1,14 @@
 import { out } from './output.js'
-import type { Config, Domain, Finding, Level, Rule, Severity } from './types.js'
+import type {
+  Config,
+  Diagnostic,
+  Domain,
+  Finding,
+  Level,
+  Rule,
+  Severity,
+  SkippedRule,
+} from './types.js'
 import { color } from './util.js'
 
 /** 输出格式（CLI 与 explain 共用同一份取值） */
@@ -9,9 +18,12 @@ export interface ReportInput {
   config: Config
   ruleIndex: Map<string, Rule>
   findings: Finding[]
-  skipped: { rule: string; reason: string }[]
+  skipped: SkippedRule[]
   unknownEnabled: string[]
-  notices: string[]
+  /** 机读自述（带稳定 code）—— 人读与机读看到的是同一份 */
+  notices: Diagnostic[]
+  /** `--paths` 的实际命中情况（null = 没给 `--paths`） */
+  paths: { requested: string[]; matched: number } | null
   scope: string
   scopeFiles: number
   globalFindings: number
@@ -104,7 +116,7 @@ export function renderReport(input: ReportInput): void {
   if (input.unknownEnabled.length > 0) {
     out(color.yellow(`⚠ 配置里启用了不存在的规则：${input.unknownEnabled.join(', ')}`))
   }
-  for (const notice of input.notices) out(color.dim(`· ${notice}`))
+  for (const notice of input.notices) out(color.dim(`· ${notice.text}`))
 }
 
 export function renderSummary(input: ReportInput): void {
@@ -140,22 +152,48 @@ export interface ExceptionReport {
   hits: number
 }
 
+/**
+ * **JSON 报告的契约版本**（消费方启动时断言自己认识的版本；不认识就明说"不认识这版报告"，
+ * 而不是少读几个字段继续装绿）。
+ *
+ * 规矩（见 docs/DESIGN.md §6.9）：**增删顶层字段、增删 `notices[].code`、改字段含义 → 必须动这个号**；
+ * 而"必须动"由 `tests/report-contract.test.mjs` 的**冻结测试**保证 —— 否则版本号只是个装饰
+ * （本仓刚在 `exempt` 上踩过"装饰性配置"：写了但没人读）。
+ */
+export const REPORT_API_VERSION = 1
+
 export interface JsonReport {
+  /** 报告契约版本（`REPORT_API_VERSION`） */
+  apiVersion: number
   ok: boolean
   errors: number
   warnings: number
   scope: string
   findings: (Finding & { domain?: Domain; level?: Level; severity: Severity })[]
-  skipped: { rule: string; reason: string }[]
+  skipped: SkippedRule[]
   /** 因 `--local-only` 跳过的全局违规条数（机读侧同样不许静默丢弃） */
   skippedGlobals: number
   /** 因 `--severity` 过滤掉的 finding 条数（过滤改了报告，机读侧必须看得见） */
   filteredBySeverity: number
   /**
-   * 全部自述性提示（扫描域 / 降级 / 缓存 / 过滤 / 退回工作区…）。
-   * 放进 JSON 是为了让 **CI 与 agent 也看得到**：不然这些"说过的话"只存在于人读的那一行里。
+   * 全部自述性提示（扫描域 / 降级 / 缓存 / 过滤 / 退回工作区…）—— **带稳定 `code`**。
+   *
+   * 消费方按 `code` 判（`paths-no-match` / `severity-filtered` / `facts-cache`…），**不要匹配文案**：
+   * 文案是本仓随时可以改的内部细节，把它当契约就是第二处真相。
    */
-  notices: string[]
+  notices: Diagnostic[]
+  /** 本次判定了多少个文件（人读摘要里一直有，机读侧以前**没有** → 「机读 ⊂ 人读」是同一类假绿） */
+  scopeFiles: number
+  /** 不可归属的全局（架构级）违规条数 */
+  globalFindings: number
+  /** 跑起来的规则数 / 总规则数（`enabled/total`；差值 = `skipped` 条数） */
+  rulesEnabled: number
+  rulesTotal: number
+  /**
+   * `--paths` 的实际命中情况；没给 `--paths` 时为 null。
+   * `matched: 0` = **什么都没判**（退出码为 2，别再当成"通过"）。
+   */
+  paths: { requested: string[]; matched: number } | null
   /** 规则级例外（声明 + 命中数），机读侧同样可见 */
   exceptions: ExceptionReport[]
   /** 契约扫描域（空 = 全树），以及域外不判契约的文件数 */
@@ -167,6 +205,7 @@ export interface JsonReport {
 export function toJsonReport(input: ReportInput): JsonReport {
   const { errors, warnings } = summarize(input.findings, input.ruleIndex)
   return {
+    apiVersion: REPORT_API_VERSION,
     ok: errors === 0,
     errors,
     warnings,
@@ -185,6 +224,11 @@ export function toJsonReport(input: ReportInput): JsonReport {
     skippedGlobals: input.skippedGlobals,
     filteredBySeverity: input.filteredBySeverity,
     notices: input.notices,
+    scopeFiles: input.scopeFiles,
+    globalFindings: input.globalFindings,
+    rulesEnabled: input.rulesEnabled,
+    rulesTotal: input.rulesTotal,
+    paths: input.paths,
     contractScope: input.contractScope,
     outsideContract: input.outsideContract,
     durationMs: input.durationMs,

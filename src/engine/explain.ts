@@ -1,6 +1,6 @@
 import { buildRoleIndex, resolveRole, type RoleIndex, type RoleResolution } from './scan.js'
 import { DOMAIN_LABEL, type ReportFormat } from './report.js'
-import type { Config, Rule } from './types.js'
+import type { Config, Rule, SkippedRule } from './types.js'
 import { exists } from './util.js'
 
 /**
@@ -60,7 +60,7 @@ export interface PathExplanation {
   slotNaming: boolean
   /** 与落点有关的路径参数（令牌 / 样式 / 存储 / i18n） */
   pathParams: Record<string, string>
-  rules: { enabled: ExplainRule[]; skipped: { rule: string; reason: string }[] }
+  rules: { enabled: ExplainRule[]; skipped: SkippedRule[] }
   notes: string[]
 }
 
@@ -80,7 +80,7 @@ export interface ExplainInput {
   /** 配置根相对路径（调用方负责把绝对路径归一） */
   paths: string[]
   enabled: Rule[]
-  skipped: { rule: string; reason: string }[]
+  skipped: SkippedRule[]
   /** 注入而不是 import：引擎不认识任何 pack，而「该放哪」的文案住在 pack 里 */
   placement?: (rel: string, config: Config) => string
   index?: RoleIndex

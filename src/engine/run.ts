@@ -20,9 +20,18 @@ import {
   type ExceptionReport,
   type ReportInput,
 } from './report.js'
-import { scanProject } from './scan.js'
+import { scanProject, type ScanResult } from './scan.js'
 import type { Pack } from './pack.js'
-import type { Config, Domain, Finding, Level, Rule, RuleContext, Severity } from './types.js'
+import type {
+  Config,
+  Diagnostic,
+  Domain,
+  Finding,
+  Level,
+  Rule,
+  RuleContext,
+  Severity,
+} from './types.js'
 import { applyReportFilters } from './filters.js'
 import { gitChangedFiles, gitHeadTimeMs, gitIgnoredPaths, stagedContentsOf } from './git.js'
 import { exists, globToRegExp } from './util.js'
@@ -80,8 +89,61 @@ export interface RunResult {
   skippedGlobals: number
   /** `--severity` 过滤掉的 finding 条数（0 = 没过滤；同理不许静默） */
   filteredBySeverity: number
+  /** `--paths` 实际匹配到的文件数（null = 没给 --paths；0 = 什么都没判，退出码为 2） */
+  pathsMatched: number | null
+  /** 全部机读自述（带稳定 code）—— 程序化调用方与 JSON 看到的是同一份 */
+  notices: Diagnostic[]
   durationMs: number
   stats: RuleStat[]
+}
+
+/**
+ * 扫描域 / 边界 / 阈值这三类自述：**声明了什么、跳过了什么、什么不会生效**。
+ *
+ * 抽成函数只是因为 `runGuard` 有函数长度上限（与 `git.ts` / `filters.ts` / `collect.ts` 同一处理方式）；
+ * 内容上它们是内聚的一步：都要求"说的每一句都能被机读判到"，且都带着稳定 `code`。
+ */
+function pushScanNotices(config: Config, scan: ScanResult, notices: Diagnostic[]): void {
+  if (config.include.length > 0) {
+    notices.push({
+      code: 'scan-scope-outside',
+      text: `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
+    })
+  } else if (scan.records.length === 0) {
+    // include 不限（引擎默认）且全树 0 个源码：没有任何东西被判定，必须说出来。
+    // include 非空的情况由 S24 报错（那是配置写错，不是空仓库）。
+    notices.push({
+      code: 'scan-empty',
+      text: 'include 未限制，但全项目 0 个 ts/css 文件：本次没有任何东西被判定',
+    })
+  }
+
+  // 阈值 `viewLines` 只对**页面级**角色生效（`pageLike` / `views` 槽位）：本范式没有这类角色时
+  // 它**永远不会生效** —— 配了却没效果正是本仓最忌讳的静默失效，所以当场自述（D21 同款套路）
+  if (
+    config.thresholds.viewLines !== config.thresholds.fileLines &&
+    !config.roles.some((role) => role.pageLike === true || role.slot === 'views')
+  ) {
+    notices.push({
+      code: 'viewlines-no-page-role',
+      text: `阈值 viewLines=${config.thresholds.viewLines} 已设，但本范式没有页面级角色（pageLike / views 槽位）：这条阈值不会生效`,
+    })
+  }
+
+  // `ignore`（项目边界）跳过了什么必须自述：它是"别碰"，被跳过的东西**不进文件集、不解析、不进图**，
+  // 而报告此前完全不提它 —— 宿主把某个源码目录误写进 ignore 时，表现就是"悄无声息地不判了"
+  if (scan.vcsIgnored.length > 0) {
+    notices.push({
+      code: 'vcs-ignored-skipped',
+      text: `因 .gitignore（git 判定）跳过 ${scan.vcsIgnored.length} 个文件：契约域外、不进文件集也不解析`,
+    })
+  }
+  if (scan.ignored.length > 0) {
+    notices.push({
+      code: 'ignore-skipped',
+      text: `ignore（项目边界）命中 ${scan.ignored.length} 个文件，未进文件集也不解析：${config.ignore.join(' , ')}`,
+    })
+  }
 }
 
 /** 覆盖率总览（棘轮快照写的就是这三个数） */
@@ -101,7 +163,7 @@ function coverageTotals(report: CoverageReport): {
 export async function runGuard(options: RunOptions): Promise<RunResult> {
   const started = Date.now()
   const quiet = options.quiet === true
-  const notices: string[] = []
+  const notices: Diagnostic[] = []
 
   const {
     config,
@@ -128,16 +190,6 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const vcsIgnored = gitIgnoredPaths(config.root)
   const scan = scanProject(config, vcsIgnored ? { vcsIgnored } : {})
   // 收窄扫描域是行为变更（域外文件不再报 S01），必须自述 —— 不许静默
-  if (config.include.length > 0) {
-    notices.push(
-      `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
-    )
-  } else if (scan.records.length === 0) {
-    // 走到这里说明 include 不限（引擎默认）；下面还会单独说 ignore 的跳过数
-    // include 不限（引擎默认）且全树 0 个源码：没有任何东西被判定，必须说出来。
-    // include 非空的情况由 S24 报错（那是配置写错，不是空仓库）。
-    notices.push('include 未限制，但全项目 0 个 ts/css 文件：本次没有任何东西被判定')
-  }
   /* ---- scope 提前算：`staged` 要影响**读哪份内容**（index blob vs 工作区），所以必须在解析之前 ---- */
   const scope = options.scope ?? 'full'
   const changed = scope === 'full' ? null : gitChangedFiles(config.root, scope)
@@ -150,34 +202,14 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
           changed.files.filter((rel) => scanned.has(rel)),
         )
       : null
+  // 扫描域 / 边界 / 阈值的自述（函数化：runGuard 有函数长度上限，且这是内聚的一步）
+  pushScanNotices(config, scan, notices)
+
   if (staged && staged.missing.length > 0) {
-    notices.push(
-      `staged：${staged.missing.length} 个文件取不到 index 内容（staged 删除或 git 报错），已退回工作区内容：${staged.missing.slice(0, 5).join(' , ')}${staged.missing.length > 5 ? ' …' : ''}`,
-    )
-  }
-
-  // 阈值 `viewLines` 只对**页面级**角色生效（`pageLike` / `views` 槽位）：本范式没有这类角色时
-  // 它**永远不会生效** —— 配了却没效果正是本仓最忌讳的静默失效，所以当场自述（D21 同款套路）
-  if (
-    config.thresholds.viewLines !== config.thresholds.fileLines &&
-    !config.roles.some((role) => role.pageLike === true || role.slot === 'views')
-  ) {
-    notices.push(
-      `阈值 viewLines=${config.thresholds.viewLines} 已设，但本范式没有页面级角色（pageLike / views 槽位）：这条阈值不会生效`,
-    )
-  }
-
-  // `ignore`（项目边界）跳过了什么必须自述：它是"别碰"，被跳过的东西**不进文件集、不解析、不进图**，
-  // 而报告此前完全不提它 —— 宿主把某个源码目录误写进 ignore 时，表现就是"悄无声息地不判了"
-  if (scan.vcsIgnored.length > 0) {
-    notices.push(
-      `因 .gitignore（git 判定）跳过 ${scan.vcsIgnored.length} 个文件：契约域外、不进文件集也不解析`,
-    )
-  }
-  if (scan.ignored.length > 0) {
-    notices.push(
-      `ignore（项目边界）命中 ${scan.ignored.length} 个文件，未进文件集也不解析：${config.ignore.join(' , ')}`,
-    )
+    notices.push({
+      code: 'staged-fallback',
+      text: `staged：${staged.missing.length} 个文件取不到 index 内容（staged 删除或 git 报错），已退回工作区内容：${staged.missing.slice(0, 5).join(' , ')}${staged.missing.length > 5 ? ' …' : ''}`,
+    })
   }
 
   // 读源码 → 提事实 → 缓存（见 collect.ts：契约域内 + 域外都要解析，staged 取 index 内容）
@@ -187,7 +219,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     outside: scan.outside,
     staged: staged ? staged.contents : null,
     useCache: options.cache !== false,
-    notice: (message) => notices.push(message),
+    notice: (diagnostic) => notices.push(diagnostic),
   })
   const { texts, facts, cssTexts } = collected
 
@@ -205,9 +237,10 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   }
   // 能力表不再隐式开启 P01：把这条语义显式说出来，避免用户以为还处在「未登记即拒」模式
   if (policy.allow.length === 0 && Object.keys(policy.capabilities).length > 0) {
-    notices.push(
-      '能力表只驱动 P06（手搓指纹），本次未开启 P01 依赖白名单；要「未登记即拒」请显式写 deps({ allow: [...] })',
-    )
+    notices.push({
+      code: 'deps-allow-not-enabled',
+      text: '能力表只驱动 P06（手搓指纹），本次未开启 P01 依赖白名单；要「未登记即拒」请显式写 deps({ allow: [...] })',
+    })
   }
   const deps = readProjectDeps(config.root, graph.externals.keys())
 
@@ -355,21 +388,24 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
         `${JSON.stringify({ specVersion: '1', files: metricsInfo.report.files.length, ...totals }, null, 2)}\n`,
         'utf8',
       )
-      notices.push(
-        `已写入覆盖率快照：行 ${totals.lines.toFixed(2)}% / 分支 ${totals.branches.toFixed(2)}%`,
-      )
+      notices.push({
+        code: 'coverage-updated',
+        text: `已写入覆盖率快照：行 ${totals.lines.toFixed(2)}% / 分支 ${totals.branches.toFixed(2)}%`,
+      })
     } else {
-      notices.push(
-        '--update-coverage：没启用覆盖率棘轮（metrics 的 coverage.ratchet）或覆盖率产物读不到，未写快照',
-      )
+      notices.push({
+        code: 'coverage-update-skipped',
+        text: '--update-coverage：没启用覆盖率棘轮（metrics 的 coverage.ratchet）或覆盖率产物读不到，未写快照',
+      })
     }
   }
 
   // 旧机制留下的文件：不再豁免任何东西 —— 明说，免得以为存量债还挂着
   if (exists(join(config.root, 'arch.baseline.json'))) {
-    notices.push(
-      '检测到 arch.baseline.json：违规基线机制已移除，存量违规不再被豁免（请删除该文件）',
-    )
+    notices.push({
+      code: 'legacy-baseline',
+      text: '检测到 arch.baseline.json：违规基线机制已移除，存量违规不再被豁免（请删除该文件）',
+    })
   }
 
   /* ---- 报告过滤（scope / --paths / --severity）：集中在一处，规矩是"只过滤报告且必须自述" ---- */
@@ -387,6 +423,12 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   })
   active = filtered.active
   const { scopeFiles, skippedGlobals, filteredBySeverity } = filtered
+  /**
+   * 「本次判定了多少个文件」：full 模式下 `filtered.scopeFiles` 是空的（那是"变更集"的概念），
+   * 而机读侧要的正是这个数 —— 给 0 会让消费方以为"一个文件都没判"（人读摘要因为 `>0` 才打印，看不出来）。
+   * 所以 full 用**契约域内有角色的文件数**（域外文件会被解析但不判定，不算在内）。
+   */
+  const judgedFiles = scopeFiles.length > 0 ? scopeFiles : scan.records.map((record) => record.rel)
   const globalFindings = active.filter((finding) => finding.global).length
 
   const reportInput: ReportInput = {
@@ -397,13 +439,17 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     unknownEnabled: registry.unknownEnabled,
     notices,
     scope,
-    scopeFiles: scopeFiles.length,
+    scopeFiles: judgedFiles.length,
     globalFindings,
     skippedGlobals,
     filteredBySeverity,
     durationMs: Date.now() - started,
     rulesEnabled: registry.enabled.length,
     rulesTotal: rules.length,
+    paths:
+      options.paths && options.paths.length > 0
+        ? { requested: options.paths, matched: filtered.pathsMatched ?? 0 }
+        : null,
     exceptions,
     contractScope: config.include,
     outsideContract: scan.outside.length,
@@ -425,7 +471,14 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   }
 
   const errors = active.filter((finding) => severityOf(finding, ruleIndex) !== 'warn').length
-  const exitCode = options.reportOnly === true ? 0 : errors > 0 ? 1 : 0
+  /**
+   * `--paths` 一个文件都没匹配上 = **你要求判的东西一件都没判** —— 这不是"通过"，是"请求无法满足"。
+   * 退出 **2**（与"引擎/配置/参数问题"同类，fail-closed）：CI 里路径打错不会静默变绿，
+   * 消费方靠 JSON 的 `paths.matched === 0` / `notices[].code === 'paths-no-match'` 判定，
+   * 不需要去匹配中文文案。`--report-only` 仍然恒 0（它是显式的"只看不拦"）。
+   */
+  const nothingMatched = filtered.pathsMatched === 0
+  const exitCode = options.reportOnly === true ? 0 : errors > 0 ? 1 : nothingMatched ? 2 : 0
 
   return {
     exitCode,
@@ -437,6 +490,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     scopeFiles,
     skippedGlobals,
     filteredBySeverity,
+    pathsMatched: filtered.pathsMatched,
+    notices,
     durationMs: Date.now() - started,
     stats,
   }

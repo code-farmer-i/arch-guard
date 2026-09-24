@@ -1,0 +1,213 @@
+import assert from 'node:assert/strict'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { test } from 'node:test'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+import { run } from '../es/cli.js'
+// 从**包入口**导入：消费方只有这一条路（`exports` 映射不暴露 ./engine/*）
+import { NOTICE_CODES, REPORT_API_VERSION, SKIP_CODES } from '../es/index.js'
+
+/**
+ * **JSON 报告的对外契约**（DESIGN §6.9）。
+ *
+ * 这一组测试是**故意**写得这么死的：改任何一个顶层字段、增删一个 `notices[].code`，
+ * 这里都会红 —— 红就是提醒你「这是契约变更，要动 `REPORT_API_VERSION` + CHANGELOG + §6.9」。
+ *
+ * 起因是一次真实反馈：0.3.x 一口气加了 `skipped` / `exceptions` / `skippedGlobals` /
+ * `filteredBySeverity` / `notices` 五个字段，而**没有任何机制**让"字段变多了"与"字段没变"可区分 ——
+ * 旧消费方照跑不误，只是悄悄少显示一类信息（`S13 没在跑`看不见、`--paths` 零匹配被当成通过）。
+ * 只加一个版本号并不解决问题：**没人强制你 bump 的版本号只是装饰**（本仓刚在 `exempt` 上踩过"装饰性配置"）。
+ */
+const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
+const INDEX_URL = pathToFileURL(join(PACKAGE_ROOT, 'es/index.js')).href
+
+async function runCli(args, cwd) {
+  const lines = []
+  const originalLog = console.log
+  const originalCwd = process.cwd()
+  console.log = (line = '') => lines.push(String(line))
+  try {
+    process.chdir(cwd)
+    return { code: await run(args, {}), out: lines.join('\n') }
+  } finally {
+    process.chdir(originalCwd)
+    console.log = originalLog
+  }
+}
+
+function makeProject() {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-contract-'))
+  mkdirSync(join(dir, 'src/app'), { recursive: true })
+  mkdirSync(join(dir, 'src/shared/lib'), { recursive: true })
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ name: 'contract', private: true, type: 'module' }),
+  )
+  writeFileSync(
+    join(dir, 'arch.config.mjs'),
+    `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()] }\n`,
+  )
+  writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
+  writeFileSync(join(dir, 'src/shared/lib/a.ts'), "export * from './b'\n")
+  return dir
+}
+
+const report = async (dir, args = []) =>
+  JSON.parse((await runCli([...args, '--format=json'], dir)).out)
+
+test('冻结：JSON 顶层字段集（改这里 = 契约变更，要动 apiVersion + §6.9 + CHANGELOG）', async () => {
+  const dir = makeProject()
+  try {
+    const json = await report(dir)
+    assert.deepEqual(Object.keys(json).sort(), [
+      'apiVersion',
+      'contractScope',
+      'durationMs',
+      'errors',
+      'exceptions',
+      'filteredBySeverity',
+      'findings',
+      'globalFindings',
+      'notices',
+      'ok',
+      'outsideContract',
+      'paths',
+      'rulesEnabled',
+      'rulesTotal',
+      'scope',
+      'scopeFiles',
+      'skipped',
+      'skippedGlobals',
+      'warnings',
+    ])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('契约版本带着走，且消费方能拒绝不认识的版本', async () => {
+  const dir = makeProject()
+  try {
+    const json = await report(dir)
+    assert.equal(json.apiVersion, REPORT_API_VERSION)
+    assert.equal(typeof json.apiVersion, 'number')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('冻结：notices 的稳定 code 清单（文案不是契约，code 才是）', () => {
+  assert.deepEqual([...NOTICE_CODES].sort(), [
+    'config-aliases',
+    'config-no-manifest',
+    'coverage-update-skipped',
+    'coverage-updated',
+    'deps-allow-not-enabled',
+    'facts-cache',
+    'facts-cache-reset',
+    'facts-cache-unavailable',
+    'facts-cache-write-failed',
+    'ignore-skipped',
+    'legacy-baseline',
+    'local-only-globals-skipped',
+    'paths-globals-filtered',
+    'paths-no-match',
+    'read-failed',
+    'scan-empty',
+    'scan-scope-outside',
+    'scope-changed-relocated',
+    'scope-degraded-no-git',
+    'severity-filtered',
+    'staged-fallback',
+    'vcs-ignored-skipped',
+    'viewlines-no-page-role',
+  ])
+})
+
+test('每条 notice 都是 { code, text }，且 code 在清单内', async () => {
+  const dir = makeProject()
+  try {
+    const json = await report(dir)
+    assert.ok(json.notices.length > 0, '正常项目也该有自述（扫描域 / 缓存…）')
+    for (const notice of json.notices) {
+      assert.deepEqual(Object.keys(notice).sort(), ['code', 'text'])
+      assert.ok(NOTICE_CODES.includes(notice.code), `未知 code：${notice.code}`)
+      assert.ok(notice.text.length > 0)
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('机读 ⊇ 人读：人读摘要里的数字，机读侧一个都不许少', async () => {
+  const dir = makeProject()
+  try {
+    const json = await report(dir)
+    // 这几项以前只出现在人读的那一行里（`scope=full | 64 个文件 | … | 规则 17/56`）
+    assert.ok(
+      json.scopeFiles > 0,
+      `本项目有源文件，scopeFiles 就不能是 0（0 会被消费方读成"一个文件都没判"，实测踩过）`,
+    )
+    assert.equal(typeof json.globalFindings, 'number')
+    assert.equal(typeof json.rulesEnabled, 'number')
+    assert.equal(typeof json.rulesTotal, 'number')
+    assert.equal(typeof json.outsideContract, 'number')
+    // 没加 --only/--domain 过滤时：跑起来的 + 因能力停用的 = 全部规则
+    assert.equal(json.rulesEnabled + json.skipped.length, json.rulesTotal)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('--paths 零匹配：退出码 2 + paths.matched=0 + code=paths-no-match（不再是"通过"）', async () => {
+  const dir = makeProject()
+  try {
+    const missed = await runCli(['--paths=src/typo/**', '--format=json'], dir)
+    const json = JSON.parse(missed.out)
+    assert.equal(missed.code, 2, '请求无法满足 → 非零（CI 里打错路径不会静默变绿）')
+    assert.deepEqual(json.paths, { requested: ['src/typo/**'], matched: 0 })
+    assert.ok(json.notices.some((notice) => notice.code === 'paths-no-match'))
+
+    // `--report-only` 是显式的"只看不拦" → 仍然恒 0
+    const advisory = await runCli(['--paths=src/typo/**', '--report-only', '--format=json'], dir)
+    assert.equal(advisory.code, 0)
+
+    // 匹配上时：给出命中数，且没有那条 code
+    const hit = await report(dir, ['--paths=src/shared/lib/a.ts'])
+    assert.deepEqual(hit.paths, { requested: ['src/shared/lib/a.ts'], matched: 1 })
+    assert.equal(
+      hit.notices.some((notice) => notice.code === 'paths-no-match'),
+      false,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('没给 --paths 时 paths 是 null（"没问"与"问了没命中"必须可区分）', async () => {
+  const dir = makeProject()
+  try {
+    assert.equal((await report(dir)).paths, null)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('冻结：skipped[].code 清单，且「没跑」的原因不是散文', async () => {
+  assert.deepEqual([...SKIP_CODES], ['capability-missing'])
+  const dir = makeProject()
+  try {
+    const json = await report(dir)
+    assert.ok(json.skipped.length > 0, 'canonical + 无适配器 → 必然有因能力未声明的停用')
+    for (const entry of json.skipped) {
+      assert.deepEqual(Object.keys(entry).sort(), ['code', 'missing', 'reason', 'rule'])
+      assert.ok(SKIP_CODES.includes(entry.code), `未知 skip code：${entry.code}`)
+      assert.ok(Array.isArray(entry.missing) && entry.missing.length > 0)
+      assert.ok(entry.reason.length > 0)
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

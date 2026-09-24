@@ -2,7 +2,40 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+> **发布流程（从 0.4.0 起严格执行）**
+>
+> - 发布时把 `[Unreleased]` 按类型**切分成版本段落**（`## [x.y.z] - YYYY-MM-DD`），不要留在 `Unreleased` 里。
+> - **契约变更必须单独标注**：JSON 报告动过 `apiVersion`、`NOTICE_CODES` / `SKIP_CODES`，
+>   或退出码语义有变 → 在该版本段落里写明「破坏性」与迁移方式（参照本轮 Unreleased 的写法）。
+> - 理由：**0.3.0 / 0.3.1 / 0.3.2 没有独立章节**（内容都还堆在 `[Unreleased]` 里，事后无从回溯哪个版本动了什么）。
+>   那次恰好一口气给 JSON 加了五个字段而无人可察 —— 消费方只能靠猜。版本记录是契约变更唯一的审计落点，
+>   没有它，`apiVersion` 也只是一句口号。
+
 ## [Unreleased]
+
+### Changed（**破坏性**：JSON 报告成为带版本的对外契约）
+
+`--format=json` 是 CI 注解 / PR bot / IDE 插件 / agent 的接口，所以它和规则一样是契约。起因是一次真实反馈：
+0.3.x 一口气新增了 `skipped` / `exceptions` / `skippedGlobals` / `filteredBySeverity` / `notices` 五个字段，
+**没有任何机制**能让"字段变多了"与"字段没变"可区分 —— 旧消费方照跑不误，只是悄悄少显示一类信息
+（`S13 没在跑`看不见、`--paths` 零匹配被当成通过）。而**只加版本号解决不了**：没人强制 bump 的版本号只是装饰。
+
+- **新增 `apiVersion`**（`REPORT_API_VERSION = 1`，从包入口导出，消费方可断言）。增删顶层字段 / 增删
+  `notices[].code` / 改字段含义 = 契约变更，必须动它；而"必须动"由新增的
+  **`tests/report-contract.test.mjs`** 冻结住（顶层字段集与 code 清单都被写死，增删即红）。
+- **`notices: string[]` → `Array<{ code, text }>`（破坏性）**：消费方按 `code` 判，**文案不再是契约**。
+  `code` 清单单一出处是 `types.ts` 的 `NOTICE_CODES`（23 条，编译期 + 测试双重把关），
+  并**从包入口导出**（`exports` 映射不暴露 `./engine/*`，拿不到就等于没有）。
+- **机读 ⊇ 人读**：人读摘要里的数字以前在 JSON 里缺一半，现在补齐 `scopeFiles` · `globalFindings` ·
+  `rulesEnabled` / `rulesTotal`（`skippedGlobals` / `filteredBySeverity` / `exceptions` / `outsideContract` 已有）。
+- **`--paths` 一个文件都没匹配上 → 退出码 2**（原来 0）：它意味着"你要求判的东西一件都没判"，
+  是**请求无法满足**，不是"通过"。同时给出 `paths: { requested, matched: 0 }` 与 `code: 'paths-no-match'`，
+  消费方不必去匹配中文文案；「没问」（`paths: null`）与「问了没命中」（`matched: 0`）可区分。
+  `--report-only` 仍然恒 0（显式的"只看不拦"）。
+- `RunResult` 也带上 `pathsMatched` / `notices`（程序化调用方与 JSON 看到同一份自述）。
+- 契约与迁移写进 **DESIGN §6.9**（新增）与 README；退出码表补一行。
+- 顺带：`fsd()` 关于 `assets` / `providers` 的注释现在**点明这是上游自相矛盾**（`segments-by-purpose` 把
+  `providers` 列为 React 坏片段名且对无切片层也生效，源码链接已附），本预选明确"站 linter"。
 
 ### Fixed（五处「声明了却不生效」——同一类病，来自一次真实反馈）
 
@@ -27,6 +60,17 @@
    被判「非 CSS Module 的样式文件出现在组件目录」（文案也不对）。现在豁免**声明过的三个落点**
    （styleDir / tokenDir / vendorDir），文案改成"全局 CSS 只许放声明的样式落点"；同时 `fsd()` 的
    `styleDir` 归位到官方的 `app/styles`（全局样式），令牌与第三方覆盖仍在 `shared/ui/styles/{tokens,vendor}`。
+
+### Fixed（S12 报文指向真正的修法）
+
+- 新判据「组件目录（`:ui` / `:components:*`）里的 `.tsx` 必须 PascalCase」**压力是对的**，但报文说的是
+  「组件文件必须 PascalCase」—— 而 `ui/useThing.tsx` 的真实问题是"hook 住错了目录"。提示指错地方，
+  agent 就会去改名字而不是挪文件。现在按**文件的真实形态**分三种说法（`hasJsx` 来自事实模型，判据不动）：
+  - 名字以 `naming.hookPrefix` 开头 → 「hook 不该住在组件目录：把 X 挪到 model/ 或 hooks/」
+  - 真有 JSX → 「组件文件必须 PascalCase」（它确实是组件，只是名字不对 —— 原报文准确）
+  - 没有 JSX 也不是组件名 → 「X 不是组件却住在组件目录：这份 .tsx 里没有 JSX，纯逻辑请放 model/、或改成 .ts」
+    三者都带上修法提示（pretty 报告渲染成 `→ …`）：组件目录只放组件，hook 与纯逻辑另有位置。
+    回归见 `tests/paradigm-consistency.test.mjs` 第 ⑥ 条。
 
 ### Changed（适配表边界：`packages` 是"必须装的"，不是"整套库的清单"）
 

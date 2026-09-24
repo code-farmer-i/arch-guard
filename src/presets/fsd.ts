@@ -35,7 +35,14 @@ export interface FsdOptions {
  * **`providers`** `composables` … （词表见 steiger 的 `segments-by-purpose` 文档）
  *
  * 所以默认值里**故意不含 `assets` / `providers`** —— 它们很常见，但会被社区官方 linter 判为"按内容命名"。
- * 需要就显式加：`fsd({ sharedSegments: [..., 'assets'], appSegments: [..., 'providers'] })`。
+ *
+ * **这是上游自相矛盾，选之前要知道**：`segments-by-purpose` 把 `providers` 明确列进 `BAD_NAMES_REACT`
+ * （`['hook','hooks','context','provider','providers']`），而且**对无切片层（app / shared）同样生效**
+ * —— 源码见 <https://github.com/feature-sliced/steiger/blob/master/packages/steiger-plugin-fsd/src/segments-by-purpose/index.ts>。
+ * 与此同时，常见写法（以及不少"照指南来"的项目）会把 query client / theme 之类放进 `app/providers/…`。
+ * **本预设站 linter**：默认集不含它，所以照那种写法落地会顶到 S01。
+ * 显式加就明确是"我知道会被社区 linter 警告，仍然这么写"：
+ * `fsd({ sharedSegments: [..., 'assets'], appSegments: [..., 'providers'] })`。
  */
 const DEFAULT_SEGMENTS = ['ui', 'model', 'api', 'lib', 'config']
 // 官方 shared 典型段：api / ui / lib / config / routes / i18n

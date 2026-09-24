@@ -506,14 +506,15 @@ ctx = {
 
 **（4）退出码**
 
-| 场景                          | 退出码             |
-| ----------------------------- | ------------------ |
-| full，有 error                | 非零               |
-| changed，变更文件有 error     | 非零               |
-| changed，仅全局 error（默认） | 非零               |
-| `--local-only` 且有全局 error | 零，但打印跳过条数 |
-| `--report-only`               | 零，仅警告         |
-| 引擎 / 解析异常               | **永远非零**（R2） |
+| 场景                             | 退出码                         |
+| -------------------------------- | ------------------------------ |
+| full，有 error                   | 非零                           |
+| changed，变更文件有 error        | 非零                           |
+| changed，仅全局 error（默认）    | 非零                           |
+| `--local-only` 且有全局 error    | 零，但打印跳过条数             |
+| `--report-only`                  | 零，仅警告                     |
+| `--paths` **一个文件都没匹配上** | **2**（请求无法满足；见 §6.9） |
+| 引擎 / 解析异常                  | **永远非零**（R2）             |
 
 **（5）配置形态**
 
@@ -522,6 +523,40 @@ scope: { default: 'full', preCommit: 'staged', devLoop: 'changed', ci: 'full' }
 ```
 
 `lint` 脚本用 `full`（与 CI 同一判决），`guard:dev` 用 `changed`，pre-commit hook 用 `staged`。
+
+---
+
+### 6.9 JSON 报告的对外契约
+
+`--format=json` 是**机读消费方的接口**（CI 注解、PR bot、IDE 插件、agent），所以它与规则一样是契约。
+
+**（1）契约变更必须显式**
+
+- `apiVersion`（`REPORT_API_VERSION`）跟着报告走：**增删顶层字段、增删 `notices[].code`、改字段含义 → 必须动它**。
+  消费方启动时断言自己认识的版本；不认识就明说「不认识这版报告」，而不是少读几个字段继续装绿。
+- **只加版本号没用**：没人强制 bump 的版本号只是装饰。所以有 `tests/report-contract.test.mjs`：
+  顶层字段集与 `NOTICE_CODES` 清单都被**冻结**，任何增删都会红 —— 红就是提醒走这套流程。
+  （这条是**被真实事故推出来的**：0.3.x 一口气加了 5 个字段而无人可察，`S13 没在跑`、`--paths` 零匹配
+  这类信息就那样消失在消费方视野里。）
+
+**（2）自述是结构，不是散文**
+
+`notices: Array<{ code, text }>`：消费方按 `code` 判（`paths-no-match` / `severity-filtered` / `scan-empty` /
+`facts-cache`…），**文案不是契约**（随时可改）。`code` 清单是 `types.ts` 的 `NOTICE_CODES`（单一出处，编译期与测试双重把关）。
+`--format=github` 目前仍是纯文本注解，没有 code —— 消费方要判状态请用 `--format=json`。
+
+**（3）机读 ⊇ 人读**
+
+人读摘要里出现的每个数字，机读侧都必须有：`scopeFiles` · `globalFindings` · `rulesEnabled` / `rulesTotal` ·
+`skippedGlobals` · `filteredBySeverity` · `exceptions[]` · `outsideContract` · `paths`。
+反例（曾经的形态）：摘要行写「规则 17/56」而 JSON 里只有 `skipped` 数组，消费方算不出"多少条没在跑"。
+
+**（4）「没判任何东西」必须可判定**
+
+`--paths` 匹配到 0 个文件 = **你要求判的东西一件都没判**。它现在三处同时说：
+`paths: { requested, matched: 0 }` · `notices[].code === 'paths-no-match'` · **退出码 2**。
+「没问」（`paths: null`）与「问了没命中」（`matched: 0`）**必须可区分** —— 前者是没事，后者是出事。
+（`--report-only` 仍然恒 0：它是显式的"只看不拦"。）
 
 ---
 

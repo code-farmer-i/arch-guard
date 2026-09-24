@@ -2,7 +2,7 @@ import { relative } from 'node:path'
 
 import { disabledFactsCache, openFactsCache } from './facts-cache.js'
 import { extractFacts, factInputOf } from './facts.js'
-import type { Config, Facts, FileRecord } from './types.js'
+import type { Config, Diagnostic, Facts, FileRecord } from './types.js'
 import { readText } from './util.js'
 
 /**
@@ -32,7 +32,7 @@ export function collectSources(options: {
   /** `--scope=staged` 时 index 里的内容（rel → 文本）；其它 scope 为 null */
   staged: Map<string, string> | null
   useCache: boolean
-  notice: (message: string) => void
+  notice: (diagnostic: Diagnostic) => void
 }): CollectedSources {
   const { config, notice } = options
   const texts = new Map<string, string>()
@@ -58,7 +58,10 @@ export function collectSources(options: {
         }
       } else if (record.kind === 'css') cssTexts.set(record.rel, text)
     } catch (error) {
-      notice(`读取失败：${record.rel}（${(error as Error).message}）`)
+      notice({
+        code: 'read-failed',
+        text: `读取失败：${record.rel}（${(error as Error).message}）`,
+      })
     }
   }
   cache.save()
@@ -66,10 +69,12 @@ export function collectSources(options: {
   if (options.useCache && stats.hits + stats.misses > 0) {
     // 命中数必须自述：不然「缓存到底有没有生效、写在哪」只能靠猜
     const where = stats.path === null ? '(未落盘)' : relative(config.root, stats.path)
-    notice(
-      `facts 缓存 ${where}：命中 ${stats.hits}/${stats.hits + stats.misses}` +
+    notice({
+      code: 'facts-cache',
+      text:
+        `facts 缓存 ${where}：命中 ${stats.hits}/${stats.hits + stats.misses}` +
         (stats.hits > 0 ? '（省下的就是解析）' : '（首次或缓存作废，本轮全量解析）'),
-    )
+    })
   }
 
   return {

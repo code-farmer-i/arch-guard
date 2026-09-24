@@ -116,9 +116,16 @@ test('report：摘要自述 scope / 例外 / 停用规则', () => {
             hits: 2,
           },
         ],
-        skipped: [{ rule: 'D10', reason: '能力未声明：uiKit.vendorSelectors' }],
+        skipped: [
+          {
+            rule: 'D10',
+            code: 'capability-missing',
+            missing: ['uiKit.vendorSelectors'],
+            reason: '能力未声明：uiKit.vendorSelectors',
+          },
+        ],
         unknownEnabled: ['NOPE'],
-        notices: ['别名取自 tsconfig'],
+        notices: [{ code: 'config-aliases', text: '别名取自 tsconfig' }],
       }),
     ),
   )
@@ -152,9 +159,16 @@ test('report：停用规则与未知规则在 report 里明列（防「以为在
   const text = capture(() =>
     renderReport(
       baseInput({
-        skipped: [{ rule: 'D10', reason: '能力未声明：uiKit.vendorSelectors' }],
+        skipped: [
+          {
+            rule: 'D10',
+            code: 'capability-missing',
+            missing: ['uiKit.vendorSelectors'],
+            reason: '能力未声明：uiKit.vendorSelectors',
+          },
+        ],
         unknownEnabled: ['X99'],
-        notices: ['仓库根变更路径已换算到配置根'],
+        notices: [{ code: 'scope-changed-relocated', text: '仓库根变更路径已换算到配置根' }],
       }),
     ),
   )

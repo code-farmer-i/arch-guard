@@ -1,5 +1,5 @@
 import { CAPABILITY_ROOTS, capabilityValue, isCapabilityPresent } from './adapters.js'
-import type { Config, Domain, Level, Rule } from './types.js'
+import type { Config, Domain, Level, Rule, SkippedRule } from './types.js'
 
 /**
  * 能力协商：未声明的能力对应规则**不注册**，并记入 skipped 供报告展示。
@@ -39,7 +39,7 @@ export interface RegistryFilters {
 
 export interface RegistryResult {
   enabled: Rule[]
-  skipped: { rule: string; reason: string }[]
+  skipped: SkippedRule[]
   unknownEnabled: string[]
   filters: RegistryFilters
 }
@@ -56,7 +56,7 @@ export function createRegistry(
   const unknownEnabled = requested.filter((id) => !all.has(id))
 
   const enabled: Rule[] = []
-  const skipped: { rule: string; reason: string }[] = []
+  const skipped: SkippedRule[] = []
 
   for (const id of requested) {
     const rule = all.get(id)
@@ -67,7 +67,12 @@ export function createRegistry(
     if (filters.minLevel && LEVEL_ORDER[rule.level] > LEVEL_ORDER[filters.minLevel]) continue
     const missing = (rule.requires ?? []).filter((capability) => !hasCapability(config, capability))
     if (missing.length > 0) {
-      skipped.push({ rule: rule.id, reason: `能力未声明：${missing.join(', ')}` })
+      skipped.push({
+        rule: rule.id,
+        code: 'capability-missing',
+        missing,
+        reason: `能力未声明：${missing.join(', ')}`,
+      })
       continue
     }
     enabled.push(rule)

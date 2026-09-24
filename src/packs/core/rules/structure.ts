@@ -206,7 +206,30 @@ export const namingRules: Rule = {
         base.endsWith('.tsx') &&
         !/^[A-Z]/.test(stem)
       ) {
-        out.push(finding('S12', record.rel, 1, `组件文件必须 PascalCase：${base}`))
+        /**
+         * 判据不动（组件目录里的文件必须 PascalCase），但**报文必须指向真正的修法**：
+         * `ui/useThing.tsx` 被点名的真实问题是"hook 住错了目录"，不是"组件名起错了" ——
+         * 一律报"组件文件必须 PascalCase"会把 agent 送去改名字，而它该做的是把文件挪走。
+         * 所以按**文件的真实形态**分三种说法（事实来自 facts：`hasJsx`）：
+         *   ① 名字像 hook（`config.naming.hookPrefix` 开头）→ 说"hook 不该住组件目录"；
+         *   ② 真有 JSX → 它确实是组件，只是名字不对 → 原报文（准确）；
+         *   ③ 没有 JSX 且名字不像组件 → 它根本不是组件 → 说清它是什么、该去哪。
+         */
+        const looksLikeHook = stem.startsWith(hookPrefix)
+        const hasJsx = ctx.facts.get(record.rel)?.hasJsx === true
+        out.push(
+          finding(
+            'S12',
+            record.rel,
+            1,
+            looksLikeHook
+              ? `hook 不该住在组件目录：把 ${base} 挪到 model/ 或 hooks/`
+              : hasJsx
+                ? `组件文件必须 PascalCase：${base}`
+                : `${base} 不是组件却住在组件目录：这份 .tsx 里没有 JSX，纯逻辑请放 model/、或干脆改成 .ts`,
+            '组件目录（ui / components）只放组件：组件用 PascalCase .tsx；hook 与纯逻辑另有位置',
+          ),
+        )
       }
     }
     return out
