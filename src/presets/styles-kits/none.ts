@@ -2,7 +2,7 @@ import { defineAdapter, defineFacet } from '../../engine/adapters.js'
 import type { StylesAdapter } from '../../engine/types.js'
 
 defineFacet('styles', {
-  fields: ['packages', 'modulePattern', 'examples'],
+  fields: ['packages', 'examples'],
   capabilityRoot: 'styles',
 })
 

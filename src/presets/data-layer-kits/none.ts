@@ -2,7 +2,7 @@ import { defineAdapter, defineFacet } from '../../engine/adapters.js'
 import type { DataLayerAdapter } from '../../engine/types.js'
 
 defineFacet('data-layer', {
-  fields: ['packages', 'queryKeyFrom', 'examples'],
+  fields: ['packages', 'examples'],
   capabilityRoot: 'dataLayer',
 })
 

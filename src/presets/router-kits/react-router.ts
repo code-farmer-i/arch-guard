@@ -3,7 +3,7 @@ import type { RouterAdapter } from '../../engine/types.js'
 
 // 面由**预设**登记（E2）：加一个面不改引擎
 defineFacet('router', {
-  fields: ['packages', 'routerLink', 'routeFile', 'examples'],
+  fields: ['packages', 'examples'],
   capabilityRoot: 'router',
 })
 
@@ -13,7 +13,5 @@ export function reactRouterKit(): RouterAdapter {
     id: 'react-router',
     specVersion: '1',
     packages: ['react-router', 'react-router-dom'],
-    routerLink: 'Link',
-    routeFile: 'routes.tsx',
   })
 }

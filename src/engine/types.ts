@@ -220,10 +220,6 @@ export interface RouterAdapter {
   id: string
   specVersion?: string
   packages: string[]
-  /** 声明式导航组件名（如 `Link`）——"内部跳转必须走它"这类规则的锚点 */
-  routerLink?: string
-  /** 路由定义文件的形态（如 `routes.tsx`） */
-  routeFile?: string
   examples?: AdapterExamples
 }
 
@@ -236,8 +232,6 @@ export interface DataLayerAdapter {
   id: string
   specVersion?: string
   packages: string[]
-  /** 查询键的唯一落点（如 `src/shared/api/queryKeys.ts`） */
-  queryKeyFrom?: string
   examples?: AdapterExamples
 }
 
@@ -247,8 +241,6 @@ export interface StylesAdapter {
   id: string
   specVersion?: string
   packages: string[]
-  /** CSS Module 的文件名形态（正则可编译） */
-  modulePattern?: string
   examples?: AdapterExamples
 }
 

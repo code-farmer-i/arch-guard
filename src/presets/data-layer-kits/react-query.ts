@@ -2,7 +2,7 @@ import { defineAdapter, defineFacet } from '../../engine/adapters.js'
 import type { DataLayerAdapter } from '../../engine/types.js'
 
 defineFacet('data-layer', {
-  fields: ['packages', 'queryKeyFrom', 'examples'],
+  fields: ['packages', 'examples'],
   capabilityRoot: 'dataLayer',
 })
 
@@ -12,7 +12,5 @@ export function reactQueryKit(): DataLayerAdapter {
     id: 'react-query',
     specVersion: '1',
     packages: ['@tanstack/react-query'],
-    // 缓存键的唯一出处属于**项目**（范式决定 shared/api/queryKeys.ts），这里只给默认形态
-    queryKeyFrom: 'queryKeys.ts',
   })
 }

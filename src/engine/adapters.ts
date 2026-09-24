@@ -122,7 +122,7 @@ export function facetOfCapabilityRoot(root: string): string | undefined {
   return undefined
 }
 
-const PATTERN_FIELDS = new Set(['vendorSelectors', 'vendorVars', 'modulePattern'])
+const PATTERN_FIELDS = new Set(['vendorSelectors', 'vendorVars'])
 
 export class AdapterError extends Error {
   constructor(message: string) {
@@ -202,8 +202,6 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
   if (spec.vendorSelectors !== undefined)
     validatePatterns(spec.vendorSelectors, 'vendorSelectors', facet)
   if (spec.vendorVars !== undefined) validatePatterns(spec.vendorVars, 'vendorVars', facet)
-  if (spec.modulePattern !== undefined)
-    validatePatterns([spec.modulePattern], 'modulePattern', facet)
   if (spec.styleProps !== undefined) assertStringArray(spec.styleProps, 'styleProps', facet)
   if (spec.detachedApis !== undefined) {
     if (!Array.isArray(spec.detachedApis))

@@ -267,11 +267,17 @@ test('presets：方案面（router / data-layer / styles）各自贡献 P12，ki
   assert.equal(router(routerKit).adapters?.router?.facet, 'router')
 
   assert.equal(dataLayer(reactQueryKit()).enable.includes('P12'), true)
-  assert.equal(dataLayer(reactQueryKit()).adapters?.['data-layer']?.queryKeyFrom, 'queryKeys.ts')
+  assert.deepEqual(dataLayer(reactQueryKit()).adapters?.['data-layer']?.packages, [
+    '@tanstack/react-query',
+  ])
 
   const stylesPreset = styles(cssModulesKit())
   assert.equal(stylesPreset.enable.includes('P12'), true)
-  assert.equal(stylesPreset.adapters?.styles?.modulePattern, '\\.module\\.css$')
+  assert.deepEqual(
+    stylesPreset.adapters?.styles?.packages,
+    [],
+    'CSS Module 没有包，声明的是"已选方案"',
+  )
 
   // 组件库 / i18n 也纳入 P12（声明 antd 又 import mui 是同类混用）
   assert.equal(uiKit(antdKit()).enable.includes('P12'), true)
