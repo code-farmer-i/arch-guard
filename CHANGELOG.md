@@ -40,8 +40,26 @@
   依赖覆盖率产物的 M02–M06 与 M08 仍是**明列停用**：M06 要求产物比 HEAD 新，装上会让 `pnpm guard:self`
   变成"必须先跑覆盖率"；M08 要求源文件被测试 import 或同名配对，而本仓测试是**分组测试 + 跑构建产物**（import `es/`），
   实测会一次报 24 条结构性 error（不是代码问题），装上等于削弱门禁。
-- `arch.config.mjs` 另补：`specVersion: '1'`（配置格式版本不一致时显式报错）、`packs: [reactPack]`（不再依赖 CLI 兜底包，
-  让 `pack.adapters` 的 facet 白名单校验真正生效）、`.scratch/**` 进 `ignore`（一次性 spike 不属于项目源码树）。
+- `arch.config.mjs` 另补：`specVersion: '1'`（配置格式版本不一致时显式报错）、`packs: [...]` 显式声明（不再依赖 CLI 兜底包）、
+  `.scratch/**` 进 `ignore`（一次性 spike 不属于项目源码树）。
+  注：写 `packs` 的收益是"配置自述用了哪种源码形态"，**不是**"让 facet 白名单校验生效" ——
+  那条校验一直通过 CLI 兜底包在跑（`loadConfig` 见到 pack 就校验），此处更正我先前的说法。
+
+### Changed（pack 轴：`framework` 指源码形态，不是"用了哪个框架"）
+
+- **新增 `tsPack`（`framework: 'typescript'`），本仓改用它。** 起因是一个纯 TS 库/CLI 竟被 `reactPack` 量：
+  根因是 v1 只有一个叫 "react" 的包，而它实际承载的是「TS/TSX parser + 全部规则」——
+  `framework` 只驱动两件事（哪些扩展名归本包管、S20 的报错文案），**没有任何规则按它分支**（已核对）。
+  现在：`src/packs/core/rules/` 存放**共享规则实现**，`packs/typescript` 与 `packs/react` 是两份 pack 声明，
+  今天引用同一份 `coreRules`（v1 没有任何 JSX 专属的**已实现**规则：C01 / D15 已委派）；
+  JSX 专属规则落地时它们的家是 `packs/react/rules/`，那时两者才真正分化。
+- **引擎默认源码形态从 `react` 改为 `typescript`**（`framework-sources.ts` 里第一个已实现项）：
+  引擎不该假设前端框架。扩展名集合两者相同，所以行为零变化，只有标签与 S20 文案跟着变。
+- 公共 API：`reactRules` → **`coreRules`**（从 `arch-guard` 与 `arch-guard/packs/core` 导出）；
+  新增 `tsPack`。CLI 的兜底包**仍保持 `reactPack`** —— 忘了写 `packs` 的 React 宿主（会配 `uiKit`）不静默变红。
+- 文档同步：PARADIGM §11（pack = 源码形态 + 两者今天共用规则集）、DESIGN §6.2 目录树 / §7.1 源码形态轴 / §7.5 pack 职责、
+  CONTEXT 的 pack 词条、README 配置示例、AGENTS 目录表；新增 `tests/packs.test.mjs` 钉住
+  「默认形态不是 react / 两包规则集一致 / packs 与 metaFramework 一处真相」。
 
 ### Added（可判定性的锚点写清）
 

@@ -28,15 +28,15 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 
 ## 目录
 
-| 位置                  | 是什么                                                                                                                                  |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/engine/**`       | 引擎：扫描 / 事实模型 / 图 / 注册表 / 棘轮 / 报告 / scope / 依赖事实 / 自检                                                             |
-| `src/packs/react/**`  | 框架包：语言相关规则（`rules/{structure,structure-graph,structure-declared,design-*,copy,deps*,hygiene-context,metrics,placement}.ts`） |
-| `src/presets/**`      | 预置与适配器：`canonical`（应用）/ `library`（库）/ `fsd` / `hygiene` / `ui-kits/*` / `i18n-kits/*`                                     |
-| `src/data/**`         | 纯数据表：组件库指纹、轮子指纹（引擎零库名）                                                                                            |
-| `__fixtures__/**`     | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                                                                            |
-| `examples/minimal/**` | 干净的宿主示例（可搬运性验证）                                                                                                          |
-| `arch.config.mjs`     | 门禁自己的配置（库范式 + 依赖选型 P + 度量 M07/M09 + 配置豁免）                                                                         |
+| 位置                  | 是什么                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/engine/**`       | 引擎：扫描 / 事实模型 / 图 / 注册表 / 棘轮 / 报告 / scope / 依赖事实 / 自检                                                          |
+| `src/packs/**`        | 框架包 = 源码形态的落地：`core/`（共享规则实现）· `typescript/`（`tsPack`）· `react/`（`reactPack`）；后两者今天共用 `core` 的规则集 |
+| `src/presets/**`      | 预置与适配器：`canonical`（应用）/ `library`（库）/ `fsd` / `hygiene` / `ui-kits/*` / `i18n-kits/*`                                  |
+| `src/data/**`         | 纯数据表：组件库指纹、轮子指纹（引擎零库名）                                                                                         |
+| `__fixtures__/**`     | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                                                                         |
+| `examples/minimal/**` | 干净的宿主示例（可搬运性验证）                                                                                                       |
+| `arch.config.mjs`     | 门禁自己的配置（库范式 + 依赖选型 P + 度量 M07/M09 + 配置豁免）                                                                      |
 
 ## Agent skills
 

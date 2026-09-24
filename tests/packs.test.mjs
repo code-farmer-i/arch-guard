@@ -33,9 +33,7 @@ test('pack 轴：framework 指的是源码形态；引擎默认不是 React', ()
   const ids = frameworkSources.map((item) => item.id)
   assert.deepEqual(ids, ['typescript', 'react', 'vue', 'svelte', 'astro'])
   assert.deepEqual(
-    frameworkSources
-      .filter((item) => item.implemented)
-      .map((item) => item.id),
+    frameworkSources.filter((item) => item.implemented).map((item) => item.id),
     ['typescript', 'react'],
     '已实现的只有这两种形态',
   )
@@ -49,7 +47,10 @@ test('pack 轴：两个包今天共用同一份规则集（谁都不许偷偷多
     reactPack.rules.map((rule) => rule.id),
     'v1 没有 JSX 专属的已实现规则，所以两者必须完全一致；分化时这条会先红，提醒你更新文档',
   )
-  assert.deepEqual(tsPack.rules.map((rule) => rule.id), coreRules.map((rule) => rule.id))
+  assert.deepEqual(
+    tsPack.rules.map((rule) => rule.id),
+    coreRules.map((rule) => rule.id),
+  )
   assert.equal(tsPack.rules.length, coreRules.length)
   assert.deepEqual(tsPack.adapters, reactPack.adapters, '适配面由规则消费的字段决定，两者今天相同')
 })

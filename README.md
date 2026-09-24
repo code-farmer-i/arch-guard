@@ -44,7 +44,9 @@ import {
 } from 'arch-guard/presets'
 
 export default {
-  packs: [reactPack], // 框架包（一个项目一个）：规则集由它决定
+  // 框架包（一个项目一个）：声明的是**源码形态**，不是"用了哪个框架"。
+  // React 应用用 reactPack；库 / CLI / 纯 TS 项目用 tsPack（两者今天共用同一份规则集）。
+  packs: [reactPack],
   presets: [
     canonical(), // 应用范式：三根拓扑 / 角色表 / 阈值
     // 范式三选一：canonical()（三根应用）· library()（库 / CLI：入口 + 目录表）·
