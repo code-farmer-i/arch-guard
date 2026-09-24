@@ -1,0 +1,62 @@
+# 方案面形态：规则不再写死 `routes.tsx` / `*.module.css`（T1 第二半）
+
+Status: done
+
+## 背景与问题
+
+T1 第一半把三个方案面（router / data-layer / styles）建成了适配器，但适配器只声明 `packages`，
+**规则仍按写死的写法判**：
+
+- `routes.tsx` 写死在 S03 / S04 / S05 / S14 / S15 里，而范式角色表写的是 `modules/{domain}/routes.{ts,tsx}`。
+  两边一漂就出假阳性：入口叫 **`routes.ts`** 的域会被报「跨域引用了内部文件」（S04 / S05），
+  view 会被报「没有被 routes 引用」（S15③）。
+- `*.module.css` 写死在 D16 / D17 里：样式方案换成 Sass（`*.module.scss`）时，
+  组件样式文件会被 D16 当成「组件目录里的全局样式」误报。
+
+## 目标
+
+把「规则要判的**形态**」变成方案面的**数据字段**，让规则只读字段，不读写死的文件名：
+
+| 面       | 字段                                 | 消费者                      | 默认                         |
+| -------- | ------------------------------------ | --------------------------- | ---------------------------- |
+| `router` | `routeFiles: string[]`（入口文件名） | S03 · S04 · S05 · S14 · S15 | `['routes.ts','routes.tsx']` |
+| `styles` | `modulePatterns: string[]`（正则）   | D16 · D17                   | `['\\.module\\.css$']`       |
+
+## 已定案的取舍
+
+| 问题                           | 决定                                                                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 默认值住哪                     | `src/data/face-forms.ts`（纯数据，层 1）：规则与 kit 都从这里取 —— 不再有第二处 `routes.tsx`                                     |
+| 空清单（`[]`）是什么意思       | **声明"本方案没有这种文件"**（文件路由 / Tailwind）→ 依赖它的规则**不判**；不是"没配"，也不套默认值                              |
+| S03 遇到空清单怎么办           | **照报**：S01 已把域根让给 S03，放行等于域根没有规则看着（静默失能）；只改文案，不改判定                                         |
+| 自定义正则的 `examples` 从哪来 | `cssModulesKit({ modulePatterns })` **必须**同时给 hit / miss 样例，否则构造期报错 —— 样例拿真正则验证，是唯一能抓住"写歪"的地方 |
+| 是否需要改 `requires` 门控     | 不需要：`styles` / `router` 面可以不存在（那时用默认词汇），所以不能用"能力未声明→停用"表达；两种语义不能混                      |
+
+非目标：数据层的形态规则（缓存键唯一出处 / 取数落点）与路由 `paths` 唯一出处**尚未实现** ——
+DESIGN §7.2 里原先把它们写成"仍写死形态"，其实是规则本身不存在，本次一并把文档口径改正（缺口照实说）。
+
+## 落点
+
+- `src/data/face-forms.ts`（新）：`DEFAULT_ROUTE_FILES` / `DEFAULT_MODULE_PATTERNS`
+- `src/engine/types.ts` + `src/engine/adapters.ts`：`RouterAdapter.routeFiles` / `StylesAdapter.modulePatterns`
+  （`modulePatterns` 进 `PATTERN_FIELDS` → 样例必须与真正则一致）
+- `src/packs/core/rules/face-forms.ts`（新）：`routeFilesOf` / `routeEntriesOf` / `modulePatternsOf` /
+  `isModuleStyle` / `patternRegex`（编译缓存）
+- `src/packs/core/rules/structure-routes.ts`（新）：S03 / S14 从 `structure.ts` 搬出来（词汇是它们共用的，
+  且 `structure.ts` 已到 500 行上限）
+- `src/packs/core/rules/{structure-graph,placement,design-styles}.ts`：S04 / S05 / S15③、提示文案、D16 / D17
+- kits：`router-kits/{react-router,none}` 声明 `routeFiles`、`styles-kits/{css-modules,none}` 声明 `modulePatterns`
+
+## 验收
+
+- `pnpm check` EXIT=0（Node 24.13.0）与 Node 22.18.0。
+- 夹具 `route-vocabulary`（入口叫 `routes.ts`：只报域根散件）与 `module-pattern`
+  （`.module.scss` 认作组件样式、`globals.css` 照报）各 `exact: true`；夹具总数 44 → **46**。
+- `tests/face-forms.test.mjs`：默认值 / 覆盖 / 空清单 / 样例校验 / S03 空清单照报 / D16·D17 空清单不判。
+
+## Comments
+
+- 2026-09-24 起：`routeFiles` 默认取 `['routes.ts','routes.tsx']`（与角色表 `routes.{ts,tsx}` 对齐）——
+  原来规则里的 `routes.tsx` 与角色表不一致本身就是 bug，不是"仅词汇抽象"。
+- 2026-09-24 `pnpm check` EXIT=0（Node 24.13.0）；`--self-test` 46/46；`--self-check-portability` 83 个文件；
+  `--check-docs` 通过；狗粮与 `examples/minimal` 照常通过。Node 22.18.0 复跑同样 EXIT=0。

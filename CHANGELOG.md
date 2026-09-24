@@ -15,6 +15,30 @@
 
 ## [Unreleased]
 
+### Added（方案面形态：规则不再写死 `routes.tsx` / `*.module.css`）
+
+- **方案面声明「形态」（T1 第二半）**：适配表回答"用哪个库"之外，还要回答"规则判的写法长什么样"。
+  - `router.routeFiles`：域的**公开面入口文件名**（默认 `['routes.ts','routes.tsx']`），
+    **S03 / S04 / S05 / S14 / S15** 照它判（以前写死 `routes.tsx`）。
+  - `styles.modulePatterns`：**组件样式文件形态**（正则，默认 `['\\.module\\.css$']`），
+    **D16 / D17** 照它判（可换 `*.module.scss` 等；`cssModulesKit({ modulePatterns })` 必须自带
+    hit / miss 样例，样例会拿真正则验证 —— 这是"正则写歪了却不生效"唯一能被抓住的地方）。
+  - 默认值只有一处（`src/data/face-forms.ts`），规则经 `packs/core/rules/face-forms.ts` 读，并对外导出
+    `DEFAULT_ROUTE_FILES` / `DEFAULT_MODULE_PATTERNS`（写自定义 kit 时别再抄一份）。
+- **空清单是声明，不是"没配"**：`routeFiles: []`（文件路由：没有 per-domain 出口文件）/
+  `modulePatterns: []`（Tailwind / CSS-in-JS：没有组件样式文件）→ 依赖它的规则**不判**，
+  而不是拿默认形态去硬判。例外是 **S03**：真没有入口文件时**照报**（S01 已把域根让给它，
+  放行就等于域根没有任何规则看着）。
+- 夹具 **46 个**：新增 `route-vocabulary`（入口叫 `routes.ts` 的域不再被 S04 / S05 误报）与
+  `module-pattern`（`.module.scss` 被 D16 / D17 认作组件样式，`globals.css` 照报）。
+
+### Fixed（入口叫 `routes.ts` 的域被误报）
+
+- **S04 / S05 / S15③ 把 `routes.tsx` 写死在规则里**，而范式角色表写的是 `modules/{domain}/routes.{ts,tsx}` ——
+  两边一漂，入口叫 `routes.ts` 的域会被误报「跨域引用了内部文件」（S04 / S05）、
+  view 被报「没有被 routes 引用」（S15③）。现在词汇只从方案面读，与角色表对齐；
+  S03 / S14 的文案与 `placementHint` 也照同一份词汇念（不再指着一个本方案不存在的文件名）。
+
 ### Added（依赖图收敛 + 声明驱动的组规则 + 方案适配器）
 
 - **收回两个委派缺口**：**S08 依赖环**（`graph.cycles`）与 **S33 导入必须解析得到**（`graph.unresolved`）——

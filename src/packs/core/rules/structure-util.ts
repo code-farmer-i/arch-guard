@@ -13,12 +13,14 @@ export const finding = (
   line: number,
   text: string,
   hint?: string,
+  global = false,
 ): Finding => ({
   rule,
   file,
   line,
   text,
   ...(hint ? { hint } : {}),
+  ...(global ? { global: true } : {}),
 })
 
 /**

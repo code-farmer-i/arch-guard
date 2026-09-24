@@ -93,6 +93,8 @@ export { coreRules } from './packs/core/index.js'
 export { tsPack } from './packs/typescript/index.js'
 export { reactPack } from './packs/react/index.js'
 export { kitFingerprints, fingerprintsOf } from './data/kit-fingerprints.js'
+// 方案面的**默认形态**词汇（自定义 kit 时可以引用它们，别在自己那边再抄一份 routes.tsx）
+export { DEFAULT_MODULE_PATTERNS, DEFAULT_ROUTE_FILES } from './data/face-forms.js'
 export {
   wheelFingerprints,
   capabilityOf,

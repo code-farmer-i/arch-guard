@@ -124,9 +124,9 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- | ----- | ----- |
 | S01 | `src` 下只许 `app/` `modules/` `shared/` + `*.d.ts`；每层子项在角色表内                                                                                                        | 目录白名单       | L1    | error |
 | S02 | 目录深度 ≤3（相对 `src`）；域槽位内禁再嵌套                                                                                                                                    | 路径             | L1    | error |
-| S03 | 文件必须落在某个槽位（域根只许 `routes.tsx`）                                                                                                                                  | 路径             | L1    | error |
+| S03 | 文件必须落在某个槽位（域根只许**公开面入口**，默认 `routes.{ts,tsx}`，见 §7.2(2.1)）                                                                                           | 路径             | L1    | error |
 | S04 | 域内 import 只许 `./`、`@/modules/<自己>`、`@/shared`、第三方                                                                                                                  | import 前缀      | L3    | error |
-| S05 | 域外只许 `import '@/modules/<域>/routes'`                                                                                                                                      | 图               | L3    | error |
+| S05 | 域外只许 `import '@/modules/<域>/routes'`（入口名由 `router.routeFiles` 声明）                                                                                                 | 图               | L3    | error |
 | S06 | `views/` 对域外私有                                                                                                                                                            | 图               | L3    | error |
 | S08 | 全图无环                                                                                                                                                                       | 图 DFS           | L3    | error |
 | S09 | `app/layouts` 不得 import `modules/**`                                                                                                                                         | 图               | L3    | error |
@@ -134,7 +134,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | S11 | 禁 barrel / `export *`                                                                                                                                                         | AST              | L2    | error |
 | S12 | 命名契约（目录/文件/导出名，§4.7）                                                                                                                                             | 路径 + AST       | L1+L2 | error |
 | S13 | 导出形态契约（§4.5）                                                                                                                                                           | AST              | L2    | error |
-| S14 | 有 `views/` 必须有 `routes.tsx`                                                                                                                                                | 路径             | L1    | error |
+| S14 | 有 `views/` 必须有域入口（默认 `routes.{ts,tsx}`，由方案面声明）                                                                                                               | 路径             | L1    | error |
 | S15 | 无孤儿文件；域 `routes` 必被 `app/router` 聚合；每个 view 必被本域 `routes` 引用                                                                                               | 可达性           | L3    | error |
 | S16 | 体积：文件 ≤500（默认，可配）/ 单组件函数 ≤150                                                                                                                                 | AST 计数         | L2    | error |
 | S19 | **宽度**：单文件导出值 ≤6 / 单文件组件数 ≤3（不含类型导出）。**仅应用范式** —— 库的入口就是公开面，导出几十个符号是对的形态                                                    | AST 计数         | L2    | error |
@@ -178,8 +178,8 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | D13  | **魔法数字·层级**：`z-index` 必须令牌                                                                                                | L2                   | error   |
 | D14  | **魔法数字·时长**：动效时长必须令牌或常量                                                                                            | L2                   | error   |
 | D15  | 内联样式纪律：禁颜色属性、禁裸数字与 `px/rem/em`                                                                                     | AST JSX              | L2      | error           |
-| D16  | 自研样式只在 `*.module.css`                                                                                                          | 路径                 | L1      | error           |
-| D17  | CSS Module 双向契约（`styles.X` 有定义 / 类被引用 / module.css 被同名组件 import）                                                   | CSS ↔ AST            | L2      | error           |
+| D16  | 自研样式只在组件样式文件（默认 `*.module.css`，形态由 `styles.modulePatterns` 声明）                                                 | 路径                 | L1      | error           |
+| D17  | CSS Module 双向契约（形态同上：`styles.X` 有定义 / 类被引用 / 组件样式文件被同名组件 import）                                        | CSS ↔ AST            | L2      | error           |
 | D18  | 组件样式只消费语义令牌（禁直接引 `--sh-static-*`）                                                                                   | CSS                  | L2      | error           |
 | D19  | 同一 `(属性, 数值)` 跨 ≥3 文件重复 → 提示提取令牌                                                                                    | AST + CSS            | L2      | warn（默认关）  |
 | D20  | 请求策略与业务阈值数字必须有家（登记后生效）                                                                                         | AST 上下文           | L2      | error（默认关） |
@@ -833,25 +833,25 @@ v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`
 
 **（1）可替换面总表**
 
-| #   | 可替换面            | 现在写死在哪                                                                                                                         | 换掉后崩什么                                                          | Tier              |
-| --- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------- |
-| 1   | UI 组件库           | §7.1 适配表 ✅                                                                                                                       | —                                                                     | 已做              |
-| 2   | **数据层**          | **适配器已建**（`dataLayer()` + P12 判同类混用）；B3 Query 挂载点、C2 副作用禁取数、C3 mutation 失效缓存、S13 `use*Store` 仍写死形态 | 换 SWR / Jotai / Redux / Pinia / Vue Query → 这些规则仍识别不到触发点 | T1 第一半已做     |
-| 3   | **路由模式与出口**  | **适配器已建**（`router()` + P12）；域公开面 = `routes.tsx`、paths 唯一出处、S15 routes 必被聚合仍写死形态                           | Next / Remix / Nuxt 文件路由没有 `routes.tsx`                         | T1 第一半已做     |
-| 4   | **样式方案**        | **适配器已建**（`styles()` + P12）；D16 自研样式只在 `*.module.css`、D17 双向契约仍写死形态                                          | Tailwind 下 `@apply` 从「禁令」变「常态」；CSS-in-JS 没有 class 契约  | T1 第一半已做     |
-| 5   | **i18n 形态**       | C 域全部按 `t('key')` + 两份 TS 嵌套对象                                                                                             | `<FormattedMessage id>`、扁平 JSON、ICU 复数规则                      | T1                |
-| 6   | 网络客户端          | B1 检测 `fetch / XHR / EventSource`                                                                                                  | 项目合法用 axios → B1 失去触发点                                      | T2                |
-| 7   | 令牌来源            | D01–D07 全走 CSS 自定义属性                                                                                                          | 令牌在 TS 对象（`theme.ts` / Style Dictionary）→ 扫描器读不到         | T2                |
-| 8   | 主题机制            | `data-theme` 属性 + storage key                                                                                                      | class 切换、`prefers-color-scheme` 媒体查询                           | T2                |
-| 9   | 装配与入口          | D08 校验 `index.html`；可达性入口 = `main.tsx`                                                                                       | Next / Nuxt 没有 HTML 模板                                            | T2                |
-| 10  | 测试框架与布局      | `*.test.ts(x)` co-located 且豁免可达性                                                                                               | Jest `__tests__/`、Playwright `e2e/` → 孤儿文件误报                   | T2                |
-| 11  | 命名契约            | `*Page.tsx`、`use*`、`use*Store`                                                                                                     | 项目用 `*.view.tsx` / 自定义 hook 前缀                                | T2                |
-| 12  | 导出风格            | views 必须 default export                                                                                                            | 全 named export 的项目                                                | T2                |
-| 13  | 硬编码文案判定      | 中文字符检测                                                                                                                         | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关）     | T2 已缓解         |
-| 14  | 依赖选型表          | P01 白名单（`deps({ allow })`）与文档里的选型表各写一份                                                                              | 表改了、config 没改 → 漂移                                            | T1（见 §7.3）     |
-| 15  | 时间库              | H10 建议 dayjs                                                                                                                       | date-fns / Temporal                                                   | T3                |
-| 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                                                                                   | monorepo 需要多实例配置                                               | 范围外            |
-| 17  | **契约扫描域**      | 全树遍历 + 宿主逐条 `ignore`                                                                                                         | 非源码 ts/css 全被报 S01；每个新工具配置都要补一条 ignore             | 已做（`include`） |
+| #   | 可替换面            | 现在写死在哪                                                                                                                                                                            | 换掉后崩什么                                                                                                                | Tier                            |
+| --- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 1   | UI 组件库           | §7.1 适配表 ✅                                                                                                                                                                          | —                                                                                                                           | 已做                            |
+| 2   | **数据层**          | **适配器已建**（`dataLayer()` + P12 判同类混用）；数据层的**形态**规则（缓存键唯一出处、取数落点）**尚未实现** —— 换 SWR / Jotai / Redux / Pinia / Vue Query 目前只影响 P12 / P04 / P01 | 换库后那些形态规则不存在，也就谈不上"识别不到触发点"（是缺口，不是写死）                                                    | T1 第一半已做（形态规则未实现） |
+| 3   | **路由模式与出口**  | **适配器已建**（`router()` + P12）；域的公开面入口由 `router.routeFiles` 声明（默认 `routes.ts` / `routes.tsx`），**S03 / S04 / S05 / S14 / S15 照它判**；paths 唯一出处未实现          | Next / Remix / Nuxt 文件路由：声明 `routeFiles: []` = "没有 per-domain 出口文件"，那几条规则**不判**（域根散件仍由 S03 报） | T1 已做（paths 唯一出处未实现） |
+| 4   | **样式方案**        | **适配器已建**（`styles()` + P12）；D16 / D17 认 `styles.modulePatterns` 声明的组件样式形态（默认 `*.module.css`，可换成 `*.module.scss` 等）                                           | Tailwind / CSS-in-JS 声明 `modulePatterns: []` → 没有组件样式文件，D16 / D17 不判                                           | T1 已做                         |
+| 5   | **i18n 形态**       | C 域全部按 `t('key')` + 两份 TS 嵌套对象                                                                                                                                                | `<FormattedMessage id>`、扁平 JSON、ICU 复数规则                                                                            | T1                              |
+| 6   | 网络客户端          | B1 检测 `fetch / XHR / EventSource`                                                                                                                                                     | 项目合法用 axios → B1 失去触发点                                                                                            | T2                              |
+| 7   | 令牌来源            | D01–D07 全走 CSS 自定义属性                                                                                                                                                             | 令牌在 TS 对象（`theme.ts` / Style Dictionary）→ 扫描器读不到                                                               | T2                              |
+| 8   | 主题机制            | `data-theme` 属性 + storage key                                                                                                                                                         | class 切换、`prefers-color-scheme` 媒体查询                                                                                 | T2                              |
+| 9   | 装配与入口          | D08 校验 `index.html`；可达性入口 = `main.tsx`                                                                                                                                          | Next / Nuxt 没有 HTML 模板                                                                                                  | T2                              |
+| 10  | 测试框架与布局      | `*.test.ts(x)` co-located 且豁免可达性                                                                                                                                                  | Jest `__tests__/`、Playwright `e2e/` → 孤儿文件误报                                                                         | T2                              |
+| 11  | 命名契约            | `*Page.tsx`、`use*`、`use*Store`                                                                                                                                                        | 项目用 `*.view.tsx` / 自定义 hook 前缀                                                                                      | T2                              |
+| 12  | 导出风格            | views 必须 default export                                                                                                                                                               | 全 named export 的项目                                                                                                      | T2                              |
+| 13  | 硬编码文案判定      | 中文字符检测                                                                                                                                                                            | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关）                                                           | T2 已缓解                       |
+| 14  | 依赖选型表          | P01 白名单（`deps({ allow })`）与文档里的选型表各写一份                                                                                                                                 | 表改了、config 没改 → 漂移                                                                                                  | T1（见 §7.3）                   |
+| 15  | 时间库              | H10 建议 dayjs                                                                                                                                                                          | date-fns / Temporal                                                                                                         | T3                              |
+| 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                                                                                                                                      | monorepo 需要多实例配置                                                                                                     | 范围外                          |
+| 17  | **契约扫描域**      | 全树遍历 + 宿主逐条 `ignore`                                                                                                                                                            | 非源码 ts/css 全被报 S01；每个新工具配置都要补一条 ignore                                                                   | 已做（`include`）               |
 
 **（2）统一适配器契约**
 
@@ -863,10 +863,29 @@ v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`
 ```
 src/presets/ui-kits/{antd,none}.ts           UI 组件库            ✅ 已建
 src/presets/i18n-kits/{i18next,none}.ts     文案 / i18n 形态      ✅ 已建
-src/presets/{router-kits,data-layer-kits,styles-kits}/   路由 / 数据层 / 样式   ✅ 已建（消费者 = P12 同类方案不许混入）
+src/presets/{router-kits,data-layer-kits,styles-kits}/   路由 / 数据层 / 样式   ✅ 已建
 ```
 
-T2 的适配器留同名目录与加载点，v1 只给默认值（默认值 = 现在的行为），不阻塞落地。
+**（2.1）方案面还声明「形态」（T1 第二半）**
+
+适配表只回答"用哪个库"是不够的：**规则判的是文件的形态**，形态以前写死在规则里
+（`routes.tsx` / `*.module.css`），于是换方案（`routes.ts` 配置式路由、`*.module.scss`）时规则照着旧形态量，
+报出一批假阳性。现在形态由方案面的**数据字段**声明，规则只读它们：
+
+| 面       | 字段                                   | 谁读                        | 默认                           |
+| -------- | -------------------------------------- | --------------------------- | ------------------------------ |
+| `router` | `routeFiles: string[]`（域入口文件名） | S03 · S04 · S05 · S14 · S15 | `['routes.ts','routes.tsx']`   |
+| `styles` | `modulePatterns: string[]`（正则）     | D16 · D17                   | `['\\.module\\.css$']`         |
+| 其余面   | 各自的落点 / 形态字段                  | 见 §7.1 与 §7.4             | 由范式或 `designSystem()` 提供 |
+
+两条纪律：
+
+1. **默认值只有一处**（`src/data/face-forms.ts`）：范式角色表写 `modules/{domain}/routes.{ts,tsx}`，
+   规则与 kit 都从这张表取 —— 以前是"角色表认 `.ts`，规则只认 `.tsx`"，两处一漂就误报。
+2. **空清单是声明，不是"没配"**：`routeFiles: []` = 文件路由（没有 per-domain 出口文件）、
+   `modulePatterns: []` = 没有组件样式文件（Tailwind / CSS-in-JS）—— 依赖它的规则**不判**，
+   而不是拿默认形态去硬判（那正是误报的来源）。域根散件（S03）例外：真的没有入口文件时**照报**，
+   否则 S01 已把域根让给 S03，域根就成了没有规则看着的地方。
 
 **（3）范式不变量（明确不配置）**
 
@@ -885,15 +904,22 @@ T2 的适配器留同名目录与加载点，v1 只给默认值（默认值 = �
 
 ```js
 // presets/router-kits/react-router.ts —— 面名 + 字段白名单 + 能力根名都是数据
-defineFacet('router', { fields: ['packages', 'examples'], capabilityRoot: 'router' })
-export const reactRouterKit = () => defineAdapter('router', { id: 'react-router', packages: [...] })
+defineFacet('router', {
+  fields: ['packages', 'routeFiles', 'examples'],
+  capabilityRoot: 'router',
+})
+export const reactRouterKit = () =>
+  defineAdapter('router', { id: 'react-router', packages: [...], routeFiles: [...DEFAULT_ROUTE_FILES] })
 ```
 
 加一个面 = 预设里加一行 + **消费它的规则**（否则就是"声明了没人读"，本仓按纪律不留空声明），引擎零改动。
 开放的是「面」，不是校验：字段白名单照旧强制、未登记的面照旧报错、同一个面两份定义报错（面定义只能有一处真相）。
 公共 API：`facetNames()` / `facetSpec()` / `facetOfCapabilityRoot()`（原 `FACETS` 常量已删）。
 
-**（4）v1 明确不支持（不假装「配置即可」）**：元框架 Vue / Svelte；文件路由（Next / Remix / Nuxt）下的域结构规则；monorepo 多包；CSS-in-JS；TS 对象令牌；JS-only 项目。每项在文档里写「不支持」而不是「可配置」。
+**（4）v1 明确不支持（不假装「配置即可」）**：元框架 Vue / Svelte；文件路由（Next / Remix / Nuxt）下的域结构规则
+（能声明 `router.routeFiles: []` 让 S03 / S04 / S05 / S14 / S15 里的入口相关判定停判，但**域结构本身仍按三根范式判**，
+文件路由是另一套角色表，不在 v1）；monorepo 多包；CSS-in-JS（`modulePatterns: []` 只是让 D16 / D17 停判，
+不是支持它的写法）；TS 对象令牌；JS-only 项目。每项在文档里写「不支持」而不是「可配置」。
 
 ### 7.3 两处真相的收敛（已实现）
 

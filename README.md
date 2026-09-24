@@ -292,9 +292,10 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 - [x] **与 lint 生态不交叉**：单文件语法卫生、颜色/`!important`/数值白名单、幽灵依赖、
       文案键存在性等全部**委派**给 eslint / oxlint / stylelint / knip（见 `docs/DESIGN.md` 的「委派清单」）
 - [x] **可替换面**：UI 组件库（`ui-kit`）· i18n（`i18n-kits`）· 方案面 `router()` / `dataLayer()` / `styles()`（配 P12 判同类混用）；结构声明化为数据（`canonical` / `library` / `fsd` 三范式 + `stack()` 组合）
+- [x] **方案面形态**（T1 第二半）：`router.routeFiles` 与 `styles.modulePatterns` 声明"规则要判的写法"（默认 `routes.{ts,tsx}` / `*.module.css`），S03/S04/S05/S14/S15 与 D16/D17 照它判；声明 `[]` = 本方案没有这种文件（文件路由 / Tailwind）→ 规则不判（域根散件仍由 S03 报）
 - [x] **适配器面开放注册**（E2）：引擎只预注册有消费者的核心面，新面由预设 `defineFacet` 登记 —— 加面不改引擎
+- [ ] 数据层的形态规则（缓存键唯一出处 / 取数落点）与路由的 `paths` 唯一出处
 - [ ] `--verify-deps` 的**联网成熟度**查询（本地对账已是默认能力）
-- [ ] 其余 T1 适配器：数据层 / 路由 / 样式（`presets/{data-layers,routers,styles}/`）
 - [x] **文档管理块渲染**（`--render-docs` / `--check-docs`）：文档里的角色表 / 选型表 / 阈值表从 `arch.config.mjs` 生成，漂移即红
 - [ ] Vue / Svelte 框架包（pack 边界已留出）
 

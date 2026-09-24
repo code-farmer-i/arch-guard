@@ -146,6 +146,13 @@ _Avoid_: 词典、命名规范
 每个面一份适配器（纯数据），由**预设**用 `defineFacet` 登记 —— 引擎不枚举面清单。
 _Avoid_: 插件、扩展点
 
+**方案面形态（face forms）**：
+方案面里**规则要读的那部分写法**：`router.routeFiles`（域的公开面入口文件名，默认 `routes.ts` / `routes.tsx`）
+与 `styles.modulePatterns`（组件样式文件形态正则，默认 `*.module.css`）。默认值只写在 `src/data/face-forms.ts`，
+规则通过 `packs/core/rules/face-forms.ts` 读，适配器声明了就盖过默认值。
+**空清单是声明不是缺省**：`[]` = 本方案没有这种文件（文件路由 / Tailwind），依赖它的规则**不判**。
+_Avoid_: 约定优于配置（那是"没配就猜"，这里要求能说出"这种文件不存在"）
+
 **同类方案（alternatives）**：
 同一个面里**互相替代**的库（`src/data/solution-alternatives.ts`）。登记了某个面之后再 import 同面里的另一个库 → P12。
 刻意不收传输层 / 客户端状态 / 原子类与预处理器（并存是常规写法）。

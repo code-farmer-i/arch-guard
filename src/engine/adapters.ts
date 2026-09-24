@@ -122,7 +122,11 @@ export function facetOfCapabilityRoot(root: string): string | undefined {
   return undefined
 }
 
-const PATTERN_FIELDS = new Set(['vendorSelectors', 'vendorVars'])
+/**
+ * 正则类字段：`examples` 的 hit / miss 会拿真正则去验证（§7.4 第 4 条）。
+ * `modulePatterns`（组件样式文件形态）与选择器 / 变量前缀同类 —— 写歪了只会在规则里静默不生效。
+ */
+const PATTERN_FIELDS = new Set(['vendorSelectors', 'vendorVars', 'modulePatterns'])
 
 export class AdapterError extends Error {
   constructor(message: string) {
@@ -203,6 +207,10 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
     validatePatterns(spec.vendorSelectors, 'vendorSelectors', facet)
   if (spec.vendorVars !== undefined) validatePatterns(spec.vendorVars, 'vendorVars', facet)
   if (spec.styleProps !== undefined) assertStringArray(spec.styleProps, 'styleProps', facet)
+  // 方案面的**形态**词汇：入口文件名（S 域）与组件样式形态（D 域）
+  if (spec.routeFiles !== undefined) assertStringArray(spec.routeFiles, 'routeFiles', facet)
+  if (spec.modulePatterns !== undefined)
+    validatePatterns(spec.modulePatterns, 'modulePatterns', facet)
   if (spec.detachedApis !== undefined) {
     if (!Array.isArray(spec.detachedApis))
       throw new AdapterError(`[${facet}] detachedApis 必须是数组`)

@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "D16",
+      "file": "src/shared/components/ui/globals.css"
+    },
+    {
+      "rule": "D17",
+      "file": "src/shared/components/ui/Bad.module.scss"
+    }
+  ],
+  "exact": true
+}

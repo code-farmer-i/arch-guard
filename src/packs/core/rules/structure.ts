@@ -2,6 +2,7 @@ import { resolveFramework } from '../../../data/framework-sources.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { placementHint } from './placement.js'
+import { domainRootOnlyRoutes, routesRequired } from './structure-routes.js'
 
 /** S00 解析失败必须报错：fail-closed —— 语法错误会让该文件失去全部检查，绝不能静默通过 */
 export const parseFailClosed: Rule = {
@@ -40,44 +41,6 @@ const finding = (
   ...(hint ? { hint } : {}),
   ...(global ? { global: true } : {}),
 })
-
-/**
- * S03 文件必须落在某个槽位：域根目录只许 `routes.tsx`（`*.d.ts` 例外）。
- *
- * 与 S01 的分工：S01 管「src 下的目录白名单 + 角色表互斥完备」，S03 把「域根不放散件」
- * 这一条单独拎出来给更明确的提示，所以 S01 会跳过域根文件，避免同一处报两遍。
- */
-export const domainRootOnlyRoutes: Rule = {
-  id: 'S03',
-  domain: 'structure',
-  level: 'L1',
-  severity: 'error',
-  title: '域根目录只许 routes.tsx',
-  hint: '域根只放 routes.tsx；页面进 views/、域内类型与常量进 model/、纯函数进 lib/、域内组件进 components/',
-  run: (ctx) => {
-    // 域根从 layout 读（唯一真相），不要再拼 `${srcRoot}/modules` —— 见 structure-graph 的 rootsOf
-    const modulesRoot = ctx.config.layout.modules
-    const out: Finding[] = []
-    for (const rel of [...ctx.scan.missing, ...ctx.scan.ambiguous.map((entry) => entry.rel)]) {
-      if (!rel.startsWith(`${modulesRoot}/`)) continue
-      const rest = rel.slice(modulesRoot.length + 1)
-      const segments = rest.split('/')
-      // 域根下的文件：modules/<域>/<file>
-      if (segments.length !== 2) continue
-      if (segments[1] === 'routes.tsx' || rel.endsWith('.d.ts')) continue
-      out.push(
-        finding(
-          'S03',
-          rel,
-          1,
-          `域根目录只许 routes.tsx，出现了 ${segments[1]}`,
-          placementHint(rel, ctx.config),
-        ),
-      )
-    }
-    return out
-  },
-}
 
 /** S01 角色表互斥完备：每个文件必须恰好命中一个角色 */
 export const roleTableComplete: Rule = {
@@ -298,51 +261,6 @@ export const exportShape: Rule = {
             out.push(finding('S13', record.rel, entry.line, 'lib 禁止 default 导出'))
         }
         if (facts.hasJsx) out.push(finding('S13', record.rel, 1, 'lib 是纯函数层，不得包含 JSX'))
-      }
-    }
-    return out
-  },
-}
-
-/** S14 有 views 的域必须有 routes.tsx（否则页面访问不到） */
-export const routesRequired: Rule = {
-  id: 'S14',
-  domain: 'structure',
-  level: 'L1',
-  severity: 'error',
-  title: '域路由分片必填',
-  hint: '有页面就在域根建 routes.tsx 并导出 *Routes，由 app/router 聚合',
-  run: (ctx) => {
-    const domains = new Map<string, { hasViews: boolean; hasRoutes: boolean; sample: string }>()
-    for (const record of ctx.records) {
-      if (!record.domain) continue
-      const entry = domains.get(record.domain) ?? {
-        hasViews: false,
-        hasRoutes: false,
-        sample: record.rel,
-      }
-      if (record.slot === 'views') {
-        entry.hasViews = true
-        // 定位点优先用**第一个**代码文件：域级发现落在 .module.css 上会让人找不到北，
-        // 但不能反复覆盖（否则定位点会随遍历顺序漂移，棘轮锚点也跟着漂）
-        if (/\.tsx?$/.test(record.rel) && !/\.tsx?$/.test(entry.sample)) entry.sample = record.rel
-      }
-      if (record.slot === 'routes') entry.hasRoutes = true
-      domains.set(record.domain, entry)
-    }
-    const out: Finding[] = []
-    for (const [domain, entry] of domains) {
-      if (entry.hasViews && !entry.hasRoutes) {
-        out.push(
-          finding(
-            'S14',
-            entry.sample,
-            1,
-            `域 ${domain} 有 views/ 但没有 routes.tsx`,
-            '补 modules/' + domain + '/routes.tsx',
-            true,
-          ),
-        )
       }
     }
     return out

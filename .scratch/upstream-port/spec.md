@@ -41,7 +41,7 @@ Status: done
 5. ✅ **依赖图三件**：S08 依赖环 · S33 未解析导入 · S34 文件级入/出度 + 夹具
 6. ✅ **适配面**：E2（`defineFacet` 开放注册）· T1（`router()` / `dataLayer()` / `styles()` + kit）· P12 同类方案不许混入 + `src/data/solution-alternatives.ts` + 两个 pack 的面声明
 7. ✅ **FSD 预设对齐**：单文件片段（`model.ts`）· 入口认代码扩展名 · shared 每个片段都要公开面（含根入口豁免子目录）· 重名查组路径段 + 三个夹具（`fsd-parity` / `fsd-boundaries` / `fsd-import-locality`）
-8. ⬜ **文档增量**：CHANGELOG / README / PARADIGM / DESIGN / ALTERNATIVES / CONTEXT，按上游当前口径写（不再提基线；豁免用"规则级例外"），并跑 `--render-docs` 更新生成块
+8. ✅ **文档增量**：CHANGELOG / README / PARADIGM / DESIGN / ALTERNATIVES / CONTEXT，按上游当前口径写（不再提基线；豁免用"规则级例外"），并跑 `--render-docs` 更新生成块
 
 ## 验收标准
 

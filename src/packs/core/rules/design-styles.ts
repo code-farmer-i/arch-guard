@@ -2,12 +2,13 @@ import { parseCss } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { designParams, finding } from './design-shared.js'
+import { isModuleStyle, modulePatternsOf } from './face-forms.js'
 
 /**
  * 设计系统域·样式纪律（D12–D18）：魔法数字三族、内联样式、样式落点、CSS Module 契约、语义令牌。
  */
 
-/* ---------------- D16 自研样式只在 *.module.css ---------------- */
+/* ---------------- D16 自研样式只在组件样式文件（默认 *.module.css） ---------------- */
 
 export const stylesInModules: Rule = {
   id: 'D16',
@@ -15,10 +16,17 @@ export const stylesInModules: Rule = {
   requires: ['designSystem.styleDir'],
   level: 'L1',
   severity: 'error',
-  title: '自研样式只在 *.module.css',
-  hint: '全局 CSS 只放令牌与第三方覆盖；组件样式一律 CSS Module，避免类名互相污染',
+  title: '自研样式只在组件样式文件',
+  hint: '全局 CSS 只放令牌与第三方覆盖；组件样式一律走方案声明的组件样式文件（默认 *.module.css），避免类名互相污染',
   run: (ctx) => {
     const params = designParams(ctx)
+    /**
+     * **组件样式文件的形态来自方案面**（`styles.modulePatterns`，默认 `*.module.css`）。
+     * 空清单 = 这套方案没有组件样式文件（Tailwind / CSS-in-JS）—— 那时"全局 CSS 该放哪"
+     * 没有判据，这里不猜也不误报；宿主若要连规则本身也从报告里去掉，在配置里 `disable: ['D16']`。
+     */
+    const patterns = modulePatternsOf(ctx.config)
+    if (patterns.length === 0) return []
     /**
      * 全局 CSS 允许的落点 = **声明过的**样式目录 / 令牌目录 / 第三方覆盖目录。
      * 三个都要收：FSD 的令牌在 `shared/ui/styles/tokens`、第三方覆盖在 `shared/ui/styles/vendor`，
@@ -30,14 +38,15 @@ export const stylesInModules: Rule = {
     )
     return ctx.records
       .filter((record) => record.kind === 'css')
-      .filter((record) => !record.rel.endsWith('.module.css'))
+      .filter((record) => !isModuleStyle(record.rel, patterns))
       .filter((record) => !globalDirs.some((dir) => record.rel.startsWith(`${dir}/`)))
       .map((record) =>
         finding(
           'D16',
           record.rel,
           1,
-          `全局 CSS 只许放声明的样式落点（${globalDirs.join(' / ') || '未声明'}）；组件样式请用 *.module.css`,
+          `全局 CSS 只许放声明的样式落点（${globalDirs.join(' / ') || '未声明'}）；` +
+            `组件样式请用方案声明的组件样式文件（${patterns.join(' / ')}）`,
         ),
       )
   },
@@ -58,11 +67,14 @@ export const cssModuleContract: Rule = {
   hint: 'styles.X 必须有定义、定义的类必须被用到；删组件时别忘了同一份样式',
   run: (ctx) => {
     const out: Finding[] = []
+    // 双向契约只对**方案声明的组件样式文件**成立（默认 *.module.css；空清单 = 没有这种文件）
+    const patterns = modulePatternsOf(ctx.config)
+    if (patterns.length === 0) return out
     const records = ctx.records.filter((record) => record.kind === 'ts' || record.kind === 'css')
     const byRel = new Map(records.map((record) => [record.rel, record]))
 
     for (const record of records) {
-      if (!record.rel.endsWith('.module.css')) continue
+      if (!isModuleStyle(record.rel, patterns)) continue
       const text = ctx.sourceOf(record.rel) ?? ''
       const defined = new Set<string>()
       for (const rule of parseCss(record.rel, text).rules) {

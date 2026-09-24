@@ -265,6 +265,12 @@ test('presets：方案面（router / data-layer / styles）各自贡献 P12，ki
   )
   assert.equal(router(routerKit).enable.includes('P12'), true, '装了适配器必须启用消费它的规则')
   assert.equal(router(routerKit).adapters?.router?.facet, 'router')
+  // 方案面还声明**形态**词汇：域的入口文件名（S03/S04/S05/S14/S15 照它判）
+  assert.deepEqual(
+    routerKit.routeFiles,
+    ['routes.ts', 'routes.tsx'],
+    '入口词汇与范式角色表 routes.{ts,tsx} 对齐（以前规则里写死 .tsx，routes.ts 会被误报）',
+  )
 
   assert.equal(dataLayer(reactQueryKit()).enable.includes('P12'), true)
   assert.deepEqual(dataLayer(reactQueryKit()).adapters?.['data-layer']?.packages, [
@@ -278,6 +284,8 @@ test('presets：方案面（router / data-layer / styles）各自贡献 P12，ki
     [],
     'CSS Module 没有包，声明的是"已选方案"',
   )
+  // 组件样式文件的形态（D16 / D17 照它判）：CSS Module 的默认形态是 *.module.css
+  assert.deepEqual(stylesPreset.adapters?.styles?.modulePatterns, ['\\.module\\.css$'])
 
   // 组件库 / i18n 也纳入 P12（声明 antd 又 import mui 是同类混用）
   assert.equal(uiKit(antdKit()).enable.includes('P12'), true)

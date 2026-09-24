@@ -220,6 +220,15 @@ export interface RouterAdapter {
   id: string
   specVersion?: string
   packages: string[]
+  /**
+   * 域的**公开面入口文件名**（S03 / S04 / S05 / S14 / S15 的词汇）。
+   *
+   * 缺省 = `src/data/face-forms.ts` 的 `DEFAULT_ROUTE_FILES`（`routes.ts` / `routes.tsx`）。
+   * 声明 `[]` 表达的是「**这种文件不存在**」—— 文件路由的元框架里路由由目录约定产生，
+   * 没有 per-domain 出口文件；依赖它的规则因此不判，而不是拿 `routes.tsx` 去量一个
+   * 不存在的约定（那才是误报）。
+   */
+  routeFiles?: string[]
   examples?: AdapterExamples
 }
 
@@ -241,6 +250,15 @@ export interface StylesAdapter {
   id: string
   specVersion?: string
   packages: string[]
+  /**
+   * **组件样式**文件形态的正则（D16 / D17 的词汇），缺省 = `*.module.css`。
+   *
+   * 收正则而不是后缀：换方案换的是**形态**（`*.module.scss` / `*.module.less`…）。
+   * 声明 `[]` = 这套方案没有组件样式文件（Tailwind / CSS-in-JS / 原子类）→ D16 / D17 不判；
+   * 宿主若要连规则本身也从报告里去掉，用 `disable` 显式关（那是配置层的决定）。
+   * 与 `vendorSelectors` 同类：**必须给 hit / miss 样例**（§7.4 第 4 条）。
+   */
+  modulePatterns?: string[]
   examples?: AdapterExamples
 }
 

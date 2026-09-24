@@ -1,5 +1,7 @@
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
+import { routeEntriesOf, routeFilesOf } from './face-forms.js'
+
 /**
  * 依赖方向的图规则（S04–S09、S15、S17、S18）。
  *
@@ -55,6 +57,9 @@ export const domainImportWhitelist: Rule = {
   hint: '域是自治单元：要复用的东西上移到 shared，别跨域取；跨域只经 routes',
   run: (ctx) => {
     const { modulesRoot, sharedRoot } = rootsOf(ctx)
+    const routeFiles = routeFilesOf(ctx.config)
+    // 声明了「本方案没有 per-domain 入口文件」（文件路由）：跨域引用没有合法落点可言，不判
+    if (routeFiles.length === 0) return []
     const out: Finding[] = []
     for (const record of ctx.records) {
       const domain = record.domain
@@ -63,8 +68,8 @@ export const domainImportWhitelist: Rule = {
         if (target.startsWith(`${modulesRoot}/`)) {
           const other = domainOf(target, modulesRoot)
           if (other === domain) continue
-          // 跨域只允许落在对方的 routes（由 S05 判定入口是否合法）
-          if (other && target === `${modulesRoot}/${other}/routes.tsx`) continue
+          // 跨域只允许落在对方的公开面入口（由 S05 判定入口是否合法）
+          if (other && routeEntriesOf(ctx.config, other).includes(target)) continue
           out.push(finding('S04', record.rel, 1, `域 ${domain} 跨域引用：${target}`))
           continue
         }
@@ -88,13 +93,15 @@ export const crossDomainViaRoutes: Rule = {
   hint: '域是黑盒：外部只挂载它的 routes，不直接 import 里面的组件',
   run: (ctx) => {
     const { modulesRoot } = rootsOf(ctx)
+    const routeFiles = routeFilesOf(ctx.config)
+    if (routeFiles.length === 0) return []
     const out: Finding[] = []
     for (const record of ctx.records) {
       const from = domainOf(record.rel, modulesRoot)
       for (const target of ctx.graph.edges.get(record.rel) ?? []) {
         const to = domainOf(target, modulesRoot)
         if (!to || to === from) continue
-        if (target === `${modulesRoot}/${to}/routes.tsx`) continue
+        if (routeEntriesOf(ctx.config, to).includes(target)) continue
         out.push(finding('S05', record.rel, 1, `跨域引用了 ${to} 的内部文件：${target}`))
       }
     }
@@ -201,10 +208,16 @@ export const reachability: Rule = {
         // 只判代码文件：views/ 下的 .module.css 是页面样式，不是"没被引用的页面"
         if (!/\.tsx?$/.test(record.rel)) continue
         const domain = domainOf(record.rel, modulesRoot)
-        const routes = domain ? `${modulesRoot}/${domain}/routes.tsx` : null
-        // 域里根本没有 routes.tsx 是 S14 的活（「有 views 必须有 routes」），这里不重复报
-        if (!routes || !byRel.has(routes)) continue
-        const referenced = ctx.graph.importers.get(record.rel)?.has(routes) ?? false
+        // 本域的公开面入口（入口叫什么由方案面声明，默认 routes.ts / routes.tsx）
+        const entries = domain
+          ? routeEntriesOf(ctx.config, domain).filter((rel) => byRel.has(rel))
+          : []
+        const routes = entries[0] ?? null
+        // 域里根本没有入口文件是 S14 的活（「有 views 必须有入口」），这里不重复报
+        if (!routes) continue
+        const referenced = entries.some(
+          (entry) => ctx.graph.importers.get(record.rel)?.has(entry) ?? false,
+        )
         if (!referenced) out.push(finding('S15', record.rel, 1, `view 没有被 ${routes} 引用`))
       }
     }
