@@ -1,0 +1,17 @@
+{
+  "findings": [
+    {
+      "rule": "P12",
+      "file": "src/engine/fetch.ts"
+    },
+    {
+      "rule": "P12",
+      "file": "src/engine/route.ts"
+    },
+    {
+      "rule": "P12",
+      "file": "src/engine/style.ts"
+    }
+  ],
+  "exact": true
+}

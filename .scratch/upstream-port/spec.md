@@ -39,7 +39,7 @@ Status: in-progress
 3. ✅ **图规则**：S28 组的外部引用下限（死切片）· S32 导入局部性 + 夹具
 4. ✅ **命名**：S29 组名撞单元 · S30 重复词 · S31 单复数一致性 + `src/data/plural-forms.ts` + `pluralize` 采纳（登记三处：`portability.ts` 白名单 / `package.json` / 狗粮 `arch.config.mjs` 的 `deps({ allow })`）
 5. ✅ **依赖图三件**：S08 依赖环 · S33 未解析导入 · S34 文件级入/出度 + 夹具
-6. ⬜ **适配面**：E2（`defineFacet` 开放注册）· T1（`router()` / `dataLayer()` / `styles()` + kit）· P12 同类方案不许混入 + `src/data/solution-alternatives.ts` + `reactPack` 的面声明
+6. ✅ **适配面**：E2（`defineFacet` 开放注册）· T1（`router()` / `dataLayer()` / `styles()` + kit）· P12 同类方案不许混入 + `src/data/solution-alternatives.ts` + 两个 pack 的面声明
 7. ⬜ **FSD 预设对齐**：单文件片段（`model.ts`）· 入口认代码扩展名 · shared 每个片段都要公开面（含根入口豁免子目录）· 重名查组路径段（先读上游 v2.1 的 `fsd.ts`，在其上增量改）+ 三个夹具（`fsd-parity` / `fsd-boundaries` / `fsd-import-locality`）
 8. ⬜ **文档增量**：CHANGELOG / README / PARADIGM / DESIGN / ALTERNATIVES / CONTEXT，按上游当前口径写（不再提基线；豁免用"规则级例外"），并跑 `--render-docs` 更新生成块
 
@@ -70,3 +70,8 @@ Status: in-progress
   （按"不为让规则变绿而改被测树"的原则保留，补注释与期望，成为 S08 第二个样例）。
   注意：上游 `examples/minimal` 的坏路径**已经不存在**（与 wip 判断不同）—— 扫过全仓与 40 个夹具，只有上述三处。
   双 Node `pnpm check` EXIT=0（280 测试 / 40 夹具）。
+- 2026-09-24 Step 6 完成并提交：E2（面登记表 + `FACETS` 常量换成 `facetNames`/`facetSpec`/`facetOfCapabilityRoot`）、
+  T1（三个方案面各带 kit + `router()`/`dataLayer()`/`styles()` 预设，各自贡献 P12）、P12 规则与数据表、
+  `reactPack`/`tsPack` 的面声明（上游注释里"没有消费者已删"的三个面**连同消费它们的规则一起加回**）。
+  `deps()` 域预设补 P12（否则"预设贡献规则集"守卫测试会红）。夹具 `solutions`（exact: true）。
+  双 Node `pnpm check` EXIT=0（282 测试 / 41 夹具）。

@@ -89,7 +89,7 @@ export interface DepsOptions {
 
 export function deps(options: DepsOptions = {}): Preset {
   return {
-    enable: ['P01', 'P02', 'P04', 'P05', 'P06', 'P07', 'P11'],
+    enable: ['P01', 'P02', 'P04', 'P05', 'P06', 'P07', 'P11', 'P12'],
     params: {
       // 默认两条都为空：**预设不替项目做选型决定**。
       // 项目要么用 allow（fail-closed，推荐），要么用 deny（只表达少数硬禁令），不必两者都维护。

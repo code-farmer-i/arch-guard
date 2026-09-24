@@ -29,7 +29,15 @@ export { loadConfig, aliasesFromTsconfig } from './engine/config.js'
 export { scanProject } from './engine/scan.js'
 export { extractFacts, factInputOf, TS_EXTENSIONS } from './engine/facts.js'
 export { buildGraph, resolveSpecifier } from './engine/graph.js'
-export { defineAdapter, AdapterError, FACETS } from './engine/adapters.js'
+export {
+  defineAdapter,
+  defineFacet,
+  facetOfCapabilityRoot,
+  facetNames,
+  facetSpec,
+  AdapterError,
+  type FacetSpec,
+} from './engine/adapters.js'
 export { createRegistry, hasCapability } from './engine/registry.js'
 export {
   depsPolicyFrom,
@@ -62,7 +70,24 @@ export { designSystem, deps } from './presets/design-system.js'
 export { copy } from './presets/copy.js'
 export { metrics } from './presets/metrics.js'
 export { hygiene } from './presets/hygiene.js'
-export { i18n, i18nextKit, noneI18nKit, uiKit, antdKit, noneKit, stack } from './presets/index.js'
+export {
+  i18n,
+  i18nextKit,
+  noneI18nKit,
+  uiKit,
+  antdKit,
+  noneKit,
+  stack,
+  router,
+  reactRouterKit,
+  noneRouterKit,
+  dataLayer,
+  reactQueryKit,
+  noneDataLayerKit,
+  styles,
+  cssModulesKit,
+  noneStylesKit,
+} from './presets/index.js'
 
 export { coreRules } from './packs/core/index.js'
 export { tsPack } from './packs/typescript/index.js'

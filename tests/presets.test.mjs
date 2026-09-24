@@ -3,12 +3,22 @@ import { test } from 'node:test'
 
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../es/engine/defaults.js'
 import {
+  antdKit,
   canonical,
+  cssModulesKit,
+  dataLayer,
   fsd,
   fsdRoleTable,
+  i18n,
+  i18nextKit,
   library,
   libraryRoleTable,
+  reactQueryKit,
+  reactRouterKit,
   roleTable,
+  router,
+  styles,
+  uiKit,
 } from '../es/presets/index.js'
 
 test('presets：阈值与命名契约只有一份默认值（范式不再各抄一份数字）', () => {
@@ -211,4 +221,26 @@ test('presets：角色表构造函数也能被直接调用（只给 src 时其�
   assert.ok(lib.every((role) => role.layer >= 0))
   const layered = libraryRoleTable({ src: 'src', modules: { utils: 1 } })
   assert.ok(layered.some((role) => role.id === 'lib:utils' && role.layer === 1))
+})
+
+test('presets：方案面（router / data-layer / styles）各自贡献 P12，kit 只声明数据', () => {
+  const routerKit = reactRouterKit()
+  assert.deepEqual(
+    routerKit.packages,
+    ['react-router', 'react-router-dom'],
+    '同一个方案的两个包都算"已登记"',
+  )
+  assert.equal(router(routerKit).enable.includes('P12'), true, '装了适配器必须启用消费它的规则')
+  assert.equal(router(routerKit).adapters?.router?.facet, 'router')
+
+  assert.equal(dataLayer(reactQueryKit()).enable.includes('P12'), true)
+  assert.equal(dataLayer(reactQueryKit()).adapters?.['data-layer']?.queryKeyFrom, 'queryKeys.ts')
+
+  const stylesPreset = styles(cssModulesKit())
+  assert.equal(stylesPreset.enable.includes('P12'), true)
+  assert.equal(stylesPreset.adapters?.styles?.modulePattern, '\\.module\\.css$')
+
+  // 组件库 / i18n 也纳入 P12（声明 antd 又 import mui 是同类混用）
+  assert.equal(uiKit(antdKit()).enable.includes('P12'), true)
+  assert.equal(i18n(i18nextKit({ languages: ['zh-CN'] })).enable.includes('P12'), true)
 })

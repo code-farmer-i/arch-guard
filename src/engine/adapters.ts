@@ -6,7 +6,13 @@ import type { Adapter, AdapterExamples } from './types.js'
  * 引擎从不反向调用适配器。
  */
 
-const FACET_FIELDS: Record<string, string[]> = {
+/**
+ * **核心面**（引擎自己或框架包有消费者的面）：面名 → 允许字段。
+ *
+ * 引擎不再枚举"所有面"（E2）：新面由预设用 `defineFacet` 登记，
+ * 这里只留引擎无法从别处知道的那几个。
+ */
+const CORE_FACET_FIELDS: Record<string, string[]> = {
   'ui-kit': [
     'facet',
     'id',
@@ -42,18 +48,78 @@ const FACET_FIELDS: Record<string, string[]> = {
   ],
 }
 
-export const FACETS = Object.keys(FACET_FIELDS)
-
-/** 能力根名 → 适配器面（capability 用 `uiKit.vendorSelectors` 这种路径表达） */
-/**
- * 能力根 → 适配器 facet。**只登记有规则消费的**（见 docs/DESIGN.md §7.1）。
- * `router` / `data-layer` / `styles` 曾经在这里，但没有任何规则读它们的字段 ——
- * 按"声明必须有消费者"删掉；将来要支持就**连同消费它们的规则一起加回**。
- */
-export const CAPABILITY_ROOTS: Record<string, string> = {
-  metrics: 'metrics',
-  uiKit: 'ui-kit',
+/** 核心面的能力根名（`ui-kit` 的根是 `uiKit`，所以不能靠"根名 = 面名"推） */
+const CORE_CAPABILITY_ROOTS: Record<string, string> = {
+  'ui-kit': 'uiKit',
   i18n: 'i18n',
+  metrics: 'metrics',
+}
+
+export interface FacetSpec {
+  /** 允许的字段白名单（拼错字段直接报错） */
+  fields: string[]
+  /** 能力根名（规则 `requires: ['uiKit.vendorSelectors']` 里的 `uiKit`）；缺省 = 面名 */
+  capabilityRoot?: string
+}
+
+/** 字段白名单按集合处理：登记顺序不该影响"是不是同一个面" */
+const normalizeFields = (fields: string[]): string[] =>
+  [...new Set(['facet', 'id', 'specVersion', ...fields])].sort()
+
+const facets = new Map<string, FacetSpec>(
+  Object.entries(CORE_FACET_FIELDS).map(([name, fields]) => [
+    name,
+    { fields: normalizeFields(fields), capabilityRoot: CORE_CAPABILITY_ROOTS[name] ?? name },
+  ]),
+)
+
+/** 已登记的面名（错误信息与自检用） */
+export function facetNames(): string[] {
+  return [...facets.keys()].sort()
+}
+
+/** 读一个面的定义（自检用） */
+export function facetSpec(name: string): FacetSpec | undefined {
+  return facets.get(name)
+}
+
+/**
+ * **登记一个适配器面**（E2：加面不再需要动引擎）。
+ *
+ * 谁调用：预设自己 —— 放在定义该面适配器的模块顶部（同一模块或它 import 的模块），
+ * 保证"面定义先于适配器定义"（`defineAdapter` 会校验面已登记）。
+ *
+ * 同一个面重复登记**同样的定义**是幂等的（ESM 模块可能被多次求值）；
+ * 定义不同则报错 —— 两份定义会让字段校验按加载顺序飘。
+ */
+export function defineFacet(name: string, spec: FacetSpec): void {
+  if (name.length === 0) throw new AdapterError('适配器面名不能为空')
+  if (spec.fields.length === 0) throw new AdapterError(`[${name}] 字段白名单不能为空`)
+  const normalized: FacetSpec = {
+    fields: normalizeFields(spec.fields),
+    capabilityRoot: spec.capabilityRoot ?? name,
+  }
+  const existing = facets.get(name)
+  if (existing) {
+    const same =
+      existing.fields.join('\n') === normalized.fields.join('\n') &&
+      existing.capabilityRoot === normalized.capabilityRoot
+    if (!same) {
+      throw new AdapterError(
+        `适配器面 ${name} 已被登记为不同定义（已登记字段：${existing.fields.join(', ')}）—— 面定义只能有一处真相`,
+      )
+    }
+    return
+  }
+  facets.set(name, normalized)
+}
+
+/** 能力根名 → 适配器面（规则 `requires: ['uiKit.vendorSelectors']` 靠它反查） */
+export function facetOfCapabilityRoot(root: string): string | undefined {
+  for (const [name, spec] of facets) {
+    if ((spec.capabilityRoot ?? name) === root) return name
+  }
+  return undefined
 }
 
 const PATTERN_FIELDS = new Set(['vendorSelectors', 'vendorVars', 'modulePattern'])
@@ -116,8 +182,14 @@ function validateExamples(
 
 /** 校验并冻结一个适配器声明；未知字段直接报错（防拼写错导致静默失能） */
 export function defineAdapter<T extends Adapter>(facet: string, spec: Record<string, unknown>): T {
-  const allowed = FACET_FIELDS[facet]
-  if (!allowed) throw new AdapterError(`未知适配器面：${facet}（可用：${FACETS.join(', ')}）`)
+  const definition = facets.get(facet)
+  if (!definition) {
+    throw new AdapterError(
+      `未知适配器面：${facet}（可用：${facetNames().join(', ')}）\n` +
+        '（新面由预设用 defineFacet 登记 —— 面清单不再写死在引擎里）',
+    )
+  }
+  const allowed = definition.fields
   const unknown = Object.keys(spec).filter((key) => !allowed.includes(key))
   if (unknown.length > 0) {
     throw new AdapterError(

@@ -1,4 +1,4 @@
-import { CAPABILITY_ROOTS, capabilityValue, isCapabilityPresent } from './adapters.js'
+import { capabilityValue, facetOfCapabilityRoot, isCapabilityPresent } from './adapters.js'
 import type { SkippedRule } from './codes.js'
 import type { Config, Domain, Level, Rule } from './types.js'
 
@@ -22,7 +22,7 @@ export function hasCapability(config: Config, capability: string): boolean {
   if (!root) return false
   if (PARAM_CAPABILITY_ROOTS.has(root))
     return isCapabilityPresent(capabilityValue(config.params, rest))
-  const facet = CAPABILITY_ROOTS[root]
+  const facet = facetOfCapabilityRoot(root)
   if (!facet) return false
   const adapter = Object.values(config.adapters).find((candidate) => candidate.facet === facet)
   if (!adapter) return false

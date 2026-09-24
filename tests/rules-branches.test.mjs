@@ -256,3 +256,35 @@ test('D 域：对比度基线的令牌解析不了时跳过（不猜、不误报
   const findings = coreRules.find((rule) => rule.id === 'D07')?.run(ctx) ?? []
   assert.deepEqual(findings, [], '解析不了的配色要跳过，而不是报一个假对比度')
 })
+
+test('P12 同类方案：登记一个方案后，混入同类库才报；全在登记内 / 无同类表的面不报', () => {
+  const rule = coreRules.find((item) => item.id === 'P12')
+  const routerAdapter = {
+    facet: 'router',
+    id: 'react-router',
+    packages: ['react-router', 'react-router-dom'],
+  }
+  const files = {
+    'src/a.ts': "import { Link } from 'wouter'\nexport const A = Link\n",
+    'src/b.ts': "import { Link } from 'react-router-dom'\nexport const B = Link\n",
+  }
+  // 混入同类库 → 报在 import 那一行
+  const mixed = makeContext({ files, adapters: { router: routerAdapter } })
+  const findings = rule.run(mixed)
+  assert.deepEqual(
+    findings.map((finding) => `${finding.file}:${finding.line}`),
+    ['src/a.ts:1'],
+  )
+  // 没登记这个面 → 一条不报（能力协商：没声明就不参与）
+  assert.deepEqual(rule.run(makeContext({ files })), [])
+  // 面没有同类表（metrics）→ 不报
+  assert.deepEqual(
+    rule.run(
+      makeContext({
+        files,
+        adapters: { metrics: { facet: 'metrics', id: 'coverage', packages: ['wouter'] } },
+      }),
+    ),
+    [],
+  )
+})

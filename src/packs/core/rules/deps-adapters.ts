@@ -4,6 +4,7 @@ import { wheelFingerprints } from '../../../data/wheel-fingerprints.js'
 import { createRule } from '../../../engine/rule.js'
 import { cssFiles, usesVendorPatterns, vendorPatterns } from './design-shared.js'
 import { knownIconPackages } from '../../../data/icon-packages.js'
+import { SOLUTION_ALTERNATIVES } from '../../../data/solution-alternatives.js'
 import type { Facts, Finding, Rule } from '../../../engine/types.js'
 
 /**
@@ -256,9 +257,49 @@ export const adapterActuallyUsed: Rule = createRule({
   },
 })
 
+/** P12 登记的方案面不许混入同类库：一个面只许有一个方案（判据来自数据表） */
+export const solutionAlternatives: Rule = createRule({
+  id: 'P12',
+  domain: 'deps',
+  level: 'L1',
+  severity: 'error',
+  title: '同类方案不许混入',
+  hint: '登记了哪个方案就用它：混用两个同类库会让"唯一方案"变成两处真相，换库时改不干净',
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const adapter of Object.values(ctx.config.adapters)) {
+      const alternatives = SOLUTION_ALTERNATIVES[adapter.facet]
+      if (!alternatives || alternatives.length === 0) continue
+      const declared = new Set(adapterPackagesOf(adapter))
+      const rivals = new Set(alternatives.filter((name) => !declared.has(name)))
+      if (rivals.size === 0) continue
+      const declaredLabel = declared.size > 0 ? [...declared].join(' / ') : adapter.id
+      for (const record of ctx.records) {
+        const facts = ctx.facts.get(record.rel)
+        if (!facts) continue
+        for (const imported of facts.imports) {
+          const pkg = packageOf(imported.spec)
+          if (pkg === undefined || !rivals.has(pkg)) continue
+          out.push(
+            finding(
+              'P12',
+              record.rel,
+              imported.line,
+              `${adapter.facet} 面登记的是 ${declaredLabel}，这里却 import 了同类方案 ${pkg}`,
+              '换库要改适配器那一行（而不是在代码里并存两套）；确实要并存就先去掉登记',
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+})
+
 export const adapterRules: Rule[] = [
   adapterDepsConsistent,
   iconSourceSingle,
   wheelSuspected,
   adapterActuallyUsed,
+  solutionAlternatives,
 ]
