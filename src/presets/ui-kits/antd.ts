@@ -9,7 +9,11 @@ export function antdKit(): UiKitAdapter {
   return defineAdapter<UiKitAdapter>('ui-kit', {
     id: 'antd',
     specVersion: '1',
-    packages: ['antd', '@ant-design/icons', '@ant-design/x'],
+    // `packages` = **你必须装的**（P04 正向会要求它在 package.json 里），不是"这套库的全部包"。
+    // `@ant-design/x`（AI 界面套件）属于 antd 这一套，但是**可选扩展** —— 放进这里就会逼所有项目装它。
+    // 它仍然登记在 `data/kit-fingerprints.ts` 的 antd 条目里，所以：装了它不会被判"混进别的组件库"；
+    // 而 `allow` 已开启时，装了什么就得自己写进 allow（那是项目决定，不是适配器替你决定）。
+    packages: ['antd', '@ant-design/icons'],
     icons: { from: ['@ant-design/icons'] },
     vendorSelectors: ['\\.ant-'],
     vendorVars: ['^--ant-'],

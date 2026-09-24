@@ -650,20 +650,20 @@ presets: [
 
 **适配器契约** —— 每个字段驱动哪条规则：
 
-| 字段              | 含义                                                       | 驱动的规则                         |
-| ----------------- | ---------------------------------------------------------- | ---------------------------------- |
-| `id`              | 适配器标识                                                 | 报告与文档                         |
-| `packages`        | 适配表声明的包（必须装在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时） |
-| `icons.from`      | 允许的图标来源包（唯一）                                   | P05                                |
-| `vendorSelectors` | 该库的 DOM 选择器前缀（如 `\.ant-`）                       | D10 / D10b                         |
-| `vendorVars`      | 该库的 CSS 变量前缀（如 `^--ant-`）                        | D10 / D10b                         |
-| `detachedApis`    | 脱离上下文的全局 API 与替代写法                            | H06                                |
+| 字段              | 含义                                                           | 驱动的规则                         |
+| ----------------- | -------------------------------------------------------------- | ---------------------------------- |
+| `id`              | 适配器标识                                                     | 报告与文档                         |
+| `packages`        | 适配表声明的包（**必须装**在 `dependencies` 里；并入批准名单） | P04 一致性 · P01（allow 已开启时） |
+| `icons.from`      | 允许的图标来源包（唯一）                                       | P05                                |
+| `vendorSelectors` | 该库的 DOM 选择器前缀（如 `\.ant-`）                           | D10 / D10b                         |
+| `vendorVars`      | 该库的 CSS 变量前缀（如 `^--ant-`）                            | D10 / D10b                         |
+| `detachedApis`    | 脱离上下文的全局 API 与替代写法                                | H06                                |
 
 ```js
 // src/presets/ui-kits/antd.ts —— 约 30 行，这就是"换框架"的全部成本
 export default () => ({
   id: 'antd',
-  packages: ['antd', '@ant-design/icons', '@ant-design/x'],
+  packages: ['antd', '@ant-design/icons'], // 必须装的；同套可选包（@ant-design/x）不列在这
   icons: { from: ['@ant-design/icons'] },
   vendorSelectors: ['\\.ant-'],
   vendorVars: ['^--ant-'],
@@ -694,6 +694,12 @@ export default () => ({
   },
 })
 ```
+
+**边界：`packages` 是「你必须装的」，不是「这套库的全部包」。** 同一个生态里的**可选扩展**
+（`@ant-design/x`、`@ant-design/pro-*`、`@ant-design/charts`…）不该列进来 —— 列了就等于逼所有项目装它（P04 正向）。
+它们仍然登记在 `data/kit-fingerprints.ts` 的套条目里，所以装了也不会被判「混进别的组件库」（P04 反向按**套**判，不按包）；
+但 `allow` 已开启时，装了什么就得自己写进 `allow`（那是项目决定）。实测过：把 `@ant-design/x` 从 `packages` 里删掉，
+`--verify-deps` 照样对账通过、P04 不报。
 
 **三种用法**：
 

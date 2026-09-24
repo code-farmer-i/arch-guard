@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+### Changed（适配表边界：`packages` 是"必须装的"，不是"整套库的清单"）
+
+- **`antdKit().packages` 去掉 `@ant-design/x`**（AI 界面套件，antd 生态的**可选扩展**）。
+  它列在那里时，P04 正向会要求**每个** antd 项目都装上它 —— 哪怕一行都不用；`allow` 已开启的项目还得多抄一行。
+  现在只剩 `['antd', '@ant-design/icons']`。
+- **删之前先确认过不会变成误报**：P04 反向用的是 `fingerprintsOf()`（返回**别套**：`!kit.packages.some(pkg => owned.has(pkg))`），
+  按**套**判而不是按包判，而 `@ant-design/x` 仍登记在 `data/kit-fingerprints.ts` 的 antd 条目里 ——
+  所以"装了它"既不会被判"混进别的组件库"，`--verify-deps` 也照样对账通过（实测）。
+- 新边界写进 DESIGN §7.1：「**`packages` 是「你必须装的」，不是「这套库的全部包」**」——
+  同生态的可选扩展（`@ant-design/x`、`@ant-design/pro-*`、`@ant-design/charts`…）不该列进来；
+  但 `allow` 已开启时，装了什么就得自己写进 `allow`（项目决定，不是适配器替你决定）。
+- 夹具 `allowlist-adapters` 随之只装 `antd` + `@ant-design/icons`（它的断言是"适配表 packages 并入白名单"，与包数无关）。
+- 新增 `tests/kit-packages.test.mjs`（5 条）：不装它不再违规 · 装了它 P04 不报 · `allow` 开启时要自己登记 ·
+  **反向没被削弱**（装了 `element-plus` 照样报）。
+
 ### Changed（`fsd()` 按官方 v2.1 对齐）
 
 - **补上官方 shared 典型段 `routes`**，app 典型段补 `routes` / `store` / `entrypoint`
