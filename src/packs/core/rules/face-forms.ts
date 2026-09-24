@@ -55,3 +55,25 @@ export function patternRegex(pattern: string): RegExp {
 export function isModuleStyle(rel: string, patterns: string[]): boolean {
   return patterns.some((pattern) => patternRegex(pattern).test(rel))
 }
+
+/**
+ * 契约扫描域里的**全部**源文件（含没命中任何角色的那些）。
+ *
+ * 判"某个文件在不在"必须用它，不能只看 `ctx.records` —— records 只装**命中角色**的文件：
+ * 自定义过入口名的方案（入口叫 `entry.ts` 而角色表里没有它）下，入口文件落在 `scan.missing` 里，
+ * 只看 records 会得出"域里没有入口"的结论 → 假阳性（S14）与静默漏报（S15②③）。
+ *
+ * 取并集而不是只读 `ctx.files`：规则单测会手搓部分 context，两条来源都兜住更稳。
+ */
+export function presentFilesOf(ctx: {
+  files?: string[]
+  records: { rel: string }[]
+  scan?: { missing?: string[]; ambiguous?: { rel: string }[] }
+}): Set<string> {
+  return new Set([
+    ...(ctx.files ?? []),
+    ...ctx.records.map((record) => record.rel),
+    ...(ctx.scan?.missing ?? []),
+    ...(ctx.scan?.ambiguous?.map((entry) => entry.rel) ?? []),
+  ])
+}

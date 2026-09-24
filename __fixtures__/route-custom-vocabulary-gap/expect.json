@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S03",
+      "file": "src/modules/crews/entry.ts"
+    },
+    {
+      "rule": "S03",
+      "file": "src/modules/crews/helpers.ts"
+    }
+  ],
+  "exact": true
+}

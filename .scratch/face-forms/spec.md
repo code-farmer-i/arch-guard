@@ -51,12 +51,35 @@ DESIGN §7.2 里原先把它们写成"仍写死形态"，其实是规则本身�
 
 - `pnpm check` EXIT=0（Node 24.13.0）与 Node 22.18.0。
 - 夹具 `route-vocabulary`（入口叫 `routes.ts`：只报域根散件）与 `module-pattern`
-  （`.module.scss` 认作组件样式、`globals.css` 照报）各 `exact: true`；夹具总数 44 → **46**。
-- `tests/face-forms.test.mjs`：默认值 / 覆盖 / 空清单 / 样例校验 / S03 空清单照报 / D16·D17 空清单不判。
+  （`.module.scss` 认作组件样式、`globals.css` 照报）各 `exact: true`；夹具总数 44 → **48**
+  （含收尾的 `route-custom-vocabulary` / `route-custom-vocabulary-gap`）。
+- `tests/face-forms.test.mjs`：默认值 / 覆盖 / 空清单 / 样例校验 / S03 空清单照报 / D16·D17 空清单不判 /
+  自定义入口名的存在性与聚合判定 / 角色表没跟上时报什么。
+
+## 收尾（第二轮：把"只改 kit 就能自洽"的错误假设改成可判定的报错）
+
+原先的设计假设是"自定义入口名只要改 kit"。**跑夹具时被推翻**：role-less 的文件不进解析
+（`collectSources` 只解析命中角色的文件 + 契约域外文件），于是入口自己的 import 在图上不存在 ——
+S15③ 会误报"view 没人引用"、S04/S05 看不到入口侧的跨域引用。
+
+改成三条可判定的语义：
+
+1. **位置类判定按词汇**（不看角色 slot）：`S14` 的"有没有入口"、`S15②` 的"入口必被 app 聚合"
+   都按 `routeFiles` + `presentFilesOf(ctx)`（扫描域里的真实文件；只看 `ctx.records` 会漏掉 role-less 入口）。
+2. **角色表没跟上 → S03 明确报**：名字在词汇里却落在 `scan.missing` 里 →
+   `域入口 X 不在目录契约内：角色表里没有它的角色`（一句话说清该改哪，而不是三条规则各报一句误导的错）。
+   反向也判：角色表里 `slot: 'routes'` 的文件不在词汇里 → `词汇与角色表不一致`（两处真相同样要收敛）。
+3. **入口没进图 → S15③ 不判**（不拿没解析的文件去判"谁引用了 view"）：修好角色表后自动恢复。
+
+夹具两头钉住：`route-custom-vocabulary`（kit + `addRoles`，零发现项）、
+`route-custom-vocabulary-gap`（只改 kit：S03 报角色缺口）。演示脚本同步成
+`reactRouterKit({ routeFiles })` / `noneRouterKit({ routeFiles: [] })` 的 kit 写法（不再内联裸适配器）。
 
 ## Comments
 
 - 2026-09-24 起：`routeFiles` 默认取 `['routes.ts','routes.tsx']`（与角色表 `routes.{ts,tsx}` 对齐）——
   原来规则里的 `routes.tsx` 与角色表不一致本身就是 bug，不是"仅词汇抽象"。
 - 2026-09-24 `pnpm check` EXIT=0（Node 24.13.0）；`--self-test` 46/46；`--self-check-portability` 83 个文件；
-  `--check-docs` 通过；狗粮与 `examples/minimal` 照常通过。Node 22.18.0 复跑同样 EXIT=0。
+  `--check-docs` 通过；狗粮与 `examples/minimal` 照常通过。
+- 2026-09-24 收尾后：`--self-test` 48/48；`tests/face-forms.test.mjs` 8 例；双 Node `pnpm check` EXIT=0
+  （Node 22 用 `nvm exec 22.18.0 … pnpm check` —— 直接 `node22 pnpm.cjs check` 的子进程仍是 Node 24，我踩过）。

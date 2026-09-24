@@ -1,6 +1,6 @@
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
-import { routeEntriesOf, routeFilesOf } from './face-forms.js'
+import { presentFilesOf, routeEntriesOf, routeFilesOf } from './face-forms.js'
 
 /**
  * 依赖方向的图规则（S04–S09、S15、S17、S18）。
@@ -176,14 +176,28 @@ export const reachability: Rule = {
     const out: Finding[] = []
     const isTest = (rel: string): boolean => /\.(test|spec)\./.test(rel)
 
+    const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
+    /** 契约扫描域里的全部源文件（**含没命中角色的**：自定义入口名的方案里，入口就在这一类里） */
+    const present = presentFilesOf(ctx)
+    /**
+     * **域入口**按方案面词汇认（`router.routeFiles`），不按角色 `slot: 'routes'`：
+     * 词汇被自定义过时（入口叫 `router.ts` / `entry.ts`），文件未必有那个 slot ——
+     * 用 slot 认会让「域入口必被 app 聚合」变成静默跳过（漏报）。
+     * 与 S03 / S04 / S05 / S14 统一成一份判据。
+     */
+    const declaredEntries = new Set<string>()
+    for (const rel of present) {
+      const domain = domainOf(rel, modulesRoot)
+      if (domain && routeEntriesOf(ctx.config, domain).includes(rel)) declaredEntries.add(rel)
+    }
+
     // ① 孤儿文件：从 entries 出发不可达（测试、d.ts、以及**没有角色的非源码文件**不算：
     //    配置文件、index.html 天然不被 src 入口引用，把它们报成孤儿是纯噪音）
-    const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
     for (const orphan of ctx.graph.orphaned) {
       const record = byRel.get(orphan)
       if (!record) continue
-      // routes / views 有各自更精确的判定（②③），这里不重复报「不可达」
-      if (record.slot === 'routes' || record.slot === 'views') continue
+      // 域入口 / views 有各自更精确的判定（②③），这里不重复报「不可达」
+      if (record.slot === 'views' || declaredEntries.has(orphan)) continue
       if (isTest(orphan) || orphan.endsWith('.d.ts') || orphan.endsWith('.css')) continue
       out.push(finding('S15', orphan, 1, '孤儿文件：从任何入口都不可达'))
     }
@@ -194,21 +208,28 @@ export const reachability: Rule = {
         (importer) => ctx.records.find((record) => record.rel === importer)?.role ?? '',
       )
 
-    for (const record of ctx.records) {
-      // ② 域 routes 必须被 app 层聚合
-      if (record.slot === 'routes') {
-        const aggregated = importerRolesOf(record.rel).some((role) => role.startsWith('app:'))
-        if (!aggregated && appRecords.length > 0) {
-          out.push(finding('S15', record.rel, 1, '域 routes 没有被 app/router 聚合'))
+    // ② 域入口必须被 app 层聚合（入口按词汇认，不看角色 slot）
+    if (appRecords.length > 0) {
+      for (const entry of declaredEntries) {
+        const aggregated = importerRolesOf(entry).some((role) => role.startsWith('app:'))
+        if (!aggregated) {
+          out.push(finding('S15', entry, 1, '域入口没有被 app/router 聚合'))
         }
-        continue
       }
-      // ③ 每个 view 必须被本域 routes 引用
+    }
+
+    for (const record of ctx.records) {
+      // ③ 每个 view 必须被本域入口引用
       if (record.slot === 'views') {
         // 只判代码文件：views/ 下的 .module.css 是页面样式，不是"没被引用的页面"
         if (!/\.tsx?$/.test(record.rel)) continue
         const domain = domainOf(record.rel, modulesRoot)
-        // 本域的公开面入口（入口叫什么由方案面声明，默认 routes.ts / routes.tsx）
+        /**
+         * 本域的公开面入口（入口叫什么由方案面声明，默认 routes.ts / routes.tsx）。
+         * 这里**只认命中角色的入口**（`byRel`）：入口若没进契约，它根本没被解析、图上没有它的边，
+         * 拿它判"view 有没有被引用"只会误报 —— 那种情况由 **S03** 报「域入口不在目录契约内」，
+         * 修好角色表后这条自然恢复（见 S03 的说明）。
+         */
         const entries = domain
           ? routeEntriesOf(ctx.config, domain).filter((rel) => byRel.has(rel))
           : []

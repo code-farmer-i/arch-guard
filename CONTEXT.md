@@ -151,6 +151,7 @@ _Avoid_: 插件、扩展点
 与 `styles.modulePatterns`（组件样式文件形态正则，默认 `*.module.css`）。默认值只写在 `src/data/face-forms.ts`，
 规则通过 `packs/core/rules/face-forms.ts` 读，适配器声明了就盖过默认值。
 **空清单是声明不是缺省**：`[]` = 本方案没有这种文件（文件路由 / Tailwind），依赖它的规则**不判**。
+自定义词汇必须**与角色表一起改**（否则入口没命中角色 → 不进解析 → S03 报"不在目录契约内"，见 DESIGN §7.2(2.1.1)）。
 _Avoid_: 约定优于配置（那是"没配就猜"，这里要求能说出"这种文件不存在"）
 
 **同类方案（alternatives）**：

@@ -271,6 +271,11 @@ test('presets：方案面（router / data-layer / styles）各自贡献 P12，ki
     ['routes.ts', 'routes.tsx'],
     '入口词汇与范式角色表 routes.{ts,tsx} 对齐（以前规则里写死 .tsx，routes.ts 会被误报）',
   )
+  assert.deepEqual(
+    reactRouterKit({ routeFiles: ['router.ts'] }).routeFiles,
+    ['router.ts'],
+    '自定义入口名走 kit 参数（不再往配置里塞裸适配器对象）',
+  )
 
   assert.equal(dataLayer(reactQueryKit()).enable.includes('P12'), true)
   assert.deepEqual(dataLayer(reactQueryKit()).adapters?.['data-layer']?.packages, [

@@ -29,8 +29,22 @@
   `modulePatterns: []`（Tailwind / CSS-in-JS：没有组件样式文件）→ 依赖它的规则**不判**，
   而不是拿默认形态去硬判。例外是 **S03**：真没有入口文件时**照报**（S01 已把域根让给它，
   放行就等于域根没有任何规则看着）。
-- 夹具 **46 个**：新增 `route-vocabulary`（入口叫 `routes.ts` 的域不再被 S04 / S05 误报）与
-  `module-pattern`（`.module.scss` 被 D16 / D17 认作组件样式，`globals.css` 照报）。
+- **自定义入口词汇由 kit 收参**：`reactRouterKit({ routeFiles })` / `noneRouterKit({ routeFiles })`
+  （空清单也照原样声明，仍走 `defineAdapter` 校验 —— 不再需要往配置里塞裸适配器对象）。
+- **位置类判定一律按词汇，不看角色 slot**：`S14` 的"有没有入口"、`S15②` 的"入口必被 app 聚合"
+  以前读 `record.slot === 'routes'` —— 入口一改名就判不出来（假阳性 / 静默漏报）。现在按
+  `routeFiles` + **扫描域里的真实文件**判（`presentFilesOf`：`ctx.records` 只装命中角色的文件，
+  role-less 的入口落在 `scan.missing` 里，只看 records 会得出"域里没有入口"）。
+- **词汇与角色表必须一起改，S03 会盯着（两个方向都判）**：
+  - 名字在词汇里、却没命中任何角色 → `域入口 X 不在目录契约内：角色表里没有它的角色`
+    （因为没角色的文件不进解析，图规则看不到它的 import；与其让 S15③ / S04 / S05 各报一句误导的错，
+    不如这里说清）。
+  - 反过来，角色表里 `slot: 'routes'` 的文件不在词汇里（入口搬走后留下的 `routes.tsx`）→
+    `… 被角色表当作域入口，但方案面声明的入口是 …：词汇与角色表不一致`。
+- 夹具 **48 个**：新增 `route-vocabulary`（入口叫 `routes.ts` 的域不再被 S04 / S05 误报）、
+  `module-pattern`（`.module.scss` 被 D16 / D17 认作组件样式，`globals.css` 照报）、
+  `route-custom-vocabulary`（kit + 角色表一起改，零发现项）与
+  `route-custom-vocabulary-gap`（只改 kit：S03 报角色缺口）。
 
 ### Fixed（入口叫 `routes.ts` 的域被误报）
 

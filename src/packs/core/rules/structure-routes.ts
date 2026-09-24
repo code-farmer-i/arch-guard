@@ -1,6 +1,6 @@
 import type { Finding, Rule } from '../../../engine/types.js'
 
-import { routeFilesOf } from './face-forms.js'
+import { presentFilesOf, routeEntriesOf, routeFilesOf } from './face-forms.js'
 import { placementHint } from './placement.js'
 import { finding } from './structure-util.js'
 
@@ -43,7 +43,27 @@ export const domainRootOnlyRoutes: Rule = {
       const segments = rest.split('/')
       // 域根下的文件：modules/<域>/<file>
       if (segments.length !== 2) continue
-      if (allowed.has(segments[1] as string) || rel.endsWith('.d.ts')) continue
+      if (rel.endsWith('.d.ts')) continue
+      const name = segments[1] as string
+      if (allowed.has(name)) {
+        /**
+         * 名字对，但**这个文件没命中任何角色**（S03 只看 `scan.missing`）→ 角色表没跟上词汇。
+         *
+         * 必须显式报出来：没有角色的文件**不进解析**（`collectSources` 只解析命中角色的文件），
+         * 于是它的 import 在图上不存在 —— S15③ 会以为 view 没人引用、S04/S05 也看不到入口侧的跨域引用。
+         * 与其让那几条规则各报一句莫名其妙的错，不如在这里说清"角色表要跟着 `router.routeFiles` 改"。
+         */
+        out.push(
+          finding(
+            'S03',
+            rel,
+            1,
+            `域入口 ${name} 不在目录契约内：角色表里没有它的角色`,
+            '在角色表里给域入口一个角色（`canonical()` 默认是 routes.{ts,tsx}；自定义入口名用 overrides.addRoles 追加，见 docs/DESIGN.md §7.2(2.1)）',
+          ),
+        )
+        continue
+      }
       out.push(
         finding(
           'S03',
@@ -51,11 +71,35 @@ export const domainRootOnlyRoutes: Rule = {
           1,
           // 词汇为空时另起一句：写成「域根只许 <空>」会被读成"这个文件叫这个名字"
           routeFiles.length > 0
-            ? `域根目录只许 ${names}，出现了 ${segments[1]}`
-            : `域根不该有文件（本方案未声明入口文件），出现了 ${segments[1]}`,
+            ? `域根目录只许 ${names}，出现了 ${name}`
+            : `域根不该有文件（本方案未声明入口文件），出现了 ${name}`,
           placementHint(rel, ctx.config),
         ),
       )
+    }
+    /**
+     * 反向：**角色表说是域入口，词汇里却没有这个名字** → 词汇与角色表不一致（同一件事的两处真相）。
+     *
+     * 只对域根那一层判（`modules/<域>/<文件>`）；词汇为空（文件路由）时不判 —— 那种方案本来就
+     * 不该有槽位为 `routes` 的角色。
+     */
+    if (routeFiles.length > 0) {
+      for (const record of ctx.records) {
+        if (record.slot !== 'routes') continue
+        if (!record.rel.startsWith(`${modulesRoot}/`)) continue
+        const segments = record.rel.slice(modulesRoot.length + 1).split('/')
+        if (segments.length !== 2) continue
+        if (allowed.has(segments[1] as string)) continue
+        out.push(
+          finding(
+            'S03',
+            record.rel,
+            1,
+            `${record.rel} 被角色表当作域入口，但方案面声明的入口是 ${names}：词汇与角色表不一致`,
+            '把两者改成一致：改 `router.routeFiles`，或改角色表里那条 `slot: routes` 的角色',
+          ),
+        )
+      }
     }
     return out
   },
@@ -73,6 +117,7 @@ export const routesRequired: Rule = {
     const routeFiles = routeFilesOf(ctx.config)
     // 文件路由（没有 per-domain 出口文件）：域本来就没有 routes 分片可填，不判
     if (routeFiles.length === 0) return []
+    const present = presentFilesOf(ctx)
     const domains = new Map<string, { hasViews: boolean; hasRoutes: boolean; sample: string }>()
     for (const record of ctx.records) {
       if (!record.domain) continue
@@ -87,9 +132,17 @@ export const routesRequired: Rule = {
         // 但不能反复覆盖（否则定位点会随遍历顺序漂移，棘轮锚点也跟着漂）
         if (/\.tsx?$/.test(record.rel) && !/\.tsx?$/.test(entry.sample)) entry.sample = record.rel
       }
-      // 入口由**角色表**认（`slot: 'routes'`），不靠文件名 —— 自定义过入口名的范式也成立
-      if (record.slot === 'routes') entry.hasRoutes = true
       domains.set(record.domain, entry)
+    }
+    /**
+     * 入口**按方案面词汇判存在性**，不按角色 slot。
+     *
+     * 为什么：词汇被自定义过时（入口叫 `router.ts` / `entry.ts`），文件在新角色表里未必有
+     * `slot: 'routes'`；用 slot 判会永远判不出 → 假阳性「有 views 但没有 router.ts」（文件就在那儿）。
+     * 与 S03 / S04 / S05 / S15③ 统一成一份判据：**方案面声明了什么，就按什么判**。
+     */
+    for (const [domain, entry] of domains) {
+      entry.hasRoutes = routeEntriesOf(ctx.config, domain).some((rel) => present.has(rel))
     }
     const names = routeFiles.join(' / ')
     const out: Finding[] = []

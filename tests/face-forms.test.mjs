@@ -154,17 +154,20 @@ test('S03：域根散件照报 —— 入口词汇为空时也不放行（S01 �
   assert.match(withDefault[0].text, /routes\.ts \/ routes\.tsx/)
   assert.match(withDefault[0].hint, /域根只放 routes\.ts \/ routes\.tsx/)
 
-  // 入口叫 routes.ts 的域不再被 S03 当成散件
-  assert.equal(
-    rule.run({
-      config: config(),
-      scan: scan(['src/modules/crews/routes.ts']),
-      records: [],
-      facts: new Map(),
-      graph: { edges: new Map(), importers: new Map() },
-    }).length,
-    0,
-  )
+  /**
+   * 名字在词汇里、但**没命中任何角色** → 报的是"角色表没跟上"，不是"域根散件"。
+   * 真宿主的 `routes.ts` 会命中 `module:routes` 角色，因此不会落到这一支（S03 只看 `scan.missing`）。
+   */
+  const roleless = rule.run({
+    config: config(),
+    scan: scan(['src/modules/crews/routes.ts']),
+    records: [],
+    facts: new Map(),
+    graph: { edges: new Map(), importers: new Map() },
+  })
+  assert.equal(roleless.length, 1)
+  assert.match(roleless[0].text, /不在目录契约内/)
+  assert.doesNotMatch(roleless[0].text, /出现了/, '这不是"域根散件"，别说成"出现了某个文件"')
 
   // 文件路由（声明 [] ）：没有入口文件名，但域根散件**照报**，只是文案变了
   const empty = rule.run({
@@ -286,4 +289,95 @@ test('S15③：view 必须被**本域入口**引用 —— 入口叫 routes.ts �
     },
   })
   assert.equal(referenced.length, 0)
+})
+
+/* ---------------- 自定义入口名：kit 参数 + 角色表没跟上时怎么报 ---------------- */
+
+const ctxOf = ({ records = [], missing = [], importers = new Map(), cfg = config() }) => ({
+  config: cfg,
+  records,
+  facts: new Map(),
+  graph: { edges: new Map(), importers, orphaned: [], reachable: new Set() },
+  scan: { ...scan(missing), records: [], files: [] },
+  sourceOf: () => undefined,
+  files: [],
+})
+
+test('kit 参数：自定义入口词汇（含空清单）由 kit 自己声明，仍走 defineAdapter 校验', () => {
+  assert.deepEqual(reactRouterKit({ routeFiles: ['entry.ts'] }).routeFiles, ['entry.ts'])
+  assert.deepEqual(reactRouterKit({ routeFiles: [] }).routeFiles, [], '空清单也原样声明')
+  assert.deepEqual(reactRouterKit().routeFiles, DEFAULT_ROUTE_FILES, '不传就照默认')
+  assert.deepEqual(noneRouterKit({ routeFiles: [] }).routeFiles, [])
+  assert.deepEqual(noneRouterKit().routeFiles, DEFAULT_ROUTE_FILES)
+})
+
+test('自定义入口名：存在性按词汇判（S14 / S15② 不再看角色 slot），角色表没跟上由 S03 说清', () => {
+  const cfg = config({ router: { facet: 'router', routeFiles: ['entry.ts'] } })
+  const view = {
+    rel: 'src/modules/crews/views/CrewsPage.tsx',
+    domain: 'crews',
+    slot: 'views',
+    role: 'module:views',
+  }
+  const entry = 'src/modules/crews/entry.ts'
+  const appRouter = { rel: 'src/app/router/index.ts', role: 'app:router', slot: 'router' }
+
+  // S14：入口在文件集里（虽然它没有角色）→ 不报「有 views 但没有 entry.ts」
+  assert.equal(
+    ruleById('S14').run(ctxOf({ records: [view], missing: [entry], cfg })).length,
+    0,
+    '存在性按词汇判，不看角色 slot（否则入口一改名就假阳性）',
+  )
+
+  // S03：名字对但没角色 = 角色表没跟上 → 报一句能照着改的话
+  const gap = ruleById('S03').run(ctxOf({ missing: [entry], cfg }))
+  assert.equal(gap.length, 1)
+  assert.match(gap[0].text, /域入口 entry\.ts 不在目录契约内/)
+  assert.match(gap[0].hint, /addRoles/)
+
+  // S15②：入口没被 app 聚合要报（按词汇认入口，不看 slot）
+  const notAggregated = ruleById('S15').run(ctxOf({ records: [appRouter], missing: [entry], cfg }))
+  assert.equal(notAggregated.length, 1)
+  assert.match(notAggregated[0].text, /域入口没有被 app\/router 聚合/)
+  assert.equal(
+    ruleById('S15').run(
+      ctxOf({
+        records: [appRouter],
+        missing: [entry],
+        importers: new Map([[entry, new Set(['src/app/router/index.ts'])]]),
+        cfg,
+      }),
+    ).length,
+    0,
+  )
+
+  // S15③：入口没进契约（没被解析、图上没有它的边）时**不误报** view 没人引用 —— 那是 S03 的活
+  assert.equal(
+    ruleById('S15').run(ctxOf({ records: [view], missing: [entry], cfg })).length,
+    0,
+    '入口没进解析集时不拿它判「谁引用了 view」',
+  )
+})
+
+test('词汇与角色表不一致的另一半：角色表把别的文件当域入口 → S03 也要报', () => {
+  const stale = {
+    rel: 'src/modules/crews/routes.tsx',
+    domain: 'crews',
+    slot: 'routes',
+    role: 'module:routes',
+  }
+  const cfg = config({ router: { facet: 'router', routeFiles: ['entry.ts'] } })
+  const findings = ruleById('S03').run(ctxOf({ records: [stale], cfg }))
+  assert.equal(findings.length, 1, '角色表说 routes.tsx 是入口，词汇说 entry.ts —— 两处真相要报')
+  assert.match(findings[0].text, /词汇与角色表不一致/)
+
+  // 一致时（默认词汇 + 默认角色表）不报
+  assert.equal(ruleById('S03').run(ctxOf({ records: [stale], cfg: config() })).length, 0)
+  // 词汇为空（文件路由）时不判这条反向
+  assert.equal(
+    ruleById('S03').run(
+      ctxOf({ records: [stale], cfg: config({ router: { facet: 'router', routeFiles: [] } }) }),
+    ).length,
+    0,
+  )
 })
