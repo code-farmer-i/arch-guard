@@ -6,6 +6,10 @@
     },
     {
       "rule": "S38",
+      "file": "src/modules/crews/lib/queryClient.ts"
+    },
+    {
+      "rule": "S38",
       "file": "src/modules/crews/views/CrewsPage.tsx"
     }
   ],

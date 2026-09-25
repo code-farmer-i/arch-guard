@@ -12,11 +12,15 @@ import type {
   StylesAdapter,
 } from '../../../engine/types.js'
 
-/** 副作用面（由 `sideEffects()` 预设登记）：只读两个字段 */
-interface SideEffectsAdapter {
+/** 调用落点面（由 `callSites()` 预设登记）：一组组"哪些调用 + 只许出现在哪" */
+export interface CallSiteGroup {
+  name: string
+  apis: string[]
+  in: string[]
+}
+interface CallSitesAdapter {
   facet: string
-  apis?: string[]
-  in?: string[]
+  groups?: CallSiteGroup[]
 }
 
 /**
@@ -98,16 +102,11 @@ export function fetchInOf(config: Config): string[] {
 }
 
 /**
- * **副作用 API 名**（S38）：埋点/上报 SDK 与本地存储的调用名 —— 项目声明（`sideEffects({ apis })`）。
- * 空 = 停用（不猜"什么算副作用"）。
+ * **调用落点**的声明组（S38）：每组 = 一类调用（`apis`）+ 只许出现的落点（`in`）。
+ * 空 = 停用（不猜"什么算副作用 / 什么算配置对象"）。
  */
-export function sideEffectApisOf(config: Config): string[] {
-  return adapterOf<SideEffectsAdapter>(config, 'side-effects')?.apis ?? []
-}
-
-/** **副作用只许出现的落点**（S38，glob 列表） */
-export function sideEffectLocationsOf(config: Config): string[] {
-  return adapterOf<SideEffectsAdapter>(config, 'side-effects')?.in ?? []
+export function callSiteGroupsOf(config: Config): CallSiteGroup[] {
+  return adapterOf<CallSitesAdapter>(config, 'call-sites')?.groups ?? []
 }
 
 const regexCache = new Map<string, RegExp>()

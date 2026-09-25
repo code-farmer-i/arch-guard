@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { coreRules, sideEffects } from '../es/index.js'
+import { callSites, coreRules } from '../es/index.js'
 
 /**
  * 两个前端场景的分支：
@@ -193,31 +193,36 @@ test('S37：组件之间互相引用不管；没声明 lazyViews 不判', () => 
 
 /* ---------------- S38 + 预设 ---------------- */
 
-const sideConfig = (effectIn) =>
-  config({
-    'side-effects': {
-      facet: 'side-effects',
-      id: 'declared',
-      apis: ['localStorage', 'gtag', 'Sentry.captureException'],
-      ...(effectIn ? { in: effectIn } : {}),
-    },
-  })
+const callSiteConfig = (groups) =>
+  config(
+    groups
+      ? { 'call-sites': { facet: 'call-sites', id: 'declared', groups } }
+      : { 'call-sites': { facet: 'call-sites', id: 'declared' } },
+  )
 
-test('S38：副作用落点外的调用要报（对象方法前缀匹配），封装里与测试文件不报', () => {
-  const cfg = sideConfig(['src/shared/lib/storage.ts', 'src/shared/lib/analytics.ts'])
+test('S38：按组判落点 —— 副作用组前缀匹配、配置对象组整名匹配，封装里与测试文件不报', () => {
+  const cfg = callSiteConfig([
+    { name: '副作用', apis: ['localStorage', 'gtag'], in: ['src/shared/lib/storage.ts'] },
+    { name: '配置对象', apis: ['QueryClient'], in: ['src/app/**'] },
+  ])
   const findings = rule('S38').run(
     context({
       cfg,
       records: [
         { rel: 'src/modules/crews/views/CrewsPage.tsx', role: 'module:views' },
+        { rel: 'src/modules/crews/lib/queryClient.ts', role: 'module:lib' },
+        { rel: 'src/app/main.tsx', role: 'app:bootstrap' },
         { rel: 'src/shared/lib/storage.ts', role: 'shared:lib' },
         { rel: 'src/modules/crews/hooks/useCrews.test.ts', role: 'test' },
       ],
       facts: {
         'src/modules/crews/views/CrewsPage.tsx': {
-          calls: calls(['localStorage.getItem', 2], ['gtag', 3], ['Sentry.captureException', 4]),
+          calls: calls(['localStorage.getItem', 2], ['gtag', 3]),
           imports: [],
         },
+        // `new QueryClient()` 在 facts 里同样是 calls（NewExpression）—— 整名匹配
+        'src/modules/crews/lib/queryClient.ts': { calls: calls(['QueryClient', 4]), imports: [] },
+        'src/app/main.tsx': { calls: calls(['QueryClient', 3]), imports: [] },
         'src/shared/lib/storage.ts': { calls: calls(['localStorage.setItem', 1]), imports: [] },
         'src/modules/crews/hooks/useCrews.test.ts': {
           calls: calls(['localStorage.clear', 1]),
@@ -227,17 +232,22 @@ test('S38：副作用落点外的调用要报（对象方法前缀匹配），�
     }),
   )
   assert.deepEqual(
-    findings.map((item) => item.text.replace(/^.*（|）：.*$/g, '')),
-    ['localStorage.getItem', 'gtag', 'Sentry.captureException'],
-    '落点内的封装文件与测试文件都放过',
+    findings.map((item) => `${item.file} :: ${item.text.match(/（([^）]+)）/)?.[1]}`),
+    [
+      'src/modules/crews/views/CrewsPage.tsx :: localStorage.getItem',
+      'src/modules/crews/views/CrewsPage.tsx :: gtag',
+      'src/modules/crews/lib/queryClient.ts :: QueryClient',
+    ],
+    '装配层与共享层各是落点、测试文件豁免',
   )
+  assert.match(findings[2].text, /调用配置对象 API/, '报告里带组名（副作用 / 配置对象一眼分开）')
 })
 
-test('S38：没声明落点时不判（真跑时由 requires 明列停用）', () => {
+test('S38：没声明组时不判（真跑时由 requires 明列停用）', () => {
   assert.deepEqual(
     rule('S38').run(
       context({
-        cfg: sideConfig(undefined),
+        cfg: callSiteConfig(undefined),
         records: [{ rel: 'src/modules/crews/views/CrewsPage.tsx', role: 'module:views' }],
         facts: {
           'src/modules/crews/views/CrewsPage.tsx': { calls: calls(['gtag', 1]), imports: [] },
@@ -248,12 +258,24 @@ test('S38：没声明落点时不判（真跑时由 requires 明列停用）', (
   )
 })
 
-test('sideEffects()：声明两样东西才成立（空清单 fail-closed，不是静默停用）', () => {
-  const preset = sideEffects({ apis: ['gtag'], in: ['src/shared/lib/analytics.ts'] })
+test('callSites()：每组两样都要给，空值 / 重名 / 空清单一律 fail-closed', () => {
+  const preset = callSites([
+    { name: '副作用', apis: ['gtag'], in: ['src/shared/lib/analytics.ts'] },
+    { name: '配置对象', apis: ['QueryClient'], in: ['src/app/**'] },
+  ])
   assert.deepEqual(preset.enable, ['S38'], '装了预设就要启用消费它的规则')
-  assert.deepEqual(preset.adapters?.['side-effects']?.apis, ['gtag'])
-  assert.deepEqual(preset.adapters?.['side-effects']?.in, ['src/shared/lib/analytics.ts'])
+  assert.deepEqual(preset.adapters?.['call-sites']?.groups?.[0]?.apis, ['gtag'])
 
-  assert.throws(() => sideEffects({ apis: [], in: ['x'] }), /同时给 apis 与 in/)
-  assert.throws(() => sideEffects({ apis: ['gtag'], in: [] }), /同时给 apis 与 in/)
+  assert.throws(() => callSites([]), /至少要给一组/)
+  assert.throws(() => callSites([{ name: '副作用', apis: [], in: ['x'] }]), /apis 不能为空/)
+  assert.throws(() => callSites([{ name: '副作用', apis: ['gtag'], in: [] }]), /in 不能为空/)
+  assert.throws(() => callSites([{ name: '', apis: ['gtag'], in: ['x'] }]), /缺少 name/)
+  assert.throws(
+    () =>
+      callSites([
+        { name: '副作用', apis: ['gtag'], in: ['x'] },
+        { name: '副作用', apis: ['Sentry'], in: ['y'] },
+      ]),
+    /组名要唯一/,
+  )
 })

@@ -2,7 +2,7 @@ import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
 
-import { fetchApisOf, fetchInOf, sideEffectApisOf, sideEffectLocationsOf } from './face-forms.js'
+import { callSiteGroupsOf, fetchApisOf, fetchInOf } from './face-forms.js'
 import { finding } from './structure-util.js'
 
 /**
@@ -11,8 +11,8 @@ import { finding } from './structure-util.js'
  * - **S36 取数只在声明的落点**：页面里直接 `useQuery`、域里直接 `fetch('/api/x')` ——
  *   换数据层要翻遍页面、契约类型散在各域、测试必须 mock 网络。
  * - **S37 页面必须动态 import**：路由表静态 import 页面 → 所有页面进主包（首屏变大）。
- * - **S38 副作用只在声明的落点**：埋点/上报 SDK 与本地存储读写散在各域 ——
- *   隐私判断、token 加密、换 SDK 都无处统一。
+ * - **S38 调用只在声明的落点**：按 `callSites([…])` 声明的组判（副作用：埋点/上报与本地存储；
+ *   配置对象：`new QueryClient()` / `createTheme()`）—— 隐私判断、加密、换 SDK、单实例都无处统一。
  *
  * 三条都**声明了才判**（没声明 → 明列停用），判据都来自已有事实（`facts.calls` / `facts.imports`）。
  */
@@ -124,31 +124,36 @@ export const viewsAreLazy: Rule = {
   },
 }
 
-/* ---------------- S38 副作用只在声明的落点 ---------------- */
+/* ---------------- S38 调用只在声明的落点（副作用 / 配置对象…） ---------------- */
 
-export const sideEffectsOnlyInDeclaredSites: Rule = {
+/**
+ * 一组一类：`callSites([{ name: '副作用', apis: [...], in: [...] }, …])`。
+ * 报告里带上组名，所以「副作用散在页面里」与「域里自建 QueryClient」能一眼分开。
+ */
+export const callsOnlyInDeclaredSites: Rule = {
   id: 'S38',
   domain: 'structure',
   level: 'L2',
   severity: 'error',
-  title: '副作用只在声明的落点',
-  hint: '埋点/上报与本地存储在项目里各有一处封装（隐私判断、加密、迁移都在那儿做）：散着写，换 SDK 或加迁移就得全仓找',
-  requires: ['sideEffects.apis', 'sideEffects.in'],
-  run: (ctx) =>
-    callSitesOutside(
-      ctx,
-      'S38',
-      sideEffectApisOf(ctx.config),
-      sideEffectLocationsOf(ctx.config),
-      ({ callee }) => ({
-        text: `在这里调用副作用 API（${callee}）：它只许出现在声明的落点`,
-        hint: '把这次调用收进项目里的封装（如 shared/lib/storage.ts / shared/lib/analytics.ts），别处只调封装',
-      }),
-    ),
+  title: '调用只在声明的落点',
+  hint: '同类调用在项目里各留一处封装（隐私判断、加密、迁移、单实例都在那儿做）：散着写，换 SDK / 换方案 / 排查双实例都得全仓找',
+  requires: ['callSites.groups'],
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const group of callSiteGroupsOf(ctx.config)) {
+      out.push(
+        ...callSitesOutside(ctx, 'S38', group.apis, group.in, ({ callee }) => ({
+          text: `在这里调用${group.name} API（${callee}）：它只许出现在声明的落点`,
+          hint: `把这次调用收进项目里的封装（${group.in.join(' / ')}），别处只调封装`,
+        })),
+      )
+    }
+    return out
+  },
 }
 
 export const structureCallSiteRules: Rule[] = [
   fetchOnlyInDeclaredSites,
   viewsAreLazy,
-  sideEffectsOnlyInDeclaredSites,
+  callsOnlyInDeclaredSites,
 ]

@@ -142,7 +142,7 @@ _Avoid_: 关键字、黑名单
 _Avoid_: 词典、命名规范
 
 **方案面（solution face）**：
-"不改变架构、只改变写法"的可替换轴：`ui-kit` / `i18n` / `metrics` / `router` / `data-layer` / `styles` / `side-effects`（副作用：埋点/上报与本地存储的落点）。
+"不改变架构、只改变写法"的可替换轴：`ui-kit` / `i18n` / `metrics` / `router` / `data-layer` / `styles` / `call-sites`（调用落点：副作用、配置对象……一组一类）。
 每个面一份适配器（纯数据），由**预设**用 `defineFacet` 登记 —— 引擎不枚举面清单。
 **一个面只能有一个方案**：两份内容不同的 kit 声明同一个面直接报错（要覆盖就用 `overrides.adapters`，
 它**同样过 `defineAdapter` 校验**：字段 / 类型 / 正则 / 面已登记）；

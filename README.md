@@ -281,7 +281,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 - [x] 体积阈值默认 500 且可配（`overrides.thresholds`）
 - [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 例外通道 / scope / 自检
 - [x] `--explain <路径>`：写之前给出角色 / 能依赖谁 / 该放哪 / 适用规则（零误报，与判定共用同一份角色表）
-- [x] 结构域：角色表与目录契约（S00–S06、S08、S09、S11–S24）——含**层序 / 组隔离 / 公开面**三条通用图规则；**S36 取数只在声明的落点**（页面里 `useQuery` / 域里 `fetch` 都报）· **S37 页面必须动态 import**（静态 import → 全进主包）· **S38 副作用只在声明的落点**（埋点/上报 SDK 与本地存储读写）
+- [x] 结构域：角色表与目录契约（S00–S06、S08、S09、S11–S24）——含**层序 / 组隔离 / 公开面**三条通用图规则；**S36 取数只在声明的落点**（页面里 `useQuery` / 域里 `fetch` 都报）· **S37 页面必须动态 import**（静态 import → 全进主包）· **S38 调用只在声明的落点**（副作用：埋点/上报、本地存储；配置对象：`new QueryClient()` / `createTheme()`）
 - [x] **声明驱动的结构规则**（S25–S35）：保留名目录 · 组数量上限 · 目录子项上限 · 死切片（入度下限）· 组名重名 · 重复词 · 单复数一致 · 导入局部性 · 未解析导入 · 文件级入/出度 · 空壳组（**S35**；原计划的 S24 被「契约扫描域不得为空」占用）
 - [x] 设计系统域（D03–D08 / D10 / D10b / D11 / D16 / D17 / D21–D23）：色值唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / vendor 边界与反向封闭 / 框架残留 / 样式落点 / CSS Module 契约 / 声明与事实对账 / **字面量唯一出处**（D22 缓存键、D23 路由路径）
 - [x] 文案域（C02–C07）：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账
@@ -295,7 +295,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 - [x] **方案面形态**（T1 第二半）：`router.routeFiles` 与 `styles.modulePatterns` 声明"规则要判的写法"（默认 `routes.{ts,tsx}` / `*.module.css`），S03/S04/S05/S14/S15 与 D16/D17 照它判；声明 `[]` = 本方案没有这种文件（文件路由 / Tailwind）→ 规则不判（域根散件仍由 S03 报）；自定义入口名要**连角色表一起改**（只改一半时 S03 会报"角色表没跟上"）
 - [x] **适配器面开放注册**（E2）：引擎只预注册有消费者的核心面，新面由预设 `defineFacet` 登记 —— 加面不改引擎；**一个面只能有一个方案**（两份内容不同的 kit 直接报错），生效的是哪套由报告自述（`adapters-in-use`），字段级全貌看 `--verify-deps`
 - [x] **字面量唯一出处**：`dataLayer({ queryKeyFrom })` → D22 缓存键只有一个出处 · `router({ pathSource, pathProps, navigateCalls })` → D23 路由路径只有一个出处（没声明落点就明列停用）；位置参数形态的缓存键（`useSWR('key')`）不在 v1
-- [x] **取数落点**：`dataLayer({ fetchIn })` 声明后 S36 拦住页面里取数 / 域里直连后端（测试文件豁免；`queryClient.invalidateQueries` 按后缀匹配也抓得到）；**页面懒加载** `canonical({ lazyViews: true })` → S37；**退路不留** → H12；**副作用落点** `sideEffects({ apis, in })` → S38（埋点/上报 SDK、本地存储读写）
+- [x] **取数落点**：`dataLayer({ fetchIn })` 声明后 S36 拦住页面里取数 / 域里直连后端（测试文件豁免；`queryClient.invalidateQueries` 按后缀匹配也抓得到）；**页面懒加载** `canonical({ lazyViews: true })` → S37；**退路不留** → H12；**调用落点** `callSites([{ name, apis, in }])` → S38（副作用：埋点/上报、本地存储；配置对象：域里自建 `QueryClient` / `createTheme` → 双实例）
 - [ ] `use*Store` 形态（客户端状态的命名契约）
 - [ ] `--verify-deps` 的**联网成熟度**查询（本地对账已是默认能力）
 - [x] **文档管理块渲染**（`--render-docs` / `--check-docs`）：文档里的角色表 / 选型表 / 阈值表从 `arch.config.mjs` 生成，漂移即红

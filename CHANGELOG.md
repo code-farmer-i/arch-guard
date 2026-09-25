@@ -15,16 +15,22 @@
 
 ## [Unreleased]
 
-### Added（前端场景：埋点/上报与本地存储的落点）
+### Added（调用落点：副作用 · 配置对象 —— 一组一类地声明）
 
-- **场景：`gtag()` / `Sentry.captureException()` / `localStorage.getItem('token')` 散在各域** ——
-  "用户没同意隐私协议就别上报"这条判断没地方统一；后来要给 token 加密、加版本迁移、换埋点 SDK，
-  就得全仓找。**现在拦住**：`sideEffects({ apis, in })` 声明"哪些调用算副作用 + 只许出现在哪"后，
-  落点外的调用一律报（对象方法按**前缀**匹配，`localStorage` 一条就盖住 `getItem` / `setItem` / `clear`；
-  测试文件豁免）。
-- 新面 `side-effects`（由 `sideEffects()` 预设登记，项目直接给数据 —— 同 `deps({ allow })` 的形态）；
-  `apis` 或 `in` 为空时 **fail-closed 报错**（配了却什么都不判 = 静默失能）。
-- 规则 **74 → 75**，夹具 **53 → 54**，单测 +3 例。
+- **场景 ①：`gtag()` / `Sentry.captureException()` / `localStorage.getItem('token')` 散在各域** ——
+  "没同意隐私协议就别上报"没地方统一、token 要加密时全仓找、换埋点 SDK 要翻遍页面。
+- **场景 ②：某个域自己 `new QueryClient()` / `createTheme()`** —— 运行时两个缓存实例，
+  `invalidateQueries` 莫名不生效、主题不统一，查一下午。
+- **现在拦住**：`callSites([{ name, apis, in }])` 一组一类地声明"哪些调用 + 只许出现在哪"，
+  落点外的调用一律报（对象方法按**前缀**匹配：`localStorage` 一条盖住 `getItem` / `setItem` / `clear`；
+  `new QueryClient()` 按整名匹配；测试文件豁免）。真实输出见夹具 `call-sites`：
+  页面里 `localStorage.getItem` / `gtag`、hook 里 `Sentry.captureException`、域里 `new QueryClient()`
+  各一条；两处封装与 `src/app/**`、`src/shared/**` 零命中。
+- **收口**：上一轮把"副作用"做成独立面，这一轮把面收成通用 `call-sites`（形状完全一样，
+  两个面就是同一个事实的第二处）；`sideEffects({ apis, in })` → `callSites([{ name, apis, in }])`。
+- 预设对每组做 **fail-closed 校验**：`name` / `apis` / `in` 任一为空、组名重复、一组都没有 → 当场报错
+  （配了却什么都不判 = 静默失能）。
+- 规则 **75 → 75**（S38 从"副作用"泛化成"调用"），夹具 `side-effects` → **`call-sites`**（两组同夹具）。
 
 ### Added（三个前端场景的门禁：页面里取数 / 页面被静态 import / 退路残留）
 

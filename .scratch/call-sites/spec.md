@@ -1,4 +1,4 @@
-# 副作用落点（埋点/上报 SDK 与本地存储）
+# 调用落点（副作用：埋点/上报与本地存储 · 配置对象：QueryClient / createTheme）
 
 Status: done
 
@@ -47,3 +47,24 @@ Status: done
   它一次盖住"埋点/上报乱用"与"本地存储散落"两条，且与刚做完的 S36（取数落点）同族 ——
   共用"调用名匹配 + glob 落点 + 测试豁免"的骨架，边际成本最低。
   剩余候选（状态纪律 / 权限散落 / 路由守卫 / 上帝域 / 组合根 / legacy 单向性）没选，不是不重要。
+
+## 第二轮：收口 + 组合根（同一批未发布，直接改）
+
+上一轮把"副作用"做成了独立面 `side-effects`。这一轮要加"配置对象实例化"（域里 `new QueryClient()` →
+两个缓存实例）时发现：**面的形状完全一样**（`name` / `apis` / `in`），再开一个面就是
+"同一个事实的第二处"。于是收口：
+
+- 面 `side-effects` → **`call-sites`**，适配器字段从 `apis`/`in` 变成 `groups: [{ name, apis, in }]`
+- 预设 `sideEffects({ apis, in })` → **`callSites([{ name, apis, in }])`**（一组一类；组名进报告）
+- 规则 S38 标题从「副作用只在声明的落点」改成「**调用只在声明的落点**」，遍历所有组
+- 夹具 `side-effects` → **`call-sites`**：两组（副作用 + 配置对象）同一个夹具，各含正反
+- 校验全在**预设**里做（`defineAdapter` 保持通用，不认宿主形状）：空组 / 空 name / 空 apis / 空 in /
+  组名重复一律抛错
+
+场景上新增的正是**组合根**：`src/app/main.tsx` 与 `src/shared/theme/theme.ts` 建配置对象合规，
+`src/modules/crews/lib/queryClient.ts` 里 `new QueryClient()` 报。
+
+## Comments
+
+- 2026-09-24 收口说明：未发布前的同类改写直接做（不留两个面 / 两个入口）。如果这批判已发布，
+  正确做法是保留 `sideEffects()` 作兼容壳 —— 记录在此，供以后判断。
