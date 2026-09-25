@@ -75,6 +75,17 @@ S15③ 会误报"view 没人引用"、S04/S05 看不到入口侧的跨域引用�
 `route-custom-vocabulary-gap`（只改 kit：S03 报角色缺口）。演示脚本同步成
 `reactRouterKit({ routeFiles })` / `noneRouterKit({ routeFiles: [] })` 的 kit 写法（不再内联裸适配器）。
 
+## 收尾（第三轮：适配器"看不见"这件事）
+
+前两轮做完之后还剩一个可观测性缺口：**适配器只写在配置里，报告完全不提它**。
+
+1. **一个面一个方案 → fail-closed**：`mergePresets` 里同一个面被声明两次且内容不同就报错
+   （浅合并静默取后者 = 换库换错没有痕迹）；内容完全相同仍幂等，要覆盖用 `overrides.adapters`。
+2. **报告自述 `adapters-in-use`**（`notices` 新 code，**兼容性新增**：不 bump `apiVersion`，
+   但要同步冻结测试 + CHANGELOG 单独标注 —— 见 DESIGN §6.9 的两级契约变更）。
+3. **`--verify-deps` 列整张适配表**：`facet` / `id` / `specVersion` / 形态字段 / 包对账，
+   **没有 npm 包的 kit 也在表里**（CSS Module 这类以前被 `if (names.length === 0) continue` 直接跳过）。
+
 ## Comments
 
 - 2026-09-24 起：`routeFiles` 默认取 `['routes.ts','routes.tsx']`（与角色表 `routes.{ts,tsx}` 对齐）——

@@ -166,3 +166,22 @@ config "$BASE/F-declared-unused" 'canonical(), router(reactRouterKit())' "'P04',
 for c in A-missing-package B-mixed-scheme C-routes-ts D-kit-only D2-kit-and-roles E-file-routing F-declared-unused; do
   run "$c"
 done
+
+# G：两份 kit 声明同一个面 → 配置直接报错（不再浅合并静默取后者）
+skeleton "$BASE/G-two-kits"
+cat > "$BASE/G-two-kits/arch.config.mjs" <<EOF
+import { canonical, noneRouterKit, reactRouterKit, router } from '$ROOT/es/index.js'
+
+export default {
+  presets: [canonical(), router(reactRouterKit()), router(noneRouterKit())],
+}
+EOF
+echo "════════════════════════════════════════ G-two-kits"
+( cd "$BASE/G-two-kits" && node "$ROOT/es/cli.js" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | head -6 ) || true
+echo
+
+# H：适配器可见性 —— 报告自述"谁在生效"，字段级全貌看 --verify-deps
+echo "════════════════════════════════════════ H-适配器可见性"
+( cd "$BASE/D2-kit-and-roles" && node "$ROOT/es/cli.js" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep "生效的适配器" ) || true
+( cd "$BASE/E-file-routing" && node "$ROOT/es/cli.js" --verify-deps 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | head -8 ) || true
+echo

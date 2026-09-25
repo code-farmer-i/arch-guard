@@ -21,6 +21,8 @@
  * 增删或改名 code 都是**破坏性变更**，要按 `REPORT_API_VERSION` 的规矩走（见 docs/DESIGN.md §6.9）。
  */
 export const NOTICE_CODES = [
+  /** 生效的适配器（`facet=id` 清单）：适配器只写在配置里，报告不提它就看不出"跑的是哪套 kit" */
+  'adapters-in-use',
   /** 别名取自 tsconfig（含"取自哪个 tsconfig"这类说明） */
   'config-aliases',
   /** 项目根没有 package.json：依赖类规则跳过 */

@@ -560,8 +560,9 @@ scope: { default: 'full', preCommit: 'staged', devLoop: 'changed', ci: 'full' }
 
 **（2）自述是结构，不是散文**
 
-`notices: Array<{ code, text }>`：消费方按 `code` 判（`paths-no-match` / `severity-filtered` / `scan-empty` /
-`facts-cache`…），**文案不是契约**（随时可改）。`code` 清单是 `types.ts` 的 `NOTICE_CODES`（单一出处，编译期与测试双重把关）。
+`notices: Array<{ code, text }>`：消费方按 `code` 判（`adapters-in-use` / `paths-no-match` / `severity-filtered` /
+`scan-empty` / `facts-cache`…），**文案不是契约**（随时可改）。`code` 清单是 `engine/codes.ts` 的 `NOTICE_CODES`
+（单一出处，编译期与测试双重把关；常量表与守卫都从它派生）。
 `--format=github` 目前仍是纯文本注解，没有 code —— 消费方要判状态请用 `--format=json`。
 
 **（2.0.0）`ok` 回答什么（它与退出码**故意不同**）**
@@ -853,8 +854,18 @@ v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`
 | 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                                                                                                                                      | monorepo 需要多实例配置                                                                                                     | 范围外                          |
 | 17  | **契约扫描域**      | 全树遍历 + 宿主逐条 `ignore`                                                                                                                                                            | 非源码 ts/css 全被报 S01；每个新工具配置都要补一条 ignore                                                                   | 已做（`include`）               |
 
-**（2）统一适配器契约**
+**（2.0）一个面一个方案 + 生效的适配器必须自述**
 
+- **重复声明同一个面 = 报错**（`mergePresets`，fail-closed）：内容不同的两份 kit（`router(reactRouterKit())` 与
+  `router(noneRouterKit())` 同时出现，或 `stack({ uiKit: antdKit() })` 又手写一份 `uiKit(muiKit())`）
+  以前是**浅合并静默取后者** —— 换库换错了没有任何痕迹。内容**完全相同**的两份声明仍然幂等
+  （与 `defineFacet` 对同一个面的态度一致）；真要覆盖预设里的那份，用 `overrides.adapters`。
+- **报告自述 `adapters-in-use`**：适配器只写在配置里，报告此前完全不提它 —— "跑的是哪套 kit"只能翻配置。
+  现在每次运行都有一行 `生效的适配器：router=react-router · styles=css-modules`（`notices`，见 §6.9）。
+- **字段级全貌在 `--verify-deps`**：整张适配表（`facet` / `id` / `specVersion` / 形态字段 / 包对账），
+  **没有 npm 包的 kit 也在表里**（CSS Module 就是这种方案）—— 否则"我配了 `styles()` 吗、它认哪种文件"看不见。
+
+**（2）统一适配器契约**
 所有适配器同形：**纯数据** `{ facet, id, specVersion, …面内字段 }`（经 `defineAdapter` 白名单校验并冻结）；
 把适配器包成预设的那一层（`uiKit(adapter)` / `i18n(adapter)`）**贡献消费这些字段的规则**。
 未声明的能力对应的规则**不注册**（`requires` + 能力协商，沿用「预设贡献规则」），所以「不用某个能力」不会留下一堆空转红线。

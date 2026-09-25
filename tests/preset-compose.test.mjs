@@ -46,6 +46,25 @@ test('组合：一个配置只能有一个范式预设（fail-closed，不静默
   await assert.doesNotReject(() => loadConfig({ root: project('fsd(), designSystem()') }))
 })
 
+test('组合：一个面只能有一个方案 —— 两份 kit 声明同一个面时 fail-closed（内容相同则幂等）', async () => {
+  await assert.rejects(
+    () =>
+      loadConfig({
+        root: project(
+          "i18n(i18nextKit({ languages: ['zh-CN'] })), i18n(i18nextKit({ languages: ['en'] }))",
+        ),
+      }),
+    /只能有一个方案/,
+    '内容不同的两份声明会静默取后者（而适配器又不出现在报告里）→ 必须报错',
+  )
+  // 内容完全相同 = 幂等（`defineFacet` 对同一个面的重复登记也是这个态度）
+  const config = await load(
+    "canonical(), i18n(i18nextKit({ languages: ['zh-CN'] })), i18n(i18nextKit({ languages: ['zh-CN'] }))",
+  )
+  assert.equal(config.adapters.i18n?.id, 'i18next')
+  assert.deepEqual(config.adapters.i18n?.languages, ['zh-CN'])
+})
+
 test('组合：契约落点跟随范式（域预设不再塞三根默认值）', async () => {
   const fsdConfig = await load('fsd(), designSystem()')
   // 全局样式归官方 `app/styles` 片段；令牌与第三方覆盖仍在 `shared/ui/styles` 下

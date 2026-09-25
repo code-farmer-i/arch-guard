@@ -352,10 +352,14 @@ async function verifyDeps(configPath: string | undefined): Promise<number> {
     out(color.bold('适配表 vs 实际依赖'))
     if (audit.rows.length === 0) out('  （没有声明任何适配器）')
     for (const row of audit.rows) {
-      out(`  ${row.facet.padEnd(10)} ${row.id}`)
+      const spec = row.specVersion ? color.dim(` spec ${row.specVersion}`) : ''
+      out(`  ${row.facet.padEnd(10)} ${row.id}${spec}`)
+      // 形态 / 落点等字段：没有包可对账的 kit（CSS Module 这类）靠它才看得见
+      for (const field of row.fields) out(`    ${color.dim(field.name)}: ${field.value}`)
       for (const item of row.packages) {
         out(`    ${item.declared ? color.green('✔') : color.red('✖')} ${item.name}`)
       }
+      if (row.packages.length === 0) out(color.dim('    （这套方案没有 npm 包）'))
     }
     out(`  依赖策略：${describePolicy(depsPolicyFrom(loaded.config.params))}`)
     if (audit.foreign.length > 0) {

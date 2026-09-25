@@ -7,6 +7,7 @@ import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { collectSources } from './collect.js'
 import { buildGraph } from './graph.js'
+import { pushAdapterNotice, pushScanNotices } from './notices.js'
 import { collectI18n } from './i18n.js'
 import { json, out } from './output.js'
 import { createRegistry } from './registry.js'
@@ -20,7 +21,7 @@ import {
   type ExceptionReport,
   type ReportInput,
 } from './report.js'
-import { scanProject, type ScanResult } from './scan.js'
+import { scanProject } from './scan.js'
 import type { Pack } from './pack.js'
 import type { Diagnostic } from './codes.js'
 import type { Config, Domain, Finding, Level, Rule, RuleContext, Severity } from './types.js'
@@ -89,55 +90,6 @@ export interface RunResult {
   stats: RuleStat[]
 }
 
-/**
- * 扫描域 / 边界 / 阈值这三类自述：**声明了什么、跳过了什么、什么不会生效**。
- *
- * 抽成函数只是因为 `runGuard` 有函数长度上限（与 `git.ts` / `filters.ts` / `collect.ts` 同一处理方式）；
- * 内容上它们是内聚的一步：都要求"说的每一句都能被机读判到"，且都带着稳定 `code`。
- */
-function pushScanNotices(config: Config, scan: ScanResult, notices: Diagnostic[]): void {
-  if (config.include.length > 0) {
-    notices.push({
-      code: 'scan-scope-outside',
-      text: `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
-    })
-  } else if (scan.records.length === 0) {
-    // include 不限（引擎默认）且全树 0 个源码：没有任何东西被判定，必须说出来。
-    // include 非空的情况由 S24 报错（那是配置写错，不是空仓库）。
-    notices.push({
-      code: 'scan-empty',
-      text: 'include 未限制，但全项目 0 个 ts/css 文件：本次没有任何东西被判定',
-    })
-  }
-
-  // 阈值 `viewLines` 只对**页面级**角色生效（`pageLike` / `views` 槽位）：本范式没有这类角色时
-  // 它**永远不会生效** —— 配了却没效果正是本仓最忌讳的静默失效，所以当场自述（D21 同款套路）
-  if (
-    config.thresholds.viewLines !== config.thresholds.fileLines &&
-    !config.roles.some((role) => role.pageLike === true || role.slot === 'views')
-  ) {
-    notices.push({
-      code: 'viewlines-no-page-role',
-      text: `阈值 viewLines=${config.thresholds.viewLines} 已设，但本范式没有页面级角色（pageLike / views 槽位）：这条阈值不会生效`,
-    })
-  }
-
-  // `ignore`（项目边界）跳过了什么必须自述：它是"别碰"，被跳过的东西**不进文件集、不解析、不进图**，
-  // 而报告此前完全不提它 —— 宿主把某个源码目录误写进 ignore 时，表现就是"悄无声息地不判了"
-  if (scan.vcsIgnored.length > 0) {
-    notices.push({
-      code: 'vcs-ignored-skipped',
-      text: `因 .gitignore（git 判定）跳过 ${scan.vcsIgnored.length} 个文件：契约域外、不进文件集也不解析`,
-    })
-  }
-  if (scan.ignored.length > 0) {
-    notices.push({
-      code: 'ignore-skipped',
-      text: `ignore（项目边界）命中 ${scan.ignored.length} 个文件，未进文件集也不解析：${config.ignore.join(' , ')}`,
-    })
-  }
-}
-
 /** 覆盖率总览（棘轮快照写的就是这三个数） */
 function coverageTotals(report: CoverageReport): {
   lines: number
@@ -196,6 +148,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       : null
   // 扫描域 / 边界 / 阈值的自述（函数化：runGuard 有函数长度上限，且这是内聚的一步）
   pushScanNotices(config, scan, notices)
+  pushAdapterNotice(config, notices)
 
   if (staged && staged.missing.length > 0) {
     notices.push({

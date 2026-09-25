@@ -1,0 +1,70 @@
+import type { Diagnostic } from './codes.js'
+import type { ScanResult } from './scan.js'
+import type { Config } from './types.js'
+
+/**
+ * **自述**（`notices`）：把"声明了什么、跳过了什么、什么不会生效、谁在生效"讲清楚。
+ *
+ * 抽成独立模块有两个原因：`runGuard` 有函数长度上限（与 `git.ts` / `filters.ts` / `collect.ts`
+ * 同一处理方式），而它们本身也内聚 —— 都要求"说的每一句都能被机读判到"，且都带稳定 `code`。
+ */
+
+/** 扫描域 / 边界 / 阈值这三类自述 */
+export function pushScanNotices(config: Config, scan: ScanResult, notices: Diagnostic[]): void {
+  if (config.include.length > 0) {
+    notices.push({
+      code: 'scan-scope-outside',
+      text: `契约扫描域 ${config.include.join(' , ')}：域外 ${scan.outside.length} 个 ts/css 不参与目录契约判定（仍在依赖图里）`,
+    })
+  } else if (scan.records.length === 0) {
+    // include 不限（引擎默认）且全树 0 个源码：没有任何东西被判定，必须说出来。
+    // include 非空的情况由 S24 报错（那是配置写错，不是空仓库）。
+    notices.push({
+      code: 'scan-empty',
+      text: 'include 未限制，但全项目 0 个 ts/css 文件：本次没有任何东西被判定',
+    })
+  }
+
+  // 阈值 `viewLines` 只对**页面级**角色生效（`pageLike` / `views` 槽位）：本范式没有这类角色时
+  // 它**永远不会生效** —— 配了却没效果正是本仓最忌讳的静默失效，所以当场自述（D21 同款套路）
+  if (
+    config.thresholds.viewLines !== config.thresholds.fileLines &&
+    !config.roles.some((role) => role.pageLike === true || role.slot === 'views')
+  ) {
+    notices.push({
+      code: 'viewlines-no-page-role',
+      text: `阈值 viewLines=${config.thresholds.viewLines} 已设，但本范式没有页面级角色（pageLike / views 槽位）：这条阈值不会生效`,
+    })
+  }
+
+  // `ignore`（项目边界）跳过了什么必须自述：它是"别碰"，被跳过的东西**不进文件集、不解析、不进图**，
+  // 而报告此前完全不提它 —— 宿主把某个源码目录误写进 ignore 时，表现就是"悄无声息地不判了"
+  if (scan.vcsIgnored.length > 0) {
+    notices.push({
+      code: 'vcs-ignored-skipped',
+      text: `因 .gitignore（git 判定）跳过 ${scan.vcsIgnored.length} 个文件：契约域外、不进文件集也不解析`,
+    })
+  }
+  if (scan.ignored.length > 0) {
+    notices.push({
+      code: 'ignore-skipped',
+      text: `ignore（项目边界）命中 ${scan.ignored.length} 个文件，未进文件集也不解析：${config.ignore.join(' , ')}`,
+    })
+  }
+}
+
+/**
+ * **生效的适配器**必须自述：适配器只写在配置里，报告此前完全不提它 ——
+ * 于是"到底跑的是哪套 kit"只能去翻 `arch.config.mjs`（换库换错、组合 `stack()` 时手滑多写一份，
+ * 现场都看不出来）。重复声明同一个面已经由 `mergePresets` 直接报错，这里报"谁在生效"。
+ * 字段级全貌（形态 / 包对账）在 `--verify-deps` 的全表里。
+ */
+export function pushAdapterNotice(config: Config, notices: Diagnostic[]): void {
+  const adapters = Object.values(config.adapters)
+  if (adapters.length === 0) return
+  const list = [...adapters]
+    .sort((a, b) => a.facet.localeCompare(b.facet))
+    .map((adapter) => `${adapter.facet}=${adapter.id}`)
+    .join(' · ')
+  notices.push({ code: 'adapters-in-use', text: `生效的适配器：${list}` })
+}

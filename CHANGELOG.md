@@ -15,6 +15,24 @@
 
 ## [Unreleased]
 
+### Added（一个面一个方案 + 生效的适配器可见）
+
+- **报告自述 `adapters-in-use`**（`notices` 新 code，**兼容性新增**：不 bump `apiVersion`，
+  未知 code 用 `isNoticeCode` 守卫可判；按 §6.9 的规矩在此单独标注）：每次运行报一行
+  `生效的适配器：router=react-router · styles=css-modules` —— 适配器只写在配置里，
+  报告以前完全不提它，"跑的是哪套 kit"只能去翻 `arch.config.mjs`。
+- **`--verify-deps` 列出整张适配表**：`facet` / `id` / `specVersion` / 形态字段（`routeFiles`、
+  `modulePatterns`、`resourceDir`…）/ 包对账；**没有 npm 包的 kit 也在表里**（CSS Module 就是这种方案），
+  否则"我配了 `styles()` 吗、它认哪种文件"在排查时看不见。
+
+### Fixed（两份 kit 声明同一个面时静默取后者）
+
+- **`mergePresets` 对同一个面 fail-closed**：内容不同的两份适配器声明（`router(a)` + `router(b)`，
+  或 `stack({ uiKit: antdKit() })` + 手写的 `uiKit(muiKit())`）以前是**浅合并静默取后者** ——
+  换库换错、组合时手滑多写一份，现场都看不出来。现在直接报错并指出用 `overrides.adapters` 显式覆盖；
+  内容**完全相同**的重复声明仍幂等（与 `defineFacet` 对同一个面的态度一致）。
+- 顺手改正 DESIGN §6.9 一处口径：`NOTICE_CODES` 的家是 `engine/codes.ts`（不是 `types.ts`）。
+
 ### Added（方案面形态：规则不再写死 `routes.tsx` / `*.module.css`）
 
 - **方案面声明「形态」（T1 第二半）**：适配表回答"用哪个库"之外，还要回答"规则判的写法长什么样"。

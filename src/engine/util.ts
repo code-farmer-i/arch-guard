@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import type { Dirent } from 'node:fs'
 import { join, relative } from 'node:path'
 
-import type { Preset } from './types.js'
+import type { Adapter, Preset } from './types.js'
 import { mergeStructureSpec } from './structure.js'
 
 export interface WalkOptions {
@@ -151,9 +151,26 @@ export function relOf(root: string, file: string): string {
   return relative(root, file).split('\\').join('/')
 }
 
+/**
+ * 稳定序列化：只用来判"两份适配器声明是不是同一份数据"（键序不该影响结论）。
+ * 不引第三方库：适配器是纯数据（`defineAdapter` 保证过），这个递归够用。
+ */
+const stableKey = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableKey).join(',')}]`
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a.localeCompare(b),
+    )
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableKey(item)}`).join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'undefined'
+}
+
 /** 预设合并：数组拼接，对象浅合并 */
 export function mergePresets(presets: Preset[]): Preset {
   const out: Preset = { adapters: {}, params: {} }
+  /** 适配器按面收敛（局部变量：`Preset.adapters` 是可选的，逐个读要处理 undefined） */
+  const adapters: Record<string, Adapter> = {}
   for (const preset of presets) {
     if (preset.roles) out.roles = preset.roles
     if (preset.addRoles) out.addRoles = [...(out.addRoles ?? []), ...preset.addRoles]
@@ -161,7 +178,26 @@ export function mergePresets(presets: Preset[]): Preset {
     if (preset.srcRoot) out.srcRoot = preset.srcRoot
     if (preset.naming) out.naming = { ...out.naming, ...preset.naming }
     if (preset.thresholds) out.thresholds = { ...out.thresholds, ...preset.thresholds }
-    if (preset.adapters) out.adapters = { ...out.adapters, ...preset.adapters }
+    if (preset.adapters) {
+      /**
+       * 一个面**只能有一个方案**：两份 kit 声明同一个面时，浅合并会静默取后者 ——
+       * 「换库换错了」/「组合 `stack()` 时手滑又写了一遍 `router(...)`」都会变成无声的结果，
+       * 而适配器又不出现在报告里，现场无迹可查。这里 fail-closed：
+       *
+       * - 内容**完全相同**的两份声明是幂等的（`defineFacet` 对同一个面也是这个态度）；
+       * - 内容不同 → 报错，并指向 `overrides.adapters`（那是显式覆盖，不是"两份并存"）。
+       */
+      for (const [facet, adapter] of Object.entries(preset.adapters)) {
+        const existing = adapters[facet]
+        if (existing && stableKey(existing) !== stableKey(adapter)) {
+          throw new Error(
+            `适配器面 ${facet} 被声明了两次且内容不同（${existing.id} / ${adapter.id}）：一个面只能有一个方案\n` +
+              '（两份 kit 放一起会静默取后者；要覆盖预设里的那份，用 arch.config.mjs 的 `overrides.adapters`）',
+          )
+        }
+        adapters[facet] = adapter
+      }
+    }
     if (preset.params) out.params = { ...out.params, ...preset.params }
     // enable 是**并集**：预设各自声明"我贡献哪几条"。任一预设说 'all' → 结果就是 'all'。
     // （旧实现是后者覆盖前者，于是 `library() + designSystem()` 会把 D 域整块静默关掉。）
@@ -176,6 +212,7 @@ export function mergePresets(presets: Preset[]): Preset {
     if (preset.metaFramework) out.metaFramework = preset.metaFramework
     if (preset.exceptions) out.exceptions = [...(out.exceptions ?? []), ...preset.exceptions]
   }
+  out.adapters = adapters
   return out
 }
 

@@ -45,6 +45,48 @@ test('deps-audit：i18n 面用 from 字段，没有适配器时表为空且通�
   assert.equal(empty.ok, true)
 })
 
+test('deps-audit：没有 npm 包的 kit 也在表里（否则"配了 styles() 吗"看不见），并带上形态字段', () => {
+  const adapters = {
+    styles: {
+      facet: 'styles',
+      id: 'css-modules',
+      specVersion: '1',
+      packages: [],
+      modulePatterns: ['\\.module\\.scss$'],
+    },
+    router: {
+      facet: 'router',
+      id: 'react-router',
+      specVersion: '1',
+      packages: ['react-router'],
+      routeFiles: ['routes.ts', 'routes.tsx'],
+      examples: { routeFiles: { hit: ['x'], miss: ['y'] } },
+    },
+  }
+  const audit = auditAdapterDeps({ adapters }, deps(['react-router']))
+  assert.equal(audit.rows.length, 2, '两个面都要有行')
+  assert.equal(audit.ok, true, '没有包的方案不该被算成"缺包"')
+
+  const styles = audit.rows.find((row) => row.facet === 'styles')
+  assert.deepEqual(styles?.packages, [])
+  assert.deepEqual(styles?.fields, [{ name: 'modulePatterns', value: '\\.module\\.scss$' }])
+  assert.equal(styles?.specVersion, '1')
+
+  const router = audit.rows.find((row) => row.facet === 'router')
+  assert.deepEqual(
+    router?.fields,
+    [{ name: 'routeFiles', value: 'routes.ts / routes.tsx' }],
+    '数组按 / 连；examples 不进表',
+  )
+
+  // 空清单是**声明**（"本方案没有这种文件"），排查时不能显示成一片空白
+  const none = auditAdapterDeps(
+    { adapters: { router: { facet: 'router', id: 'none', packages: [], routeFiles: [] } } },
+    deps([]),
+  )
+  assert.deepEqual(none.rows[0]?.fields, [{ name: 'routeFiles', value: '（空）' }])
+})
+
 test('deps-audit：策略摘要把 allow/deny/能力首选都讲清楚', () => {
   const text = describePolicy({
     allow: ['commander'],

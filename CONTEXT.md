@@ -144,6 +144,8 @@ _Avoid_: 词典、命名规范
 **方案面（solution face）**：
 "不改变架构、只改变写法"的可替换轴：`ui-kit` / `i18n` / `metrics` / `router` / `data-layer` / `styles`。
 每个面一份适配器（纯数据），由**预设**用 `defineFacet` 登记 —— 引擎不枚举面清单。
+**一个面只能有一个方案**：两份内容不同的 kit 声明同一个面直接报错（要覆盖就用 `overrides.adapters`）；
+生效的是哪套由报告自述（`adapters-in-use`），字段级全貌看 `--verify-deps`。
 _Avoid_: 插件、扩展点
 
 **方案面形态（face forms）**：
