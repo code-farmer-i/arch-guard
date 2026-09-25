@@ -128,6 +128,89 @@ test('流程：DESIGN §4.9 的委派去向与 REQUIREMENTS 的「已委派」�
   )
 })
 
+test('流程：标「已完成 · 本体」的需求，期望里不许再写着"交给生态 / 本体不做"', () => {
+  // 这类漂移真实发生过：0.4.0 从 eslint / stylelint 收回了一批规则，DESIGN 的委派表划了线，
+  // 但需求的「期望」还写着"交给 eslint；本体不做" —— 状态与期望自相矛盾（R-14 / R-15 / R-32 / R-34 / R-35 / R-36）。
+  const lines = read('REQUIREMENTS.md').split('\n')
+  const heading = /^\*\*(R-\d+) (.*?)\*\* · ([^·]+) · (.*)$/
+  const problems = []
+  let checked = 0
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = heading.exec(lines[index])
+    if (!match) continue
+    const [, id, title, status, owner] = match
+    if (status.trim() !== '已完成' || !owner.trim().startsWith('本体')) continue
+    checked += 1
+    if (/待做|待事实模型/.test(title)) {
+      problems.push(`${id}: 状态是"已完成 · 本体"，标题里还留着"${title.match(/待[^）)]*/)?.[0]}"`)
+    }
+    let body = ''
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      if (heading.test(lines[cursor])) break
+      body += `${lines[cursor]}\n`
+    }
+    const expected = /^-\s*\*\*期望\*\*[:：](.*)$/m.exec(body)?.[1] ?? ''
+    if (/交给/.test(expected)) problems.push(`${id}: 期望写着"交给…"，但状态是"已完成 · 本体"`)
+    if (/本体不做/.test(expected))
+      problems.push(`${id}: 期望写着"本体不做"，但状态是"已完成 · 本体"`)
+  }
+
+  assert.ok(checked > 30, `只解析到 ${checked} 条「已完成 · 本体」，需求格式变了？`)
+  assert.deepEqual(problems, [])
+})
+
+test('流程：DESIGN §5 的「已实现并带夹具的 N 条」清单必须与注册表逐条一致', () => {
+  // 数量对得上、清单却少了一整批：0.4.0 收回的 C / D / H 规则与 S43 / S44 / D24 都没进这份枚举，
+  // 而门禁只看条数 —— 于是"设计已落盘"是假象。改这里要连着改 DESIGN 的枚举（或反过来）。
+  const design = read('docs/DESIGN.md')
+  const section = design.slice(design.indexOf('## 5. 规则清单'), design.indexOf('### 5.1'))
+  const block = section
+    .split('\n')
+    .filter((line) => /^>\s*`[SDCPHM]\d{2}/.test(line)) // 只取"以 id 打头"的枚举行，别把下面的散文一起解析
+    .join('\n')
+
+  const listed = new Set()
+  for (const match of block.matchAll(/([SDCPHM])(\d{2})(b?)(?:[–-]([SDCPHM])?(\d{2})(b?))?/g)) {
+    const [, letter, from, fromSuffix, toLetter, to, toSuffix] = match
+    assert.ok(!toLetter || toLetter === letter, `规则区间跨了域：${letter}${from}–${toLetter}${to}`)
+    const last = to ? Number(to) : Number(from)
+    for (let n = Number(from); n <= last; n += 1) {
+      listed.add(`${letter}${String(n).padStart(2, '0')}${to ? toSuffix : fromSuffix}`)
+    }
+  }
+
+  const actual = coreRules.map((rule) => rule.id).sort()
+  assert.ok(listed.size > 90, `只解析到 ${listed.size} 条，DESIGN 的清单格式变了？`)
+  assert.deepEqual(
+    [...listed].sort(),
+    actual,
+    'DESIGN §5 的「已实现并带夹具」清单与 coreRules 对不上：多了未实现的、或少了已实现的',
+  )
+})
+
+test('流程：DESIGN 写成单一等级的规则，判定等级必须与注册表一致', () => {
+  // `--min-level L1` 是"只跑路径级规则"的快速档；等级写错 = 宿主以为只跑了路径检查，
+  // 实际代码却跑了一堆 AST 规则（H08 / D01 / D02 / D09 / D12–D14 / D18 都写错过）。
+  const docLevels = new Map()
+  for (const line of read('docs/DESIGN.md').split('\n')) {
+    if (!line.startsWith('|')) continue
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((cell) => cell.trim())
+    if (cells.length < 4 || !/^[SDCPHM]\d{2}b?$/.test(cells[0])) continue
+    const level = cells.find((cell) => /^L[1-5]$/.test(cell))
+    if (level) docLevels.set(cells[0], level)
+  }
+
+  const mismatches = coreRules
+    .filter((rule) => docLevels.has(rule.id) && docLevels.get(rule.id) !== rule.level)
+    .map((rule) => `${rule.id}: 代码 ${rule.level} ≠ DESIGN ${docLevels.get(rule.id)}`)
+  assert.ok(docLevels.size >= 80, `只解析到 ${docLevels.size} 行等级，DESIGN 的表格格式变了？`)
+  assert.deepEqual(mismatches, [])
+})
+
 function requirementIdsFrom(text, status) {
   return [...text.matchAll(/^\*\*(R-\d+) [^*]+\*\* · ([^·]+) ·/gm)]
     .filter((match) => match[2].trim() === status)

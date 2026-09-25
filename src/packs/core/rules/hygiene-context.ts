@@ -91,7 +91,7 @@ const PRIVATE_IP = /\b(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3
 export const localHostLiterals: Rule = {
   id: 'H08',
   domain: 'hygiene',
-  level: 'L1',
+  level: 'L2',
   severity: 'error',
   title: '禁硬编码本地地址',
   hint: '本地 / 内网地址走环境变量或配置；写进源码就会跟着构建进生产',
