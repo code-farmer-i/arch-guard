@@ -181,3 +181,52 @@ test('mergeStructureSpec：两个预设的结构声明相加而不是覆盖', ()
   assert.deepEqual(mergeStructureSpec(undefined, { order: true }), { order: true })
   assert.deepEqual(mergeStructureSpec({ order: true }, undefined), { order: true })
 })
+
+test('声明可命中性：声明了公开面却没有 entry 角色 → 报错（这条声明永远不命中）', () => {
+  assert.throws(
+    () =>
+      resolveStructure({
+        preset: { publicApi: ['slice'] },
+        roles: [
+          { id: 'fsd:pages:ui', pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' },
+        ],
+      }),
+    (error) => {
+      assert.ok(error instanceof StructureDeclarationError)
+      assert.match(error.message, /没有任何 entry: true 的角色/)
+      return true
+    },
+  )
+  // 有了 entry 角色就通过
+  assert.doesNotThrow(() =>
+    resolveStructure({
+      preset: { publicApi: ['slice'] },
+      roles: [
+        { id: 'fsd:pages:ui', pattern: 'src/pages/{slice}/ui/**', layer: 5, group: 'slice' },
+        {
+          id: 'fsd:pages:index',
+          pattern: 'src/pages/{slice}/index.ts',
+          layer: 5,
+          group: 'slice',
+          entry: true,
+        },
+      ],
+    }),
+  )
+})
+
+test('声明可命中性：nameCollisions 的词汇角色 / degreeLimits 的角色必须真实存在', () => {
+  const roles = [{ id: 'a', pattern: 'src/a/{slice}/**', layer: 5, group: 'slice' }]
+  assert.throws(
+    () =>
+      resolveStructure({
+        preset: { nameCollisions: [{ dimension: 'slice', vocabularyRoles: ['nope'] }] },
+        roles,
+      }),
+    StructureDeclarationError,
+  )
+  assert.throws(
+    () => resolveStructure({ preset: { degreeLimits: [{ role: 'nope', maxIn: 3 }] }, roles }),
+    StructureDeclarationError,
+  )
+})

@@ -208,6 +208,25 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
   for (const item of structure.groupInDegree) needDimension('groupInDegree', item.dimension)
   for (const item of structure.nameCollisions) needDimension('nameCollisions', item.dimension)
   for (const item of structure.pluralConsistency) needDimension('pluralConsistency', item.dimension)
+  // 新②：**声明可命中性** —— 声明了"组必须有公开面"却没有 entry 角色，这条声明永远不命中
+  const entryRoles = roles.filter((role) => role.entry === true).map((role) => role.id)
+  for (const [field, values] of [
+    ['publicApi', structure.publicApi],
+    ['segmentedGroups', structure.segmentedGroups],
+  ] as const) {
+    if (values.length > 0 && entryRoles.length === 0) {
+      throw new StructureDeclarationError(
+        `structure.${field} 声明了组维度，但角色表里没有任何 entry: true 的角色 —— 这条声明永远不会命中\n` +
+          `（公开面 / 空壳组都靠 entry 角色认入口；先给入口角色标 entry，或去掉这条声明）`,
+      )
+    }
+  }
+  for (const item of structure.nameCollisions) {
+    for (const role of item.vocabularyRoles ?? []) {
+      needRole('nameCollisions.vocabularyRoles', role)
+    }
+  }
+  for (const item of structure.degreeLimits) needRole('degreeLimits', item.role)
   for (const item of structure.publicApiUnits) needRole('publicApiUnits', item.role)
   for (const item of structure.directoryItemLimits) needRole('directoryItemLimits', item.role)
   for (const item of structure.couplingLimits) {

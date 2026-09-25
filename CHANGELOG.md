@@ -17,6 +17,14 @@
 
 ## [Unreleased]
 
+### Added（新②：声明可命中性校验补齐）
+
+- 缺口：`structure.nameCollisions[].vocabularyRoles` 的角色没校验；**声明了 `publicApi` / `segmentedGroups`
+  却没有 `entry: true` 角色**时那条声明永远不命中（正是这轮 C10 / `entry` 那类问题在**声明侧**的同类）；
+  `degreeLimits[].role` 同样兜底。
+- 现在这些在解析配置时就报错并列出可用值/原因 —— 与"规则没跑要明说"（R-25）同源，只是发生在声明这一侧。
+- 需求 R-75 落盘；`tests/structure-declarations.test.mjs` 补两例。
+
 ### Added（新①：范式预设的结构词汇必须完整 —— 元门禁）
 
 - 起因：2026-09-25 实测发现 **6 条已实现的规则**因为两行数据缺失（`canonical()` 的角色没声明
