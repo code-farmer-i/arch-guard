@@ -333,7 +333,8 @@ const looksLikeCopy = (value: string): boolean => {
  * —— `facts.calls[].stringArg` 就是 `t('…')` 里的键。所以判定更准、也不用宿主维护第二份清单。
  *
  * 误伤控制在四处：① 只认 JSX 文本节点与那五个面向用户的属性；② 声明了 `messageApis` 才判
- * （组件库调用里的字符串实参，如 `message.success('保存')`）；③ 只认"人话"（中文 / 多词）；
+ * （组件库调用里的字符串实参，如 `message.success('保存')`，以及对象实参里的文案，
+ * 如 `notification.open({ message: '保存' })`）；③ 只认"人话"（中文 / 多词）；
  * ③ `t(...)` 里的键与 URL / 类名 / 单 token 全部放过。命中给 **warn**（不是"必须改"）。
  */
 export const bareCopy: Rule = {
@@ -374,6 +375,28 @@ export const bareCopy: Rule = {
         }
       }
 
+      // 第三种形态：**对象实参里的文案**（`notification.open({ message: '保存' })`）——
+      // 字符串靠 `prop`（对象键）与 `inCall`（外层调用名）两条事实认出来
+      const messageProps = (ctx.config.params.messageProps as string[] | undefined) ?? []
+      if (messageApis.length > 0 && messageProps.length > 0) {
+        for (const text of facts.strings) {
+          if (text.prop === null || text.inCall === undefined) continue
+          if (!messageProps.includes(text.prop)) continue
+          if (!messageApis.some((api) => text.inCall === api || text.inCall?.endsWith(`.${api}`))) {
+            continue
+          }
+          if (!looksLikeCopy(text.value)) continue
+          out.push(
+            finding(
+              'C01',
+              record.rel,
+              text.line,
+              `裸文案：${text.inCall}({ ${text.prop}: ${JSON.stringify(text.value)} })`,
+              '改成 t(...) 并登记进资源；确实不该翻译就写进 i18n 的忽略清单',
+            ),
+          )
+        }
+      }
       for (const text of facts.strings) {
         if (translated.has(`${text.line}:${text.value}`)) continue
         // JSX 文本节点：事实模型已收（`context === 'jsx'`），`looksLikeCopy` 再筛掉类名 / 单 token

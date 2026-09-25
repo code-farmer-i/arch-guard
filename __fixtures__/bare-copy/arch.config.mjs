@@ -7,7 +7,10 @@ import { canonical, copy, i18n, i18nextKit } from '../../es/index.js'
 export default {
   presets: [
     canonical(),
-    copy({ messageApis: ['message.success'] }),
+    copy({
+      messageApis: ['message.success', 'notification.open'],
+      messageProps: ['message', 'description'],
+    }),
     i18n(i18nextKit({ resourceDir: 'src/shared/i18n/locales', languages: ['zh-CN'] })),
   ],
   overrides: { enable: ['C01'], ignore: ['arch.config.mjs', 'expect.json'] },

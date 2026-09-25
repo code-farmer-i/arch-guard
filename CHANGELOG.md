@@ -17,6 +17,17 @@
 
 ## [Unreleased]
 
+### Added（M6：C01 第三种形态 —— 对象实参里的文案）
+
+- 缺口：`notification.open({ message: '保存' })` 这种**对象实参**形态看不见 —— `facts.calls.stringArg`
+  只记第一个字符串字面量实参。同一痛点换个写法就绕过去了。
+- 修法：事实模型给字符串加 **`inCall`**（最近的**外层调用名**，只透传容器、遇函数体断开）——
+  `FACTS_CACHE_SPEC` 3 → **4**（事实形状变了）。C01 据此判对象实参形态。
+- **防误伤**：还要 `copy({ messageProps: ['message', 'description'] })` 声明**哪些属性名算文案**
+  —— 同一批调用里 `key` / `duration` 这类不是文案；**不声明就不判对象形态**。
+- 夹具 `bare-copy` 两种形态都报；新增 `tests/copy-bare.test.mjs`（三形态 + `key` 不报 + 未声明 `messageProps` 不判）。
+- 需求 R-82 落盘；测试 341 → **343**。
+
 ### Added（M5：生成物必须带 @generated 标记 —— H13）
 
 - 场景：生成的类型 / 客户端文件没有标记，有人顺手改了它，下次重生成被覆盖 —— 手写逻辑静默消失。

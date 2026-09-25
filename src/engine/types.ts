@@ -30,6 +30,11 @@ export interface StringFact {
   line: number
   context: string
   prop: string | null
+  /**
+   * 最近的**外层调用名**（如 `notification.open({ message: '保存' })` 里的 `notification.open`）。
+   * 只透传容器、遇函数体断开；用来判"对象实参里的文案"（C01 的第三种形态）。
+   */
+  inCall?: string
 }
 
 export interface CallFact {

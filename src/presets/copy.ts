@@ -17,11 +17,19 @@ export interface CopyOptions {
    * **不声明就不判这一半**：各项目用的组件库 / 封装不同，猜一个默认名单必然误伤。
    */
   messageApis?: string[]
+  /**
+   * **哪些对象属性名算文案**（对象实参形态）：`['message', 'description', 'title']`。
+   * 不声明就不判对象实参那一半 —— 同一批调用里还有 `key` / `duration` 这类非文案键，全判必然误伤。
+   */
+  messageProps?: string[]
 }
 
 export function copy(options: CopyOptions = {}): Preset {
   return {
     enable: ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07'],
-    params: { messageApis: options.messageApis ?? [] },
+    params: {
+      messageApis: options.messageApis ?? [],
+      messageProps: options.messageProps ?? [],
+    },
   }
 }

@@ -16,8 +16,8 @@ Status: done
 
 - 夹具 `bare-copy`：`title="保存"`、JSX 文本、以及 `message.success('保存成功')`（声明 `messageApis` 后）都报；
   `t('crews.save')`、`alt="crews-logo"`（单 token）、`src="/logo.svg"` 都不报。
-- **已知边界**：对象实参形态（`notification.open({ message: '保存' })`）—— `facts.calls.stringArg`
-  只记第一个字符串字面量实参，这半边要等事实模型补（与 JSX 文本那半同类，先记在案）。
+- **对象实参形态已覆盖**（2026-09-25 补）：事实模型给字符串加 `inCall`（最近的外层调用名），
+  `FACTS_CACHE_SPEC` 3 → 4；还要 `copy({ messageProps })` 声明**哪些属性名算文案**才判（`key` / `duration` 不是）。
 - 未声明 i18n 的项目里 C01 进 `skipped`（明列"能力未声明"），不静默通过。
 - 双 Node `pnpm check` EXIT=0；DESIGN §5.5 有 C01 行。
 

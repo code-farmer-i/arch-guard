@@ -194,9 +194,15 @@ export function extractFacts(input: FactInput): Facts {
     parent: ts.Node | undefined,
     /** 祖先里**最近的那个属性名**（`queryKey` / `path` / `to`…）：透传容器不改变它 */
     inheritedProp: string | null,
+    /** 祖先里**最近的外层调用名**（对象实参里的文案靠它认"这是给谁用的"） */
+    inheritedCall: string | null = null,
   ): void => {
     // 传给子孙的"最近属性名"：本级是属性 → 用它；本级只是透传容器 → 继承；其它 → 断开
     const childProp = declaredPropOf(node, sf) ?? (carriesProp(node) ? inheritedProp : null)
+    // 调用名：本级是调用 → 取它的 callee；进了函数体 → 断开（参数里的回调与外面那次调用无关）
+    const callHere =
+      ts.isCallExpression(node) || ts.isNewExpression(node) ? node.expression.getText(sf) : null
+    const childCall = callHere ?? (ts.isFunctionLike(node) ? null : inheritedCall)
     /* ---- import / re-export ---- */
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       facts.imports.push({
@@ -320,6 +326,7 @@ export function extractFacts(input: FactInput): Facts {
         context: stringContext(parent),
         // 最近的那个属性名（不一定是直接父节点：`queryKey: ['a']` 的字面量在数组里）
         prop: inheritedProp,
+        ...(inheritedCall ? { inCall: inheritedCall } : {}),
       })
     }
     /**
@@ -392,7 +399,7 @@ export function extractFacts(input: FactInput): Facts {
       })
     }
 
-    ts.forEachChild(node, (child) => visit(child, node, childProp))
+    ts.forEachChild(node, (child) => visit(child, node, childProp, childCall))
   }
 
   visit(sf, undefined, null)
