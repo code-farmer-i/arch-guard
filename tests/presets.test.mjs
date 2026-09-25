@@ -354,3 +354,12 @@ test('presets：fsd() 与社区文件系统模型对齐的几处形态', () => {
   assert.equal(byId('fsd:pages:index')?.group, 'slice')
   assert.equal(byId('fsd:pages:ui')?.group, 'slice')
 })
+
+test('canonical：域角色声明 group=domain（否则按组判定的规则在应用范式下集体沉默）', () => {
+  const roles = canonical().roles ?? []
+  const domainRoles = roles.filter((role) => role.pattern.includes('{domain}'))
+  assert.ok(domainRoles.length >= 7, '七个域槽位都该有域捕获')
+  for (const role of domainRoles) {
+    assert.equal(role.group, 'domain', `${role.id} 没声明 group: domain`)
+  }
+})

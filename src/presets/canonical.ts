@@ -44,11 +44,15 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
     { id: 'app:layouts', pattern: `${app}/layouts/**`, layer: 11, slot: 'layouts' },
 
     // 业务域：七个槽位 + 唯一入口 routes
+    // `group: 'domain'`：域就是这套范式的**组维度** —— 不声明的话，按组判定的规则
+    // （S22 组隔离 / S23 公开面 / S26 组数量 / S28 外部引用下限 / S32 导入局部性）
+    // 在应用范式下会集体沉默（它们读的是 `record.groupName`）。
     {
       id: 'module:routes',
       pattern: `${modules}/{domain}/routes.{ts,tsx}`,
       layer: 10,
       slot: 'routes',
+      group: 'domain',
     },
     {
       id: 'module:views',
@@ -56,17 +60,43 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
       layer: 10,
       slot: 'views',
       pageLike: true,
+      group: 'domain',
     },
     {
       id: 'module:components',
       pattern: `${modules}/{domain}/components/**`,
       layer: 10,
       slot: 'components',
+      group: 'domain',
     },
-    { id: 'module:hooks', pattern: `${modules}/{domain}/hooks/**`, layer: 10, slot: 'hooks' },
-    { id: 'module:model', pattern: `${modules}/{domain}/model/**`, layer: 10, slot: 'model' },
-    { id: 'module:lib', pattern: `${modules}/{domain}/lib/**`, layer: 10, slot: 'lib' },
-    { id: 'module:assets', pattern: `${modules}/{domain}/assets/**`, layer: 10, slot: 'assets' },
+    {
+      id: 'module:hooks',
+      pattern: `${modules}/{domain}/hooks/**`,
+      layer: 10,
+      slot: 'hooks',
+      group: 'domain',
+    },
+    {
+      id: 'module:model',
+      pattern: `${modules}/{domain}/model/**`,
+      layer: 10,
+      slot: 'model',
+      group: 'domain',
+    },
+    {
+      id: 'module:lib',
+      pattern: `${modules}/{domain}/lib/**`,
+      layer: 10,
+      slot: 'lib',
+      group: 'domain',
+    },
+    {
+      id: 'module:assets',
+      pattern: `${modules}/{domain}/assets/**`,
+      layer: 10,
+      slot: 'assets',
+      group: 'domain',
+    },
 
     // 共享层：内部线性层序（0 最低）
     { id: 'shared:styles', pattern: `${shared}/styles/**`, layer: 0, slot: 'styles' },
