@@ -2,6 +2,10 @@
   "findings": [
     {
       "rule": "C01",
+      "file": "src/modules/crews/lib/notify.ts"
+    },
+    {
+      "rule": "C01",
       "file": "src/modules/crews/views/CrewsPage.tsx"
     }
   ],

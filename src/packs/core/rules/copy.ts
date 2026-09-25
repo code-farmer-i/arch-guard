@@ -332,7 +332,8 @@ const looksLikeCopy = (value: string): boolean => {
  * 插件要装 + 要逐条维护 `ignore` 白名单，而"这句文案有没有走 `t()`"我们**本来就知道**
  * —— `facts.calls[].stringArg` 就是 `t('…')` 里的键。所以判定更准、也不用宿主维护第二份清单。
  *
- * 误伤控制在三处：① 只认 JSX 文本节点与那五个面向用户的属性；② 只认"人话"（中文 / 多词）；
+ * 误伤控制在四处：① 只认 JSX 文本节点与那五个面向用户的属性；② 声明了 `messageApis` 才判
+ * （组件库调用里的字符串实参，如 `message.success('保存')`）；③ 只认"人话"（中文 / 多词）；
  * ③ `t(...)` 里的键与 URL / 类名 / 单 token 全部放过。命中给 **warn**（不是"必须改"）。
  */
 export const bareCopy: Rule = {
@@ -353,6 +354,26 @@ export const bareCopy: Rule = {
       if (!facts) continue
       // `t('key')` 里已经登记过的键：同一行出现同值的调用实参就放过
       const translated = new Set(facts.calls.map((call) => `${call.line}:${call.stringArg ?? ''}`))
+      // 另一半：组件库调用里的文案（`message.success('保存')`）—— 只要项目声明了这些 API
+      const messageApis = (ctx.config.params.messageApis as string[] | undefined) ?? []
+      if (messageApis.length > 0) {
+        for (const call of facts.calls) {
+          const hit = messageApis.find(
+            (api) => call.callee === api || call.callee.endsWith(`.${api}`),
+          )
+          if (!hit || call.stringArg === undefined || !looksLikeCopy(call.stringArg)) continue
+          out.push(
+            finding(
+              'C01',
+              record.rel,
+              call.line,
+              `裸文案：${call.callee}(${JSON.stringify(call.stringArg)})`,
+              '改成 t(...) 并登记进资源；确实不该翻译就写进 i18n 的忽略清单',
+            ),
+          )
+        }
+      }
+
       for (const text of facts.strings) {
         if (translated.has(`${text.line}:${text.value}`)) continue
         // JSX 文本节点：事实模型已收（`context === 'jsx'`），`looksLikeCopy` 再筛掉类名 / 单 token

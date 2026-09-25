@@ -17,6 +17,17 @@
 
 ## [Unreleased]
 
+### Added（新③：组件库调用里的文案 —— C01 的另一半）
+
+- 缺口：C01 判了 JSX 文本与面向用户的属性，但 `message.success('保存')` 这类**组件库调用里的文案**漏着 ——
+  同一个痛点（这句永远翻译不了），只判 JSX 会让人以为"文案都管住了"。
+- 现在：`copy({ messageApis: ['message.success', 'notification.open'] })` 声明后，这些调用的字符串实参
+  也按"人话"判（中文 / 多词），不是 `t(...)` 就报（warn）；**不声明就不判这一半**（各项目用的库与封装不同）。
+- 夹具 `bare-copy` 加一例（`lib/notify.ts` 里的 `message.success('保存成功')`）。
+- **已知边界**：对象实参形态（`notification.open({ message: '保存' })`）还看不见 —— `facts.calls.stringArg`
+  只记第一个字符串字面量实参，这半边要等事实模型再补。
+- 需求 R-76 落盘。
+
 ### Added（新②：声明可命中性校验补齐）
 
 - 缺口：`structure.nameCollisions[].vocabularyRoles` 的角色没校验；**声明了 `publicApi` / `segmentedGroups`
