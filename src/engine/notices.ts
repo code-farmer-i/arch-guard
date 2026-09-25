@@ -168,7 +168,10 @@ function emptyFaceDeclarations(
     const label = String(adapter.facet)
     for (const key of ['pathSource', 'queryKeyFrom', 'eventSource']) {
       const value = face[key]
-      if (typeof value === 'string' && value !== '') checkFiles(`${label}.${key}`, [value])
+      // `queryKeyFrom` 收字符串或数组（多落点 / glob）：逐项查"这个落点真的命中文件了吗"
+      const values =
+        typeof value === 'string' ? [value] : Array.isArray(value) ? (value as string[]) : []
+      if (values.length > 0) checkFiles(`${label}.${key}`, values)
     }
     for (const key of ['fetchIn', 'in'] as const) {
       const value = face[key]

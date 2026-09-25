@@ -96,8 +96,11 @@ export function modulePatternsOf(config: Config): string[] {
 /**
  * **缓存键的唯一出处**（D22 的落点）。空串 = 没声明 → 依赖它的规则由 `requires` 明列停用。
  */
-export function queryKeyFromOf(config: Config): string {
-  return adapterOf<DataLayerAdapter>(config, 'data-layer')?.queryKeyFrom ?? ''
+/** 缓存键落点：归一成数组（`string` 与 `string[]` 都收；每项可以是 glob） */
+export function queryKeyFromOf(config: Config): string[] {
+  const value = adapterOf<DataLayerAdapter>(config, 'data-layer')?.queryKeyFrom
+  const list = typeof value === 'string' ? [value] : Array.isArray(value) ? value : []
+  return list.filter((item) => typeof item === 'string' && item !== '')
 }
 
 /** 缓存键挂在哪几个属性上（默认 `['queryKey']`） */

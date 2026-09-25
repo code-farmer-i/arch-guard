@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchOrders, orderKeys, orderPolicy } from '@/shared/api'
+import { fetchOrders } from '@/shared/api'
+import { orderKeys, orderPolicy } from '@/entities/order'
 import { ORDER_PAGE_SIZE } from '@/shared/config'
 
 export function useOrders(): number[] {

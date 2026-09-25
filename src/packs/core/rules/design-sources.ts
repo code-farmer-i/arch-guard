@@ -1,3 +1,4 @@
+import { globToRegExp } from '../../../engine/util.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 import { finding } from './design-shared.js'
@@ -32,7 +33,9 @@ function missingSource(
   source: string,
   what: string,
 ): Finding | null {
-  if (presentFilesOf(ctx).has(source)) return null
+  // 落点可以是**文件路径**或 **glob**（多落点/按域拆键时用 glob）；命中 0 个文件才算"不存在"
+  const pattern = globToRegExp(source)
+  if ([...presentFilesOf(ctx)].some((rel) => pattern.test(rel))) return null
   return finding(
     rule,
     source,
@@ -53,15 +56,19 @@ export const cacheKeySingleSource: Rule = {
   hint: '查询键只许来自声明的唯一出处（`dataLayer({ queryKeyFrom })`）；别在调用点手拼键 —— 手拼的键改名时漏一处就是缓存穿透',
   requires: ['dataLayer.queryKeyFrom'],
   run: (ctx) => {
-    const source = queryKeyFromOf(ctx.config)
+    const sources = queryKeyFromOf(ctx.config)
     // 没声明落点：真跑起来时本规则已被 `requires` 停用；直接调用（自检 / 单测）时也不该报"落点不存在"
-    if (!source) return []
-    const missing = missingSource(ctx, 'D22', source, '缓存键')
-    if (missing) return [missing]
+    if (sources.length === 0) return []
+    const missing = sources
+      .map((source) => missingSource(ctx, 'D22', source, '缓存键'))
+      .filter((item): item is Finding => item !== null)
+    if (missing.length > 0) return missing
+    const homes = sources.map((source) => globToRegExp(source))
+    const listed = sources.join(' 或 ')
     const props = new Set(queryKeyPropsOf(ctx.config))
     const out: Finding[] = []
     for (const record of ctx.records) {
-      if (record.rel === source) continue
+      if (homes.some((pattern) => pattern.test(record.rel))) continue
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const item of facts.strings) {
@@ -71,8 +78,8 @@ export const cacheKeySingleSource: Rule = {
             'D22',
             record.rel,
             item.line,
-            `缓存键字面量 ${JSON.stringify(item.value)} 出现在这里：键只许来自 ${source}`,
-            `把键写进 ${source}（例如导出一份 keys 对象），这里改成引用它：${item.prop}: keys.xxx`,
+            `缓存键字面量 ${JSON.stringify(item.value)} 出现在这里：键只许来自 ${listed}`,
+            `把键写进 ${listed}（例如导出一份 keys 对象），这里改成引用它：${item.prop}: keys.xxx`,
           ),
         )
       }

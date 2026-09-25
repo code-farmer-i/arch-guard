@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D22",
+      "file": "src/shared/api/legacy.ts"
+    }
+  ],
+  "exact": true
+}

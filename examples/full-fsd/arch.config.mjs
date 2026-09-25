@@ -48,8 +48,12 @@ export default {
         { rule: 'D14', allow: ['150ms'] },
       ],
       numberHomes: [
-        // 名字不用写：staleTime / retry / gcTime… 是 react-query 的事实（reactQueryKit 的 numberNames）
-        { name: '请求策略', in: ['src/shared/api/queryClient.ts'] },
+        // 名字不用写：staleTime / retry / gcTime… 是 react-query 的事实（reactQueryKit 的 numberNames）。
+        // 家可以有多处且支持 glob：全局兜底在 shared，各实体自己的时效跟着实体走（R-97 / A3）
+        {
+          name: '请求策略',
+          in: ['src/shared/api/queryClient.ts', 'src/entities/*/model/query.ts'],
+        },
         // 项目自己的常量仍然要列
         { name: '分页阈值', names: ['PAGE_SIZE', 'ORDER_PAGE_SIZE'], in: ['src/shared/config/constants.ts'] },
       ],
@@ -92,7 +96,8 @@ export default {
     router(reactRouterKit({ pathSource: 'src/shared/routes/paths.ts' })),
     dataLayer(
       reactQueryKit({
-        queryKeyFrom: 'src/shared/api/queryKeys.ts',
+        // 键跟着实体走（R-97）：一行 glob 覆盖所有实体
+        queryKeyFrom: ['src/entities/*/model/query.ts'],
         // fetchApis 不用写：reactQueryKit 自带全套钩子（R-92 后不再因"这次没用到"被点名）
         fetchIn: ['src/pages/*/api/**', 'src/shared/api/**'],
       }),

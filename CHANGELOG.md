@@ -128,6 +128,21 @@
   （默认导入目标无 default · 具名导入名字对不上）补进期望 —— 夹具数 79 → 80。
 - 顺带修：示例的 4 处断 import 改成从 `queryClient` 引；示例自己的测试进 `pnpm check`（`examples:test`）。
 
+### Changed（R-97：缓存键可以跟着域/切片走了 —— `queryKeyFrom` 收多落点）
+
+- 用户问「`export const crewPolicy = { staleTime: 300_000, retry: 2 }` 放在 `shared/api/queryClient.ts`
+  合理吗」。不合理：`staleTime` / `retry` 是**每个域的数据时效**，键的形状也是域的知识 ——
+  放共享层的话，每加一个域都要改同一个文件（横向 merge 队列），域删掉时还要跨文件清理。
+  （顺带发现：`crewPolicy` 与全局兜底**逐字相同** → 纯重复，直接删。）
+- 能力：`queryKeyFrom` 从"一个文件路径"变成**收字符串或数组，每项可以是 glob**
+  （`['src/modules/*/model/query.ts']` 一行覆盖所有域）。**兼容**：原来写字符串的配置照旧生效。
+  适配器字段校验、"0 命中"自述（R-86）与 D22 的"落点不存在"判定都跟着支持多落点/ glob。
+- 示例（A3，两套都改）：键与策略从 `shared/api` 下沉 —— canonical `modules/<域>/model/query.ts`、
+  FSD `entities/<实体>/model/query.ts`（页面经实体公开面取用）；`shared/api/queryClient.ts` 只剩
+  "一个实例 + 全局兜底"；`numberHomes` 相应变成多落点（`src/shared/api/queryClient.ts` + 域内 glob）。
+- 夹具 `cache-keys-multi`（81 个）：数组落点 + glob + 落点内合规 / 落点外违规；单测补多落点与
+  "某个落点命中 0 个文件 → 逐个点名"。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

@@ -34,7 +34,7 @@ export interface ReactQueryKitOptions {
    * 落点是**项目决定**（同 `designSystem({ styleDir })`），所以由这里传入而不是 kit 写死；
    * 不传 → D22 明列停用（`requires`），不空转。
    */
-  queryKeyFrom?: string
+  queryKeyFrom?: string | string[]
   /** 缓存键挂在哪几个属性上（缺省 `['queryKey']`） */
   queryKeyProps?: string[]
   /**

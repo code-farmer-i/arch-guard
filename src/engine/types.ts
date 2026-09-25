@@ -149,7 +149,6 @@ export interface RoleDescriptor {
   entry?: boolean
   /**
    * 本角色是「**页面级**」单元 —— S16 对它用 `viewLines` 而不是 `fileLines`。
-   *
    * 为什么要有这个字段：S16 原来只看 `slot === 'views'`，于是没有槽位语义的范式
    * （library / FSD 的 `pages/<切片>/ui`）下 `viewLines` **静默失效** —— 配了也不生效。
    * 页面级由**角色表**声明，规则不再猜。
@@ -174,11 +173,9 @@ export interface NamingRules {
 
 /**
  * **规则级例外**：声明「**这条规则**对**这类文件**不适用」—— 不是「这个文件免检」。
- *
  * 为什么必须是规则级：文件级豁免（曾经那个 `exempt`）让整个文件不进角色表、不解析事实、
  * 所有规则一起停看 —— 为了表达"console 对输出口是合法的"，代价是这个文件从此不受任何架构约束。
  * 现在的实现是**对发现项做后置过滤**：文件照常有角色、进依赖图、被其它规则判定，只有指名的那条规则被摘掉。
- *
  * 三种需求的分工（别再混用）：
  *   ① 这片树不属于契约 → `include` / `ignore`（覆盖面问题，不是违规问题）
  *   ② 这条规则对它不适用 → 这里（唯一需要例外的情形：修了功能就没了 / 夹具就没意义了）
@@ -282,13 +279,15 @@ export interface DataLayerAdapter {
   id: string
   specVersion?: string
   packages: string[]
-  /** **缓存键的唯一出处**（落点）：D22 判「键字面量只许出现在这里」；没声明 → D22 停用 */
-  queryKeyFrom?: string
+  /**
+   * **缓存键的唯一出处**（落点）：D22 判「键字面量只许出现在这里」；没声明 → D22 停用。
+   * 收字符串或数组，每项可 glob（键跟着域/切片走时一行覆盖所有域，见 R-97）。
+   */
+  queryKeyFrom?: string | string[]
   /** 缓存键挂在哪几个属性上（默认 `['queryKey']`） */
   queryKeyProps?: string[]
   /**
    * **取数 / 缓存 API 的名字**（`useQuery` / `useMutation`…）—— 由 kit 按方案声明。
-   *
    * 判据按**整名或 `.` 后缀**匹配（声明 `invalidateQueries` 也能抓到
    * `queryClient.invalidateQueries(...)`），因为接收者变量名由项目决定。
    */

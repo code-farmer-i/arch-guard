@@ -125,7 +125,7 @@ export default {
 | 组件库   | `uiKit(antdKit() \| noneKit())`                             | `vendorSelectors`→D10/D10b · `detachedApis`→H06 · `icons`→P05 · `packages`→P11 |
 | i18n     | `i18n(i18nextKit({ languages }) \| noneI18nKit())`          | `resourceDir`→C01–C07                                                          |
 | 路由     | `router(reactRouterKit({ routeFiles }) \| noneRouterKit())` | `pathSource`→D23；`routeFiles` 还决定 S03/S04/S05/S14/S15 的入口词汇           |
-| 数据层   | `dataLayer(reactQueryKit({...}) \| noneDataLayerKit())`     | `queryKeyFrom`→D22 · `fetchIn`/`fetchApis`→S36                                 |
+| 数据层   | `dataLayer(reactQueryKit({...}) \| noneDataLayerKit())`     | `queryKeyFrom`→D22（可多落点/glob）· `fetchIn`/`fetchApis`→S36                 |
 | 样式     | `styles(cssModulesKit({...}) \| noneStylesKit())`           | `modulePatterns`→D16/D17                                                       |
 | 调用落点 | `callSites([{ name, apis \| from, in }])`                   | S38（副作用 / 配置对象的落点）                                                 |
 | 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
@@ -158,13 +158,13 @@ callSites([
 
 kit 工厂与它们的参数：
 
-| kit                                         | 参数                                                                            |
-| ------------------------------------------- | ------------------------------------------------------------------------------- |
-| `antdKit()` · `noneKit()`                   | 无                                                                              |
-| `i18nextKit({…})` · `noneI18nKit()`         | `resourceDir` · `languages` · `fn`（默认 `t`）· `hook`（默认 `useTranslation`） |
-| `reactRouterKit({…})` · `noneRouterKit()`   | `routeFiles` · `pathSource` · `pathProps` · `navigateCalls`                     |
-| `reactQueryKit({…})` · `noneDataLayerKit()` | `queryKeyFrom` · `queryKeyProps` · `fetchIn` · `fetchApis`                      |
-| `cssModulesKit({…})` · `noneStylesKit()`    | `modulePatterns` · `examples`（自定义正则**必须**给样例）                       |
+| kit                                         | 参数                                                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `antdKit()` · `noneKit()`                   | 无                                                                                     |
+| `i18nextKit({…})` · `noneI18nKit()`         | `resourceDir` · `languages` · `fn`（默认 `t`）· `hook`（默认 `useTranslation`）        |
+| `reactRouterKit({…})` · `noneRouterKit()`   | `routeFiles` · `pathSource` · `pathProps` · `navigateCalls`                            |
+| `reactQueryKit({…})` · `noneDataLayerKit()` | `queryKeyFrom`（字符串或数组，每项可 glob）· `queryKeyProps` · `fetchIn` · `fetchApis` |
+| `cssModulesKit({…})` · `noneStylesKit()`    | `modulePatterns` · `examples`（自定义正则**必须**给样例）                              |
 
 ### 2.4 组合糖 `stack()`
 

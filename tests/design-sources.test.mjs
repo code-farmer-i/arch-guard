@@ -223,3 +223,58 @@ test('D24：事件名直接传字面量就报；方法后缀算同一族；常�
     '只有直接传字面量的两处报；常量调用、无关调用、事件表本身都不报',
   )
 })
+
+test('R-97：`queryKeyFrom` 收多落点（含 glob）—— 命中任一处即合规，落点外照报', () => {
+  const homeA = 'src/modules/crews/model/query.ts'
+  const homeB = 'src/modules/orders/model/query.ts'
+  const outside = 'src/shared/api/legacy.ts'
+  const findings = rule('D22').run(
+    context({
+      cfg: config({
+        'data-layer': {
+          facet: 'data-layer',
+          id: 'react-query',
+          queryKeyFrom: ['src/modules/*/model/query.ts', 'src/shared/api/generated-keys.ts'],
+          queryKeyProps: ['queryKey'],
+        },
+      }),
+      records: [{ rel: homeA }, { rel: homeB }, { rel: outside }],
+      // 两个落点都真实存在（glob 命中两个域 + 一个指名文件）
+      files: [homeA, homeB, outside, 'src/shared/api/generated-keys.ts'],
+      facts: {
+        [homeA]: { strings: [{ value: 'crews', line: 1, context: 'other', prop: 'list' }] },
+        [homeB]: { strings: [{ value: 'orders', line: 1, context: 'other', prop: 'list' }] },
+        [outside]: { strings: [{ value: 'crews', line: 1, context: 'other', prop: 'queryKey' }] },
+      },
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.file),
+    [outside],
+    'glob 落点内的字面量不报；落点外的照报',
+  )
+  assert.match(findings[0].text, /src\/modules\/\*\/model\/query\.ts/, '报告要点名全部落点')
+})
+
+test('R-97：数组里的某个落点命中 0 个文件 → 逐个点名（不再静默）', () => {
+  const findings = rule('D22').run(
+    context({
+      cfg: config({
+        'data-layer': {
+          facet: 'data-layer',
+          id: 'react-query',
+          queryKeyFrom: ['src/modules/*/model/query.ts', 'src/shared/api/generated-keys.ts'],
+          queryKeyProps: ['queryKey'],
+        },
+      }),
+      records: [{ rel: 'src/modules/crews/model/query.ts' }],
+      files: ['src/modules/crews/model/query.ts'],
+      facts: {},
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.file),
+    ['src/shared/api/generated-keys.ts'],
+    'glob 命中了文件（不报），指名的那个不存在（报）',
+  )
+})

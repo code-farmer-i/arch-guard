@@ -229,8 +229,17 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
   if (spec.modulePatterns !== undefined)
     validatePatterns(spec.modulePatterns, 'modulePatterns', facet)
   // 「唯一出处」的落点与它们的形态（D22 缓存键 / D23 路由路径）
-  if (spec.queryKeyFrom !== undefined)
-    assertNonEmptyString(spec.queryKeyFrom, 'queryKeyFrom', facet)
+  // 多落点（R-97）：字符串或字符串数组，每项可以是 glob（键跟着域/切片走时用 glob 一行覆盖）
+  if (spec.queryKeyFrom !== undefined) {
+    if (Array.isArray(spec.queryKeyFrom)) {
+      assertStringArray(spec.queryKeyFrom, 'queryKeyFrom', facet)
+      if (spec.queryKeyFrom.length === 0) {
+        throw new AdapterError(`[${facet}] 字段 queryKeyFrom 不能是空数组（要关掉就整条去掉）`)
+      }
+    } else {
+      assertNonEmptyString(spec.queryKeyFrom, 'queryKeyFrom', facet)
+    }
+  }
   if (spec.queryKeyProps !== undefined)
     assertStringArray(spec.queryKeyProps, 'queryKeyProps', facet)
   if (spec.pathSource !== undefined) assertNonEmptyString(spec.pathSource, 'pathSource', facet)

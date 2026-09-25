@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ORDER_PAGE_SIZE } from '@/shared/config/constants'
-import { orderKeys } from '@/shared/api/queryKeys'
 import { fetchOrders } from '@/shared/api/client'
-import { orderPolicy } from '@/shared/api/queryClient'
+import { orderKeys, orderPolicy } from '../model/query'
 import type { OrderRow } from '../model/types'
 
 export function useOrders(): OrderRow[] {
