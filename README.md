@@ -101,6 +101,8 @@ uiKit(noneKit()) // 不用组件库：vendor / 全局 API / 图标来源相关�
 
 ## JSON 报告是对外契约（`apiVersion`）
 
+> **契约的权威表述（字段 / code / 退出码语义与变更分级）在 [`docs/DESIGN.md`](./docs/DESIGN.md) §6.9**；本节讲消费方怎么用。
+
 `--format=json` 给 CI 注解 / PR bot / IDE 插件 / agent 用，所以它和规则一样是契约：
 
 - **带 `apiVersion`**：消费方启动时断言自己认识的版本；不认识就明说"不认识这版报告"，别少读几个字段装绿。
@@ -193,6 +195,7 @@ arch-guard --explain src/modules/crew/views/CrewList.tsx
 ## 检测范围（scope）
 
 > **scope 只过滤报告，不过滤正确性。**
+> 语义的权威表述在 [`PARADIGM.md`](./PARADIGM.md) §9，缓存与增量机制在 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §8 —— 这里只讲怎么用。
 
 单文件规则可以局部判定（`any`、命名、体积），但全图谓词（域隔离、无环、可达性）与全局唯一性（颜色唯一、死令牌、双份一致）**必须全项目求值**。所以 arch-guard 的做法是：**facts 按文件缓存（增量），图与全局谓词每轮全量重建** —— 快，且不会出现 stale-cache 假绿。
 
@@ -206,6 +209,8 @@ arch-guard --explain src/modules/crew/views/CrewList.tsx
 **安全语义**：不可归属的全局违规默认仍然失败（只有显式 `--local-only` 才允许跳过并列出条数）；无 git / 空 diff 会明确提示降级，绝不静默；`include` 非空却 0 个文件由 S24 直接报错。
 
 ## 例外：规则级，且必须指名
+
+> **权威在 [`PARADIGM.md`](./PARADIGM.md) §7**：规则级例外是唯一的宽松通道，且必须指名；这里只讲配置怎么写。
 
 **违规没有存量豁免**：没有基线、没有"一键把当前违规记下来"。不合规就是红 —— 这是刻意的取舍，
 因为任何"先把存量记下来"的通道最终都会变成日常动作，而不是例外。
@@ -230,6 +235,8 @@ overrides: {
 
 ## 引擎不绑宿主
 
+> **为什么 P1 是审查门而不是「零依赖洁癖」见 [`docs/DESIGN.md`](./docs/DESIGN.md) §1.2**；检查清单本身见 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §7。
+
 本包以 npm 包发布，宿主只写 `arch.config.mjs`。**四条**可机检的不变式由 `arch-guard --self-check-portability` 强制：
 
 | 不变式 | 内容                                                               | 为什么                                                                |
@@ -246,6 +253,8 @@ overrides: {
 
 ## 速度
 
+> 测量方法与「换 parser 的代价」见 [`docs/DESIGN.md`](./docs/DESIGN.md) §6.1.1 · [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §8。
+
 解析（把每个文件拆成规则能读的事实）是全流程里唯一昂贵的一步，所以它的结果**按文件缓存**：
 
 - 键 = `rel + role + 文件内容哈希`；整份缓存的键 = 事实模型版本 + TypeScript 版本。内容或角色一变就重算，
@@ -255,6 +264,8 @@ overrides: {
 - 实测（3043 个 ts 文件 / 21.5 万行）：冷跑 5.9s → 热跑 **1.2s**。
 
 ## 质量保障
+
+> 这些命令各自防什么、由谁强制，见 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §7（元门禁）。
 
 ```bash
 pnpm build                     # pagoda-cli 构建（es/ ESM + lib/ CJS + d.ts）
@@ -290,30 +301,16 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 
 ## Roadmap
 
-> 需求的全貌、痛点与预期行为、做没做，见 [`REQUIREMENTS.md`](./REQUIREMENTS.md)（**唯一来源**）——
-> 下面只是进度概览，需求的增删改以那份文档为准。
+> 需求的全貌（痛点 / 期望行为 / 状态 / 由谁来做）在 [`REQUIREMENTS.md`](./REQUIREMENTS.md)（**唯一来源**）；
+> 每条规则的判据在 [`docs/DESIGN.md`](./docs/DESIGN.md) §5。这里只记**里程碑**，不逐条抄规则。
 
-- [x] 体积阈值默认 500 且可配（`overrides.thresholds`）
-- [x] P0 骨架：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 例外通道 / scope / 自检
-- [x] `--explain <路径>`：写之前给出角色 / 能依赖谁 / 该放哪 / 适用规则（零误报，与判定共用同一份角色表）
-- [x] 结构域：角色表与目录契约（S00–S06、S08、S09、S11–S24）——含**层序 / 组隔离 / 公开面**三条通用图规则；**S36 取数只在声明的落点**（页面里 `useQuery` / 域里 `fetch` 都报）· **S37 页面必须动态 import**（静态 import → 全进主包）· **S38 调用只在声明的落点**（副作用：埋点/上报、本地存储；配置对象：`new QueryClient()` / `createTheme()`）
-- [x] **声明驱动的结构规则**（S25–S35）：保留名目录 · 组数量上限 · 目录子项上限 · 死切片（入度下限）· 组名重名 · 重复词 · 单复数一致 · 导入局部性 · 未解析导入 · 文件级入/出度 · 空壳组（**S35**；原计划的 S24 被「契约扫描域不得为空」占用）
-- [x] 设计系统域（D03–D08 / D10 / D10b / D11 / D16 / D17 / D21–D23）：色值唯一出处 / 令牌闭合与死令牌 / 明暗双份 / 对比度基线 / storage key / vendor 边界与反向封闭 / 框架残留 / 样式落点 / CSS Module 契约 / 声明与事实对账 / **字面量唯一出处**（D22 缓存键、D23 路由路径）
-- [x] 文案域（C02–C07）：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账
-- [x] 依赖域（P01 · P02 · P04–P07 · P11 · P12 同类方案不许混入）：登记白名单 / 禁用库 / 适配表与实际依赖一致 / 图标来源唯一 / 能力必须用登记方案 / 疑似自造轮子（P03 幽灵依赖、P08 声明但未使用按 §4.9 委派给 knip · depcheck；P09 并入 P06）
-- [x] 反退化域（H06 / H12）：脱离上下文的全局 API · **退路不留**（`CrewsPage.old.tsx` / `useCrewsLegacy.ts` 这类旧实现文件）（H01–H05 委派给 eslint）
-- [x] 度量域（M02–M09）：覆盖率棘轮、变更必须被覆盖、产物不得过期
-- [x] 共 **75 条规则**（结构 S · 设计 D · 文案 C · 依赖 P · 退化 H · 度量 M；以 `--stats` 为准），**75/75 有夹具**（夹具全部 `exact`：多报也报错）
-- [x] **与 lint 生态不交叉**：单文件语法卫生、颜色/`!important`/数值白名单、幽灵依赖、
-      文案键存在性等全部**委派**给 eslint / oxlint / stylelint / knip（见 `docs/DESIGN.md` 的「委派清单」）
-- [x] **可替换面**：UI 组件库（`ui-kit`）· i18n（`i18n-kits`）· 方案面 `router()` / `dataLayer()` / `styles()`（配 P12 判同类混用）；结构声明化为数据（`canonical` / `library` / `fsd` 三范式 + `stack()` 组合）
-- [x] **方案面形态**（T1 第二半）：`router.routeFiles` 与 `styles.modulePatterns` 声明"规则要判的写法"（默认 `routes.{ts,tsx}` / `*.module.css`），S03/S04/S05/S14/S15 与 D16/D17 照它判；声明 `[]` = 本方案没有这种文件（文件路由 / Tailwind）→ 规则不判（域根散件仍由 S03 报）；自定义入口名要**连角色表一起改**（只改一半时 S03 会报"角色表没跟上"）
-- [x] **适配器面开放注册**（E2）：引擎只预注册有消费者的核心面，新面由预设 `defineFacet` 登记 —— 加面不改引擎；**一个面只能有一个方案**（两份内容不同的 kit 直接报错），生效的是哪套由报告自述（`adapters-in-use`），字段级全貌看 `--verify-deps`
-- [x] **字面量唯一出处**：`dataLayer({ queryKeyFrom })` → D22 缓存键只有一个出处 · `router({ pathSource, pathProps, navigateCalls })` → D23 路由路径只有一个出处（没声明落点就明列停用）；位置参数形态的缓存键（`useSWR('key')`）不在 v1
-- [x] **取数落点**：`dataLayer({ fetchIn })` 声明后 S36 拦住页面里取数 / 域里直连后端（测试文件豁免；`queryClient.invalidateQueries` 按后缀匹配也抓得到）；**页面懒加载** `canonical({ lazyViews: true })` → S37；**退路不留** → H12；**调用落点** `callSites([{ name, apis, in }])` → S38（副作用：埋点/上报、本地存储；配置对象：域里自建 `QueryClient` / `createTheme` → 双实例）
-- [ ] `use*Store` 形态（客户端状态的命名契约）
-- [x] **文档管理块渲染**（`--render-docs` / `--check-docs`）：文档里的角色表 / 选型表 / 阈值表从 `arch.config.mjs` 生成，漂移即红
-- [ ] Vue / Svelte 框架包（pack 边界已留出）
+- [x] **P0 骨架**：配置 / 扫描 / 事实模型 / 图 / 适配器 / 能力协商 / 例外通道 / scope / 自检
+- [x] **六个域全部落地**（结构 · 设计系统 · 文案 · 依赖 · 反退化 · 度量）：共 **75 条规则**，**75/75 有夹具**（夹具全部 `exact`：多报也报错）
+- [x] **声明驱动**：目录契约、结构阈值、方案面形态都是数据（`canonical` / `library` / `fsd` 三范式 + `stack()` 组合）
+- [x] **可替换面 + 开放注册**：`ui-kit` · `i18n` · `router` · `data-layer` · `styles` · `call-sites`（新面由预设登记，加面不改引擎；一个面只能有一个方案）
+- [x] **唯一出处**：色值 · 令牌 · 路由路径 · 缓存键 · 副作用调用 —— 手写第二处就报
+- [x] **与 lint 生态不交叉**：单文件语法卫生、颜色 / `!important` / 数值白名单、幽灵依赖、裸文案等按 `docs/DESIGN.md` §4.9 委派出去
+- [ ] **待做与优先级**：见 [`REQUIREMENTS.md`](./REQUIREMENTS.md) 第六节（上帝域 · 状态纪律 · 权限散落 · 路由守卫 · 迁移单向 · monorepo…）
 
 ## 许可
 
