@@ -4,6 +4,7 @@ import { copyRules } from './rules/copy.js'
 import { adapterRules } from './rules/deps-adapters.js'
 import { depsRules } from './rules/deps.js'
 import { contextHygieneRules } from './rules/hygiene-context.js'
+import { generatedMarker } from './rules/hygiene-generated.js'
 import { hygieneRetiredRules } from './rules/hygiene-retired.js'
 import { designSourceRules } from './rules/design-sources.js'
 import { designStyleRules } from './rules/design-styles.js'
@@ -54,4 +55,5 @@ export const coreRules: Rule[] = [
   ...metricsRules,
   ...contextHygieneRules,
   ...hygieneRetiredRules,
+  generatedMarker,
 ]

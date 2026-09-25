@@ -160,6 +160,7 @@ export function resolveStructure(input: {
     // 单值声明：overrides 给了就用 overrides（与 thresholds 一个语义）
     authRedirects: overrides?.authRedirects ?? preset?.authRedirects,
     maxRelativeUp: overrides?.maxRelativeUp ?? preset?.maxRelativeUp,
+    generated: union(preset?.generated, overrides?.generated),
   }
   validate(structure, roles)
   return structure
@@ -274,6 +275,11 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
       throw new StructureDeclarationError(
         'structure.authRedirects 的 in 不能为空 —— 没有落点就等于"哪里都不许跳登录"',
       )
+    }
+  }
+  for (const glob of structure.generated) {
+    if (typeof glob !== 'string' || glob.trim() === '') {
+      throw new StructureDeclarationError('structure.generated 里的每一项都必须是非空 glob')
     }
   }
   for (const glob of structure.migrating) {

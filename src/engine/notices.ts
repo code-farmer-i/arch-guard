@@ -92,28 +92,31 @@ export function pushDeclarationNotices(
   const hasDimension = (dimension: string): boolean =>
     records.some((record) => Boolean(record.captures?.[dimension]))
 
-  for (const glob of config.structure.migrating) {
+  for (const glob of config.structure.generated ?? []) {
+    if (!hasFile(glob)) empty.push(`generated 的 ${glob}`)
+  }
+  for (const glob of config.structure.migrating ?? []) {
     if (!hasFile(glob)) empty.push(`migrating 的 ${glob}`)
   }
-  for (const spec of config.structure.clientState) {
-    for (const glob of spec.in) if (!hasFile(glob)) empty.push(`clientState.in 的 ${glob}`)
+  for (const spec of config.structure.clientState ?? []) {
+    for (const glob of spec.in ?? []) if (!hasFile(glob)) empty.push(`clientState.in 的 ${glob}`)
   }
   if (config.structure.authRedirects) {
-    for (const glob of config.structure.authRedirects.in) {
+    for (const glob of config.structure.authRedirects.in ?? []) {
       if (!hasFile(glob)) empty.push(`authRedirects.in 的 ${glob}`)
     }
   }
   const dimensions = [
-    ...config.structure.isolate,
-    ...config.structure.publicApi,
-    ...config.structure.segmentedGroups,
-    ...config.structure.repetitiveNaming,
-    ...config.structure.importLocality,
-    ...config.structure.groupCountLimits.map((item) => item.dimension),
-    ...config.structure.groupInDegree.map((item) => item.dimension),
-    ...config.structure.nameCollisions.map((item) => item.dimension),
-    ...config.structure.pluralConsistency.map((item) => item.dimension),
-    ...config.structure.couplingLimits.map((item) => item.dimension),
+    ...(config.structure.isolate ?? []),
+    ...(config.structure.publicApi ?? []),
+    ...(config.structure.segmentedGroups ?? []),
+    ...(config.structure.repetitiveNaming ?? []),
+    ...(config.structure.importLocality ?? []),
+    ...(config.structure.groupCountLimits ?? []).map((item) => item.dimension),
+    ...(config.structure.groupInDegree ?? []).map((item) => item.dimension),
+    ...(config.structure.nameCollisions ?? []).map((item) => item.dimension),
+    ...(config.structure.pluralConsistency ?? []).map((item) => item.dimension),
+    ...(config.structure.couplingLimits ?? []).map((item) => item.dimension),
   ]
   for (const dimension of new Set(dimensions)) {
     if (!hasDimension(dimension)) empty.push(`维度 ${dimension}`)

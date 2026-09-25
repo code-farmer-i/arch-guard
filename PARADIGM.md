@@ -204,6 +204,7 @@ src/
 | `structure.clientState`          | 客户端状态单元的命名形态 + 落点                      | S41        |
 | `structure.authRedirects`        | 跳转守卫的登录路径 + 落点                            | S42        |
 | `structure.maxRelativeUp`        | 相对越级的层数上限（`../` 最多爬几层）               | S43        |
+| `structure.generated`            | 生成物路径：这些文件必须带 `@generated` 标记         | H13        |
 
 **组**与**入口**都写在角色表里，规则不认识任何具体文件名：
 

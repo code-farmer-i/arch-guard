@@ -91,6 +91,9 @@ export interface RelativeUpLimit {
   max: number
 }
 
+/** **生成物**路径（glob）：这些文件必须带 `@generated` 标记（H13） */
+export type GeneratedPaths = string[]
+
 /** 客户端状态单元的**命名形态 + 落点**（S41）：导出名命中 `naming` 的文件必须在 `in` 里 */
 export interface ClientStateSpec {
   /** 导出名 glob（如 `use*Store`）：只比导出名，不比文件内容 */
@@ -172,6 +175,8 @@ export interface StructureSpec {
   authRedirects?: AuthRedirectSpec
   /** 相对越级的层数上限（S43） */
   maxRelativeUp?: RelativeUpLimit
+  /** **生成物**路径（glob）：这些文件必须带 `@generated` 标记（H13） */
+  generated?: GeneratedPaths
 }
 
 /** 归一化后的结构声明：宿主只声明一部分，配置加载后**每个字段都补齐**（数组默认空） */
@@ -195,4 +200,5 @@ export interface ResolvedStructure {
   clientState: ClientStateSpec[]
   authRedirects: AuthRedirectSpec | undefined
   maxRelativeUp: RelativeUpLimit | undefined
+  generated: GeneratedPaths
 }

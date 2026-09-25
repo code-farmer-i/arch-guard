@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "H13",
+      "file": "src/shared/api/generated/types.ts"
+    }
+  ],
+  "exact": true
+}
