@@ -17,6 +17,18 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-25
+
+> **契约与迁移（这一版必读）**
+>
+> - **兼容性新增（不是破坏性）**：`NOTICE_CODES` 新增 `adapters-in-use` · `declaration-no-match` ——
+>   用穷举映射的 TS 消费方会**编译期红**（这是设计，见 §6.9）；`.mjs` / 脚本消费方请用 `NOTICE_CODES` 自查。
+>   `apiVersion` **不变**（仍 `2`）· JSON 顶层字段集未变 · `SKIP_CODES` 未变 · 退出码语义未变。
+> - **行为变化（要迁移）**：判定等级修正 —— `H08` · `D01` · `D02` · `D09` · `D12`–`D14` · `D18`
+>   从 `L1` 改成 `L2`（与 DESIGN 一致）：`--min-level L1`（只跑路径级）**不再跑这 8 条**，要跑它们用 `--min-level L2`。
+> - **缓存**：`FACTS_CACHE_SPEC` 5 → 6（事实模型新增 `styleProps` / `numbers`）→ 旧 facts 缓存自动作废重算，无需人工动作。
+> - **规模**：规则 95 → **98** · 夹具 75 → **78** · 需求 80 → **84**（`已完成` 74 / `已委派` 4 / `不做` 6）。
+
 ### Added（R-86：「声明配了却 0 命中」补到方案面 + D24 的落点守卫）
 
 - **R-86**：`declaration-no-match` 这条自述原来只盖 `structure.*`（M1 / R-77）—— 方案面的声明写错一个字母
@@ -439,10 +451,6 @@ addSoftSyntax / removeSoftSyntax / apiNames / allowOwn / platform / hint }] })` 
   `violations` 夹具与 `guard` 测试里的期望；口径同步 DESIGN §4.9 / §5、ARCHITECTURE、REQUIREMENTS（R-04 → 不做）。
 
 _（暂无：下一个版本的内容往这里加）_
-
-## [0.4.0] - 2026-09-25
-
-> **状态**：CHANGELOG 已切段；`package.json`（仍是 `0.3.8`）与 git tag 待发布时同步。
 
 ### Added（调用落点：副作用 · 配置对象 —— 一组一类地声明）
 
