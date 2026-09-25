@@ -76,7 +76,50 @@ export const noDetachedApis: Rule = createRule({
   },
 })
 
+/* ---------------- H08 硬编码本地地址 ---------------- */
+
+/**
+ * 判据：**指向本机 / 内网 IP** 的地址字面量出现在非测试文件里。
+ *
+ * 为什么只判这一类（原委派给 eslint `no-restricted-syntax`）：那条要项目自己写 esquery 选择器；
+ * 而"本地地址进生产"是这一段里**误伤最小**的一类 —— 外部文档链接（`https://docs.…`）不算，
+ * 测试文件里的 `http://localhost` 是正常用法（mock 服务）。
+ */
+const LOCAL_HOST = /\b(?:https?:\/\/)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?/i
+const PRIVATE_IP = /\b(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b/
+
+export const localHostLiterals: Rule = {
+  id: 'H08',
+  domain: 'hygiene',
+  level: 'L1',
+  severity: 'error',
+  title: '禁硬编码本地地址',
+  hint: '本地 / 内网地址走环境变量或配置；写进源码就会跟着构建进生产',
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.role === 'test' || /\.(test|spec)\./.test(record.rel)) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const text of facts.strings) {
+        if (!LOCAL_HOST.test(text.value) && !PRIVATE_IP.test(text.value)) continue
+        out.push(
+          finding(
+            'H08',
+            record.rel,
+            text.line,
+            `硬编码本地地址：${text.value}`,
+            '改成环境变量 / 配置项（本地默认值放在 .env 或构建配置里）',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 export const contextHygieneRules: Rule[] = [
+  localHostLiterals,
   // 其余退化模式已委派：假异步/随机、硬编码地址、假数据 → eslint no-restricted-syntax；
   // 手搓时间格式化 → P06（能力指纹，项目声明了日期库才算手搓，比语法级封杀更准）。
   noDetachedApis,

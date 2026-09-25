@@ -121,7 +121,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 83 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 84 条**（以 `arch-guard --stats` / `coreRules` 为准）：
 > `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S42`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`H12`、`P01`–`P08`、`P11`、`P12`、`M02–M09`。
 > `S10`（相对越级）等已按 §4.9 **委派**给 eslint / dependency-cruiser / knip，不在本体实现；
 > `H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。**P03 / P08 原委派给 knip · depcheck，0.4.0 已收回本体**（配置成本高而事实现成）。
@@ -262,19 +262,19 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ### 5.5 反退化（H）
 
-| ID  | 红线                                                                                                                                                                                | 判据         | 等级 | 级别  |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---- | ----- |
-| H01 | 类型逃生舱：`any` / `as any` / 非空断言 / `@ts-expect-error` / `@ts-nocheck`                                                                                                        | AST          | L2   | error |
-| H02 | suppression 注释：`eslint-disable` / `oxlint-disable` / `@ts-ignore`                                                                                                                | 注释扫描     | L2   | error |
-| H03 | 调试残留：`console.*` / `debugger` / `alert` / `confirm` / `prompt`                                                                                                                 | AST          | L2   | error |
-| H04 | 未完成标记：`TODO` / `FIXME` / `XXX` / `HACK` / `WIP` / `not implemented` / `暂未实现` / `待实现`                                                                                   | 注释 + AST   | L2   | error |
-| H05 | 吞异常：空 catch、`.catch(() => {})`                                                                                                                                                | AST          | L2   | error |
-| H06 | **脱离上下文的全局 API**：适配表登记的全局 API（`message.*` / `notification.*` / `Modal.confirm`…）必须走上下文内用法                                                               | 适配表 + AST | L2   | error |
-| H07 | 假异步与随机：`setTimeout` 模拟请求、`Math.random()`                                                                                                                                | AST          | L2   | error |
-| H08 | 硬编码地址：`http(s)://`、`localhost`、`127.0.0.1`（除 `shared/config/env.ts`）                                                                                                     | AST          | L2   | error |
-| H09 | 静默假数据：`mock`/`fake`/`dummy`/`lorem` 字面量                                                                                                                                    | AST          | L2   | warn  |
-| H10 | 手搓时间格式化（`toLocale*String` / `Intl.DateTimeFormat`）→ 用 dayjs                                                                                                               | AST          | L2   | warn  |
-| H12 | **退路不留**：文件名里带「旧实现」整段标记（`CrewsPage.old.tsx` / `useCrewsLegacy.ts` / `storage_bak.ts`）—— 留着迟早有人抄错那一份（子串与目录名不算，`src/legacy/**` 是迁移容器） | 路径         | L1   | error |
+| ID  | 红线                                                                                                                                                                                | 判据         | 等级 | 级别                                                                                                      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---- | --------------------------------------------------------------------------------------------------------- |
+| H01 | 类型逃生舱：`any` / `as any` / 非空断言 / `@ts-expect-error` / `@ts-nocheck`                                                                                                        | AST          | L2   | error                                                                                                     |
+| H02 | suppression 注释：`eslint-disable` / `oxlint-disable` / `@ts-ignore`                                                                                                                | 注释扫描     | L2   | error                                                                                                     |
+| H03 | 调试残留：`console.*` / `debugger` / `alert` / `confirm` / `prompt`                                                                                                                 | AST          | L2   | error                                                                                                     |
+| H04 | 未完成标记：`TODO` / `FIXME` / `XXX` / `HACK` / `WIP` / `not implemented` / `暂未实现` / `待实现`                                                                                   | 注释 + AST   | L2   | error                                                                                                     |
+| H05 | 吞异常：空 catch、`.catch(() => {})`                                                                                                                                                | AST          | L2   | error                                                                                                     |
+| H06 | **脱离上下文的全局 API**：适配表登记的全局 API（`message.*` / `notification.*` / `Modal.confirm`…）必须走上下文内用法                                                               | 适配表 + AST | L2   | error                                                                                                     |
+| H07 | 假异步与随机：`setTimeout` 模拟请求、`Math.random()`                                                                                                                                | AST          | L2   | error                                                                                                     |
+| H08 | 硬编码地址：`http(s)://`、`localhost`、`127.0.0.1`（除 `shared/config/env.ts`）                                                                                                     | AST          | L2   | error **0.4.0 收回本体**（原先委派 eslint `no-restricted-syntax`；只判本机 / 内网地址，避免误伤外部链接） |
+| H09 | 静默假数据：`mock`/`fake`/`dummy`/`lorem` 字面量                                                                                                                                    | AST          | L2   | warn                                                                                                      |
+| H10 | 手搓时间格式化（`toLocale*String` / `Intl.DateTimeFormat`）→ 用 dayjs                                                                                                               | AST          | L2   | warn                                                                                                      |
+| H12 | **退路不留**：文件名里带「旧实现」整段标记（`CrewsPage.old.tsx` / `useCrewsLegacy.ts` / `storage_bak.ts`）—— 留着迟早有人抄错那一份（子串与目录名不算，`src/legacy/**` 是迁移容器） | 路径         | L1   | error                                                                                                     |
 
 ### 5.6 severity 划分原则，以及门禁不做的事
 

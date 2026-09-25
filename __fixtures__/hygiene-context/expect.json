@@ -5,6 +5,14 @@
       "file": "src/app/main.tsx"
     },
     {
+      "rule": "H08",
+      "file": "src/shared/api/client.ts"
+    },
+    {
+      "rule": "H08",
+      "file": "src/shared/config/env.ts"
+    },
+    {
       "rule": "S15",
       "file": "src/shared/api/client.ts"
     },

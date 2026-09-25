@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "H08",
+      "file": "src/shared/api/client.ts"
+    }
+  ],
+  "exact": true
+}
