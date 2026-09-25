@@ -1,0 +1,63 @@
+# 架构说明（<项目名>）
+
+> **给人读的架构说明**；机读的真相是 `arch.config.mjs` —— 下面带 `arch-guard:begin` 标记的块
+> 由 `arch-guard --render-docs` 从配置生成，**别手改**；`arch-guard --check-docs` 会校验它们没漂移
+> （两者不一致就红 —— 这就是"文档与门禁同一份真相"）。
+>
+> 抄这个文件到仓库根、改掉占位符，就得到一份和门禁同源的架构说明（约 60 行）。
+> 规范细节见 `PARADIGM.md`（本门禁自带，可整篇搬到你的仓库）。
+
+## 一句话
+
+<这个应用是什么、给谁用；三根拓扑：`app/` 装配 · `modules/` 业务域 · `shared/` 共享层。>
+
+## 目录契约
+
+<!-- arch-guard:begin layout -->
+
+<!-- arch-guard:end layout -->
+
+<!-- arch-guard:begin roles -->
+
+<!-- arch-guard:end roles -->
+
+## 规模阈值
+
+<!-- arch-guard:begin thresholds -->
+
+<!-- arch-guard:end thresholds -->
+
+## 技术选型与依赖纪律
+
+<!-- arch-guard:begin deps -->
+
+<!-- arch-guard:end deps -->
+
+## 契约扫描域
+
+<!-- arch-guard:begin scan-scope -->
+
+<!-- arch-guard:end scan-scope -->
+
+## 范式参数
+
+<!-- arch-guard:begin params -->
+
+<!-- arch-guard:end params -->
+
+## 规则级例外（每条都要写理由）
+
+<!-- arch-guard:begin exceptions -->
+
+<!-- arch-guard:end exceptions -->
+
+## 怎么用
+
+```bash
+arch-guard                      # 跑门禁（默认 full）
+arch-guard --explain src/app/main.tsx   # 写之前问契约：这个文件是什么角色、能依赖谁、该放哪
+arch-guard --render-docs        # 重新生成上面的块（改了配置就跑它）
+arch-guard --check-docs         # 只校验文档与配置是否一致（CI 里跑）
+```
+
+**约定**：改目录契约 / 阈值 / 选型 → 先改 `arch.config.mjs`，再 `--render-docs`，最后提交两者。

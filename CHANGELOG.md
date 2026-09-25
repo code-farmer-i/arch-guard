@@ -17,6 +17,13 @@
 
 ## [Unreleased]
 
+### Added（D2：宿主侧 ARCHITECTURE.md 模板）
+
+- DESIGN §1 一直写着"项目实例 = `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明），每个仓库一份约 60 行"，
+  但从来没有模板。新增 `docs/templates/ARCHITECTURE.md`：带 8 个可渲染块
+  （layout / roles / thresholds / deps / scan-scope / params / exceptions），抄到仓库根即可；
+  人读文档与机读配置同源由 `--render-docs` / `--check-docs` 保证。
+
 ### Added（审计口径：收回本体的 12 条归位）
 
 - `docs/ECOSYSTEM-AUDIT.md` 新增 §6：把 0.4.0 收回本体的 12 条按"真独有 / 生态有但装了还得配 / 仍委派"

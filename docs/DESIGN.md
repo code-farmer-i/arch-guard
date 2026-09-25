@@ -30,6 +30,9 @@
 | 通用引擎 | `src/`，解析 / 建图 / 规则 / 报告                       | **零项目字面量**（P2/P3 自检） |
 | 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明）    | 每个仓库一份，约 60 行         |
 
+> 宿主的 `ARCHITECTURE.md` 长什么样：见 [`docs/templates/ARCHITECTURE.md`](./templates/ARCHITECTURE.md)
+> —— 抄过去改占位符即可，带 `arch-guard:begin` 的块由 `--render-docs` 生成、`--check-docs` 校验。
+
 > **本体自身**的架构（分层 / 数据流 / 模块职责 / 边界 / 扩展点）见 [`ARCHITECTURE.md`](./ARCHITECTURE.md) ——
 > 那是它唯一的家；本文只讲规则、判定与协议。
 
