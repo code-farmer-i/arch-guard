@@ -161,6 +161,9 @@ export const analyticsEventSingleSource: Rule = {
     const apis = analyticsApisOf(ctx.config)
     const source = eventSourceOf(ctx.config)
     if (apis.length === 0 || source === '') return []
+    // 与 D22 / D23 同形：落点写错时只报"落点不存在"，不要拿整个项目的事件名去刷屏
+    const missing = missingSource(ctx, 'D24', source, '埋点事件名')
+    if (missing) return [missing]
     const out: Finding[] = []
     for (const record of ctx.records) {
       if (record.rel === source) continue // 事件表本身放的就是这些字面量

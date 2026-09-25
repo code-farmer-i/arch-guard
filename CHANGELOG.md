@@ -17,6 +17,20 @@
 
 ## [Unreleased]
 
+### Added（R-86：「声明配了却 0 命中」补到方案面 + D24 的落点守卫）
+
+- **R-86**：`declaration-no-match` 这条自述原来只盖 `structure.*`（M1 / R-77）—— 方案面的声明写错一个字母
+  是**零覆盖且报告还写着"生效的适配器"**。实测（三处写错的声明）修前一声不吭；现在会点名：
+  `callSites[flag].apis 的调用名 isEnableX · env-reads.apis 的读取根 import.meta.envX · analytics.apis 的调用名 trackX…`。
+  覆盖：`callSites`（组名 + apis + in）· `envReads`（apis 走 `reads` 判 + in）· `analytics`（apis + eventSource）·
+  `router.pathSource` · `dataLayer.queryKeyFrom` / `fetchIn` / `fetchApis` · `designSystem.numberHomes`（名字 + 家）。
+  清单类用**最宽松的匹配**（整名 / 前缀 / 后缀）判"有没有命中"：它都命中不了，那条声明必定是空的 —— 宁少报不误伤。
+- **D24 补上落点守卫**（与 D22 / D23 同形）：`eventSource` 路径拼错时，以前会拿整个项目的事件名去刷屏，
+  现在只报一条全局"声明的唯一出处不存在，这一轮没判"。
+- 需求 R-86 落盘、R-77 的措辞对齐（"结构声明"→"声明"）；N-10 / N-11 / N-12 登记（flag 名 · `.env` 对账 · TS 里的颜色）——
+  三条**判据不稳**的候选按"不稳就不要"的原则判不做，并在 `D01` 的注释里把"TS 里的颜色留给 D16 那一族"这句**作废**
+  （D16 是路径级的、不看字面量）。
+
 ### Changed（需求口径：a11y 判不做 —— N-09）
 
 - **JSX 可访问性形态**（`<div onClick>` 可点不可聚焦 / 缺 `alt` / 缺 `aria-label` / 正数 `tabIndex` / `role` 乱用）**判不做**：

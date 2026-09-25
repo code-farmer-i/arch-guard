@@ -149,7 +149,6 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   // 扫描域 / 边界 / 阈值的自述（函数化：runGuard 有函数长度上限，且这是内聚的一步）
   pushScanNotices(config, scan, notices)
   pushAdapterNotice(config, notices)
-  pushDeclarationNotices(config, scan.records, scan.files, notices)
 
   if (staged && staged.missing.length > 0) {
     notices.push({
@@ -168,6 +167,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     notice: (diagnostic) => notices.push(diagnostic),
   })
   const { texts, facts, cssTexts } = collected
+  // "声明配了却 0 命中"的自述要读**调用 / 读取事实**（方案面的 apis 清单），所以放在提事实之后
+  pushDeclarationNotices(config, scan.records, scan.files, notices, facts)
 
   const graph = buildGraph({ config, files: scan.files, facts, cssTexts })
   const sourceOf = (rel: string): string | undefined => texts.get(rel)

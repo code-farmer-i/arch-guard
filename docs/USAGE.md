@@ -343,6 +343,10 @@ overrides: {
 - **`notices: [{ code, text }]`**：按 `code` 判，**文案不是契约**（随时可改）；`code` 清单在 `src/engine/codes.ts`，
   经 `NOTICE_CODES` / `isNoticeCode` 导出。消费方三条纪律（断言 `apiVersion` · 未知 code 明说 · 已知 code 用穷举映射）
   见 [`DESIGN.md`](./DESIGN.md) §6.9 与 `README.md` 的示例。
+- **`code: 'declaration-no-match'`**：**声明配了却 0 命中** —— 那条纪律这次什么都没看（`structure.*` 的 glob / 维度，
+  以及方案面的 `callSites` / `envReads` / `analytics` / `router.pathSource` / `dataLayer.queryKeyFrom` /
+  `designSystem.numberHomes`）。名字或路径写错一个字母就会命中它：**先看这条，再看 findings** ——
+  否则"生效的适配器：analytics=declared"会让你以为纪律在跑。
 - **机读 ⊇ 人读**：摘要行里的每个数字 JSON 里都有。
 - **`skipped[]`**：因能力未声明而停用的规则（`code: 'capability-missing'`，`reason` 里点名缺哪个能力）。
 - **`exceptions[]`**：每条例外的命中数（0 = 未命中，提示可以删）。

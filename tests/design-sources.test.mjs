@@ -143,6 +143,18 @@ test('落点不存在：只报一条"落点不存在"，不逐条刷整个项目
       'src/nope.ts',
     ],
     ['D23', { router: { facet: 'router', id: 'x', pathSource: 'src/nope.ts' } }, 'src/nope.ts'],
+    [
+      'D24',
+      {
+        analytics: {
+          facet: 'analytics',
+          id: 'x',
+          apis: ['track'],
+          eventSource: 'src/nope.ts',
+        },
+      },
+      'src/nope.ts',
+    ],
   ]) {
     const findings = rule(id).run(
       context({
@@ -152,7 +164,8 @@ test('落点不存在：只报一条"落点不存在"，不逐条刷整个项目
         facts: {
           'src/app/router/index.ts': {
             strings: [{ value: '/crews', line: 1, prop: 'path' }],
-            calls: [],
+            // D24 会拿每一个 track() 调用去刷屏 —— 正是这条守卫要挡住的
+            calls: [{ callee: 'track', line: 2, stringArg: 'crews_view' }],
           },
         },
       }),
@@ -167,7 +180,7 @@ test('没声明落点：直接调用也不报（真跑时本规则由 requires �
   const facts = {
     'src/app/router/index.ts': { strings: [{ value: '/crews', line: 1, prop: 'path' }], calls: [] },
   }
-  for (const id of ['D22', 'D23']) {
+  for (const id of ['D22', 'D23', 'D24']) {
     const findings = rule(id).run(
       context({
         cfg: config({}),
@@ -178,4 +191,35 @@ test('没声明落点：直接调用也不报（真跑时本规则由 requires �
     )
     assert.deepEqual(findings, [])
   }
+})
+
+test('D24：事件名直接传字面量就报；方法后缀算同一族；常量与事件表本身不报', () => {
+  const cfg = config({
+    analytics: { facet: 'analytics', id: 'x', apis: ['track'], eventSource: SOURCE },
+  })
+  const findings = rule('D24').run(
+    context({
+      cfg,
+      records: [{ rel: 'src/modules/crews/views/CrewsPage.tsx' }, { rel: SOURCE }],
+      files: [SOURCE, 'src/modules/crews/views/CrewsPage.tsx'],
+      facts: {
+        'src/modules/crews/views/CrewsPage.tsx': {
+          strings: [],
+          calls: [
+            { callee: 'track', line: 3, stringArg: 'crews_view' },
+            { callee: 'analytics.track', line: 4, stringArg: 'crews_view' },
+            { callee: 'track', line: 5 }, // 传常量 → 没有 stringArg
+            { callee: 'console.log', line: 6, stringArg: 'crews_view' },
+          ],
+        },
+        // 事件表本身放的就是这些字面量 → 不报
+        [SOURCE]: { strings: [], calls: [{ callee: 'track', line: 1, stringArg: 'crews_view' }] },
+      },
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.line),
+    [3, 4],
+    '只有直接传字面量的两处报；常量调用、无关调用、事件表本身都不报',
+  )
 })

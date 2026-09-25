@@ -285,7 +285,8 @@ export const paletteStaticOnly: Rule = {
  * "哪些文件允许写字面量"，而我们**已经知道**色板与令牌目录在哪（`designSystem()` 的 params）——
  * 直接判更准，也不用宿主维护第二份白名单。
  *
- * 只判样式文件：TS 里的颜色（内联样式 / 主题常量）留给 D16（自研样式只在组件样式文件）那一族。
+ * 只判**样式文件**：JSX 内联 `style` 里的颜色归 D15；**TS 里的主题常量颜色不判** ——
+ * CSS-in-JS 项目里那个 TS 对象可能**就是**颜色的家，按文件类型判必然误伤（见 REQUIREMENTS N-12）。
  */
 export const colorLiteralsOnlyInPalette: Rule = {
   id: 'D01',
