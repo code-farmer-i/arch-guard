@@ -17,6 +17,13 @@
 
 ## [Unreleased]
 
+### Added（C5：禁 !important 收回本体）
+
+- **场景**：自家组件样式里 `color: blue !important` —— 一旦开了头，后面的人只能加更强的 `!important`。
+- **现在**：样式里出现 `!important` 且文件不在**声明的 vendor 目录**里就报（vendor 是"覆盖第三方"的正当出口）。
+  原先委派给 stylelint `declaration-no-important`（要项目自己开那条规则）。
+- 规则 81 → **82**；夹具 63 → **64**。
+
 ### Added（C9：禁相对越级收回本体）
 
 - **场景**：`import { format } from '../../../shared/lib/format'` —— 一串 `../` 爬到目录边界之外后，

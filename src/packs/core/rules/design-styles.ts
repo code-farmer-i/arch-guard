@@ -1,7 +1,7 @@
 import { parseCss } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
-import { designParams, finding } from './design-shared.js'
+import { cssFiles, designParams, finding } from './design-shared.js'
 import { isModuleStyle, modulePatternsOf } from './face-forms.js'
 
 /**
@@ -115,8 +115,50 @@ export const cssModuleContract: Rule = {
   },
 }
 
+/* ---------------- D09 禁 !important ---------------- */
+
+/**
+ * 判据：样式里出现 `!important`，且文件不在**声明的 vendor 目录**里。
+ *
+ * 为什么需要（原委派给 stylelint `declaration-no-important`）：第三方覆盖确实需要 `!important`，
+ * 但它必须是"覆盖"（vendor 目录），不该长在自家组件样式里 —— 一旦开了头，后面的人只能加更强的。
+ * 委派出去时那条规则要项目自己开；而 vendor 目录是我们**已经知道**的事实（适配表 + params）。
+ */
+export const noImportant: Rule = {
+  id: 'D09',
+  domain: 'design',
+  requires: ['designSystem.vendorDir'],
+  level: 'L1',
+  severity: 'error',
+  title: '禁 !important',
+  hint: '覆盖第三方样式才用 !important，而且只写在 vendor 目录里；自家组件样式该改层级就别硬压',
+  run: (ctx) => {
+    const params = designParams(ctx)
+    const out: Finding[] = []
+    for (const file of cssFiles(ctx)) {
+      if (file.rel.startsWith(`${params.vendorDir}/`)) continue
+      for (const block of file.rules) {
+        for (const declaration of block.declarations) {
+          if (!/!\s*important/i.test(declaration.value)) continue
+          out.push(
+            finding(
+              'D09',
+              file.rel,
+              declaration.line,
+              `${declaration.prop} 用了 !important：只许写在 vendor 目录里（第三方覆盖）`,
+              '改层级 / 加语义类，而不是加更强的 !important',
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+}
+
 export const designStyleRules: Rule[] = [
-  // 魔法数字三族委派给 stylelint declaration-property-value-allowed-list
+  // 魔法数字三族（D12–D14）委派给 stylelint declaration-property-value-allowed-list
   stylesInModules,
   cssModuleContract,
+  noImportant,
 ]

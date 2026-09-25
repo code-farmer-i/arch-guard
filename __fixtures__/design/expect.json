@@ -29,6 +29,10 @@
       "file": "index.html"
     },
     {
+      "rule": "D09",
+      "file": "src/shared/components/ui/Bad.module.css"
+    },
+    {
       "rule": "D10",
       "file": "src/shared/components/ui/Bad.module.css"
     },

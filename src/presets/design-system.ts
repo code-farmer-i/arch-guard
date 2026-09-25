@@ -72,6 +72,7 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
      */
     enable: [
       'D03',
+      'D09',
       'D04',
       'D05',
       'D06',
