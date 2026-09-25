@@ -19,7 +19,8 @@
     "url": "git+https://github.com/code-farmer-i/arch-guard.git"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "homepage": "https://github.com/code-farmer-i/arch-guard#readme",
   "bugs": {
@@ -32,7 +33,7 @@
   "module": "./es/index.js",
   "types": "./es/index.d.ts",
   "bin": {
-    "arch-guard": "./bin/arch-guard.mjs"
+    "arch-guard": "bin/arch-guard.mjs"
   },
   "exports": {
     ".": {

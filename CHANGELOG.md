@@ -29,6 +29,15 @@
 > - **缓存**：`FACTS_CACHE_SPEC` 5 → 6（事实模型新增 `styleProps` / `numbers`）→ 旧 facts 缓存自动作废重算，无需人工动作。
 > - **规模**：规则 95 → **98** · 夹具 75 → **78** · 需求 80 → **84**（`已完成` 74 / `已委派` 4 / `不做` 6）。
 
+### Fixed（发布：`bin` 路径前缀 · 发布目标显式化）
+
+- **`bin` 写成 `./bin/arch-guard.mjs` 会被 npm 判为无效并「从发布产物里移除」** —— 消费者装上就没有
+  `arch-guard` 命令（`npm publish --dry-run` 会警告 `bin[arch-guard] script name … was invalid and removed`）。
+  去掉 `./` 前缀（`npm pkg fix` 的标准形态）后已用**真实安装**验收：`npm pack` → 装进空项目 →
+  `node_modules/.bin/arch-guard --version` 输出 `0.4.0`、`@arch-guard/core/presets` 子路径导入可用。
+- `publishConfig.registry = https://registry.npmjs.org/`：发布目标**显式写进包**（本机全局 registry 是
+  淘宝镜像，`npm publish` 不显式指定就会走错）。`pagoda-cli release` 会读这个字段并传 `--registry` + `--access`。
+
 ### Added（R-86：「声明配了却 0 命中」补到方案面 + D24 的落点守卫）
 
 - **R-86**：`declaration-no-match` 这条自述原来只盖 `structure.*`（M1 / R-77）—— 方案面的声明写错一个字母
