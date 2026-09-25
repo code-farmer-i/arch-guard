@@ -21,6 +21,9 @@ const CORE_FACET_FIELDS: Record<string, string[]> = {
     'icons',
     'vendorSelectors',
     'vendorVars',
+    // C01 的"文案位"名单：库的事实 → 放适配器（项目可用 copy({...}) 覆盖）
+    'messageApis',
+    'messageProps',
     'detachedApis',
     'examples',
   ],

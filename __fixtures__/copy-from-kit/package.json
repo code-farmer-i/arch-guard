@@ -1,0 +1,8 @@
+{
+  "name": "ag-fixture-copy-from-kit",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "antd": "^5.20.0"
+  }
+}

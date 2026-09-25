@@ -14,12 +14,15 @@ export interface CopyOptions {
   /**
    * 「组件库调用里的文案」的 API 名单（C01 的另一半）：`['message.success', 'notification.open']`。
    * 传字符串实参的调用会被当成文案位 —— 比如 `message.success('保存')`。
-   * **不声明就不判这一半**：各项目用的组件库 / 封装不同，猜一个默认名单必然误伤。
+   * **不声明就用组件库适配器给的默认**（`uiKit(antdKit())` 已经声明了 antd 的那份）；
+   * 声明了就**以项目为准**（覆盖默认），传 `[]` = 显式关掉这一半。
+   * 项目自己的封装（`appToast.success`）属于项目事实，适配器猜不到，仍需在这里声明。
    */
   messageApis?: string[]
   /**
    * **哪些对象属性名算文案**（对象实参形态）：`['message', 'description', 'title']`。
-   * 不声明就不判对象实参那一半 —— 同一批调用里还有 `key` / `duration` 这类非文案键，全判必然误伤。
+   * 不声明就用组件库适配器的默认（antd：`message` / `description` / `title` / `content`）——
+   * 同一批调用里还有 `key` / `duration` 这类非文案键，所以这份名单必须是**声明出来的**，不能全判。
    */
   messageProps?: string[]
 }
@@ -27,9 +30,11 @@ export interface CopyOptions {
 export function copy(options: CopyOptions = {}): Preset {
   return {
     enable: ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07'],
+    // **只在显式给的时候写**：没写 = 用组件库适配器给的默认（`uiKit(antdKit())` 自带 antd 的文案位）；
+    // 写了空数组 = 显式关掉那一半（"这些是开发者提示，不走 i18n"）。
     params: {
-      messageApis: options.messageApis ?? [],
-      messageProps: options.messageProps ?? [],
+      ...(options.messageApis ? { messageApis: options.messageApis } : {}),
+      ...(options.messageProps ? { messageProps: options.messageProps } : {}),
     },
   }
 }

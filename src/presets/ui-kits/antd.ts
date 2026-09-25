@@ -17,6 +17,25 @@ export function antdKit(): UiKitAdapter {
     icons: { from: ['@ant-design/icons'] },
     vendorSelectors: ['\\.ant-'],
     vendorVars: ['^--ant-'],
+    // C01（裸文案）的"组件库调用"那一半：**这是 antd 的事实**，宿主不必再抄一遍。
+    // 项目自己的封装（`appToast.success`）仍由 `copy({ messageApis })` 声明 —— 项目声明覆盖这里。
+    messageApis: [
+      'message.success',
+      'message.error',
+      'message.warning',
+      'message.info',
+      'message.loading',
+      'notification.open',
+      'notification.success',
+      'notification.error',
+      'notification.info',
+      'notification.warning',
+      'Modal.confirm',
+      'Modal.info',
+      'Modal.success',
+      'Modal.error',
+    ],
+    messageProps: ['message', 'description', 'title', 'content'],
     detachedApis: [
       {
         from: ['antd'],

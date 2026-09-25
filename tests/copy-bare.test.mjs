@@ -11,8 +11,8 @@ const rule = (id) => {
   return found
 }
 
-const context = ({ params, rel, facts }) => ({
-  config: { params, structure: {} },
+const context = ({ params, rel, facts, adapters = {} }) => ({
+  config: { params, structure: {}, adapters },
   records: [{ rel, kind: 'tsx', layer: 3, role: 'module:views' }],
   facts: new Map([[rel, { comments: [], exports: [], functions: [], hasJsx: true, ...facts }]]),
   files: [rel],
@@ -78,6 +78,73 @@ test('C01：没声明 messageProps 时对象形态不判（宁少报不误伤）
           },
         ],
       },
+    }),
+  )
+  assert.deepEqual(findings, [])
+})
+
+/* ---------------- 名单来自哪里：项目 或 组件库适配器 ---------------- */
+
+const KIT = {
+  'ui-kit': {
+    facet: 'ui-kit',
+    id: 'antd',
+    packages: ['antd'],
+    messageApis: ['message.success', 'notification.open'],
+    messageProps: ['message', 'description'],
+  },
+}
+
+const bareCallFacts = {
+  calls: [{ callee: 'message.success', line: 2, stringArg: '保存成功' }],
+  strings: [],
+}
+
+test('C01：项目没声明名单时，用**组件库适配器**给的默认（不必每个宿主抄一遍）', () => {
+  const findings = rule('C01').run(
+    context({
+      params: {},
+      adapters: KIT,
+      rel: 'src/modules/crews/lib/notify.ts',
+      facts: bareCallFacts,
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.rule),
+    ['C01'],
+    'antdKit 声明了 message.success 是文案位 → 项目不写 copy({...}) 也该判',
+  )
+})
+
+test('C01：项目声明**覆盖**适配器默认（自己的封装说了算）', () => {
+  const findings = rule('C01').run(
+    context({
+      params: { messageApis: ['appToast.success'], messageProps: ['message'] },
+      adapters: KIT,
+      rel: 'src/modules/crews/lib/notify.ts',
+      facts: {
+        calls: [
+          { callee: 'message.success', line: 2, stringArg: '保存成功' },
+          { callee: 'appToast.success', line: 3, stringArg: '保存成功' },
+        ],
+        strings: [],
+      },
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.line),
+    [3],
+    '项目声明了就只认项目那份：antd 的 message.success 不再算（比如那只是开发者提示）',
+  )
+})
+
+test('C01：显式传空数组 = 关掉这一半（不是"没声明"）', () => {
+  const findings = rule('C01').run(
+    context({
+      params: { messageApis: [], messageProps: [] },
+      adapters: KIT,
+      rel: 'src/modules/crews/lib/notify.ts',
+      facts: bareCallFacts,
     }),
   )
   assert.deepEqual(findings, [])

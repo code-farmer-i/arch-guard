@@ -332,11 +332,31 @@ const looksLikeCopy = (value: string): boolean => {
  * 插件要装 + 要逐条维护 `ignore` 白名单，而"这句文案有没有走 `t()`"我们**本来就知道**
  * —— `facts.calls[].stringArg` 就是 `t('…')` 里的键。所以判定更准、也不用宿主维护第二份清单。
  *
- * 误伤控制在四处：① 只认 JSX 文本节点与那五个面向用户的属性；② 声明了 `messageApis` 才判
- * （组件库调用里的字符串实参，如 `message.success('保存')`，以及对象实参里的文案，
- * 如 `notification.open({ message: '保存' })`）；③ 只认"人话"（中文 / 多词）；
- * ③ `t(...)` 里的键与 URL / 类名 / 单 token 全部放过。命中给 **warn**（不是"必须改"）。
+ * 误伤控制在四处：① 只认 JSX 文本节点与那五个面向用户的属性；② 组件库调用里的字符串实参与对象实参
+ * 里的文案（如 `message.success('保存')` / `notification.open({ message: '保存' })`）—— 名单来自
+ * **项目声明的 `copy({ messageApis, messageProps })`**，没声明就用**组件库适配器**给的默认
+ * （`uiKit(antdKit())` 自带 antd 的那份）；③ 只认"人话"（中文 / 多词）；
+ * ④ `t(...)` 里的键与 URL / 类名 / 单 token 全部放过。命中给 **warn**（不是"必须改"）。
  */
+/**
+ * 文案位名单：**项目声明优先**，否则用组件库适配器给的默认。
+ *
+ * 分工：`message.success` / `notification.open` 是**库的事实**（antd 自己的 API）→ 放 `antdKit()`，
+ * 换库只换适配器；**项目自己的封装**（`appToast.success`、自家 `notify()`）是项目事实 → 由
+ * `copy({ messageApis })` 声明。`params` 里**有**这个键（哪怕空数组）就是"项目说了算"，空数组 = 关掉这一半。
+ */
+function messageListsOf(ctx: RuleContext): { apis: string[]; props: string[] } {
+  const adapter = Object.values(ctx.config.adapters ?? {}).find(
+    (item) => item.facet === 'ui-kit',
+  ) as { messageApis?: string[]; messageProps?: string[] } | undefined
+  const projectApis = ctx.config.params.messageApis as string[] | undefined
+  const projectProps = ctx.config.params.messageProps as string[] | undefined
+  return {
+    apis: projectApis ?? adapter?.messageApis ?? [],
+    props: projectProps ?? adapter?.messageProps ?? [],
+  }
+}
+
 export const bareCopy: Rule = {
   id: 'C01',
   domain: 'copy',
@@ -356,7 +376,7 @@ export const bareCopy: Rule = {
       // `t('key')` 里已经登记过的键：同一行出现同值的调用实参就放过
       const translated = new Set(facts.calls.map((call) => `${call.line}:${call.stringArg ?? ''}`))
       // 另一半：组件库调用里的文案（`message.success('保存')`）—— 只要项目声明了这些 API
-      const messageApis = (ctx.config.params.messageApis as string[] | undefined) ?? []
+      const { apis: messageApis, props: messageProps } = messageListsOf(ctx)
       if (messageApis.length > 0) {
         for (const call of facts.calls) {
           const hit = messageApis.find(
@@ -377,7 +397,6 @@ export const bareCopy: Rule = {
 
       // 第三种形态：**对象实参里的文案**（`notification.open({ message: '保存' })`）——
       // 字符串靠 `prop`（对象键）与 `inCall`（外层调用名）两条事实认出来
-      const messageProps = (ctx.config.params.messageProps as string[] | undefined) ?? []
       if (messageApis.length > 0 && messageProps.length > 0) {
         for (const text of facts.strings) {
           if (text.prop === null || text.inCall === undefined) continue

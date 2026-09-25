@@ -51,10 +51,9 @@ export default {
       ],
       contrastPairs: [{ fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 }],
     }),
-    copy({
-      messageApis: ['message.success', 'message.error'],
-      messageProps: ['message', 'description'],
-    }),
+    // 文案位名单由 `uiKit(antdKit())` 给（antd 的事实），项目自己的封装才需要在这里写：
+    // `copy({ messageApis: ['appToast.success'] })` —— 写了就以项目为准，`[]` = 关掉那一半。
+    copy(),
     deps({
       allow: [
         '@tanstack/react-query',

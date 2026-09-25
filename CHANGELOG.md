@@ -53,6 +53,21 @@
   - 夹具 `fsd-import-locality` / `import-locality` 的期望补上 `S17`：两个 `Helper.tsx` 同名导出，
     **本来就是真阳性**，只是 S17 此前在 FSD/库范式下没启用才漏掉。
 
+### Changed（R-88：文案位名单由组件库适配器给 —— 一次"报得更多"的变化，必读）
+
+- 你问了句好问题：「已知用户用了 antd，`copy({ messageApis, messageProps })` 这两张表是不是能省掉？」
+  —— 能。`message.success` / `notification.open` / `Modal.confirm`、以及 `message` / `description` /
+  `title` / `content` 这些属性名是 **antd 自己的事实**，不是项目的事实；`antdKit()` 现在直接声明它们，
+  C01 的"组件库调用里的文案"那一半不再要求宿主手抄。
+- **迁移（这次会多报）**：已经 `uiKit(antdKit())` + `i18n(...)` 的项目会开始报 `message.success('保存')`
+  这类裸文案 —— 那正是以前因为没声明而漏着的。若某些调用是**开发者提示**、本就不该走 i18n，
+  用 `copy({ messageApis: [...], messageProps: [...] })` **覆盖**适配器默认（传 `[]` = 显式关掉那一半）。
+  项目**自己的封装**（`appToast.success`、自家 `notify()`）仍要在 `copy()` 里声明 —— 那是项目事实，适配器猜不到。
+- 适配器契约新增两个字段（`UiKitAdapter.messageApis` / `messageProps`，`ui-kit` 面的字段白名单同步登记），
+  换库时名单跟着适配器走；`copy()` 的这两个参数从"必须给"变成"可选覆盖"（不写 = 用适配器默认）。
+- 新夹具 `copy-from-kit`（**79** 个夹具）：故意**不写** `copy({...})`，断言 antdKit 给的名单照样判出裸文案；
+  单测补三例：适配器默认 / 项目覆盖 / 显式空数组关掉。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

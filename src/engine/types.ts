@@ -37,10 +37,7 @@ export interface StringFact {
   line: number
   context: string
   prop: string | null
-  /**
-   * 最近的**外层调用名**（如 `notification.open({ message: '保存' })` 里的 `notification.open`）。
-   * 只透传容器、遇函数体断开；用来判"对象实参里的文案"（C01 的第三种形态）。
-   */
+  /** 最近的**外层调用名**（`notification.open({ message: '保存' })` 里的那截）；C01 的对象实参形态靠它 */
   inCall?: string
 }
 
@@ -90,10 +87,7 @@ export interface ParseErrorFact {
   message: string
 }
 
-/**
- * 单个文件的事实模型。字段是**规则实际会读的**那些 —— 加字段前先确认有规则在读
- * （见 `facts.ts` 里 `extractFacts` 的说明与 docs/ECOSYSTEM-AUDIT.md）。
- */
+/** 单个文件的事实模型：字段是**规则实际会读的**那些 —— 加字段前先确认有规则在读（见 `facts.ts`） */
 export interface Facts {
   file: string
   rel: string
@@ -220,6 +214,13 @@ export interface UiKitAdapter {
   icons?: { from: string[] }
   vendorSelectors?: string[]
   vendorVars?: string[]
+  /**
+   * **这套库的「文案位」调用名**（C01 的另一半）：`message.success` / `notification.open`…
+   * 库的事实，别让每个宿主抄一遍；项目自己的封装由 `copy({ messageApis })` 覆盖这里。
+   */
+  messageApis?: string[]
+  /** 这套库里**哪些对象属性算文案**（`message` / `description` / `title`…）；同样可被 `copy()` 覆盖 */
+  messageProps?: string[]
   detachedApis?: DetachedApi[]
   examples?: AdapterExamples
 }
