@@ -17,6 +17,16 @@
 
 ## [Unreleased]
 
+### Added（M1：声明配了却 0 命中 —— 报告自述）
+
+- 场景：`structure.migrating: ['src/legacy/**']` 写得没错，可项目里那个目录早就没了；`clientState.in` /
+  `authRedirects.in` / 某个组维度同理 —— **门禁显示"通过"，那条纪律这次什么都没看**。
+- 现在：报告里新增自述 `declaration-no-match`（新 notice code，**兼容性新增**：不 bump `apiVersion`，
+  但按 §6.9 的规矩在这里标注）："有 N 条结构声明 0 命中（…）"，点名是哪几条。
+- 与 R-75（配置期可命中性）互补：那条管"维度名 / 角色 id / glob 写得对不对"，
+  这条管**运行期**（角色表里有这个维度，但没有任何文件命中它）。
+- 需求 R-77；顺手修掉 DESIGN §14 里"**C01 委派给 eslint-plugin-i18next**"这处陈旧口径（C01 已收回本体）。
+
 ### Added（新③：组件库调用里的文案 —— C01 的另一半）
 
 - 缺口：C01 判了 JSX 文本与面向用户的属性，但 `message.success('保存')` 这类**组件库调用里的文案**漏着 ——

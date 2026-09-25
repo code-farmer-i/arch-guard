@@ -118,6 +118,7 @@ test('冻结：notices 的稳定 code 清单（文案不是契约，code 才是�
     'config-no-manifest',
     'coverage-update-skipped',
     'coverage-updated',
+    'declaration-no-match',
     'deps-allow-not-enabled',
     'facts-cache',
     'facts-cache-reset',

@@ -1,5 +1,6 @@
 import type { Diagnostic } from './codes.js'
 import type { ScanResult } from './scan.js'
+import { globToRegExp } from './util.js'
 import type { Config } from './types.js'
 
 /**
@@ -67,4 +68,62 @@ export function pushAdapterNotice(config: Config, notices: Diagnostic[]): void {
     .map((adapter) => `${adapter.facet}=${adapter.id}`)
     .join(' · ')
   notices.push({ code: 'adapters-in-use', text: `生效的适配器：${list}` })
+}
+
+/**
+ * **M1：声明配了却 0 命中 —— 那条纪律什么都没看**。
+ *
+ * 与 §4.9 的"委派跑没跑"同类问题，只是发生在 `structure.*` 这一侧：声明合法、规则也在跑，
+ * 但项目里没有任何文件 / 组能命中它 —— 报告显示"通过"，而那条纪律其实是空的。
+ * （配置期的"可命中性"由 `structure.ts` 的 validate 管；这里管**运行期**：角色表里有这个维度，
+ * 但没有任何文件命中那些角色。）
+ */
+export function pushDeclarationNotices(
+  config: Config,
+  records: { rel: string; captures?: Record<string, string> }[],
+  files: string[],
+  notices: Diagnostic[],
+): void {
+  const empty: string[] = []
+  const hasFile = (glob: string): boolean => {
+    const pattern = globToRegExp(glob)
+    return files.some((rel) => pattern.test(rel))
+  }
+  const hasDimension = (dimension: string): boolean =>
+    records.some((record) => Boolean(record.captures?.[dimension]))
+
+  for (const glob of config.structure.migrating) {
+    if (!hasFile(glob)) empty.push(`migrating 的 ${glob}`)
+  }
+  for (const spec of config.structure.clientState) {
+    for (const glob of spec.in) if (!hasFile(glob)) empty.push(`clientState.in 的 ${glob}`)
+  }
+  if (config.structure.authRedirects) {
+    for (const glob of config.structure.authRedirects.in) {
+      if (!hasFile(glob)) empty.push(`authRedirects.in 的 ${glob}`)
+    }
+  }
+  const dimensions = [
+    ...config.structure.isolate,
+    ...config.structure.publicApi,
+    ...config.structure.segmentedGroups,
+    ...config.structure.repetitiveNaming,
+    ...config.structure.importLocality,
+    ...config.structure.groupCountLimits.map((item) => item.dimension),
+    ...config.structure.groupInDegree.map((item) => item.dimension),
+    ...config.structure.nameCollisions.map((item) => item.dimension),
+    ...config.structure.pluralConsistency.map((item) => item.dimension),
+    ...config.structure.couplingLimits.map((item) => item.dimension),
+  ]
+  for (const dimension of new Set(dimensions)) {
+    if (!hasDimension(dimension)) empty.push(`维度 ${dimension}`)
+  }
+
+  if (empty.length === 0) return
+  notices.push({
+    code: 'declaration-no-match',
+    text: `有 ${empty.length} 条结构声明 0 命中（那条纪律这次什么都没看，建议删掉或修对）：${empty
+      .slice(0, 5)
+      .join(' · ')}${empty.length > 5 ? ` …（还有 ${empty.length - 5} 条）` : ''}`,
+  })
 }

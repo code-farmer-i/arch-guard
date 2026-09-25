@@ -7,7 +7,7 @@ import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { collectSources } from './collect.js'
 import { buildGraph } from './graph.js'
-import { pushAdapterNotice, pushScanNotices } from './notices.js'
+import { pushAdapterNotice, pushDeclarationNotices, pushScanNotices } from './notices.js'
 import { collectI18n } from './i18n.js'
 import { json, out } from './output.js'
 import { createRegistry } from './registry.js'
@@ -149,6 +149,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   // 扫描域 / 边界 / 阈值的自述（函数化：runGuard 有函数长度上限，且这是内聚的一步）
   pushScanNotices(config, scan, notices)
   pushAdapterNotice(config, notices)
+  pushDeclarationNotices(config, scan.records, scan.files, notices)
 
   if (staged && staged.missing.length > 0) {
     notices.push({
