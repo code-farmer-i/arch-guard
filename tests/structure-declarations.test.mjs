@@ -35,6 +35,8 @@ test('结构声明：没声明时每个字段都补齐（数组为空、布尔�
   assert.deepEqual(resolved.pluralConsistency, [])
   assert.deepEqual(resolved.degreeLimits, [])
   assert.deepEqual(resolved.importLocality, [])
+  assert.deepEqual(resolved.couplingLimits, [])
+  assert.deepEqual(resolved.migrating, [])
 })
 
 test('结构声明：预设与 overrides 是加法（布尔取或、字符串数组取并集、带键数组拼接）', () => {

@@ -199,6 +199,8 @@ src/
 | `structure.order: true`          | 层序单向：只许依赖**层号 ≤ 自己**的文件              | S21        |
 | `structure.isolate: ['slice']`   | 组隔离：同维度、**同层**、不同组之间不许互相引用     | S22        |
 | `structure.publicApi: ['slice']` | 公开面：组必须有入口；组外不许直接引用组内非入口文件 | S23        |
+| `structure.couplingLimits`       | 组耦合上限：被多少个其它组依赖 / 依赖了多少个其它组  | S39        |
+| `structure.migrating`            | 迁移中的路径：外面不许引用它们（它们引用别处是目的） | S40        |
 
 **组**与**入口**都写在角色表里，规则不认识任何具体文件名：
 

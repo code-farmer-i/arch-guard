@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S39",
+      "file": "src/modules/crews/components/CrewCard.tsx"
+    },
+    {
+      "rule": "S39",
+      "file": "src/modules/reports/views/ReportsPage.tsx"
+    }
+  ],
+  "exact": true
+}

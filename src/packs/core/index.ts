@@ -13,6 +13,7 @@ import { metricsRules } from './rules/metrics.js'
 import { declaredStructureRules } from './rules/structure-declared.js'
 import { structureGraphRules } from './rules/structure-graph.js'
 import { structureGroupRules } from './rules/structure-groups.js'
+import { structureBoundaryRules } from './rules/structure-boundaries.js'
 import { structureCallSiteRules } from './rules/structure-call-sites.js'
 import { structureLocalityRules } from './rules/structure-locality.js'
 import { scanScopeNotEmpty } from './rules/structure-scan.js'
@@ -38,6 +39,7 @@ export const coreRules: Rule[] = [
   ...structureGroupRules,
   ...structureLocalityRules,
   ...structureCallSiteRules,
+  ...structureBoundaryRules,
   // 扫描域非空是"逐文件规则能跑"的先决条件，放在结构域里
   scanScopeNotEmpty,
   ...designTokenRules,

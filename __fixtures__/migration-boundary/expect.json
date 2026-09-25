@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S40",
+      "file": "src/modules/crews/lib/price.ts"
+    }
+  ],
+  "exact": true
+}

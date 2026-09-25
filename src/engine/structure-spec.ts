@@ -68,6 +68,23 @@ export interface DegreeLimit {
   maxOut?: number
 }
 
+/**
+ * **组耦合上限**（S39）：一个组被多少个**其它组**依赖（fan-in）/ 依赖了多少个其它组（fan-out）。
+ *
+ * 与 S34 的粒度差：S34 锚在**单个文件**（神模块 / 改一处动全身），这条锚在**组**——
+ * 「整个域被一半的域依赖」是文件级度数看不见的架构耦合。
+ * `maxFanIn` / `maxFanOut` 至少要给一个；维度用捕获名（`domain` / `slice` / 自定义），
+ * 所以 canonical 与 FSD 共用同一条规则。
+ */
+export interface CouplingLimit {
+  /** 组维度名（角色表里捕获名的名字，如 `domain` / `slice`） */
+  dimension: string
+  /** 被多少个其它组依赖，超过即报（上帝域） */
+  maxFanIn?: number
+  /** 依赖了多少个其它组，超过即报（什么都碰） */
+  maxFanOut?: number
+}
+
 /** 组名不许与其它单元重名（S29） */
 export interface NameCollisionSpec {
   dimension: string
@@ -123,6 +140,10 @@ export interface StructureSpec {
   degreeLimits?: DegreeLimit[]
   /** 导入局部性：这些组维度内必须相对导入、跨组必须非相对导入（S32） */
   importLocality?: string[]
+  /** 组耦合上限：这些组维度的 fan-in / fan-out（S39） */
+  couplingLimits?: CouplingLimit[]
+  /** **在迁移中**的路径（glob）：它们可以引用别处，别处不许引用它们（S40） */
+  migrating?: string[]
 }
 
 /** 归一化后的结构声明：宿主只声明一部分，配置加载后**每个字段都补齐**（数组默认空） */
@@ -141,4 +162,6 @@ export interface ResolvedStructure {
   pluralConsistency: PluralConsistencySpec[]
   degreeLimits: DegreeLimit[]
   importLocality: string[]
+  couplingLimits: CouplingLimit[]
+  migrating: string[]
 }

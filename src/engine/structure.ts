@@ -149,6 +149,13 @@ export function resolveStructure(input: {
       overrides?.degreeLimits ?? [],
     ),
     importLocality: union(preset?.importLocality, overrides?.importLocality),
+    couplingLimits: mergeKeyed(
+      'couplingLimits',
+      (item) => item.dimension,
+      preset?.couplingLimits ?? [],
+      overrides?.couplingLimits ?? [],
+    ),
+    migrating: union(preset?.migrating, overrides?.migrating),
   }
   validate(structure, roles)
   return structure
@@ -159,6 +166,13 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
     roles.map((role) => role.group).filter((group): group is string => typeof group === 'string'),
   )
   const roleIds = new Set(roles.map((role) => role.id))
+  // 捕获名（`{domain}` / `{slice}` / 自定义）：S39 的维度按它判定 ——
+  // 注意与上面的 `dimensions`（角色显式声明的 `group`）不是一回事：canonical 的域是**捕获名**，没有 `group`
+  const captureNames = new Set<string>()
+  for (const role of roles) {
+    for (const match of role.pattern.matchAll(/\{([a-zA-Z0-9_]+)\}/g))
+      captureNames.add(match[1] ?? '')
+  }
 
   const needDimension = (field: string, value: string): void => {
     if (dimensions.has(value)) return
@@ -192,6 +206,35 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
   for (const item of structure.pluralConsistency) needDimension('pluralConsistency', item.dimension)
   for (const item of structure.publicApiUnits) needRole('publicApiUnits', item.role)
   for (const item of structure.directoryItemLimits) needRole('directoryItemLimits', item.role)
+  for (const item of structure.couplingLimits) {
+    if (!captureNames.has(item.dimension)) {
+      throw new StructureDeclarationError(
+        `structure.couplingLimits 的维度「${item.dimension}」不是任何角色的捕获名 —— 这条声明永远不会命中\n` +
+          `（可用：${[...captureNames].sort().join(' / ') || '（无）'}）`,
+      )
+    }
+    if (item.maxFanIn === undefined && item.maxFanOut === undefined) {
+      throw new StructureDeclarationError(
+        `structure.couplingLimits 对维度「${item.dimension}」既没给 maxFanIn 也没给 maxFanOut —— 这条声明什么都没说`,
+      )
+    }
+    for (const [field, value] of [
+      ['maxFanIn', item.maxFanIn],
+      ['maxFanOut', item.maxFanOut],
+    ] as const) {
+      if (value === undefined) continue
+      if (!Number.isInteger(value) || value < 1) {
+        throw new StructureDeclarationError(
+          `structure.couplingLimits 的 ${field} 必须是 ≥1 的整数（收到 ${String(value)}）`,
+        )
+      }
+    }
+  }
+  for (const glob of structure.migrating) {
+    if (typeof glob !== 'string' || glob.trim() === '') {
+      throw new StructureDeclarationError('structure.migrating 里的每一项都必须是非空 glob')
+    }
+  }
   for (const item of structure.degreeLimits) {
     needRole('degreeLimits', item.role)
     if (item.maxIn === undefined && item.maxOut === undefined) {
