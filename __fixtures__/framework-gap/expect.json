@@ -1,4 +1,13 @@
 {
-  "findings": [{ "rule": "S20", "file": "src/modules/crews/views/OldPage.vue" }],
+  "findings": [
+    {
+      "rule": "P03",
+      "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "S20",
+      "file": "src/modules/crews/views/OldPage.vue"
+    }
+  ],
   "exact": true
 }

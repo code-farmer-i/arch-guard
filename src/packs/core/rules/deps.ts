@@ -95,6 +95,88 @@ export const depsDenied: Rule = {
   },
 }
 
+/**
+ * P03 幽灵依赖：**import 了但没在任何 dependencies 段声明**（靠别人的依赖碰巧能跑）。
+ *
+ * 为什么收回本体（原委派给 knip / depcheck）：事实早就读进来了（`ctx.deps.phantom` 一直在给
+ * `--verify-deps` 用），而生态侧要**装 eslint-plugin-import 并显式开 `no-extraneous-dependencies`**
+ * 才有覆盖 —— 那是个"要装插件 + 写 resolver 配置"的门槛，宿主没配就等于零覆盖。
+ *
+ * 锚在**引用它的那个文件**上（`package.json` 只说明"没登记"，说不出哪行在用它）。
+ */
+export const depsPhantom: Rule = {
+  id: 'P03',
+  domain: 'deps',
+  level: 'L2',
+  severity: 'error',
+  title: '幽灵依赖',
+  hint: '这个包没写进 package.json（靠别人的依赖碰巧装着）：换机器 / CI 就崩；要么声明它，要么别用',
+  run: (ctx) => {
+    if (!ctx.deps.hasManifest || ctx.deps.phantom.length === 0) return []
+    const phantom = new Set(ctx.deps.phantom)
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const imported of facts.imports) {
+        const name = packageOf(imported.spec)
+        if (!phantom.has(name)) continue
+        out.push(
+          finding(
+            'P03',
+            record.rel,
+            imported.line,
+            `幽灵依赖：${name} 没声明在 package.json 里（这里 import 了它）`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/**
+ * P08 声明但未使用：**写进 `dependencies` 却全项目零引用**。
+ *
+ * 为什么收回本体：tsc 与 eslint 都**不知道 package.json** —— `noUnusedLocals` 看的是文件内局部变量、
+ * `no-unused-vars` 看的是文件内声明与导入，`no-extraneous-dependencies` 是反方向（用了没声明）。
+ * 真正的工具只有 knip / depcheck（要单独装 + 写 entry 配置），而我们的事实 `ctx.deps.unused` 现成。
+ *
+ * 只报 `dependencies`（dev 与 peer 可能只给工具链 / 宿主用，报它们是噪音）。
+ * 默认 **warn**：未用依赖多数是遗留，清不清是维护决策。
+ */
+export const depsUnused: Rule = {
+  id: 'P08',
+  domain: 'deps',
+  level: 'L1',
+  severity: 'warn',
+  title: '声明但未使用',
+  hint: '没人 import 它了：从 package.json 删掉（还在用就说明 import 写在别处，别急着删）',
+  run: (ctx) => {
+    if (!ctx.deps.hasManifest) return []
+    // **声明才判**：`deps({ unusedDeps: true })`。
+    // 为什么默认关：只按"有没有 import"判会把"靠 JSX 自动运行时"的 react、
+    // 副作用型依赖（polyfill / normalize.css）、只在构建配置里用的包全部误报 ——
+    // 真正判准需要 entry / 插件知识（knip 就是靠这些），我们宁可默认不判。
+    if (ctx.config.params.unusedDeps !== true) return []
+    // 适配表声明的包交给 P11：它同时看 import、vendor 选择器与 CSS 变量 ——
+    // 只按 "有没有 import" 判会把"只在全局样式里用"的组件库误报成未使用
+    const adapterOwned = new Set(adapterPackages(ctx))
+    return ctx.deps.unused
+      .filter((name) => !adapterOwned.has(name))
+      .map((name) =>
+        finding(
+          'P08',
+          'package.json',
+          1,
+          `声明了但全项目零引用的运行时依赖：${name}`,
+          undefined,
+          true,
+        ),
+      )
+  },
+}
+
 interface FingerprintHit {
   file: string
   line: number
@@ -214,6 +296,10 @@ export const capabilityPreferred: Rule = {
 export const depsRules: Rule[] = [
   depsAllowlist,
   depsDenied,
-  // 幽灵依赖与「登记但未使用」委派给 knip / depcheck
+  // 幽灵依赖（P03）与「声明但未使用」（P08）原委派给 knip / depcheck，0.4.0 收回本体：
+  // 事实早就算好了（`ctx.deps.phantom` / `unused` 一直在给 --verify-deps 用），
+  // 而生态侧要装专门工具 / 插件并写配置才有覆盖 —— 配置成本高到多数宿主不会做。
+  depsPhantom,
+  depsUnused,
   capabilityPreferred,
 ]

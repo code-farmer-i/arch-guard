@@ -1,0 +1,9 @@
+{
+  "name": "unused-deps-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "dayjs": "^1.11.0",
+    "lodash": "^4.17.21"
+  }
+}

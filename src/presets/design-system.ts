@@ -111,6 +111,11 @@ export interface DepsOptions {
   /** 能力 → 首选方案：{ 'cli-args': 'commander', datetime: 'dayjs' } */
   capabilities?: Record<string, string>
   /**
+   * 开启「声明但未使用」（P08，warn）。**默认关**：只按 import 判会误伤
+   * 自动 JSX 运行时（react）、副作用型依赖与只在构建配置里用的包。
+   */
+  unusedDeps?: boolean
+  /**
    * 覆盖某个能力的**指纹证据**（R-73）：加 / 删 pattern、改 API 名清单、放宽 `allowOwn`。
    * 首选方案不在这里 —— 那是 `capabilities` 的活（一个事实一个出处）。
    */
@@ -146,7 +151,7 @@ export function deps(options: DepsOptions = {}): Preset {
     }
   }
   return {
-    enable: ['P01', 'P02', 'P04', 'P05', 'P06', 'P07', 'P11', 'P12'],
+    enable: ['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P11', 'P12'],
     params: {
       // 默认两条都为空：**预设不替项目做选型决定**。
       // 项目要么用 allow（fail-closed，推荐），要么用 deny（只表达少数硬禁令），不必两者都维护。
@@ -154,6 +159,7 @@ export function deps(options: DepsOptions = {}): Preset {
       deny: options.deny ?? [],
       capabilities: options.capabilities ?? {},
       fingerprints: options.fingerprints ?? [],
+      unusedDeps: options.unusedDeps === true,
     },
   }
 }

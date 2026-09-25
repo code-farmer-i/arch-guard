@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "P03",
+      "file": "src/shared/lib/pad.ts"
+    }
+  ],
+  "exact": true
+}

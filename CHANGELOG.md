@@ -17,6 +17,20 @@
 
 ## [Unreleased]
 
+### Added（C1 / C2：幽灵依赖与声明未用收回本体）
+
+- **P03 幽灵依赖**（error）：`import` 了没写进 `package.json` 的包 —— 本地靠间接依赖碰巧能跑，换机器 / CI 就崩。
+  报在**引用它的那一行**。原先委派给 eslint-plugin-import（要装插件 + 写 resolver 配置；
+  **本仓就没装**，等于零覆盖）。
+- **P08 声明但未使用**（warn，**声明才判**）：`dependencies` 里躺着全项目零引用的库，报在 `package.json` 上；`deps({ unusedDeps: true })` 才打开。
+  默认关的理由：只按"有没有 import"判会把**自动 JSX 运行时**（`react` 声明了但没人 import）、副作用型依赖（polyfill / normalize.css）与只在构建配置里用的包全报成未使用 ——
+  判准需要 entry / 插件知识（knip 靠的就是这个），按"宁可漏报不可误伤"默认不判。这一点是写这条规则、用本仓夹具验证时才暴露的。
+  原先委派给 knip / depcheck —— 而 **tsc 与 eslint 都不知道 `package.json`**
+  （`noUnusedLocals` / `no-unused-vars` 看文件内声明，`no-extraneous-dependencies` 是反方向）。
+- 两条由 `deps()` 预设默认启用；事实 `ctx.deps.phantom` / `unused` **早就算好了**（`--verify-deps` 一直在用），
+  所以这次是"补上判据"，不是"加一层扫描"。
+- 规则 78 → **80**；夹具 60 → **62**。
+
 ### Fixed（C10：组维度规则在应用范式下集体沉默）
 
 - 现象：S22 组隔离 / S23 公开面 / S26 组数量 / S28 外部引用下限 / S32 导入局部性 五条已实现的规则

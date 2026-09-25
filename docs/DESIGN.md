@@ -93,24 +93,24 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 > **委派不等于有人在管**：宿主没装 / 没配 / 没跑，那一类就是零覆盖。逐条的"开启可能性"评估与
 > "哪几条建议收回本体"见 [`DELEGATION-REVIEW.md`](./DELEGATION-REVIEW.md)；能不能判定"跑没跑"见需求 R-51。
 
-| 已委派的约束                                                   | 原规则            | 交给谁                                                                                                                               |
-| -------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `any` / 非空断言 / ts 注释逃生舱                               | H01               | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                                    |
-| console / debugger / alert                                     | H03               | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                             |
-| 未完成标记（TODO 等）                                          | H04               | `no-warning-comments`                                                                                                                |
-| 空 catch / 空块                                                | H05               | `no-empty`                                                                                                                           |
-| 假异步、`Math.random`、硬编码地址、假数据字面量                | H07–H09           | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                           |
-| 抑制注释（`eslint-disable` / `oxlint-disable` / `@ts-ignore`） | H02               | **未实现、也委派不出去**：eslint 默认不禁止 disable 注释（要装 `eslint-comments` 之类插件）。见 REQUIREMENTS 第七节（原 R-70，已撤） |
-| 文件行数 / 函数行数                                            | S16               | `max-lines` · `max-lines-per-function`                                                                                               |
-| 相对越级 `../`                                                 | S10               | `no-restricted-imports`                                                                                                              |
-| 依赖环                                                         | S08               | `import/no-cycle` · dependency-cruiser `no-circular`                                                                                 |
-| 导入路径解析不到                                               | S33（**已移除**） | `import/no-unresolved`（见 §5 的说明：本体原先自己实现，0.4.0 交回生态）                                                             |     |
-| 孤儿文件                                                       | S15（部分）       | dependency-cruiser `no-orphans`                                                                                                      |
-| 幽灵依赖 / 声明但未使用                                        | P03 · P08         | `knip` · `depcheck`                                                                                                                  |
-| 颜色字面量只在色板                                             | D01               | stylelint `color-no-hex` + `overrides`                                                                                               |
-| `!important`                                                   | D09               | stylelint `declaration-no-important`                                                                                                 |
-| 长度 / z-index / 时长白名单                                    | D12–D14           | stylelint `declaration-property-value-allowed-list`                                                                                  |
-| JSX 裸文案                                                     | C01               | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体）        |
+| 已委派的约束                                                                          | 原规则            | 交给谁                                                                                                                               |
+| ------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `any` / 非空断言 / ts 注释逃生舱                                                      | H01               | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                                    |
+| console / debugger / alert                                                            | H03               | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                             |
+| 未完成标记（TODO 等）                                                                 | H04               | `no-warning-comments`                                                                                                                |
+| 空 catch / 空块                                                                       | H05               | `no-empty`                                                                                                                           |
+| 假异步、`Math.random`、硬编码地址、假数据字面量                                       | H07–H09           | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                           |
+| 抑制注释（`eslint-disable` / `oxlint-disable` / `@ts-ignore`）                        | H02               | **未实现、也委派不出去**：eslint 默认不禁止 disable 注释（要装 `eslint-comments` 之类插件）。见 REQUIREMENTS 第七节（原 R-70，已撤） |
+| 文件行数 / 函数行数                                                                   | S16               | `max-lines` · `max-lines-per-function`                                                                                               |
+| 相对越级 `../`                                                                        | S10               | `no-restricted-imports`                                                                                                              |
+| 依赖环                                                                                | S08               | `import/no-cycle` · dependency-cruiser `no-circular`                                                                                 |
+| 导入路径解析不到                                                                      | S33（**已移除**） | `import/no-unresolved`（见 §5 的说明：本体原先自己实现，0.4.0 交回生态）                                                             |     |
+| 孤儿文件                                                                              | S15（部分）       | dependency-cruiser `no-orphans`                                                                                                      |
+| ~~幽灵依赖 / 声明但未使用~~（**已于 0.4.0 收回本体**：P03 error / P08 warn，见 §5.4） | P03 · P08         | —                                                                                                                                    |
+| 颜色字面量只在色板                                                                    | D01               | stylelint `color-no-hex` + `overrides`                                                                                               |
+| `!important`                                                                          | D09               | stylelint `declaration-no-important`                                                                                                 |
+| 长度 / z-index / 时长白名单                                                           | D12–D14           | stylelint `declaration-property-value-allowed-list`                                                                                  |
+| JSX 裸文案                                                                            | C01               | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体）        |
 
 **代价（必须知道）**：委派之后，**宿主没有对应工具就等于失去这层覆盖**。所以接入清单里要一起做：
 装 eslint（含 typescript-eslint）、stylelint、knip，并在 `pnpm lint` 链路里跑起来。
@@ -121,10 +121,10 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 78 条**（以 `arch-guard --stats` / `coreRules` 为准）：
-> `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S42`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`H12`、`P01`、`P02`、`P04–P07`、`P11`、`P12`、`M02–M09`。
-> `S10`（相对越级）、`P03`（幽灵依赖）、`P08`（死依赖）等已按 §4.9 **委派**给
-> eslint / dependency-cruiser / knip，不在本体实现；`H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 80 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S42`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`H12`、`P01`–`P08`、`P11`、`P12`、`M02–M09`。
+> `S10`（相对越级）等已按 §4.9 **委派**给 eslint / dependency-cruiser / knip，不在本体实现；
+> `H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。**P03 / P08 原委派给 knip · depcheck，0.4.0 已收回本体**（配置成本高而事实现成）。
 > **组维度在应用范式下同样可用**：`canonical()` 的七个域槽位都声明了 `group: 'domain'` ——
 > 所以 S22 / S23 / S26 / S28 / S32 这些"按组判定"的规则，声明 `dimension: 'domain'` 后
 > 在三根范式里也真的在跑（此前它们只认 FSD 的 `slice`，在应用范式下集体沉默）。
@@ -245,15 +245,16 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ### 5.4 依赖（P）
 
-| ID  | 红线                                                                                                                                                                               | 判据                    | 等级 | 级别  |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ---- | ----- |
-| P01 | `dependencies` 必须在 `deps({ allow })` ∪ 适配表 `packages` 内（**显式开启**；能力表不隐式开启，见 ADR-0005）                                                                      | `package.json`          | L1   | error |
-| P02 | 明确禁用库（axios/ky/swr/redux/mobx/jotai/react-hook-form/tailwind/styled-components…）                                                                                            | `package.json`          | L1   | error |
-| P04 | **适配表与实际依赖一致**：适配表声明的包必须在 `dependencies` 里；反向，装了适配表之外的组件库即报错                                                                               | 适配表 + `package.json` | L1   | error |
-| P05 | **图标来源唯一**：图标 import 只许来自适配表登记的图标包                                                                                                                           | 适配表 + AST            | L2   | error |
-| P03 | 幽灵依赖：import 了未声明的包                                                                                                                                                      | 图 + `package.json`     | L3   | error |
-| P12 | **同类方案不许混入**：登记了某个方案面（router / data-layer / styles / ui-kit / i18n）之后，再 import 该面里的**另一个**同类库即报（判据来自 `src/data/solution-alternatives.ts`） | 适配表 + AST            | L1   | error |
-| P11 | **适配表声明的库必须真的被用**：既没 import 它声明的包，也没有任何 vendor 选择器/变量 → D10 / D10b / P05 / H06 等于没跑                                                            | 适配表 + 图 + CSS       | L2   | warn  |
+| ID  | 红线                                                                                                                                                                                                                                                                                      | 判据                                | 等级 | 级别  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---- | ----- |
+| P01 | `dependencies` 必须在 `deps({ allow })` ∪ 适配表 `packages` 内（**显式开启**；能力表不隐式开启，见 ADR-0005）                                                                                                                                                                             | `package.json`                      | L1   | error |
+| P02 | 明确禁用库（axios/ky/swr/redux/mobx/jotai/react-hook-form/tailwind/styled-components…）                                                                                                                                                                                                   | `package.json`                      | L1   | error |
+| P04 | **适配表与实际依赖一致**：适配表声明的包必须在 `dependencies` 里；反向，装了适配表之外的组件库即报错                                                                                                                                                                                      | 适配表 + `package.json`             | L1   | error |
+| P05 | **图标来源唯一**：图标 import 只许来自适配表登记的图标包                                                                                                                                                                                                                                  | 适配表 + AST                        | L2   | error |
+| P03 | **幽灵依赖**：import 了但没在 `package.json` 里声明（靠别人的依赖碰巧能跑）—— **0.4.0 收回本体**（原先委派给 knip / depcheck）                                                                                                                                                            | `imports` + `package.json`          | L2   | error |
+| P12 | **同类方案不许混入**：登记了某个方案面（router / data-layer / styles / ui-kit / i18n）之后，再 import 该面里的**另一个**同类库即报（判据来自 `src/data/solution-alternatives.ts`）                                                                                                        | 适配表 + AST                        | L1   | error |
+| P11 | **适配表声明的库必须真的被用**：既没 import 它声明的包，也没有任何 vendor 选择器/变量 → D10 / D10b / P05 / H06 等于没跑                                                                                                                                                                   | 适配表 + 图 + CSS                   | L2   | warn  |
+| P08 | **声明但未使用**：写进 `dependencies` 却全项目零引用 —— **0.4.0 收回本体**（tsc / eslint 都不知道 `package.json`，只有 knip / depcheck 管）。**声明才判**（`deps({ unusedDeps: true })`）：默认关，因为只按 import 判会误伤自动 JSX 运行时（`react`）、副作用型依赖与只在构建配置里用的包 | `package.json` + 全项目 import 集合 | L1   | warn  |
 
 > P06 / P07（能力指纹与疑似自造轮子）的判据**只在 §16.2 写一处**，本表不重复 —— 同一份表写两处就是文档漂移的来源。
 > （这里原先还写着"P09 / P10 的定义在 §16.2"，但那两条规则并没有独立实现，见 §16.2 的编号去向。）

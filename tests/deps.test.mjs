@@ -123,3 +123,84 @@ test('P 域：适配表声明的包并入 P01 批准名单（不必在 allow 里
   // allow 只有 react/react-dom，但 antd 三件套由 uiKit(antdKit()) 的 packages 批准
   assert.deepEqual(result.all, [])
 })
+
+/* ---------------- C1 / C2：P03 幽灵依赖 · P08 声明未用 ---------------- */
+
+const rule = (id) => {
+  const found = coreRules.find((entry) => entry.id === id)
+  assert.ok(found, `规则 ${id} 不存在`)
+  return found
+}
+
+const depsCtx = ({
+  phantom = [],
+  unused = [],
+  hasManifest = true,
+  imports = {},
+  unusedDeps = true,
+}) => {
+  const relations = Object.keys(imports)
+  return {
+    config: { adapters: {}, params: { unusedDeps } },
+    records: relations.map((rel) => ({ rel, kind: 'ts', layer: 3 })),
+    facts: new Map(
+      relations.map((rel) => [
+        rel,
+        { comments: [], exports: [], functions: [], imports: imports[rel] },
+      ]),
+    ),
+    deps: {
+      hasManifest,
+      runtime: [],
+      dev: [],
+      peer: [],
+      declared: new Set(),
+      imported: new Set(),
+      phantom,
+      unused,
+    },
+    policy: { allow: [], deny: [], capabilities: {}, fingerprints: [] },
+    files: relations,
+  }
+}
+
+test('P03：幽灵依赖报在引用它的那一行；已声明的包 / node: 内置 / 没清单时不报', () => {
+  const findings = rule('P03').run(
+    depsCtx({
+      phantom: ['left-pad'],
+      imports: {
+        'src/shared/lib/pad.ts': [{ spec: 'left-pad', line: 3, typeOnly: false, dynamic: false }],
+        'src/shared/lib/format.ts': [{ spec: 'dayjs', line: 1, typeOnly: false, dynamic: false }],
+      },
+    }),
+  )
+  assert.equal(findings.length, 1)
+  assert.equal(findings[0].file, 'src/shared/lib/pad.ts')
+  assert.equal(findings[0].line, 3)
+  assert.deepEqual(rule('P03').run(depsCtx({ phantom: [], imports: {} })), [])
+  assert.deepEqual(
+    rule('P03').run(
+      depsCtx({
+        phantom: ['left-pad'],
+        hasManifest: false,
+        imports: { 'src/a.ts': [{ spec: 'left-pad', line: 1, typeOnly: false, dynamic: false }] },
+      }),
+    ),
+    [],
+    '没有 package.json 时不判（整体跳过依赖类规则）',
+  )
+})
+
+test('P08：声明未用报在 package.json 上且默认 warn；dev/peer 与"在用"的依赖不报', () => {
+  const findings = rule('P08').run(depsCtx({ unused: ['lodash'] }))
+  assert.equal(findings.length, 1)
+  assert.equal(findings[0].file, 'package.json')
+  assert.equal(findings[0].global, true)
+  assert.deepEqual(rule('P08').run(depsCtx({ unused: [] })), [], 'unused 为空时不报')
+  assert.deepEqual(rule('P08').run(depsCtx({ unused: ['lodash'], hasManifest: false })), [])
+  assert.deepEqual(
+    rule('P08').run(depsCtx({ unused: ['lodash'], unusedDeps: false })),
+    [],
+    '没声明 unusedDeps 就不判（默认关：react / 副作用型依赖会误报）',
+  )
+})
