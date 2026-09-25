@@ -271,6 +271,27 @@ test('流程：README 与 USAGE 里的相对链接必须真的能打开（文档
   assert.deepEqual(problems, [])
 })
 
+test('流程：需求状态小结的数字必须等于实际条目数（手抄的数字也要有门禁）', () => {
+  // 真实漂移过：小结写着「已完成 61」而实际已到 70 —— 与 DESIGN 的规则数同一类病，
+  // 只是这次漏在 REQUIREMENTS 身上。状态小结是"还剩什么没做"的入口，它错就等于账本错。
+  const text = read('REQUIREMENTS.md')
+  const statuses = [...text.matchAll(/^\*\*R-\d+ [^*]+\*\* · ([^·]+) ·/gm)].map((m) => m[1].trim())
+  const actual = {
+    已完成: statuses.filter((status) => status === '已完成').length,
+    已委派: statuses.filter((status) => status === '已委派').length,
+    不做: statuses.filter((status) => status.startsWith('不做')).length,
+  }
+  const note = /已完成`?\s*(\d+)\s*·\s*`?已委派`?\s*(\d+)\s*·\s*`?不做`?\s*(\d+)/.exec(text)
+  assert.ok(note, '需求状态小结（摘要那句"已完成 N · 已委派 M · 不做 K"）没找到 —— 格式变了？')
+  assert.ok(statuses.length > 70, `只解析到 ${statuses.length} 条需求，条目格式变了？`)
+  assert.deepEqual(
+    [Number(note[1]), Number(note[2]), Number(note[3])],
+    [actual.已完成, actual.已委派, actual.不做],
+    '需求状态小结与实际条目数不一致（改状态别忘了改小结）',
+  )
+  assert.equal(actual.已完成 + actual.已委派 + actual.不做, statuses.length)
+})
+
 function requirementIdsFrom(text, status) {
   return [...text.matchAll(/^\*\*(R-\d+) [^*]+\*\* · ([^·]+) ·/gm)]
     .filter((match) => match[2].trim() === status)
