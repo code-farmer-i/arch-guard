@@ -72,7 +72,7 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
   /**
    * **落点由范式声明，域预设只写用户显式给的**（见 `Preset.paradigm`）。
    *
-   * 为什么：`canonical()` 与 `fsd()` 各有惯用落点（三根是 `shared/styles`，FSD 是 `shared/ui/styles`）。
+   * 为什么：`canonical()` 与 `fsd()` 各有惯用落点（三根是 `shared/styles`，FSD 是官方 app 段的 `app/styles`）。
    * 如果这里塞三根默认值，`[fsd(), designSystem()]` 就会被悄悄改回三根路径 —— **组合起来就不符合所选规范了**（实测过）。
    * 谁都没声明时，`designParams()` 的内置默认兜底（仍是三根路径），行为与旧版一致。
    */

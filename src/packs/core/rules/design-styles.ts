@@ -30,9 +30,9 @@ export const stylesInModules: Rule = {
     if (patterns.length === 0) return []
     /**
      * 全局 CSS 允许的落点 = **声明过的**样式目录 / 令牌目录 / 第三方覆盖目录。
-     * 三个都要收：FSD 的令牌在 `shared/ui/styles/tokens`、第三方覆盖在 `shared/ui/styles/vendor`，
-     * 而全局样式（reset / 变量）属于官方 `app/styles` 片段 —— 只认 `styleDir` 一个目录时，
-     * `app/styles/*.css` 会被误报成「出现在组件目录」（文案与事实都不对）。
+     * 三个都要收：全局样式（reset / 变量）· 设计令牌 · 第三方覆盖常常分在三个子目录里
+     * （FSD 预设把三者都放在官方 app 段的 `app/styles` 下）—— 只认 `styleDir` 一个目录时，
+     * 子目录里的 CSS 会被误报成「出现在组件目录」（文案与事实都不对）。
      */
     const globalDirs = [params.styleDir, params.tokenDir, params.vendorDir].filter(
       (dir) => typeof dir === 'string' && dir.length > 0,

@@ -212,6 +212,26 @@ function emptyFaceDeclarations(
     }
   }
 
+  /**
+   * **`designSystem` 的落点参数**（R-96）：`styleDir` / `tokenDir` / `vendorDir`（目录）与
+   * `paletteFile` / `themeFile` / `storageFile`（文件）—— 写错路径时那几条规则**安静地返回空**
+   * （文件不存在 → 没有东西可判），与 R-86 的"声明配了却 0 命中"是同一种病。
+   * 目录按"这个目录下有没有文件"判（不能拿目录名本身当 glob —— 那样永远不命中）。
+   */
+  const params = config.params ?? {}
+  for (const key of ['styleDir', 'tokenDir', 'vendorDir'] as const) {
+    const dir = params[key]
+    if (typeof dir === 'string' && dir !== '' && !hasFile(`${dir}/**`)) {
+      empty.push(`designSystem.${key} 的 ${dir}`)
+    }
+  }
+  for (const key of ['paletteFile', 'themeFile', 'storageFile'] as const) {
+    const file = params[key]
+    if (typeof file === 'string' && file !== '' && !hasFile(file)) {
+      empty.push(`designSystem.${key} 的 ${file}`)
+    }
+  }
+
   // 域预设里的声明（`designSystem.numberHomes`）：名字与家两侧都可能在配置期写错
   const homes = config.params?.numberHomes as
     { name: string; names?: string[]; in?: string[] }[] | undefined

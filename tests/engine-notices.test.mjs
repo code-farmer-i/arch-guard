@@ -241,3 +241,23 @@ test('R-92：kit 的 `fetchApis` 与平台表的 `env-reads.apis` 不参与"0 �
   assert.doesNotMatch(notice.text, /useMutation/, 'kit 的默认清单不点名')
   assert.doesNotMatch(notice.text, /process\.env/, '平台表给的读取根不点名')
 })
+
+/** R-96：`designSystem` 的落点参数写错 → 那几条规则安静地返回空，必须自述 */
+
+test('R-96：designSystem 的目录 / 文件落点不存在也要点名（否则令牌类规则静默空判）', () => {
+  const rel = 'src/app/main.tsx'
+  const notice = noticeOfFull(
+    {
+      params: {
+        tokenDir: 'src/shared/ui/styles/tokens',
+        paletteFile: 'src/app/styles/tokens/palette.css',
+      },
+    },
+    [{ rel }],
+    [rel],
+    new Map([[rel, { calls: [], reads: [] }]]),
+  )
+  assert.ok(notice, '落点不存在应当自述')
+  assert.match(notice.text, /designSystem\.tokenDir 的 src\/shared\/ui\/styles\/tokens/)
+  assert.match(notice.text, /designSystem\.paletteFile 的 src\/app\/styles\/tokens\/palette\.css/)
+})

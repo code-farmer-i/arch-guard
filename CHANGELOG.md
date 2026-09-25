@@ -100,6 +100,21 @@
 - **常量从 id 表派生**（`callSiteSources` ← `CALL_SITE_SOURCE_IDS`，同 `NOTICE` / `SKIP` 的形态），
   加一个来源只改数据表一处；新增门禁断言两者不许漂移。两个示例改成用常量。
 
+### Changed（R-96：FSD 的样式落点归到官方 `app/styles`，布局进 widgets —— **有迁移动作**）
+
+- 用户问"`examples/full-fsd/` 符合 FSD 规范吗"。对着官方 v2.1 逐条核之后，主干符合（层与顺序、切片只能引更低层、
+  app/shared 无切片且段间可互引、切片公开面、切片内相对 / 跨层别名、命名），但有两处不够规范：
+- `fsd()` 的默认落点改了：`tokenDir` / `vendorDir` / `paletteFile` / `themeFile` 从 `src/shared/ui/styles/**`
+  移到 **`src/app/styles/**`**。理由：官方要求 shared 的段"按用途命名"，`ui` 段里塞设计令牌不合规范；
+  而且 `shared/ui/styles` 作为 `shared/ui` 的子目录还得有一个**只为占位**的 `index.ts`（公开面）。
+- **迁移**：FSD 项目的令牌若仍在 `src/shared/ui/styles/**`，两条路 —— 搬到 `src/app/styles/**`，或在
+  `designSystem({ tokenDir, vendorDir, paletteFile, themeFile })` 里显式覆盖旧路径。
+  **不确定有没有影响？报告会告诉你**：这次把 `designSystem` 的六个落点参数纳入"0 命中"自述
+  （`designSystem.tokenDir 的 …` / `paletteFile 的 …` 指向不存在的目录 / 文件就点名），不再安静地少判。
+- 示例 `examples/full-fsd`：布局从 `app/routes/AppLayout.tsx` 移到 **`widgets/app-layout/`**
+  （官方明确说"页面布局可以放在 widgets 层"）—— 示例现在用满 5 层：app / pages / widgets / features / entities / shared。
+- 已知偏离照旧钉着：官方 `@x` 跨引用公开面**未实现**（用了会被报 S01，见 `tests/fsd-conformance`）。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

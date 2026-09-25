@@ -119,7 +119,7 @@ FSD（[Feature-Sliced Design](https://feature-sliced.design/)）= 按「层（la
 | ----------------- | --------------------------------------------------------------------------------- |
 | 页面              | `src/pages/<slice>/ui/*`                                                          |
 | 业务交互 / 实体   | `src/features/<slice>/{ui,model,api,lib}` · `src/entities/<slice>/{ui,model,api}` |
-| 组件库 / 令牌     | `src/shared/ui/**` · `src/shared/ui/styles/tokens/**`（项目自定）                 |
+| 组件库 / 令牌     | `src/shared/ui/**`（UI kit）· `src/app/styles/{tokens,vendor}/**`（项目自定）     |
 | 文案              | `src/shared/i18n/locales/<lang>/<ns>.ts`                                          |
 | 端点 / 契约       | `src/shared/api/**`                                                               |
 | 环境 / 持久化 key | `src/shared/config/**`                                                            |
@@ -233,9 +233,9 @@ export default {
     // ② 契约域：**声明即启用**（各域预设的规则集取并集，不用手写 enable 清单）
     designSystem({
       styleDir: 'src/app/styles', // 全局样式归官方 app 片段
-      tokenDir: 'src/shared/ui/styles/tokens',
-      paletteFile: 'src/shared/ui/styles/tokens/palette.css',
-      themeFile: 'src/shared/ui/styles/tokens/theme.css',
+      tokenDir: 'src/app/styles/tokens', // 令牌与第三方覆盖也归官方 app 片段
+      paletteFile: 'src/app/styles/tokens/palette.css',
+      themeFile: 'src/app/styles/tokens/theme.css',
       storageFile: 'src/shared/config/storage.ts',
     }),
     copy(),
@@ -301,8 +301,8 @@ export default {
   packs: [reactPack],
   presets: [
     fsd(), // ← 六层 + 切片 + 片段 + 公开面，**连契约落点一起声明**
-    // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 全局样式 `src/app/styles`（官方 app 片段）、
-    // 令牌 `src/shared/ui/styles/tokens`、第三方覆盖 `src/shared/ui/styles/vendor`、
+    // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 全局样式 / 令牌 / 第三方覆盖三处都在官方
+    // app 片段的 `src/app/styles` 下（shared 的段要按用途命名，没有"样式"这个段名）、
     // storage key `src/shared/config/storage.ts`。
     // 域轴用**组合方案**拼（等价于手写 designSystem()/copy()/deps()/hygiene()/i18n()/uiKit()）：
     ...stack({

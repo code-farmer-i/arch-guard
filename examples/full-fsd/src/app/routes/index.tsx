@@ -3,7 +3,7 @@ import { CrewsPage } from '@/pages/crews'
 import { OrdersPage } from '@/pages/orders'
 import { PATHS } from '@/shared/routes'
 import { AuthGuard } from '../router/guards/AuthGuard'
-import { AppLayout } from './AppLayout'
+import { AppLayout } from '@/widgets/app-layout'
 
 /** 路由表：切片只通过自己的公开面暴露页面 */
 export const appRoutes: RouteObject[] = [

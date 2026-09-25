@@ -233,8 +233,8 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
  * presets: [fsd(), designSystem({ … }), copy(), i18n(i18nextKit()), deps({ … }), hygiene(), uiKit(noneKit())]
  * ```
  *
- * 落点：全局样式 `app/styles`（官方 `app` 片段）· 令牌 `shared/ui/styles/tokens` ·
- * 第三方覆盖 `shared/ui/styles/vendor` · storage key `shared/config/storage.ts` · i18n `shared/i18n/locales`。
+ * 落点：全局样式 / 令牌 / 第三方覆盖**三处都在官方 app 段的 `app/styles` 下**（shared 的段要按用途命名，
+ * 而"样式"不是 shared 的段名）· storage key `shared/config/storage.ts` · i18n `shared/i18n/locales`。
  *
  * 基础沿用库范式（`layout.modules` / `layout.shared` 置空 → 三根那套 S03–S09/S15/S18 自然空转，
  * 不会去查不存在的目录假装检查过）。
@@ -258,16 +258,17 @@ export function fsd(options: FsdOptions = {}): Preset {
     // 覆盖 library 的范式标识：FSD 也是一个范式，不能和库范式混用
     paradigm: 'fsd',
     roles: fsdRoleTable(options),
-    // FSD 的契约落点：令牌放 `shared/ui/styles`（**不需要**额外加片段 —— ui 本来就是 FSD 片段），
+    // FSD 的契约落点都在官方段名之下（app 的 `styles` / shared 的 `config` `i18n`），
     // 于是 `[fsd(), designSystem()]` 开箱即符合 FSD 目录，不用手写一堆路径
     params: {
-      // 全局样式（reset / 变量）归官方 `app/styles` 片段；令牌与第三方覆盖仍在 `shared/ui/styles` 下
-      // （D16 允许的全局 CSS 落点 = styleDir / tokenDir / vendorDir 三个声明目录）
+      // 三处都在官方 app 段的 `styles` 下：官方对 shared 段的要求是"**按用途命名**"，
+      // 而 `shared/ui/styles` 会让 `ui`（UI kit）这个段同时装设计令牌 —— 而且它作为 `shared/ui`
+      // 的子目录还得有一个只为占位的 `index.ts`（公开面）。规范里 shared 没有"样式"这个段名。
       styleDir: `${src}/app/styles`,
-      tokenDir: `${src}/shared/ui/styles/tokens`,
-      vendorDir: `${src}/shared/ui/styles/vendor`,
-      paletteFile: `${src}/shared/ui/styles/tokens/palette.css`,
-      themeFile: `${src}/shared/ui/styles/tokens/theme.css`,
+      tokenDir: `${src}/app/styles/tokens`,
+      vendorDir: `${src}/app/styles/vendor`,
+      paletteFile: `${src}/app/styles/tokens/palette.css`,
+      themeFile: `${src}/app/styles/tokens/theme.css`,
       storageFile: `${src}/shared/config/storage.ts`,
       i18nDir: `${src}/shared/i18n/locales`,
     },

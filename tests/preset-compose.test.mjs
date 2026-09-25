@@ -128,10 +128,11 @@ test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段
 
 test('组合：契约落点跟随范式（域预设不再塞三根默认值）', async () => {
   const fsdConfig = await load('fsd(), designSystem()')
-  // 全局样式归官方 `app/styles` 片段；令牌与第三方覆盖仍在 `shared/ui/styles` 下
+  // 三处都归官方 `app/styles` 片段：官方对 shared 段的要求是"按用途命名"，
+  // `shared/ui/styles` 会让 UI kit 那个段同时装令牌，且子目录还得有个只为占位的 index（公开面）
   assert.equal(fsdConfig.params.styleDir, 'src/app/styles', 'FSD 的全局样式落点')
-  assert.equal(fsdConfig.params.tokenDir, 'src/shared/ui/styles/tokens', 'FSD 的令牌落点')
-  assert.equal(fsdConfig.params.vendorDir, 'src/shared/ui/styles/vendor')
+  assert.equal(fsdConfig.params.tokenDir, 'src/app/styles/tokens', 'FSD 的令牌落点')
+  assert.equal(fsdConfig.params.vendorDir, 'src/app/styles/vendor')
 
   const canonConfig = await load('canonical(), designSystem()')
   assert.equal(canonConfig.params.styleDir, 'src/shared/styles', '三根的落点（与旧版一致）')
