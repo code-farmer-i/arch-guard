@@ -1,4 +1,6 @@
-import { wheelFingerprints } from '../../../data/wheel-fingerprints.js'
+import type { WheelFingerprint } from '../../../data/wheel-fingerprints.js'
+
+import { effectiveFingerprints } from './deps-fingerprints.js'
 import type { Facts, Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 const finding = (
@@ -121,9 +123,10 @@ function maskComments(text: string, facts: Facts | undefined): string {
 /** 全项目扫强指纹（数据来自 data/wheel-fingerprints.ts，规则本身不含任何库名） */
 function scanStrongFingerprints(
   ctx: Parameters<Rule['run']>[0],
+  fingerprints: readonly WheelFingerprint[],
   capability: string,
 ): FingerprintHit[] {
-  const entry = wheelFingerprints.find((item) => item.capability === capability)
+  const entry = fingerprints.find((item) => item.capability === capability)
   if (!entry?.syntax || entry.syntax.length === 0) return []
   const regexes = entry.syntax.map((pattern) => new RegExp(pattern))
   const hits: FingerprintHit[] = []
@@ -163,10 +166,12 @@ export const capabilityPreferred: Rule = {
   hint: '用能力表里登记的首选方案，别手搓',
   run: (ctx) => {
     const out: Finding[] = []
+    // 生效的指纹表 = 内置表 + 本项目覆盖（R-73）；每个能力都查同一份，别再各找一遍
+    const fingerprints = effectiveFingerprints(ctx.policy)
     for (const [capability, preferred] of Object.entries(ctx.policy.capabilities)) {
-      const entry = wheelFingerprints.find((item) => item.capability === capability)
+      const entry = fingerprints.find((item) => item.capability === capability)
       if (!entry) continue
-      const hits = scanStrongFingerprints(ctx, capability)
+      const hits = scanStrongFingerprints(ctx, fingerprints, capability)
       if (hits.length === 0) continue
       // 按**文件**判定：这个文件自己有没有在用登记方案。
       // 用全项目判定会放过「部分迁移」（A 文件用了 dayjs、B 文件还在手搓）。

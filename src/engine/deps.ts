@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
+
+import type { WheelFingerprint } from '../data/wheel-fingerprints.js'
 import { builtinModules } from 'node:module'
 import { join } from 'node:path'
 
@@ -30,10 +32,86 @@ export interface ProjectDeps {
   unused: string[]
 }
 
+/**
+ * **指纹覆盖**（R-73）：项目对某个能力的指纹证据加 / 删、或放宽。
+ *
+ * 为什么需要：内置的轮子指纹表是通用判断 ——
+ *   - **收紧**：企业规范只认内部实现，想让某条形态也命中；
+ *   - **放宽**：项目里那个 `@org/utils` 其实很成熟，或某个形态已经是"项目认可的封装"，
+ *     不该继续提示。
+ *
+ * **首选方案不在这里**（那是 `capabilities` 的活，一个事实只有一个出处）；
+ * 这里只管"什么形态算手搓"与"这个能力允不允许自研"。
+ */
+export interface FingerprintOverride {
+  /** 能力标识（必须与内置表里的某个能力同名 —— 拼错会让这条覆盖静默失效） */
+  capability: string
+  /** 追加**强**指纹（单证据即报） */
+  addSyntax?: string[]
+  /** 删掉内置的强指纹（按 pattern 原文精确匹配） */
+  removeSyntax?: string[]
+  /** 追加**弱**指纹（需与命名指纹叠加） */
+  addSoftSyntax?: string[]
+  /** 删掉内置的弱指纹 */
+  removeSoftSyntax?: string[]
+  /** 覆盖该能力的常见 API 名清单（命名指纹那一半） */
+  apiNames?: string[]
+  /** 放宽 / 收紧「允许项目自研」：true → P06 降级为 warn */
+  allowOwn?: boolean
+  /** 改判"平台内置能力"（平台能力没有 import 可查 → 没有豁免） */
+  platform?: boolean
+  /** 覆盖推荐写法（进报告 hint） */
+  hint?: string
+}
+
 export interface DepsPolicy {
   allow: string[]
   deny: string[]
   capabilities: Record<string, string>
+  fingerprints: FingerprintOverride[]
+}
+
+const STRING_FIELDS = [
+  'addSyntax',
+  'removeSyntax',
+  'addSoftSyntax',
+  'removeSoftSyntax',
+  'apiNames',
+] as const
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
+}
+
+/**
+ * 把覆盖作用到指纹表上：**加**在原有之后、**删**按 pattern 原文精确匹配。
+ * 纯函数、不改入参（数据表是模块级常量，改它就会污染同一进程里的其它宿主）。
+ */
+export function applyFingerprintOverrides(
+  base: readonly WheelFingerprint[],
+  overrides: readonly FingerprintOverride[],
+): WheelFingerprint[] {
+  if (overrides.length === 0) return [...base]
+  const byCapability = new Map(overrides.map((item) => [item.capability, item]))
+  return base.map((entry) => {
+    const override = byCapability.get(entry.capability)
+    if (!override) return { ...entry }
+    const merge = (current: string[] | undefined, add?: string[], remove?: string[]): string[] => {
+      const removed = new Set(remove ?? [])
+      return [...(current ?? []).filter((pattern) => !removed.has(pattern)), ...(add ?? [])]
+    }
+    return {
+      ...entry,
+      syntax: merge(entry.syntax, override.addSyntax, override.removeSyntax),
+      softSyntax: merge(entry.softSyntax, override.addSoftSyntax, override.removeSoftSyntax),
+      ...(override.apiNames ? { apiNames: [...override.apiNames] } : {}),
+      ...(override.allowOwn !== undefined ? { allowOwn: override.allowOwn } : {}),
+      ...(override.platform !== undefined ? { platform: override.platform } : {}),
+      ...(override.hint !== undefined ? { hint: override.hint } : {}),
+    }
+  })
 }
 
 interface PackageJson {
@@ -78,9 +156,27 @@ export function readProjectDeps(root: string, imported: Iterable<string>): Proje
   }
 }
 
+function overridesFrom(value: unknown): FingerprintOverride[] {
+  if (!Array.isArray(value)) return []
+  const out: FingerprintOverride[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const raw = item as Record<string, unknown>
+    if (typeof raw.capability !== 'string' || raw.capability === '') continue
+    const override: FingerprintOverride = { capability: raw.capability }
+    for (const field of STRING_FIELDS) {
+      const list = asStringArray(raw[field])
+      if (list.length > 0) override[field] = list
+    }
+    if (typeof raw.allowOwn === 'boolean') override.allowOwn = raw.allowOwn
+    if (typeof raw.platform === 'boolean') override.platform = raw.platform
+    if (typeof raw.hint === 'string' && raw.hint !== '') override.hint = raw.hint
+    out.push(override)
+  }
+  return out
+}
+
 export function depsPolicyFrom(params: Record<string, unknown>): DepsPolicy {
-  const asStringArray = (value: unknown): string[] =>
-    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
   const rawCapabilities = params.capabilities
   const capabilities: Record<string, string> = {}
   if (rawCapabilities && typeof rawCapabilities === 'object' && !Array.isArray(rawCapabilities)) {
@@ -92,6 +188,7 @@ export function depsPolicyFrom(params: Record<string, unknown>): DepsPolicy {
     allow: asStringArray(params.allow),
     deny: asStringArray(params.deny),
     capabilities,
+    fingerprints: overridesFrom(params.fingerprints),
   }
 }
 

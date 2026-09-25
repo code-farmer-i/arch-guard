@@ -1,3 +1,6 @@
+import { capabilityOf, wheelFingerprints } from '../data/wheel-fingerprints.js'
+import { AdapterError } from '../engine/adapters.js'
+import type { FingerprintOverride } from '../engine/deps.js'
 import type { Preset } from '../engine/types.js'
 
 export interface ContrastPair {
@@ -107,9 +110,41 @@ export interface DepsOptions {
   deny?: string[]
   /** 能力 → 首选方案：{ 'cli-args': 'commander', datetime: 'dayjs' } */
   capabilities?: Record<string, string>
+  /**
+   * 覆盖某个能力的**指纹证据**（R-73）：加 / 删 pattern、改 API 名清单、放宽 `allowOwn`。
+   * 首选方案不在这里 —— 那是 `capabilities` 的活（一个事实一个出处）。
+   */
+  fingerprints?: FingerprintOverride[]
 }
 
 export function deps(options: DepsOptions = {}): Preset {
+  // 覆盖的校验放在这里（宿主写配置的地方）而不是规则里：
+  // 能力名拼错、pattern 写不成正则 —— 都是"配了但不生效"，必须当场报错
+  for (const override of options.fingerprints ?? []) {
+    const entry = capabilityOf(override.capability)
+    if (!entry) {
+      throw new AdapterError(
+        `deps() 的指纹覆盖指向不存在的能力「${override.capability}」\n` +
+          `（内置能力：${wheelFingerprints.map((item) => item.capability).join(' / ')}）`,
+      )
+    }
+    for (const field of [
+      'addSyntax',
+      'removeSyntax',
+      'addSoftSyntax',
+      'removeSoftSyntax',
+    ] as const) {
+      for (const pattern of override[field] ?? []) {
+        try {
+          new RegExp(pattern)
+        } catch {
+          throw new AdapterError(
+            `deps() 的指纹覆盖 ${field} 里「${pattern}」不是合法正则 —— 这条覆盖永远不会命中`,
+          )
+        }
+      }
+    }
+  }
   return {
     enable: ['P01', 'P02', 'P04', 'P05', 'P06', 'P07', 'P11', 'P12'],
     params: {
@@ -118,6 +153,7 @@ export function deps(options: DepsOptions = {}): Preset {
       allow: options.allow ?? [],
       deny: options.deny ?? [],
       capabilities: options.capabilities ?? {},
+      fingerprints: options.fingerprints ?? [],
     },
   }
 }

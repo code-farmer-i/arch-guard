@@ -1,6 +1,6 @@
 # 手搓轮子检测补全（P07 + 指纹覆盖）
 
-Status: in-progress（P07 两证据已落地；剩「指纹可覆盖」）
+Status: done
 
 ## 场景（对应 REQUIREMENTS.md 的 R-43 手搓轮子 · R-73 指纹表可覆盖）
 
@@ -49,3 +49,9 @@ P06 只认**强指纹**（形态无歧义，如 `JSON.parse(JSON.stringify(x))`�
   （`softSyntax` 必须与 `apiNames` 成对，`data/wheel-fingerprints.ts` 有断言），`__fixtures__/wheels`
   里覆盖到 P07；**剩下的只有「宿主可在配置里覆盖单个能力的指纹」**（验收 #2 因此仍是失败的），
   以及那条专门的 `wheel-soft` 对照夹具。需求视角见 REQUIREMENTS（演进类）。
+- 2026-09-25 **补完**：最后一半「宿主可覆盖单个能力的指纹」已落地（R-73）——
+  `deps({ fingerprints: [...] })` 支持加 / 删强指纹与弱指纹、改 API 名清单、放宽 `allowOwn`、
+  改 `platform` 与 hint；校验放在预设里（能力名必须真实存在、pattern 必须能编译），
+  P06 / P07 改为读**生效表**（`packs/core/rules/deps-fingerprints.ts`）。
+  夹具 `fingerprint-override` + 单测 `tests/deps-fingerprints.test.mjs`（5 例）。
+  结论：**首选方案不放进覆盖**（那是 `capabilities` 的活）—— 一个事实只留一个出处。

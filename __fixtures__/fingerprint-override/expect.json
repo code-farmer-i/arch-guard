@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "P06",
+      "file": "src/shared/lib/dates.ts"
+    }
+  ],
+  "exact": true
+}

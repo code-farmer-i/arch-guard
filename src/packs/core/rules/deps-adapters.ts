@@ -1,6 +1,6 @@
 import { fingerprintsOf } from '../../../data/kit-fingerprints.js'
 import type { Adapter } from '../../../engine/types.js'
-import { wheelFingerprints } from '../../../data/wheel-fingerprints.js'
+import { effectiveFingerprints } from './deps-fingerprints.js'
 import { createRule } from '../../../engine/rule.js'
 import { cssFiles, usesVendorPatterns, vendorPatterns } from './design-shared.js'
 import { knownIconPackages } from '../../../data/icon-packages.js'
@@ -182,7 +182,7 @@ export const wheelSuspected: Rule = createRule({
       if (!facts || !source) continue
       const lines = maskComments(source, facts).split('\n')
 
-      for (const entry of wheelFingerprints) {
+      for (const entry of effectiveFingerprints(ctx.policy)) {
         const softSyntax = entry.softSyntax ?? []
         const apiNames = entry.apiNames ?? []
         // 两类证据缺一不可：没有弱指纹的能力（如 deep-clone）不参与 P07

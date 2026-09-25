@@ -17,6 +17,19 @@
 
 ## [Unreleased]
 
+### Added（指纹表可被项目覆盖 —— 收紧与放宽都行）
+
+- **场景 ①：企业规范只认公司内部那套实现**，或项目把 `JSON.parse(JSON.stringify(x))` 收进
+  `shared/lib/clone.ts` 当唯一深拷贝出口 —— 内置指纹表改不了，只能全仓改写法或干脆关掉 P06 / P07。
+- **场景 ②：内部自研库其实很成熟**（`@org/utils` 里有 `formatDate`），却被"疑似自造轮子"提示，
+  没法声明"这是我们认可的实现"。
+- **现在支持**：`deps({ capabilities, fingerprints: [{ capability, addSyntax / removeSyntax /
+addSoftSyntax / removeSoftSyntax / apiNames / allowOwn / platform / hint }] })` ——
+  判定跟着**生效表**走（P06 / P07 都不再直接读内置表）。**首选方案仍只来自 `capabilities`**
+  （一个事实一个出处）。能力名拼错、pattern 写不成正则 → **配置阶段直接报错**，不留"配了但不生效"。
+- 夹具 `fingerprint-override`：项目删掉 JSON 深拷贝那条形态后 `clone.ts` 不再报，
+  而手搓日期格式化照旧报。夹具 55 → **56**。
+
 ### Added（两条边界门禁：上帝域 · 迁移只出不进）
 
 - **场景 ①：三个域都在 import `crews` 的组件** —— 改 `crews` 一个 props 得同时改三个域；
