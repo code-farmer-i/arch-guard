@@ -16,7 +16,7 @@ _Avoid_: 项目、使用方、用户
 
 **事实模型（facts）**：
 parser 产出的纯 JSON：`file` / `rel` / `role` / `lineCount` / `parseErrors` / `imports` / `exports` /
-`strings` / `calls` / `functions` / `comments` / `hasJsx`。规则只消费它，从不接触 AST。
+`strings` / `calls` / `reads` / `functions` / `comments` / `hasJsx`。规则只消费它，从不接触 AST。
 （形状的权威表述与实现见 `docs/DESIGN.md` §6.1.1；改形状要同时 +1 facts 缓存版本。）
 _Avoid_: AST、语法树、解析结果
 

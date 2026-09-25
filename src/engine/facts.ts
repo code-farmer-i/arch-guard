@@ -1,5 +1,7 @@
 import ts from 'typescript'
 
+import { ENV_READ_ROOTS } from '../data/env-roots.js'
+
 import { assertTypeScriptApi } from './ts-api.js'
 
 import type { CommentFact, Facts, FileRecord } from './types.js'
@@ -177,6 +179,7 @@ export function extractFacts(input: FactInput): Facts {
     imports: [],
     exports: [],
     strings: [],
+    reads: [],
     calls: [],
     functions: [],
     comments: positioned.map(({ line, text: body, kind, pos, end }) => ({
@@ -316,6 +319,21 @@ export function extractFacts(input: FactInput): Facts {
         line: lineOf(sf, node.getStart(sf)),
         declared: true,
       })
+    }
+
+    /* ---- 环境读取（成员访问链的最外层） ---- */
+    if (ts.isPropertyAccessExpression(node)) {
+      const outermost = !(
+        parent &&
+        ts.isPropertyAccessExpression(parent) &&
+        parent.expression === node
+      )
+      if (outermost) {
+        const chain = node.getText(sf)
+        if (ENV_READ_ROOTS.some((root) => chain === root || chain.startsWith(`${root}.`))) {
+          facts.reads.push({ name: chain, line: lineOf(sf, node.getStart(sf)) })
+        }
+      }
     }
 
     /* ---- 字面量 ---- */

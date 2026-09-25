@@ -17,6 +17,16 @@
 
 ## [Unreleased]
 
+### Added（M3：环境变量 / 开关读取落点 —— S44）
+
+- 场景：`import.meta.env.VITE_API_BASE` 在十几个文件里直接读 —— 改名 / 换环境全仓搜，
+  而且读到的是**原始字符串**（没有默认值、没有校验、没有类型）。
+- `envReads({ apis: ['import.meta.env', 'process.env'], in: ['src/shared/config/**'] })` 声明后：
+  落点外的读取报；配置模块里读、测试文件都不报。
+- 事实模型新增 **`reads`**（环境相关的成员访问链；根名单放 `src/data/env-roots.ts`，引擎里不出现平台字面量），
+  `FACTS_CACHE_SPEC` 4 → **5**。
+- 新面 `env-reads`；规则 94 → **95**；夹具 74 → **75**；需求 R-79 落盘（M 批到此全部完成）。
+
 ### Added（M6：C01 第三种形态 —— 对象实参里的文案）
 
 - 缺口：`notification.open({ message: '保存' })` 这种**对象实参**形态看不见 —— `facts.calls.stringArg`

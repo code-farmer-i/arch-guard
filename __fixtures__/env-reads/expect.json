@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S44",
+      "file": "src/modules/crews/lib/api.ts"
+    }
+  ],
+  "exact": true
+}

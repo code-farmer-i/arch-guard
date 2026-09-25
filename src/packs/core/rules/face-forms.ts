@@ -12,6 +12,23 @@ import type {
   StylesAdapter,
 } from '../../../engine/types.js'
 
+/** 读取落点面（由 `envReads()` 预设登记）：哪些**环境读取** + 只许在哪读 */
+interface EnvReadsAdapter {
+  facet: string
+  apis?: string[]
+  in?: string[]
+}
+
+/** **环境读取的形态**（S44）：项目声明（`envReads({ apis })`）。空 = 停用 */
+export function envReadApisOf(config: Config): string[] {
+  return adapterOf<EnvReadsAdapter>(config, 'env-reads')?.apis ?? []
+}
+
+/** **环境读取只许出现的落点**（S44，glob 列表） */
+export function envReadsInOf(config: Config): string[] {
+  return adapterOf<EnvReadsAdapter>(config, 'env-reads')?.in ?? []
+}
+
 /** 埋点面（由 `analytics()` 预设登记）：埋点调用名 + 事件名的唯一出处 */
 interface AnalyticsAdapter {
   facet: string

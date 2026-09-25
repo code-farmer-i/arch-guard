@@ -279,3 +279,46 @@ test('callSites()：每组两样都要给，空值 / 重名 / 空清单一律 fa
     /组名要唯一/,
   )
 })
+
+/* ---------------- S44 环境读取落点 ---------------- */
+
+test('S44：落点外读环境报；落点内、测试文件、未声明都不判', () => {
+  const cfg = {
+    ...config(),
+    adapters: {
+      'env-reads': {
+        facet: 'env-reads',
+        id: 'declared',
+        apis: ['import.meta.env', 'process.env'],
+        in: ['src/shared/config/**'],
+      },
+    },
+  }
+  const findings = rule('S44').run(
+    context({
+      cfg,
+      records: [
+        { rel: 'src/shared/config/env.ts', role: 'shared:config' },
+        { rel: 'src/modules/crews/lib/api.ts', role: 'module:lib' },
+        { rel: 'src/modules/crews/lib/api.test.ts', role: 'test' },
+      ],
+      facts: {
+        'src/shared/config/env.ts': { reads: [{ name: 'import.meta.env.VITE_API_BASE', line: 2 }] },
+        'src/modules/crews/lib/api.ts': {
+          reads: [
+            { name: 'import.meta.env.VITE_API_BASE', line: 4 },
+            { name: 'process.env.NODE_ENV', line: 5 },
+          ],
+        },
+        'src/modules/crews/lib/api.test.ts': {
+          reads: [{ name: 'import.meta.env.VITE_MOCK', line: 1 }],
+        },
+      },
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => `${item.file}:${item.line}`),
+    ['src/modules/crews/lib/api.ts:4', 'src/modules/crews/lib/api.ts:5'],
+    '落点内与测试文件放过',
+  )
+})

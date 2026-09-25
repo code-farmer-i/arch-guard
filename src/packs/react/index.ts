@@ -26,5 +26,6 @@ export const reactPack = definePack({
     'styles',
     'call-sites',
     'analytics',
+    'env-reads',
   ],
 })

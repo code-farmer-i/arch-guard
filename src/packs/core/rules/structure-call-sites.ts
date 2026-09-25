@@ -2,7 +2,13 @@ import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
 
-import { callSiteGroupsOf, fetchApisOf, fetchInOf } from './face-forms.js'
+import {
+  callSiteGroupsOf,
+  envReadApisOf,
+  envReadsInOf,
+  fetchApisOf,
+  fetchInOf,
+} from './face-forms.js'
 import { finding } from './structure-util.js'
 
 /**
@@ -152,8 +158,54 @@ export const callsOnlyInDeclaredSites: Rule = {
   },
 }
 
+/* ---------------- S44 环境读取只在声明的落点 ---------------- */
+
+/**
+ * 判据：声明了"哪些环境读取 + 只许在哪读"之后，落点外的 `import.meta.env.X` / `process.env.X` 即报。
+ *
+ * 场景：`import.meta.env.VITE_API_BASE` 在十几个文件里直接读 —— 改名 / 换环境全仓搜，
+ * 读到的还是**原始字符串**（没有默认值、没有校验、没有类型）。收进配置模块，别处只消费。
+ */
+export const envReadsOnlyInDeclaredSites: Rule = {
+  id: 'S44',
+  domain: 'structure',
+  level: 'L2',
+  severity: 'error',
+  title: '环境读取只在声明的落点',
+  hint: '环境变量 / 构建期开关收进配置模块（带默认值与校验），别处只消费——散着读，改名与换环境都要全仓搜',
+  requires: ['envReads.apis', 'envReads.in'],
+  run: (ctx) => {
+    const apis = envReadApisOf(ctx.config)
+    const globs = envReadsInOf(ctx.config)
+    if (apis.length === 0 || globs.length === 0) return []
+    const patterns = globs.map((glob) => globToRegExp(glob))
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.role === 'test' || isTestFile(record.rel)) continue
+      if (patterns.some((pattern) => pattern.test(record.rel))) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const read of facts.reads) {
+        const hit = apis.find((api) => read.name === api || read.name.startsWith(`${api}.`)) ?? null
+        if (!hit) continue
+        out.push(
+          finding(
+            'S44',
+            record.rel,
+            read.line,
+            `在这里读环境（${read.name}）：读取只许出现在声明的落点`,
+            `收进配置模块（${globs.join(' / ')}）并给出默认值，别处 import 它`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 export const structureCallSiteRules: Rule[] = [
   fetchOnlyInDeclaredSites,
   viewsAreLazy,
   callsOnlyInDeclaredSites,
+  envReadsOnlyInDeclaredSites,
 ]

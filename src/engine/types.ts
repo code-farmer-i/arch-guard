@@ -25,6 +25,13 @@ export interface ExportFact {
   declared?: boolean
 }
 
+/** 成员访问链的事实（`import.meta.env.VITE_X` / `process.env.X`）：读取落点类规则用 */
+export interface ReadFact {
+  /** 完整链文本（`import.meta.env.VITE_API_BASE`） */
+  name: string
+  line: number
+}
+
 export interface StringFact {
   value: string
   line: number
@@ -80,6 +87,8 @@ export interface Facts {
   imports: ImportFact[]
   exports: ExportFact[]
   strings: StringFact[]
+  /** 环境相关的读取链（`import.meta.env.X` / `process.env.X`），根名单在 `data/env-roots.ts` */
+  reads: ReadFact[]
   calls: CallFact[]
   functions: FunctionFact[]
   comments: CommentFact[]

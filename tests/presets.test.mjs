@@ -18,6 +18,7 @@ import {
   roleTable,
   router,
   analytics,
+  envReads,
   callSites,
   styles,
   uiKit,
@@ -103,6 +104,7 @@ test('能力提供者必须启用消费它的规则（防"适配器装了却静�
     router: router(reactRouterKit()),
     callSites: callSites([{ name: '副作用', apis: ['gtag'], in: ['src/shared/lib/analytics.ts'] }]),
     analytics: analytics({ apis: ['track'], eventSource: 'src/shared/lib/analytics/events.ts' }),
+    envReads: envReads({ apis: ['import.meta.env'], in: ['src/shared/config/**'] }),
     // `structure.slots` 是**范式事实**（参数型能力）：由带槽位语义的范式声明 —— canonical 是那个
     structure: canonical(),
   }
