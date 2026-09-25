@@ -165,10 +165,12 @@ test('流程：DESIGN §5 的「已实现并带夹具的 N 条」清单必须与
   // 而门禁只看条数 —— 于是"设计已落盘"是假象。改这里要连着改 DESIGN 的枚举（或反过来）。
   const design = read('docs/DESIGN.md')
   const section = design.slice(design.indexOf('## 5. 规则清单'), design.indexOf('### 5.1'))
-  const block = section
-    .split('\n')
-    .filter((line) => /^>\s*`[SDCPHM]\d{2}/.test(line)) // 只取"以 id 打头"的枚举行，别把下面的散文一起解析
-    .join('\n')
+  // 枚举从"已实现并带夹具的 N 条"那句开始，到"不在本体跑的"那句为止 ——
+  // 后面的散文里也会出现 id（`H01–H05` / `D15`…），它是**委派/未实现**的说明，不能当成本清单
+  const lines = section.split('\n')
+  const from = lines.findIndex((line) => line.includes('已实现并带夹具的'))
+  const to = lines.findIndex((line, index) => index > from && line.includes('不在本体跑的'))
+  const block = lines.slice(from, to < 0 ? undefined : to).join('\n')
 
   const listed = new Set()
   for (const match of block.matchAll(/([SDCPHM])(\d{2})(b?)(?:[–-]([SDCPHM])?(\d{2})(b?))?/g)) {

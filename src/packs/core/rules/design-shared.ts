@@ -154,6 +154,34 @@ export function usesVendorPatterns(
 export const isTokenFile = (rel: string, params: DesignParams): boolean =>
   rel.startsWith(`${params.tokenDir}/`)
 
+/* ---------------- 数值刻度白名单（D12–D14 与 D15 共用） ---------------- */
+
+export interface ValueWhitelist {
+  rule: string
+  allow: string[]
+}
+
+/** 某一族声明的刻度白名单；没声明（或空）→ null = **这一族不判** */
+export const whitelistOf = (
+  ctx: { config: { params: Record<string, unknown> } },
+  rule: string,
+): string[] | null => {
+  const lists = (ctx.config.params.valueWhitelists as ValueWhitelist[] | undefined) ?? []
+  const found = lists.find((item) => item.rule === rule)
+  return found && found.allow.length > 0 ? found.allow : null
+}
+
+/** 从一个声明值里取出该族的数值（`13px 4px` → ['13px','4px']） */
+export const numericTokens = (value: string, units: string[]): string[] =>
+  value
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => {
+      if (token === '') return false
+      if (units.length === 0) return /^-?\d+$/.test(token)
+      return new RegExp(`^-?\\d*\\.?\\d+(?:${units.join('|')})$`).test(token)
+    })
+
 /** 规则需要读项目里任意文件（如 index.html）时的兜底 */
 export function tryRead(ctx: RuleContext, rel: string): string | null {
   const direct = ctx.sourceOf(rel)

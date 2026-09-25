@@ -108,13 +108,13 @@ export default {
 
 ### 2.2 域预设（域名 = 预设名）
 
-| 预设                | 域  | 关键参数（完整字段见 §2.4）                                                                                                                                        |
-| ------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `designSystem({…})` | D   | `paletteFile` · `tokenDir` · `themeFile` · `styleDir` · `vendorDir` · `storageFile` · `staticPrefix` · `valueWhitelists` · `contrastPairs` · `themes` · `htmlKeys` |
-| `copy({…})`         | C   | `messageApis` · `messageProps`（C01 的"组件库调用里的文案"那一半）                                                                                                 |
-| `deps({…})`         | P   | `allow`（fail-closed 白名单 → P01）· `deny` · `capabilities`（能力→首选方案 → P06）· `unusedDeps`（P08，默认关）· `fingerprints`                                   |
-| `metrics({…})`      | M   | `coverage`（`report` / `perDirMin` / `zeroAllow` / `ratchet` / `baselineFile` / `mustCover` / `pathRewrite`）· `tests` · `depsBudget`                              |
-| `hygiene()`         | H   | 无参数（H06 / H07 / H08 / H09 / H12 / H13，按能力协商）                                                                                                            |
+| 预设                | 域  | 关键参数（完整字段见 §2.4）                                                                                                                                                                                      |
+| ------------------- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `designSystem({…})` | D   | `paletteFile` · `tokenDir` · `themeFile` · `styleDir` · `vendorDir` · `storageFile` · `staticPrefix` · `valueWhitelists` · `numberHomes`（D20：哪些名字的数字必须有家）· `contrastPairs` · `themes` · `htmlKeys` |
+| `copy({…})`         | C   | `messageApis` · `messageProps`（C01 的"组件库调用里的文案"那一半）                                                                                                                                               |
+| `deps({…})`         | P   | `allow`（fail-closed 白名单 → P01）· `deny` · `capabilities`（能力→首选方案 → P06）· `unusedDeps`（P08，默认关）· `fingerprints`                                                                                 |
+| `metrics({…})`      | M   | `coverage`（`report` / `perDirMin` / `zeroAllow` / `ratchet` / `baselineFile` / `mustCover` / `pathRewrite`）· `tests` · `depsBudget`                                                                            |
+| `hygiene()`         | H   | 无参数（H06 / H07 / H08 / H09 / H12 / H13，按能力协商）                                                                                                                                                          |
 
 ### 2.3 方案面（可替换轴）
 
@@ -163,32 +163,38 @@ presets: [
 
 不用 `stack()` 就照它展开写：`designSystem(…) · copy() · deps(…) · hygiene() · i18n(kit) · uiKit(kit) · metrics(…)`。
 
-### 2.5 声明 → 规则（照 `requires` 排的权威表）
+### 2.5 声明 → 规则（照 `requires` 与"声明才判"的参数排）
 
-| 声明                                       | 打开的规则            |
-| ------------------------------------------ | --------------------- |
-| `designSystem.paletteFile`                 | D01 · D02 · D03 · D21 |
-| `designSystem.tokenDir`                    | D01 · D21             |
-| `designSystem.staticPrefix`                | D02 · D18             |
-| `designSystem.themeFile`                   | D06 · D07             |
-| `designSystem.styleDir`                    | D12 · D13 · D14 · D16 |
-| `designSystem.vendorDir`                   | D09 · D10 · D10b      |
-| `designSystem.storageFile`                 | D08                   |
-| `i18n.resourceDir`                         | C01–C07               |
-| `router.pathSource`                        | D23                   |
-| `dataLayer.queryKeyFrom`                   | D22                   |
-| `dataLayer.fetchIn` · `fetchApis`          | S36                   |
-| `callSites.groups`                         | S38                   |
-| `analytics.apis` · `analytics.eventSource` | D24                   |
-| `envReads.apis` · `envReads.in`            | S44                   |
-| `uiKit.vendorSelectors`                    | D10 · D10b            |
-| `uiKit.detachedApis`                       | H06                   |
-| `uiKit.icons`                              | P05                   |
-| `uiKit.packages`                           | P11                   |
-| `metrics.coverage`                         | M02–M06               |
-| `metrics.tests`                            | M08                   |
-| `metrics.checkChain`                       | M09                   |
-| `structure.lazyViews`                      | S37                   |
+> `requires` 缺了 → 规则**明列停用**（`skipped[]` / `capability-missing`）；
+> 表里带"声明才判"的参数（`valueWhitelists` / `numberHomes` / `staticPrefix`…）缺了 → 规则在跑，
+> 但那一族/那一半不产生结论（例如 `valueWhitelists` 只声明 D13 时，长度与时长的数值不判）。
+
+| 声明                                       | 打开的规则                                              |
+| ------------------------------------------ | ------------------------------------------------------- |
+| `designSystem.paletteFile`                 | D01 · D02 · D03 · D21                                   |
+| `designSystem.tokenDir`                    | D01 · D21                                               |
+| `designSystem.staticPrefix`                | D02 · D18                                               |
+| `designSystem.themeFile`                   | D06 · D07                                               |
+| `designSystem.styleDir`                    | D12 · D13 · D14 · D15 · D16                             |
+| `designSystem.valueWhitelists`             | D12 · D13 · D14 · D15（内联 `style` 与 CSS 同一套刻度） |
+| `designSystem.numberHomes`                 | D20                                                     |
+| `designSystem.vendorDir`                   | D09 · D10 · D10b                                        |
+| `designSystem.storageFile`                 | D08                                                     |
+| `i18n.resourceDir`                         | C01–C07                                                 |
+| `router.pathSource`                        | D23                                                     |
+| `dataLayer.queryKeyFrom`                   | D22                                                     |
+| `dataLayer.fetchIn` · `fetchApis`          | S36                                                     |
+| `callSites.groups`                         | S38                                                     |
+| `analytics.apis` · `analytics.eventSource` | D24                                                     |
+| `envReads.apis` · `envReads.in`            | S44                                                     |
+| `uiKit.vendorSelectors`                    | D10 · D10b                                              |
+| `uiKit.detachedApis`                       | H06                                                     |
+| `uiKit.icons`                              | P05                                                     |
+| `uiKit.packages`                           | P11                                                     |
+| `metrics.coverage`                         | M02–M06                                                 |
+| `metrics.tests`                            | M08                                                     |
+| `metrics.checkChain`                       | M09                                                     |
+| `structure.lazyViews`                      | S37                                                     |
 
 **没声明的能力 = 规则不跑，并在报告里明列**（`skipped[]` + `code: 'capability-missing'`）。
 "明列停用"是刻意的：安静地少跑一批规则，比多报更危险。

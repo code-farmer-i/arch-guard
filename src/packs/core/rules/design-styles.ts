@@ -2,7 +2,7 @@ import { parseCss } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { cssValueFamilies } from '../../../data/css-value-families.js'
-import { cssFiles, designParams, finding } from './design-shared.js'
+import { cssFiles, designParams, finding, numericTokens, whitelistOf } from './design-shared.js'
 import { isModuleStyle, modulePatternsOf } from './face-forms.js'
 
 /**
@@ -199,31 +199,6 @@ export const noImportant: Rule = {
 }
 
 /* ---------------- D12 / D13 / D14 数值三族的白名单 ---------------- */
-
-/** 从一个声明值里取出该族的数值（`margin: 13px 4px` → ['13px','4px']） */
-const numericTokens = (value: string, units: string[]): string[] =>
-  value
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => {
-      if (token === '') return false
-      if (units.length === 0) return /^-?\d+$/.test(token)
-      return new RegExp(`^-?\\d*\\.?\\d+(?:${units.join('|')})$`).test(token)
-    })
-
-interface ValueWhitelist {
-  rule: string
-  allow: string[]
-}
-
-const whitelistOf = (
-  ctx: { config: { params: Record<string, unknown> } },
-  rule: string,
-): string[] | null => {
-  const lists = (ctx.config.params.valueWhitelists as ValueWhitelist[] | undefined) ?? []
-  const found = lists.find((item) => item.rule === rule)
-  return found && found.allow.length > 0 ? found.allow : null
-}
 
 const valueFamilyRules: Rule[] = cssValueFamilies.map((family) => ({
   id: family.rule,

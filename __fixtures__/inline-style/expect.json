@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D15",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    }
+  ],
+  "exact": true
+}

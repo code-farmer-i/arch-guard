@@ -81,10 +81,11 @@ src/
   packs/        框架包 = **源码形态**的落地（一个项目一个）
     core/           共享规则实现（框架无关）
       index.ts        组装 coreRules（今天 tsPack / reactPack 共用同一份）
-      rules/          95 条规则的实现：structure / structure-graph / structure-declared /
+      rules/          98 条规则的实现：structure / structure-graph / structure-declared /
                       structure-groups / structure-locality / structure-routes / structure-scan /
                       structure-call-sites / structure-util / placement / face-forms /
-                      design-tokens / design-vendor / design-styles / design-sources / design-shared /
+                      design-tokens / design-vendor / design-styles / design-inline / design-numbers /
+                      design-sources / design-shared /
                       copy / deps / deps-adapters / deps-fingerprints / structure-discipline / hygiene-context / hygiene-retired / metrics
     typescript/     tsPack（framework: typescript）——库 / CLI / 纯 TS 项目
     react/          reactPack（framework: react）——React 应用；JSX 专属规则将来的家
@@ -95,7 +96,7 @@ src/
                 solution-alternatives（同类方案）· framework-sources（源码形态扩展名）·
                 face-forms（方案面形态词汇）· css-value-families（CSS 数值三族）· retired-names（退路标记）· plural-forms（词形）·
                 icon-packages · build-output-dirs（产物目录兜底跳过名单）
-__fixtures__/   75 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
+__fixtures__/   78 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
 examples/minimal/  干净的宿主示例（可搬运性验证）
 arch.config.mjs    门禁自己的配置（库范式 + 依赖选型 + 度量）
 ```
@@ -159,17 +160,19 @@ arch.config.mjs    门禁自己的配置（库范式 + 依赖选型 + 度量）
 
 ## 7. 元门禁（管门禁自己的门禁）
 
-| 检查                               | 在哪                                | 防什么                                                |
-| ---------------------------------- | ----------------------------------- | ----------------------------------------------------- |
-| 每条规则违规必报 × 合规不报        | 夹具回归（`--self-test`）+ 覆盖测试 | 加了规则没夹具 = 没有规则                             |
-| 域预设必须列全本域规则             | `tests/engine-unit`                 | 加了规则没挂进预设（空转）                            |
-| 范式预设的结构词汇必须完整         | `tests/paradigm-coverage`           | 删了 `group` / `entry` → 一批规则在前端应用里集体沉默 |
-| 冻结 `NOTICE_CODES` / 报告顶层字段 | `tests/report-contract`             | 契约偷偷漂移                                          |
-| P1–P4 自包含                       | `--self-check-portability`          | 引擎依赖宿主 / 库名漏进引擎 / 布局假设                |
-| 文档管理块一致                     | `--check-docs`                      | 人读文档与机读配置两处真相                            |
-| 依赖清单与白名单                   | `tests/engine-runtime` + P01 + M07  | 依赖悄悄变多 / 未登记                                 |
-| 覆盖率棘轮                         | M 域                                | 覆盖率倒退 / 产物过期                                 |
-| 门禁链路真的跑测试与覆盖率         | M09                                 | 把 test / coverage 从 `check` 里摘掉                  |
+| 检查                               | 在哪                                | 防什么                                                                                                                                      |
+| ---------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 每条规则违规必报 × 合规不报        | 夹具回归（`--self-test`）+ 覆盖测试 | 加了规则没夹具 = 没有规则                                                                                                                   |
+| 域预设必须列全本域规则             | `tests/engine-unit`                 | 加了规则没挂进预设（空转）                                                                                                                  |
+| 范式预设的结构词汇必须完整         | `tests/paradigm-coverage`           | 删了 `group` / `entry` → 一批规则在前端应用里集体沉默                                                                                       |
+| 冻结 `NOTICE_CODES` / 报告顶层字段 | `tests/report-contract`             | 契约偷偷漂移                                                                                                                                |
+| P1–P4 自包含                       | `--self-check-portability`          | 引擎依赖宿主 / 库名漏进引擎 / 布局假设                                                                                                      |
+| 文档管理块一致                     | `--check-docs`                      | 人读文档与机读配置两处真相                                                                                                                  |
+| 依赖清单与白名单                   | `tests/engine-runtime` + P01 + M07  | 依赖悄悄变多 / 未登记                                                                                                                       |
+| 覆盖率棘轮                         | M 域                                | 覆盖率倒退 / 产物过期                                                                                                                       |
+| 门禁链路真的跑测试与覆盖率         | M09                                 | 把 test / coverage 从 `check` 里摘掉                                                                                                        |
+| 需求口径 ↔ 设计/代码逐条一致       | `tests/process`                     | 状态说"已完成 · 本体"、期望却写"交给生态 / 本体不做"；DESIGN §5 的已实现清单、判定等级与 `coreRules` 对不上；需求小结的数字与实际条目数不符 |
+| 用法文档可用                       | `tests/process`                     | 文档里的包名写成 bin 名（照抄的人第一步就解析不到）；README / USAGE 的相对链接指向不存在的文件                                              |
 
 ## 8. 性能与缓存
 

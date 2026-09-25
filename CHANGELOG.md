@@ -17,6 +17,25 @@
 
 ## [Unreleased]
 
+### Added（0.4.0 收官：D15 内联样式 · D20 数字有家 · D19 重复数值）
+
+- 需求 R-83 / R-84 / R-85 落盘 —— 三条都是"**设计里写了、代码里没有**"的旧账（DESIGN §5.2 早有行，
+  `coreRules` 里查不到），0.4.0 一次补齐。
+- **D15 内联样式纪律**（error，`designSystem.styleDir` 声明才判）：JSX `style={{}}` 与 CSS 走**同一套刻度** ——
+  颜色属性里出现颜色字面量就报；长度 / 层级 / 时长按 `valueWhitelists` 判（无单位数字按 React 语义补 `px` / `ms`，
+  `lineHeight: 1.5` 与 `0` 放过）。**实测修前** `<div style={{ color: '#ff5a1f', margin: 13, zIndex: 9999 }}>`
+  在 D 域**零命中** —— 同一条红线换个写法就绕过整套令牌。
+- **D20 策略 / 阈值数字必须有家**（error，`designSystem({ numberHomes })` 声明才判）：
+  `staleTime: 300_000` / `PAGE_SIZE = 20` 散在各处、改口径要全仓搜；声明"这些名字的数字该在哪个文件"后，
+  家外的数字字面量就报（引用常量不报）。
+- **D19 同一 `(属性, 数值)` 跨 ≥3 个非令牌文件重复**（warn，**L3**）：事实上已经定下来的口径却没有名字；
+  判据词汇复用数值三族（D12–D14）的属性，所以 `display: flex` 这类枚举值重复不误报；
+  令牌文件 / `var()` 引用 / 颜色（D03 管）/ 刻度内的值都不提示。
+- 事实模型新增 **`styleProps`**（JSX `style` 里的**字面量**属性）与 **`numbers`**（有名字的数字字面量）：
+  `FACTS_CACHE_SPEC` 5 → **6**。`numericTokens` / `whitelistOf` 提到 `design-shared`（D12–D15 共用一份刻度）。
+- 规则 95 → **98**；夹具 75 → **78**（新增 `inline-style` / `number-homes` / `repeated-values`）；
+  D 域 22 → **25 条全部落地**，DESIGN §14「已知缺口」的 D 域一行随之收口（D 域不再有未实现项）。
+
 ### Added（用法唯一来源：`docs/USAGE.md`）
 
 - 新增 [`docs/USAGE.md`](./docs/USAGE.md) 作为**使用说明唯一来源**（`README.md` 的文档地图登记归属）：

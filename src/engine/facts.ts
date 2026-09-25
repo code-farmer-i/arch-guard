@@ -145,10 +145,13 @@ export interface FactInput {
  * 事实模型（facts）是 parser ↔ 规则之间**唯一的契约**，因此只收「有规则在读」的字段。
  *
  * 收一堆没人读的字段不是"以后也许用得上"，而是每次全量解析都要付的真金白银：
- * 早先为 H01（`any` / 非空断言）、H05（空 catch）、D15（内联样式）、C01（JSX 裸文本）
- * 收集的 `anyNodes` / `nonNull` / `catches` / `inlineStyles` / `jsxText` 五组，
- * 在那些规则委派给 eslint 之后就没有消费者了 —— 已删除（见 docs/ECOSYSTEM-AUDIT.md）。
- * **要给新规则加字段：先让规则真的读它，再回这里收集。**
+ * 早先为 H01（`any` / 非空断言）、H05（空 catch）、C01（JSX 裸文本）收集的
+ * `anyNodes` / `nonNull` / `catches` 三组，在那些规则委派给 eslint 之后就没有消费者了 ——
+ * 已删除（见 docs/ECOSYSTEM-AUDIT.md）。**要给新规则加字段：先让规则真的读它，再回这里收集。**
+ *
+ * 反过来的那次也记在这里：`inlineStyles` 曾在委派 D15 时删掉，0.4.0 把 D15 收回本体时
+ * 以更小的形状（`styleProps`：只收 JSX `style` 里的**字面量**属性）加了回来；
+ * 同一次还加了 `numbers`（D19 / D20 读它）。两组都改了事实形状 → `FACTS_CACHE_SPEC` 5 → 6。
  */
 export function extractFacts(input: FactInput): Facts {
   const { file, rel, role, text } = input
@@ -181,6 +184,8 @@ export function extractFacts(input: FactInput): Facts {
     strings: [],
     reads: [],
     calls: [],
+    styleProps: [],
+    numbers: [],
     functions: [],
     comments: positioned.map(({ line, text: body, kind, pos, end }) => ({
       line,
@@ -199,6 +204,8 @@ export function extractFacts(input: FactInput): Facts {
     inheritedProp: string | null,
     /** 祖先里**最近的外层调用名**（对象实参里的文案靠它认"这是给谁用的"） */
     inheritedCall: string | null = null,
+    /** 是否在 JSX `style={{}}` 的作用域里（D15 只判这里面的属性） */
+    inheritedStyle = false,
   ): void => {
     // 传给子孙的"最近属性名"：本级是属性 → 用它；本级只是透传容器 → 继承；其它 → 断开
     const childProp = declaredPropOf(node, sf) ?? (carriesProp(node) ? inheritedProp : null)
@@ -206,6 +213,12 @@ export function extractFacts(input: FactInput): Facts {
     const callHere =
       ts.isCallExpression(node) || ts.isNewExpression(node) ? node.expression.getText(sf) : null
     const childCall = callHere ?? (ts.isFunctionLike(node) ? null : inheritedCall)
+    // 内联样式：`style={…}` 打开，进函数体断开（`style={{ … , onClick: () => {} }}` 里的回调不算样式）
+    const childStyle = ts.isJsxAttribute(node)
+      ? node.name.getText(sf) === 'style'
+      : ts.isFunctionLike(node)
+        ? false
+        : inheritedStyle
     /* ---- import / re-export ---- */
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       facts.imports.push({
@@ -370,6 +383,43 @@ export function extractFacts(input: FactInput): Facts {
     )
       facts.hasJsx = true
 
+    /* ---- 内联样式属性（D15） ---- */
+    if (inheritedStyle && ts.isPropertyAssignment(node)) {
+      const initializer = node.initializer
+      const literal = ts.isStringLiteralLike(initializer)
+        ? { value: initializer.text, numeric: false }
+        : ts.isNumericLiteral(initializer)
+          ? { value: initializer.text, numeric: true }
+          : ts.isPrefixUnaryExpression(initializer) &&
+              initializer.operator === ts.SyntaxKind.MinusToken &&
+              ts.isNumericLiteral(initializer.operand)
+            ? { value: `-${initializer.operand.text}`, numeric: true }
+            : null
+      // 只收字面量：`color: token` / 模板插值正是"该有的样子"，收进来只会把判断变成猜谜
+      if (literal) {
+        facts.styleProps.push({
+          prop: node.name.getText(sf),
+          value: literal.value,
+          numeric: literal.numeric,
+          line: lineOf(sf, node.getStart(sf)),
+        })
+      }
+    }
+
+    /* ---- 有名字的数字字面量（D19 / D20） ---- */
+    if (ts.isNumericLiteral(node)) {
+      const raw = node.getText(sf)
+      const named =
+        inheritedProp ??
+        (parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)
+          ? parent.name.text
+          : null)
+      const value = Number(raw.replace(/_/g, ''))
+      if (Number.isFinite(value)) {
+        facts.numbers.push({ value, raw, name: named, line: lineOf(sf, node.getStart(sf)) })
+      }
+    }
+
     /* ---- 调用 / debugger ---- */
     if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
       // 记录**所有**调用：裸调用（alert/confirm/prompt）也要能被 H03 看见
@@ -417,7 +467,7 @@ export function extractFacts(input: FactInput): Facts {
       })
     }
 
-    ts.forEachChild(node, (child) => visit(child, node, childProp, childCall))
+    ts.forEachChild(node, (child) => visit(child, node, childProp, childCall, childStyle))
   }
 
   visit(sf, undefined, null)

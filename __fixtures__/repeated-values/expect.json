@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D19",
+      "file": "src/modules/crews/components/CardA.module.css"
+    }
+  ],
+  "exact": true
+}

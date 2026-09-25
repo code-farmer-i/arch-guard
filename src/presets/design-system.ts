@@ -42,6 +42,22 @@ export interface DesignSystemOptions {
    * 例：`[{ rule: 'D12', allow: ['4px','8px','12px'] }, { rule: 'D13', allow: ['1','10'] }]`
    */
   valueWhitelists?: { rule: string; allow: string[] }[]
+  /**
+   * **策略 / 阈值数字的家**（D20）：这些名字（对象属性名或常量名）的数字必须有落点。
+   * 例：`[{ name: '请求策略', names: ['staleTime','retry','refetchInterval'], in: ['src/shared/api/queryClient.ts'] }]`
+   * —— 声明之外的文件里给这些名字写数字字面量就报；**不声明不判**（哪些数字算"策略"是项目的事实）。
+   */
+  numberHomes?: NumberHome[]
+}
+
+/** D20 的声明形状：一组"该有家的名字" + 它们的家（glob） */
+export interface NumberHome {
+  /** 组名（进报告："请求策略的数字该在 …"） */
+  name: string
+  /** 哪些名字算这一类：属性名（`staleTime`）或常量名（`PAGE_SIZE`） */
+  names: string[]
+  /** 只许出现在哪些落点（glob 列表） */
+  in: string[]
 }
 
 /**
@@ -103,6 +119,9 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       'D24',
       'D02',
       'D18',
+      'D15',
+      'D19',
+      'D20',
     ],
     params: {
       /**
@@ -116,6 +135,8 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       htmlKeys: options.htmlKeys ?? ['theme'],
       valueWhitelists: options.valueWhitelists ?? [],
       ...(options.staticPrefix ? { staticPrefix: options.staticPrefix } : {}),
+      // 只在给了的时候落进 params：D20 的 `requires: ['designSystem.numberHomes']` 靠"有没有这个键"判声明
+      ...(options.numberHomes ? { numberHomes: options.numberHomes } : {}),
       contrastPairs: options.contrastPairs ?? [],
       // 落点：用户显式给的（paths）放最后，压过任何默认推导
       ...paths,

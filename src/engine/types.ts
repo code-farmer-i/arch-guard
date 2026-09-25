@@ -53,6 +53,22 @@ export interface CallFact {
   keyPrefix?: string
 }
 
+/** JSX `style={{ … }}` 里的一条**字面量**属性（D15）：模板插值 / 变量引用不进 facts —— 那正是它该有的样子 */
+export interface StylePropFact {
+  prop: string // 属性名原样（camelCase：backgroundColor）；规则自己归一到 kebab 再比词汇表
+  value: string // 字面量文本（字符串去引号：`#ff5a1f` / `13px`；数字：`13`）
+  numeric: boolean // 值是不是数字字面量（决定要不要按刻度白名单判）
+  line: number
+}
+
+/** **有名字**的数字字面量（D19 / D20）：最近的属性名（`staleTime: 300_000`）或 `const` 名（`PAGE_SIZE = 20`） */
+export interface NumberFact {
+  value: number
+  raw: string // 原样文本（`300_000` / `1e3` / `0x10`）
+  name: string | null
+  line: number
+}
+
 export interface FunctionFact {
   name: string
   line: number
@@ -90,6 +106,9 @@ export interface Facts {
   /** 环境相关的读取链（`import.meta.env.X` / `process.env.X`），根名单在 `data/env-roots.ts` */
   reads: ReadFact[]
   calls: CallFact[]
+  /** D15 的 JSX 内联样式字面量属性 · D19 / D20 的有名字数字字面量 */
+  styleProps: StylePropFact[]
+  numbers: NumberFact[]
   functions: FunctionFact[]
   comments: CommentFact[]
   hasJsx: boolean
