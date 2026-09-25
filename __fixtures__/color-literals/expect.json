@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D01",
+      "file": "src/modules/crews/views/CrewsPage.module.css"
+    }
+  ],
+  "exact": true
+}

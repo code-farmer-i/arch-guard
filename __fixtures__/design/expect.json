@@ -1,6 +1,10 @@
 {
   "findings": [
     {
+      "rule": "D01",
+      "file": "src/shared/components/ui/Bad.module.css"
+    },
+    {
       "rule": "D03",
       "file": "src/shared/styles/tokens/palette.css"
     },

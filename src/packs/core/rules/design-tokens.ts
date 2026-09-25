@@ -1,4 +1,4 @@
-import { normalizeHex } from '../../../engine/css.js'
+import { findColorLiterals, normalizeHex } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-shared.js'
@@ -237,8 +237,50 @@ export const declaredDesignSystem: Rule = {
 
 /* ---------------- 注册 ---------------- */
 
+/* ---------------- D01 颜色字面量只在色板 ---------------- */
+
+/**
+ * 判据：样式里出现颜色字面量（hex / rgb / hsl），而文件既不是**色板**也不在**令牌目录**里。
+ *
+ * 为什么收回本体（原委派给 stylelint `color-no-hex` + `overrides`）：那段 overrides 要项目逐条写
+ * "哪些文件允许写字面量"，而我们**已经知道**色板与令牌目录在哪（`designSystem()` 的 params）——
+ * 直接判更准，也不用宿主维护第二份白名单。
+ *
+ * 只判样式文件：TS 里的颜色（内联样式 / 主题常量）留给 D16（自研样式只在组件样式文件）那一族。
+ */
+export const colorLiteralsOnlyInPalette: Rule = {
+  id: 'D01',
+  domain: 'design',
+  requires: ['designSystem.paletteFile', 'designSystem.tokenDir'],
+  level: 'L1',
+  severity: 'error',
+  title: '颜色字面量只在色板',
+  hint: '色值只写进色板，其余地方引用令牌（var(--…)）—— 同一套设计出现三种近似色的根源就是随手写 hex',
+  run: (ctx) => {
+    const params = designParams(ctx)
+    const out: Finding[] = []
+    for (const file of cssFiles(ctx)) {
+      if (file.rel === params.paletteFile) continue
+      if (file.rel.startsWith(`${params.tokenDir}/`)) continue
+      for (const literal of findColorLiterals(file.text)) {
+        out.push(
+          finding(
+            'D01',
+            file.rel,
+            literal.line,
+            `颜色字面量 ${literal.text}：色值只许写进色板（${params.paletteFile}）`,
+            '在色板里登记后引用令牌变量',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 export const designTokenRules: Rule[] = [
-  // 颜色字面量委派给 stylelint（color-no-hex + overrides 给色板开口）
+  // 颜色字面量只在色板（D01，0.4.0 收回本体；原先委派 stylelint color-no-hex + overrides）
+  colorLiteralsOnlyInPalette,
   paletteColorUnique,
   tokenRefsClosed,
   noDeadTokens,
