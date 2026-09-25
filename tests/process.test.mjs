@@ -55,17 +55,26 @@ test('流程：活跃规格必须有 Status / 场景 / 需求编号，且编号�
   assert.deepEqual(problems, [])
 })
 
-test('流程：需求编号连续且不重复（R-01…R-N 无空号）', () => {
+test('流程：需求编号连续、不重复；缺的编号必须"已声明撤销"（登记为「原 R-xx」）', () => {
   const ids = requirementIds()
   assert.ok(ids.length > 0)
   assert.equal(new Set(ids).size, ids.length, '需求编号有重复')
   const sorted = [...ids].sort((a, b) => a - b)
-  const expected = Array.from({ length: sorted.length }, (_, index) => index + 1)
-  assert.deepEqual(
-    sorted,
-    expected,
-    `需求编号不连续：${sorted.filter((v, i) => v !== i + 1).join(',')}`,
+  // 编号不复用：撤掉的需求把编号登记在第七节（写成「原 R-xx」），正文里不再出现 ——
+  // 所以空号是允许的，但**必须被声明过**；否则就是漏号（复制粘贴掉了一行）
+  const retired = new Set(
+    [...read('REQUIREMENTS.md').matchAll(/原 R-(\d+)/g)].map((match) => Number(match[1])),
   )
+  const expected = Array.from({ length: sorted[sorted.length - 1] }, (_, index) => index + 1)
+  const missing = expected.filter((id) => !sorted.includes(id))
+  assert.deepEqual(
+    missing.filter((id) => !retired.has(id)),
+    [],
+    '有编号缺失但没登记为「原 R-xx」',
+  )
+  for (const id of retired) {
+    assert.equal(ids.includes(id), false, `R-${id} 已声明撤销，正文里不该再出现`)
+  }
 })
 
 test('流程：设计文档里的规则数 / 夹具数与实际一致（不同步就是设计没落盘）', () => {
