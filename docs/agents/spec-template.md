@@ -4,10 +4,17 @@
 
 它**不**回答「系统整体是什么」（那是 `PARADIGM.md` 与 `docs/DESIGN.md`），也**不**汇报进度（那是 `README.md` 的 Roadmap 与 `CHANGELOG.md`）—— 把这三件事混进一个文件，结局是 sediment：没人敢删、也没人读得完。
 
+**需求对话只讲场景**（谁在什么时候会疼、现在拦不拦得住、漏掉的后果），规则只在被问到时才展开 ——
+见 `docs/agents/scenario-first.md`。
+
 ```md
 # {特性名}
 
 Status: draft | ready-for-agent | in-progress | done
+
+## 场景（写不出这一节的需求先不做）
+
+- {换库 / 上生产 / 重构 / 多人协作 / 发版}时：{具体长什么样} → {漏掉的后果}。**现在：{会报 / 不会报 / 只覆盖一半}。**
 
 ## 背景与问题
 

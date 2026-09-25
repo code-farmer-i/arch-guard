@@ -88,6 +88,12 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 
 ## Agent skills
 
+### 需求只讲场景
+
+**对需求先讲场景，不讲规则**：谁在什么时候会疼、具体长什么样、现在拦不拦得住、漏掉的后果 ——
+规则（id / 判据 / 实现）只在被问到时才展开。`spec.md` 的「场景」一节写不出真实场景的需求先不做。
+见 `docs/agents/scenario-first.md`。
+
 ### Issue tracker
 
 特性规格写在 `.scratch/<feature-slug>/spec.md`（模板 `docs/agents/spec-template.md`），实现票号在 `.scratch/<feature-slug>/issues/<NN>-<slug>.md`。约定见 `docs/agents/issue-tracker.md`。
