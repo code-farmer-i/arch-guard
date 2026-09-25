@@ -1119,6 +1119,9 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 | 手工轮子指纹 | `src/data/wheel-fingerprints.ts`              | 强指纹 / 弱指纹 / 库 API 名 / 推荐写法；纯数据，引擎零库名 |
 | 组件库指纹   | `src/data/kit-fingerprints.ts`                | 同上，用于框架残留与换库验收                               |
 
+**`--verify-deps` 只做本地对账**（适配表声明的包 vs `package.json`）：门禁该保证的是
+「声明的包与装的包是不是一回事」—— 「这个包成不成熟」是评审判断（L5），不进红线。
+
 ### 16.2 规则
 
 | ID  | 红线               | 判据                                                                                                                   | 等级 | 级别  |
@@ -1140,14 +1143,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
    （`Finding.severity`），不是只往 hint 追加一句话。
 4. 需要零运行时依赖的项目用**规则级例外**逐条声明（`exceptions`），理由写进配置且每次运行点名。
 
-### 16.4 联网成熟度校验（**明确不做**）
-
-`--verify-deps` 只做**本地对账**：适配表声明的包 vs `package.json`。
-
-**联网查 npm 成熟度（周下载量 / 发布时间 / 是否废弃 / license）不做**：网络不确定 + 慢，
-而且"这个包成不成熟"是评审判断（L5）；门禁该保证的是"声明的包与装的包是不是一回事"。
-
-### 16.5 落地顺序
+### 16.4 落地顺序
 
 已落地 P01/P02/P04–P07/P11/P12；**P03（幽灵依赖）/ P08（声明但未使用）按 §4.9 委派给 knip · depcheck，不在本体实现**；
 P09 并入 P06、P10 是 P01 的 fail-closed 表述，都不另立规则；剩余部分见 [`README.md`](../README.md) 的 Roadmap。

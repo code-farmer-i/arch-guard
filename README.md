@@ -300,7 +300,6 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 - [x] **字面量唯一出处**：`dataLayer({ queryKeyFrom })` → D22 缓存键只有一个出处 · `router({ pathSource, pathProps, navigateCalls })` → D23 路由路径只有一个出处（没声明落点就明列停用）；位置参数形态的缓存键（`useSWR('key')`）不在 v1
 - [x] **取数落点**：`dataLayer({ fetchIn })` 声明后 S36 拦住页面里取数 / 域里直连后端（测试文件豁免；`queryClient.invalidateQueries` 按后缀匹配也抓得到）；**页面懒加载** `canonical({ lazyViews: true })` → S37；**退路不留** → H12；**调用落点** `callSites([{ name, apis, in }])` → S38（副作用：埋点/上报、本地存储；配置对象：域里自建 `QueryClient` / `createTheme` → 双实例）
 - [ ] `use*Store` 形态（客户端状态的命名契约）
-- [ ] `--verify-deps` 的**联网成熟度**查询（本地对账已是默认能力）
 - [x] **文档管理块渲染**（`--render-docs` / `--check-docs`）：文档里的角色表 / 选型表 / 阈值表从 `arch.config.mjs` 生成，漂移即红
 - [ ] Vue / Svelte 框架包（pack 边界已留出）
 

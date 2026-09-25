@@ -161,8 +161,15 @@
 
 ### Changed（文档口径）
 
-- DESIGN §14 移除已实现的 E2 行；**联网成熟度校验明确不做**（`--verify-deps` 只做本地对账）。
+- DESIGN §14 移除已实现的 E2 行；`--verify-deps` 只做本地对账。
 - README / DESIGN / ALTERNATIVES / CONTEXT 同步新规则、新声明、方案面与「与 steiger 的规则对齐」表。
+- **`REQUIREMENTS.md` 成为需求的唯一来源**：53 条按场景分组，每条 = 痛点（带具体例子）+
+  预期行为 + 状态 + **由谁来做**（本体 / 可委派给 eslint · stylelint · knip · dependency-cruiser 等）；
+  委派出去的检查**本身就是需求**（不再另开一份委派清单，权威清单仍在 DESIGN §4.9）。
+  `AGENTS.md` / `docs/agents/scenario-first.md` / README Roadmap / spec 模板都已指向它。
+- **「联网成熟度查询」这条整体删除**（用户要求不再列为待办或"不做"项）：README Roadmap 的待办、
+  REQUIREMENTS 的 N-02、PARADIGM §12.5、DESIGN §16.4 都已去掉（DESIGN §16.5 → §16.4）；
+  只保留"`--verify-deps` 做本地对账（声明的包 ⇄ 装的包）"这条事实，设计理由折进 DESIGN §16.1。
 
 ### Fixed（手工轮子指纹深度审计：一个"五个能力从没报过"的 bug + 名册式枚举 + 文档漂移）
 

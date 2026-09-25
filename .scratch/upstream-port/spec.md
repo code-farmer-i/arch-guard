@@ -89,3 +89,6 @@ Status: done
   ALTERNATIVES 新增 §3.2.1「与 steiger 的规则对齐（现状）」+「三处有意更严」+ §5 标出 dc 三件已收回。
   CONTEXT 补「结构声明」词汇（组维度 / 组桶 / 公开面单元 / 保留名 / 词形表 / 方案面 / 同类方案）。
   CHANGELOG 写清这批移植（含 S24→S35 重编号与 pluralize 依赖）。双 Node `pnpm check` EXIT=0。
+- 2026-09-24 **口径撤销**：用户要求"联网成熟度查询"这条**不再作为待办/不做项列出** ——
+  README Roadmap 的那条待办、REQUIREMENTS 的 N-02、PARADIGM §12.5、DESIGN §16.4 都已删除
+  （DESIGN §16.5 → §16.4）。上面那条移植记录保留为历史，现状是：`--verify-deps` 只做本地对账。
