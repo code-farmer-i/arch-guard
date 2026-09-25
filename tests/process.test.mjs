@@ -280,18 +280,21 @@ test('流程：需求状态小结的数字必须等于实际条目数（手抄�
   const statuses = [...text.matchAll(/^\*\*R-\d+ [^*]+\*\* · ([^·]+) ·/gm)].map((m) => m[1].trim())
   const actual = {
     已完成: statuses.filter((status) => status === '已完成').length,
+    进行中: statuses.filter((status) => status === '进行中').length,
     已委派: statuses.filter((status) => status === '已委派').length,
     不做: statuses.filter((status) => status.startsWith('不做')).length,
   }
   const note = /已完成`?\s*(\d+)\s*·\s*`?已委派`?\s*(\d+)\s*·\s*`?不做`?\s*(\d+)/.exec(text)
+  const inProgress = /进行中`?\s*(\d+)/.exec(text)
   assert.ok(note, '需求状态小结（摘要那句"已完成 N · 已委派 M · 不做 K"）没找到 —— 格式变了？')
+  assert.ok(inProgress, '需求状态小结缺"进行中 N" —— 这一批是跨轮次的长活，必须能表达"还没做完"')
   assert.ok(statuses.length > 70, `只解析到 ${statuses.length} 条需求，条目格式变了？`)
   assert.deepEqual(
-    [Number(note[1]), Number(note[2]), Number(note[3])],
-    [actual.已完成, actual.已委派, actual.不做],
+    [Number(note[1]), Number(note[2]), Number(note[3]), Number(inProgress[1])],
+    [actual.已完成, actual.已委派, actual.不做, actual.进行中],
     '需求状态小结与实际条目数不一致（改状态别忘了改小结）',
   )
-  assert.equal(actual.已完成 + actual.已委派 + actual.不做, statuses.length)
+  assert.equal(actual.已完成 + actual.进行中 + actual.已委派 + actual.不做, statuses.length)
 })
 
 function requirementIdsFrom(text, status) {
