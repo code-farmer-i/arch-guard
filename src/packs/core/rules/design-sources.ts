@@ -2,6 +2,8 @@ import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 import { finding } from './design-shared.js'
 import {
+  analyticsApisOf,
+  eventSourceOf,
   navigateCallsOf,
   pathPropsOf,
   pathSourceOf,
@@ -134,4 +136,56 @@ export const routePathSingleSource: Rule = {
   },
 }
 
-export const designSourceRules: Rule[] = [cacheKeySingleSource, routePathSingleSource]
+/* ---------------- D24 埋点事件名只有一个出处 ---------------- */
+
+const calledApi = (callee: string, apis: string[]): string | null =>
+  apis.find((api) => callee === api || callee.endsWith(`.${api}`)) ?? null
+
+/**
+ * 判据：把**事件名字符串直接传给埋点调用**（`track('crews_view')`）即报 ——
+ * 事件名只许出现在声明的事件表里（`export const EVENTS = { crewsView: 'crews_view' }`），
+ * 调用点传常量（`track(EVENTS.crewsView)`）就看不见字面量、自然合规。
+ *
+ * 为什么需要：与缓存键（D22）/ 路由路径（D23）同族 —— 改名漏一处就是**数据断层**，
+ * 而分析平台不会报错（它只会安静地少收一个事件）。
+ */
+export const analyticsEventSingleSource: Rule = {
+  id: 'D24',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '埋点事件名只有一个出处',
+  hint: '事件名写进声明的事件表，调用点传常量：改名漏一处就是数据断层，分析平台不会报错',
+  requires: ['analytics.apis', 'analytics.eventSource'],
+  run: (ctx) => {
+    const apis = analyticsApisOf(ctx.config)
+    const source = eventSourceOf(ctx.config)
+    if (apis.length === 0 || source === '') return []
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.rel === source) continue // 事件表本身放的就是这些字面量
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const call of facts.calls) {
+        const api = calledApi(call.callee, apis)
+        if (!api || call.stringArg === undefined) continue
+        out.push(
+          finding(
+            'D24',
+            record.rel,
+            call.line,
+            `埋点事件名直接写字面量：${call.callee}(${JSON.stringify(call.stringArg)})`,
+            `从 ${source} 的常量表里取（改名时才只有一处要改）`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+export const designSourceRules: Rule[] = [
+  cacheKeySingleSource,
+  routePathSingleSource,
+  analyticsEventSingleSource,
+]

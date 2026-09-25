@@ -12,6 +12,23 @@ import type {
   StylesAdapter,
 } from '../../../engine/types.js'
 
+/** 埋点面（由 `analytics()` 预设登记）：埋点调用名 + 事件名的唯一出处 */
+interface AnalyticsAdapter {
+  facet: string
+  apis?: string[]
+  eventSource?: string
+}
+
+/** **埋点调用名**（D24）：项目声明（`analytics({ apis })`）。空 = 停用 */
+export function analyticsApisOf(config: Config): string[] {
+  return adapterOf<AnalyticsAdapter>(config, 'analytics')?.apis ?? []
+}
+
+/** **事件名的唯一出处**（D24，文件路径）：项目声明；空 = 停用 */
+export function eventSourceOf(config: Config): string {
+  return adapterOf<AnalyticsAdapter>(config, 'analytics')?.eventSource ?? ''
+}
+
 /** 调用落点面（由 `callSites()` 预设登记）：一组组"哪些调用 + 只许出现在哪" */
 export interface CallSiteGroup {
   name: string

@@ -95,6 +95,7 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       'D12',
       'D13',
       'D14',
+      'D24',
     ],
     params: {
       /**

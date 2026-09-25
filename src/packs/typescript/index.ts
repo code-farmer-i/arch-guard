@@ -18,5 +18,14 @@ export const tsPack = definePack({
   rules: coreRules,
   // 与 reactPack 相同：适配面由**规则实际消费的字段**决定，而两者今天跑的是同一份规则
   // （不为了"看起来有区别"去少写一个面 —— 那是没人消费的声明）
-  adapters: ['ui-kit', 'i18n', 'metrics', 'router', 'data-layer', 'styles', 'call-sites'],
+  adapters: [
+    'ui-kit',
+    'i18n',
+    'metrics',
+    'router',
+    'data-layer',
+    'styles',
+    'call-sites',
+    'analytics',
+  ],
 })

@@ -17,5 +17,14 @@ export const reactPack = definePack({
   framework: 'react',
   rules: coreRules,
   // 只列**真有规则消费**的 facet（router / styles / data-layer 没有消费者，已删）；metrics 反而以前漏了
-  adapters: ['ui-kit', 'i18n', 'metrics', 'router', 'data-layer', 'styles', 'call-sites'],
+  adapters: [
+    'ui-kit',
+    'i18n',
+    'metrics',
+    'router',
+    'data-layer',
+    'styles',
+    'call-sites',
+    'analytics',
+  ],
 })

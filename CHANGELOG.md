@@ -17,6 +17,16 @@
 
 ## [Unreleased]
 
+### Added（M2：埋点事件名只有一个出处 —— D24）
+
+- 场景：`track('crews_view')` 的事件名在各处手拼 —— 改名漏一处就是**数据断层**，而分析平台不会报错
+  （只会安静地少收一个事件）。与缓存键（D22）、路由路径（D23）同族。
+- `analytics({ apis: ['track'], eventSource: 'src/shared/lib/analytics/events.ts' })` 声明后：
+  把事件名字符串直接传给声明的埋点调用就报；传常量（`track(EVENTS.crewsView)`）不报。
+- 新面 `analytics`（由预设登记，字段 `apis` / `eventSource`）；规则 90 → **91**；夹具 71 → **72**。
+- **已知边界**：只看第一个字符串实参 —— `gtag('event', 'crews_view')` 这类多参数 API 要包一层单参数
+  wrapper 再声明（清单是项目责任）。
+
 ### Added（M1：声明配了却 0 命中 —— 报告自述）
 
 - 场景：`structure.migrating: ['src/legacy/**']` 写得没错，可项目里那个目录早就没了；`clientState.in` /
