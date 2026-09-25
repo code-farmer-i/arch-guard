@@ -2,7 +2,7 @@
 
 Status: draft
 
-## 场景（对应 REQUIREMENTS.md 的 R-50）
+## 场景（对应 REQUIREMENTS.md 的 R-50 —— **该需求已判不做**，本规格留档备用）
 
 - **接 CI 时**：仓库里有 `packages/app` 与 `packages/ui` 两个包，每个都得 `cd` 进去跑一次门禁，
   CI 里用 shell 拼错误码 —— **漏跑一个包没人知道**，也没有"整体过没过"的一句话结论。**现在：不报**（`--workspace` 不存在）。

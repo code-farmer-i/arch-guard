@@ -17,6 +17,18 @@
 
 ## [Unreleased]
 
+### Changed（需求口径：四条待定/需定口味全部判不做）
+
+用户决定 R-49 / R-50 / R-52 / R-53 都不做：
+
+- **R-49 公开面破坏性变更（库）**：本期只做前端应用；要做也得先划清与"不提供存量豁免"的界限。
+- **R-50 monorepo 跨包**：另一个量级的工程（逐包跑 + 汇总 + 统一退出码），规格留档在 `.scratch/pnpm-workspace/`。
+- **R-52 TypeScript 严格度**：`tsconfig` 开关是项目选择，不是门禁要钉的红线（本仓自己开着 strict / noUnusedLocals）。
+- **R-53 聚焦测试残留**：交给宿主 eslint 测试插件（`no-focused-tests` 之类），本工具不重复实现。
+
+**需求清单至此全部定案**：已完成 61 · 已委派 4 · 不做 6（R-04 / R-49 / R-50 / R-51 / R-52 / R-53）· 已撤 2（R-30 / R-70）。
+连带口径：DELEGATION-REVIEW 里指向 R-52 的那句、`.scratch/pnpm-workspace/spec.md` 的场景行。
+
 ### Fixed（C 收尾：canonical 的域入口补 `entry: true`，S23 在应用范式下生效）
 
 - 与 C10 同源的**第二个数据缺口**：S23（公开面）靠角色描述符上的 `entry: true` 认入口，而 `canonical()`
