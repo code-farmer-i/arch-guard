@@ -108,13 +108,13 @@ export default {
 
 ### 2.2 域预设（域名 = 预设名）
 
-| 预设                | 域  | 关键参数（完整字段见 §2.4）                                                                                                                                                                                      |
-| ------------------- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `designSystem({…})` | D   | `paletteFile` · `tokenDir` · `themeFile` · `styleDir` · `vendorDir` · `storageFile` · `staticPrefix` · `valueWhitelists` · `numberHomes`（D20：哪些名字的数字必须有家）· `contrastPairs` · `themes` · `htmlKeys` |
-| `copy({…})`         | C   | `messageApis` · `messageProps`（C01 的"组件库调用里的文案"那一半）                                                                                                                                               |
-| `deps({…})`         | P   | `allow`（fail-closed 白名单 → P01）· `deny` · `capabilities`（能力→首选方案 → P06）· `unusedDeps`（P08，默认关）· `fingerprints`                                                                                 |
-| `metrics({…})`      | M   | `coverage`（`report` / `perDirMin` / `zeroAllow` / `ratchet` / `baselineFile` / `mustCover` / `pathRewrite`）· `tests` · `depsBudget`                                                                            |
-| `hygiene()`         | H   | 无参数（H06 / H07 / H08 / H09 / H12 / H13，按能力协商）                                                                                                                                                          |
+| 预设                | 域  | 关键参数（完整字段见 §2.4）                                                                                                                                                                                                                |
+| ------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `designSystem({…})` | D   | `paletteFile` · `tokenDir` · `themeFile` · `styleDir` · `vendorDir` · `storageFile` · `staticPrefix` · `valueWhitelists` · `numberHomes`（D20：哪些名字的数字必须有家）· `contrastPairs` · `themes` · `htmlKeys`                           |
+| `copy({…})`         | C   | `messageApis` · `messageProps`（C01 的"组件库调用里的文案"那一半）                                                                                                                                                                         |
+| `deps({…})`         | P   | `allow`（fail-closed 白名单 → P01）· `deny` · `capabilities`（能力→首选方案 → P06，如 `{ datetime: 'dayjs' }`：声明后手搓 `Intl.DateTimeFormat` / `toLocaleDateString` 就报；**不声明不判**）· `unusedDeps`（P08，默认关）· `fingerprints` |
+| `metrics({…})`      | M   | `coverage`（`report` / `perDirMin` / `zeroAllow` / `ratchet` / `baselineFile` / `mustCover` / `pathRewrite`）· `tests` · `depsBudget`                                                                                                      |
+| `hygiene()`         | H   | 无参数（H06 / H07 / H08 / H09 / H12 / H13，按能力协商）                                                                                                                                                                                    |
 
 ### 2.3 方案面（可替换轴）
 
