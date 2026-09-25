@@ -17,6 +17,13 @@
 
 ## [Unreleased]
 
+### Fixed（C01 补齐：JSX 文本节点进事实模型）
+
+- C01 原来只判面向用户的**属性**（`title="保存"`），JSX **文本节点**（`<button>保存</button>` 里那半）
+  看不见 —— 而它是"裸文案"场景的主体。
+- 修法：`facts` 收 `JSXText`（`context: 'jsx'`，纯空白跳过）→ C01 两侧都判。
+  **事实形状变了，`FACTS_CACHE_SPEC` 2 → 3**（旧缓存整体作废，不会读到旧结果）。
+
 ### Changed（需求口径：R-51 判不做）
 
 - **R-51「委派出去的检查没人验证」判不做**（用户决定）：委派出去的那些检查（eslint / stylelint / knip…）

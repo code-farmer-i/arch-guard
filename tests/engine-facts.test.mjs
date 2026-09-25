@@ -109,3 +109,26 @@ test('facts：解析失败要产出行号（fail-closed 判据）', () => {
   assert.ok(facts.parseErrors.length > 0)
   assert.ok(facts.parseErrors.every((error) => error.line >= 1))
 })
+
+test('事实模型：JSX 文本节点进 strings（context=jsx），纯空白跳过', async () => {
+  const { extractFacts } = await import('../es/engine/facts.js')
+  const rel = 'src/modules/crews/views/Page.tsx'
+  const facts = extractFacts({
+    file: `/tmp/${rel}`,
+    rel,
+    role: 'module:views',
+    text: [
+      'export default function Page(): unknown {',
+      '  return (',
+      '    <div>',
+      '      <button title="保存">保存</button>',
+      '      <span>No crews yet</span>',
+      '    </div>',
+      '  )',
+      '}',
+    ].join('\n'),
+  })
+  const jsx = facts.strings.filter((item) => item.context === 'jsx').map((item) => item.value)
+  assert.deepEqual(jsx.sort(), ['No crews yet', '保存'], '只收非空白的 JSX 文本')
+  assert.equal(facts.hasJsx, true)
+})

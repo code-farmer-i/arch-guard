@@ -2,6 +2,10 @@
   "exact": true,
   "findings": [
     {
+      "rule": "C01",
+      "file": "src/shared/components/ui/Bad.tsx"
+    },
+    {
       "rule": "C02",
       "file": "src/shared/components/ui/Bad.tsx"
     },

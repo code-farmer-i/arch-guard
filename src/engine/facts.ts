@@ -322,6 +322,23 @@ export function extractFacts(input: FactInput): Facts {
         prop: inheritedProp,
       })
     }
+    /**
+     * JSX 文本节点（`<button>保存</button>` 里的那半）也进 `strings`，`context` 标成 `jsx`。
+     *
+     * 它**不是字符串字面量** —— 只收字面量的话，"写死在 JSX 里的文案"永远看不见（C01 的主体）。
+     * 纯空白（标签之间的缩进换行）跳过，否则每个 JSX 文件都会多出一堆噪音。
+     */
+    if (ts.isJsxText(node)) {
+      const text = node.text.trim()
+      if (text !== '') {
+        facts.strings.push({
+          value: text,
+          line: lineOf(sf, node.getStart(sf)),
+          context: 'jsx',
+          prop: null,
+        })
+      }
+    }
     if (
       !facts.hasJsx &&
       (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node))

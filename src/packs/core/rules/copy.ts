@@ -332,9 +332,7 @@ const looksLikeCopy = (value: string): boolean => {
  * 插件要装 + 要逐条维护 `ignore` 白名单，而"这句文案有没有走 `t()`"我们**本来就知道**
  * —— `facts.calls[].stringArg` 就是 `t('…')` 里的键。所以判定更准、也不用宿主维护第二份清单。
  *
- * 误伤控制在三处：① 只认那五个面向用户的属性（**v1 的边界：JSX 文本节点还没进事实模型** ——
- * `facts.strings` 收的是字符串字面量，`<button>保存</button>` 里的文本不是字面量节点，见 spec 的已知缺口）；
- * ② 只认"人话"（中文 / 多词）；
+ * 误伤控制在三处：① 只认 JSX 文本节点与那五个面向用户的属性；② 只认"人话"（中文 / 多词）；
  * ③ `t(...)` 里的键与 URL / 类名 / 单 token 全部放过。命中给 **warn**（不是"必须改"）。
  */
 export const bareCopy: Rule = {
@@ -357,8 +355,8 @@ export const bareCopy: Rule = {
       const translated = new Set(facts.calls.map((call) => `${call.line}:${call.stringArg ?? ''}`))
       for (const text of facts.strings) {
         if (translated.has(`${text.line}:${text.value}`)) continue
-        // JSX 文本节点要等事实模型收 JSXText 才有（见上方 v1 边界）；先只留属性这一半
-        const inJsxText = false
+        // JSX 文本节点：事实模型已收（`context === 'jsx'`），`looksLikeCopy` 再筛掉类名 / 单 token
+        const inJsxText = text.prop === null && text.context === 'jsx'
         const inUserFacingProp = text.prop !== null && USER_FACING_PROPS.has(text.prop)
         if (!inJsxText && !inUserFacingProp) continue
         if (!looksLikeCopy(text.value)) continue
