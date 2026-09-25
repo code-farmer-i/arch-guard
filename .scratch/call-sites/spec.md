@@ -2,7 +2,7 @@
 
 Status: done
 
-## 场景（对应 REQUIREMENTS.md 的 R-13 副作用 / R-14 配置对象）
+## 场景（对应 REQUIREMENTS.md 的 R-21（埋点/存储）与 R-22（配置对象））
 
 - **上生产时**：`gtag()` / `Sentry.captureException()` 直接写在页面和 hook 里 ——
   "用户没同意隐私协议就别上报"这条判断没地方统一，审计时说不清数据从哪流出去。
