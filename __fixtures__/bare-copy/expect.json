@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "C01",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    }
+  ],
+  "exact": true
+}

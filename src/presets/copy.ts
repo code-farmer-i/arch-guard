@@ -11,5 +11,5 @@ import type { Preset } from '../engine/types.js'
  * 不注册适配器时，C 域规则会以「因能力未声明而停用」明列 —— 不是静默失能。
  */
 export function copy(): Preset {
-  return { enable: ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'] }
+  return { enable: ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07'] }
 }

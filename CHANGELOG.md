@@ -17,6 +17,18 @@
 
 ## [Unreleased]
 
+### Added（C8：裸文案收回本体 —— 委派清单最后一项）
+
+- **场景**：`<button title="保存">保存</button>` —— 写死在 JSX 里的文案永远翻译不了，上线才发现界面冒中文。
+- **现在**：声明了 i18n（`copy()` + `i18n(...)`）的项目里，**面向用户的属性**
+  （`title` / `placeholder` / `alt` / `aria-label` / `label`）上出现"人话"而它不在 `t(...)` 里就报（warn）。
+  走过 `t('key')` 的、URL / 类名 / 单 token 全部放过。
+- 原先委派给 `eslint-plugin-i18next` 的 `no-literal-string`（要装插件 + 逐条维护 ignore 白名单），
+  而"这句走没走 `t()`"我们本来就从 `facts.calls[].stringArg` 知道。
+- **已知边界**：JSX **文本节点**（`<button>保存</button>` 里的那半）还没进事实模型 ——
+  `facts.strings` 收的是字符串字面量；这条记在 spec 的已知缺口里，下一版补。
+- 规则 89 → **90**；夹具 68 → **69**。委派候选集（C1–C10）至此**全部落地**。
+
 ### Added（C6：CSS 数值三族收回本体）
 
 - **场景**：间距 / 层级 / 时长各写各的数（`margin: 13px`、`z-index: 9999`、`transition-duration: 200ms`）——

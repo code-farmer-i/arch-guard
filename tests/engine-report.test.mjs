@@ -194,7 +194,7 @@ test('presets：designSystem / copy / deps 的默认值与自定义值', () => {
 
   // `copy()` 只贡献 C 域规则集，**不再内联任何 i18n 适配器**（库名只许在 presets/i18n-kits/）：
   // 能力由 `i18n(i18nextKit({...}))` 提供，与 `uiKit(adapter)` 同形。
-  assert.deepEqual(copy().enable, ['C02', 'C03', 'C04', 'C05', 'C06', 'C07'])
+  assert.deepEqual(copy().enable, ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07'])
   assert.equal(copy().adapters, undefined, '通用预设里不许有适配器（也就没有库名）')
   const kit = i18nextKit({ resourceDir: 'src/i18n', languages: ['zh-CN'], fn: 'tr' })
   assert.equal(kit.resourceDir, 'src/i18n')

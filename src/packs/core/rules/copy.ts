@@ -310,9 +310,77 @@ export const i18nResourcesExist: Rule = {
   },
 }
 
+/* ---------------- C01 裸文案（JSX 里写死） ---------------- */
+
+/** 面向用户的属性名：写死在这些属性上的字符串就是文案 */
+const USER_FACING_PROPS = new Set(['title', 'placeholder', 'alt', 'aria-label', 'label'])
+
+/** 看起来像"人话"：含中文、或含空格的多个词；URL / 类名 / 单 token / 纯数字都不算 */
+const looksLikeCopy = (value: string): boolean => {
+  const text = value.trim()
+  if (text === '') return false
+  if (/^(?:https?:\/\/|\/|#|\.)/.test(text)) return false
+  if (/^[\w.:@/-]+$/.test(text)) return false
+  if (/[\u4e00-\u9fa5]/.test(text)) return true
+  return /\s/.test(text) && /[A-Za-z]/.test(text)
+}
+
+/**
+ * 判据（**声明了 i18n 才判**）：JSX 文本与面向用户的属性上出现"人话"，而它不在 `t(...)` 调用里。
+ *
+ * 为什么收回本体（原委派给 `eslint-plugin-i18next` 的 `no-literal-string`）：
+ * 插件要装 + 要逐条维护 `ignore` 白名单，而"这句文案有没有走 `t()`"我们**本来就知道**
+ * —— `facts.calls[].stringArg` 就是 `t('…')` 里的键。所以判定更准、也不用宿主维护第二份清单。
+ *
+ * 误伤控制在三处：① 只认那五个面向用户的属性（**v1 的边界：JSX 文本节点还没进事实模型** ——
+ * `facts.strings` 收的是字符串字面量，`<button>保存</button>` 里的文本不是字面量节点，见 spec 的已知缺口）；
+ * ② 只认"人话"（中文 / 多词）；
+ * ③ `t(...)` 里的键与 URL / 类名 / 单 token 全部放过。命中给 **warn**（不是"必须改"）。
+ */
+export const bareCopy: Rule = {
+  id: 'C01',
+  domain: 'copy',
+  requires: ['i18n.resourceDir'],
+  level: 'L2',
+  severity: 'warn',
+  title: '裸文案',
+  hint: '界面文案走 t() 并登记进资源；写死在 JSX 里这句永远翻译不了',
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.role === 'test' || /\.(test|spec)\./.test(record.rel)) continue
+      // 资源目录本身放的就是文案（键值对）—— 那不是"裸文案"，是文案的家
+      if (record.rel.startsWith(`${ctx.i18n?.resourceDir ?? ''}/`)) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      // `t('key')` 里已经登记过的键：同一行出现同值的调用实参就放过
+      const translated = new Set(facts.calls.map((call) => `${call.line}:${call.stringArg ?? ''}`))
+      for (const text of facts.strings) {
+        if (translated.has(`${text.line}:${text.value}`)) continue
+        // JSX 文本节点要等事实模型收 JSXText 才有（见上方 v1 边界）；先只留属性这一半
+        const inJsxText = false
+        const inUserFacingProp = text.prop !== null && USER_FACING_PROPS.has(text.prop)
+        if (!inJsxText && !inUserFacingProp) continue
+        if (!looksLikeCopy(text.value)) continue
+        out.push(
+          finding(
+            'C01',
+            record.rel,
+            text.line,
+            `裸文案：${inUserFacingProp ? `${text.prop}="${text.value}"` : text.value}`,
+            '改成 t(...) 并登记进资源；确实不该翻译（品牌名 / 代码片段）就写进 i18n 的忽略清单',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 export const copyRules: Rule[] = [
-  // C01 裸文案委派给 eslint-plugin-i18next 的 no-literal-string（它只有这一条规则：
-  // **不做**键存在性与未使用键，所以 C02 / C06 由我们自己实现 —— 见 docs/ECOSYSTEM-AUDIT.md）
+  // C01 裸文案：0.4.0 收回本体（原先委派 eslint-plugin-i18next —— 要装插件 + 维护 ignore 白名单，
+  // 而"这句走没走 t()"我们本来就从 facts.calls[].stringArg 知道）
+  bareCopy,
   keysExist,
   languageParity,
   oneNamespacePerFile,
