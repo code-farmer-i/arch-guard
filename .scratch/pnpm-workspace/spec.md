@@ -2,6 +2,15 @@
 
 Status: draft
 
+## 场景（对应 REQUIREMENTS.md 的 R-50）
+
+- **接 CI 时**：仓库里有 `packages/app` 与 `packages/ui` 两个包，每个都得 `cd` 进去跑一次门禁，
+  CI 里用 shell 拼错误码 —— **漏跑一个包没人知道**，也没有"整体过没过"的一句话结论。**现在：不报**（`--workspace` 不存在）。
+- **包边界形同虚设时**：`packages/app/src/x.ts` 里 `import { internal } from '@org/ui/src/internal/secret'`
+  直接抓了内部文件；或者 `ui` 包反过来 import `app`。**现在：不报**（跨包路径被当成普通第三方 import 放行）。
+- **在子包内按变更跑**：子包根 ≠ 仓库根，`--scope=changed` 的路径换算只能靠一条 notice 说明，
+  没有逐包的汇总视角。**现在：一个包一次，人工汇总。**
+
 ## 背景与问题
 
 现在 `runGuard` 把 `process.cwd()` 当作**唯一**的项目根：角色表、`include`、`layout`、`entries`、

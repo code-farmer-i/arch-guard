@@ -1,0 +1,102 @@
+import assert from 'node:assert/strict'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
+
+import { coreRules } from '../es/index.js'
+
+/**
+ * **流程门禁**：让「需求 → 设计 → 落地」这条主线可判定，而不是墙上的口号。
+ *
+ * 三条：
+ * 1. 活跃规格（draft / ready-for-agent / in-progress）必须有 `Status`、`## 场景` 节与需求编号，
+ *    且引用的 `R-xx` 真的存在于 REQUIREMENTS.md（管住的活必须有场景与需求锚点；done 的历史规格不查）。
+ * 2. 需求编号连续、不重复。
+ * 3. 设计文档里的规则数 / 夹具数与实际一致 —— 加了规则不改 DESIGN / README = 设计没落盘。
+ */
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const read = (rel) => readFileSync(join(ROOT, rel), 'utf8')
+
+const ACTIVE = ['draft', 'ready-for-agent', 'in-progress']
+const statusOf = (text) => /^Status:\s*([A-Za-z-]+)/m.exec(text)?.[1] ?? ''
+
+const requirementIds = () => {
+  const text = read('REQUIREMENTS.md')
+  return [...text.matchAll(/^\*\*R-(\d+)\s/gm)].map((match) => Number(match[1]))
+}
+
+const specFiles = () => {
+  const dir = join(ROOT, '.scratch')
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({ slug: entry.name, path: join(dir, entry.name, 'spec.md') }))
+    .filter((entry) => existsSync(entry.path))
+}
+
+test('流程：活跃规格必须有 Status / 场景 / 需求编号，且编号在 REQUIREMENTS 里存在', () => {
+  const ids = new Set(requirementIds())
+  const active = specFiles()
+    .map(({ slug, path }) => ({ slug, text: readFileSync(path, 'utf8') }))
+    .filter(({ text }) => ACTIVE.includes(statusOf(text)))
+
+  assert.ok(active.length > 0, '.scratch 下应当至少有一份活跃规格（否则这条门禁在空转）')
+  const problems = []
+  for (const { slug, text } of active) {
+    if (!text.includes('## 场景'))
+      problems.push(`${slug}: 缺「## 场景」一节（写不出场景的需求先不做）`)
+    const refs = [...text.matchAll(/R-(\d+)/g)].map((match) => Number(match[1]))
+    if (refs.length === 0) problems.push(`${slug}: 没有引用任何需求编号（R-xx）`)
+    for (const ref of new Set(refs)) {
+      if (!ids.has(ref)) problems.push(`${slug}: 引用了不存在的需求 R-${ref}`)
+    }
+  }
+  assert.deepEqual(problems, [])
+})
+
+test('流程：需求编号连续且不重复（R-01…R-N 无空号）', () => {
+  const ids = requirementIds()
+  assert.ok(ids.length > 0)
+  assert.equal(new Set(ids).size, ids.length, '需求编号有重复')
+  const sorted = [...ids].sort((a, b) => a - b)
+  const expected = Array.from({ length: sorted.length }, (_, index) => index + 1)
+  assert.deepEqual(
+    sorted,
+    expected,
+    `需求编号不连续：${sorted.filter((v, i) => v !== i + 1).join(',')}`,
+  )
+})
+
+test('流程：设计文档里的规则数 / 夹具数与实际一致（不同步就是设计没落盘）', () => {
+  const total = coreRules.length
+
+  const design = read('docs/DESIGN.md')
+  const designCount = Number(/已实现并带夹具的 (\d+) 条/.exec(design)?.[1])
+  assert.equal(designCount, total, 'DESIGN 的「已实现并带夹具的 N 条」与实际规则数不一致')
+
+  const readme = read('README.md')
+  assert.equal(
+    Number(/共 \*\*(\d+) 条规则\*\*/.exec(readme)?.[1]),
+    total,
+    'README 的「共 N 条规则」与实际不一致',
+  )
+  const fixtureRatio = /(\d+)\/(\d+) 有夹具/.exec(readme)
+  assert.equal(Number(fixtureRatio?.[1]), total)
+  assert.equal(Number(fixtureRatio?.[2]), total)
+
+  const architecture = read('docs/ARCHITECTURE.md')
+  assert.equal(
+    Number(/(\d+) 条规则的实现/.exec(architecture)?.[1]),
+    total,
+    'ARCHITECTURE 的规则数与实际不一致',
+  )
+  const fixtures = readdirSync(join(ROOT, '__fixtures__'), { withFileTypes: true }).filter(
+    (entry) => entry.isDirectory(),
+  ).length
+  assert.equal(
+    Number(/(\d+) 个夹具项目/.exec(architecture)?.[1]),
+    fixtures,
+    'ARCHITECTURE 的夹具数与 __fixtures__ 实际目录数不一致',
+  )
+})

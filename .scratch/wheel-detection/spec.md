@@ -2,6 +2,14 @@
 
 Status: in-progress（P07 两证据已落地；剩「指纹可覆盖」）
 
+## 场景（对应 REQUIREMENTS.md 的 R-43 手搓轮子 · R-73 指纹表可覆盖）
+
+- **审查自研实现时**：`lib/debounce.ts` 手写 `setTimeout` + `clearTimeout`，导出的函数就叫 `debounce`；
+  `shared/lib/clone.ts` 自己递归做深拷贝。**现在：会报**（P07 = 弱指纹 ∧ 命名指纹，两证据已落地）。
+- **企业规范要收紧时**：只认公司内部那套查询库，指纹表却是本体自带的 —— 改不了，只能全仓改写法。**现在：不报，也没法配**（R-73）。
+- **内部自研库其实很成熟时**：内置的 `@org/utils` 里有 `formatDate`，与成熟库 API 同名 → 被提示，
+  却没法声明"这是我们认可的实现"。**现在：会提示，无法豁免该项**（R-73 的豁免/放宽那一半）。
+
 ## 背景与问题
 
 P06 只认**强指纹**（形态无歧义，如 `JSON.parse(JSON.stringify(x))`、`date.getFullYear()`）。于是两类轮子抓不到：

@@ -9,6 +9,8 @@
 - 动**引擎 / 规则 / 预置 / 角色表 / 判定等级** → 先读 `PARADIGM.md`，并确认新规则仍落在 L1–L3（`createRule()` 会拒绝 L4/L5 的 error 级规则）。
 - 动**宿主相关的东西** → 只能进宿主的 `arch.config.mjs`；本体里出现宿主字面量会被 `pnpm self-check-portability` 拦下。
 - **加规则**：id 前缀必须与域一致（S/D/C/P/H），且必须在 `__fixtures__/` 有「违规必报 × 合规不报」的夹具 —— 没有夹具的规则等于没有规则。
+- **加规则之前先落盘**：需求进 `REQUIREMENTS.md`（没有就先加一条）→ 设计进 `docs/DESIGN.md`
+  （架构性变更进 `docs/ARCHITECTURE.md`）→ 规格进 `.scratch/<slug>/spec.md` → 才动代码。流程见 `docs/agents/workflow.md`。
 
 ## 提交前
 
@@ -96,6 +98,13 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 规则（id / 判据 / 实现）只在被问到时才展开。**需求的全貌与状态在 `REQUIREMENTS.md`（唯一来源）**：
 新需求先写那里，再开工；`spec.md` 的「场景」一节写不出真实场景的需求先不做。
 见 `docs/agents/scenario-first.md`。
+
+### 开发流程（需求 → 设计 → 落地）
+
+**从实际场景切入**：需求先进 `REQUIREMENTS.md`，设计进 `docs/DESIGN.md` / `docs/ARCHITECTURE.md`，
+规格进 `.scratch/<slug>/spec.md`，最后才是代码 + 夹具 + 文档同步。**没落盘就不开工。**
+`tests/process.test.mjs` 会查活跃规格有没有场景与需求编号、设计文档的规则数/夹具数与实际是否一致。
+见 `docs/agents/workflow.md`。
 
 ### Issue tracker
 
