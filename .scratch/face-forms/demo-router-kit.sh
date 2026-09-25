@@ -180,6 +180,21 @@ echo "════════════════════════�
 ( cd "$BASE/G-two-kits" && node "$ROOT/es/cli.js" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | head -6 ) || true
 echo
 
+# I：`overrides.adapters` 不绕开校验 —— 字段拼错 / 面没登记都会当场报错
+skeleton "$BASE/I-override-typo"
+cat > "$BASE/I-override-typo/arch.config.mjs" <<EOF
+import { canonical, reactRouterKit, router } from '$ROOT/es/index.js'
+
+export default {
+  presets: [canonical(), router(reactRouterKit())],
+  // 想覆盖入口词汇却把字段拼错了（routeFile 少个 s）：以前静默失能
+  overrides: { adapters: { router: { facet: 'router', id: 'mine', specVersion: '1', packages: [], routeFile: ['entry.ts'] } } },
+}
+EOF
+echo "════════════════════════════════════════ I-override-typo"
+( cd "$BASE/I-override-typo" && node "$ROOT/es/cli.js" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | head -4 ) || true
+echo
+
 # H：适配器可见性 —— 报告自述"谁在生效"，字段级全貌看 --verify-deps
 echo "════════════════════════════════════════ H-适配器可见性"
 ( cd "$BASE/D2-kit-and-roles" && node "$ROOT/es/cli.js" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep "生效的适配器" ) || true

@@ -864,6 +864,11 @@ v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`
   现在每次运行都有一行 `生效的适配器：router=react-router · styles=css-modules`（`notices`，见 §6.9）。
 - **字段级全貌在 `--verify-deps`**：整张适配表（`facet` / `id` / `specVersion` / 形态字段 / 包对账），
   **没有 npm 包的 kit 也在表里**（CSS Module 就是这种方案）—— 否则"我配了 `styles()` 吗、它认哪种文件"看不见。
+- **`overrides.adapters` 绕开 kit，但不绕开校验**：合并后的适配器**全部**再过一遍 `defineAdapter`
+  （字段白名单 / 类型 / 正则可编译 / `id` 必填 / 键与 `spec.facet` 一致 / 面已登记）。
+  以前这条通道既能让拼错的字段静默失能，也能在面没登记时让引擎完全不认识它
+  （`facetOfCapabilityRoot` 找不到 → 能力协商看不见、`--explain` 也不提）。
+  自定义面必须先 `defineFacet`（公共 API），或 import 一份该面的 kit —— 它随模块加载登记。
 
 **（2）统一适配器契约**
 所有适配器同形：**纯数据** `{ facet, id, specVersion, …面内字段 }`（经 `defineAdapter` 白名单校验并冻结）；

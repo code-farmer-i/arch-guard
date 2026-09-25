@@ -9,9 +9,10 @@ import {
   frameworkSources,
   implementedFrameworks,
 } from '../data/framework-sources.js'
+import { defineAdapter } from './adapters.js'
+import type { Diagnostic } from './codes.js'
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
-import type { Diagnostic } from './codes.js'
 import { resolveStructure } from './structure.js'
 import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
 import { exists, mergePresets } from './util.js'
@@ -226,6 +227,15 @@ export async function loadConfig(options: {
 
   const params = { ...preset.params, ...overrides.params }
   const adapters = { ...preset.adapters, ...overrides.adapters }
+  /**
+   * **合并后的适配器全部过一遍 `defineAdapter`**：预设里的本来就校验过（幂等重跑），
+   * 但 `overrides.adapters` 是**绕开 kit 的通道** —— 以前它既不校验字段（拼错 = 静默失能），
+   * 又能在面没登记时让引擎彻底不认识它（`facetOfCapabilityRoot` 找不到 → 能力协商看不见、
+   * `--explain` 也不提它）。同一个面的两处真相已经由 `mergePresets` 拦住，这里拦住"没校验的通道"。
+   */
+  for (const [facet, adapter] of Object.entries(adapters)) {
+    adapters[facet] = defineAdapter(facet, { ...(adapter as Record<string, unknown>) })
+  }
   /**
    * **适配器缺的落点可以由范式通过 `params` 声明**（`canonical()` / `fsd()` 的 `i18nDir`）。
    *

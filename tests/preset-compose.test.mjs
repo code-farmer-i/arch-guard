@@ -21,7 +21,7 @@ function project(presets, extra = '') {
   const dir = mkdtempSync(join(tmpdir(), 'ag-compose-'))
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, copy, fsd, designSystem, i18n, i18nextKit, library } from '${ES}'\n` +
+    `import { canonical, copy, cssModulesKit, fsd, designSystem, i18n, i18nextKit, library, reactRouterKit, router, styles } from '${ES}'\n` +
       `export default { packs: [], presets: [${presets}]${extra} }\n`,
   )
   return dir
@@ -63,6 +63,67 @@ test('组合：一个面只能有一个方案 —— 两份 kit 声明同一个�
   )
   assert.equal(config.adapters.i18n?.id, 'i18next')
   assert.deepEqual(config.adapters.i18n?.languages, ['zh-CN'])
+})
+
+test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段 / 正则 / 键与 facet / 面已登记）', async () => {
+  const override = (spec) => `, overrides: { adapters: { router: ${spec} } }`
+
+  // ① 拼错字段：以前静默失能（规则照跑、字段没人读）
+  await assert.rejects(
+    () =>
+      loadConfig({
+        root: project(
+          'canonical(), router(reactRouterKit())',
+          override("{ facet: 'router', id: 'x', specVersion: '1', packages: [], routeFile: [] }"),
+        ),
+      }),
+    /未知字段：routeFile/,
+  )
+  // ② 面没登记（既没有 kit 随模块加载登记它，也没 defineFacet）：引擎不认识它 ——
+  //    字段没人校验、能力协商看不见、`--explain` 也不提它（自定义面必须先 defineFacet）
+  await assert.rejects(
+    () =>
+      loadConfig({
+        root: project(
+          'canonical()',
+          ", overrides: { adapters: { 'my-face': { facet: 'my-face', id: 'x', specVersion: '1' } } }",
+        ),
+      }),
+    /未知适配器面：my-face/,
+  )
+  // ③ 正则写歪：形态判据会静默不生效（`modulePatterns` 是模式字段）
+  await assert.rejects(
+    () =>
+      loadConfig({
+        root: project(
+          'canonical(), styles(cssModulesKit())',
+          ", overrides: { adapters: { styles: { facet: 'styles', id: 'x', specVersion: '1', packages: [], modulePatterns: ['('] } } }",
+        ),
+      }),
+    /正则无法编译/,
+  )
+  // ④ 键与 `spec.facet` 不一致：能力反查按键找面，写错就找不到
+  await assert.rejects(
+    () =>
+      loadConfig({
+        root: project(
+          'canonical(), router(reactRouterKit())',
+          override("{ facet: 'styles', id: 'x', specVersion: '1', packages: [] }"),
+        ),
+      }),
+    /与它挂在的键 router 不一致/,
+  )
+
+  // ⑤ 合法的覆盖：生效的是覆盖后的那份（并且冻结）
+  const config = await load(
+    'canonical(), router(reactRouterKit())',
+    override(
+      "{ facet: 'router', id: 'mine', specVersion: '1', packages: [], routeFiles: ['entry.ts'] }",
+    ),
+  )
+  assert.equal(config.adapters.router?.id, 'mine')
+  assert.deepEqual(config.adapters.router?.routeFiles, ['entry.ts'])
+  assert.equal(Object.isFrozen(config.adapters.router), true, '覆盖进来的那份也被冻结')
 })
 
 test('组合：契约落点跟随范式（域预设不再塞三根默认值）', async () => {

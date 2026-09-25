@@ -86,6 +86,20 @@ S15③ 会误报"view 没人引用"、S04/S05 看不到入口侧的跨域引用�
 3. **`--verify-deps` 列整张适配表**：`facet` / `id` / `specVersion` / 形态字段 / 包对账，
    **没有 npm 包的 kit 也在表里**（CSS Module 这类以前被 `if (names.length === 0) continue` 直接跳过）。
 
+## 收尾（第四轮：`overrides.adapters` 这条未校验通道）
+
+写第三轮那句错误提示（"要覆盖就用 `overrides.adapters`"）时发现的洞：`config.ts` 把
+`overrides.adapters` 直接浅合并进去，**不过 `defineAdapter`** ——
+
+- 字段拼错（`routeFile` vs `routeFiles`）= **静默失能**（字段没人读，规则照跑）；
+- 面没登记（既没有 kit 随模块加载登记，也没 `defineFacet`）= 引擎完全不认识它：
+  `facetOfCapabilityRoot` 找不到 → 能力协商看不见它，`--explain` 也不提；
+- `spec.facet` 与它挂在的键不一致同理（能力反查按键找面）。
+
+收法：合并后的适配器**全部**再过一遍 `defineAdapter`（预设里的幂等重跑，覆盖进来的真正校验），
+并在 `defineAdapter` 里加"键与 `spec.facet` 必须一致"这一条。自定义面必须先 `defineFacet`
+（公共 API）或 import 一份该面的 kit —— 这与"面清单不写死在引擎里"（E2）是同一条纪律。
+
 ## Comments
 
 - 2026-09-24 起：`routeFiles` 默认取 `['routes.ts','routes.tsx']`（与角色表 `routes.{ts,tsx}` 对齐）——

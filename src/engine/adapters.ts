@@ -189,8 +189,15 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
   const definition = facets.get(facet)
   if (!definition) {
     throw new AdapterError(
-      `未知适配器面：${facet}（可用：${facetNames().join(', ')}）\n` +
-        '（新面由预设用 defineFacet 登记 —— 面清单不再写死在引擎里）',
+      `未知适配器面：${facet}（已登记：${facetNames().join(', ')}）\n` +
+        '（新面由预设用 `defineFacet` 登记 —— 面清单不写死在引擎里；只想填数据的话，' +
+        'import 一份该面的 kit（它随模块加载登记）或先自己 `defineFacet`）',
+    )
+  }
+  // 键与 `spec.facet` 不一致会让能力反查（`facetOfCapabilityRoot`）找不到它 —— 静默失能，直接拒
+  if (spec.facet !== undefined && spec.facet !== facet) {
+    throw new AdapterError(
+      `[${facet}] 声明的 facet 是 ${String(spec.facet)}，与它挂在的键 ${facet} 不一致：两者必须相同`,
     )
   }
   const allowed = definition.fields

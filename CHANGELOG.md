@@ -32,6 +32,11 @@
   换库换错、组合时手滑多写一份，现场都看不出来。现在直接报错并指出用 `overrides.adapters` 显式覆盖；
   内容**完全相同**的重复声明仍幂等（与 `defineFacet` 对同一个面的态度一致）。
 - 顺手改正 DESIGN §6.9 一处口径：`NOTICE_CODES` 的家是 `engine/codes.ts`（不是 `types.ts`）。
+- **`overrides.adapters` 不再绕开校验**：合并后的适配器全部再过一遍 `defineAdapter` ——
+  字段白名单 / 类型 / 正则可编译 / `id` 必填 / **键与 `spec.facet` 一致** / **面已登记**。
+  这条通道以前能让拼错的字段静默失能（`routeFile` vs `routeFiles`），也能让引擎完全不认识那个面
+  （能力协商看不见、`--explain` 不提）。现在当场报错并给出可用字段：
+  `[router] 未知字段：routeFile（允许：examples, facet, id, packages, routeFiles, specVersion）`。
 
 ### Added（方案面形态：规则不再写死 `routes.tsx` / `*.module.css`）
 
