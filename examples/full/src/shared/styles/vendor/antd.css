@@ -1,0 +1,5 @@
+/* 第三方覆盖的唯一出口（D10 / D10b / D09）：只许出现适配表声明的选择器 */
+.ant-btn {
+  border-radius: 8px;
+  padding: 4px 16px;
+}

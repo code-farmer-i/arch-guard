@@ -1,0 +1,11 @@
+[data-theme='light'] {
+  --surface: var(--sh-static-surface);
+  --text-primary: var(--sh-static-ink);
+  --brand: var(--sh-static-brand);
+}
+
+[data-theme='dark'] {
+  --surface: var(--sh-static-ink);
+  --text-primary: var(--sh-static-surface);
+  --brand: var(--sh-static-brand);
+}

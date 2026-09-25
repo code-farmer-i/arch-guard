@@ -17,6 +17,18 @@
 
 ## [Unreleased]
 
+### Added（`examples/full/`：把「配全」变成可跑的样板）
+
+- 新宿主示例 [`examples/full/`](./examples/full/)：一个范式（`canonical`）+ 5 个域预设 + 8 个方案面 +
+  结构声明全配的最小应用（44 个文件）。**`pnpm guard:full` 跑出来：`规则 98/98` · 0 finding · 0 停用**
+  （对照 `examples/minimal` 的 `69/98`）—— "完整配置长什么样"从此有可执行答案，而不是一段散文。
+- 它同时是"声明写错会被抓"的现场证明。搭的过程中被门禁抓出 **5 处形态问题**：
+  i18n 资源必须写成 `export default {}`（否则 C07 认不出文案文件）· P04 适配表声明的包必须在 `dependencies` 里
+  （`@ant-design/icons` / `react-router`）· 模型类型没人 import（S15 孤儿）· 只被一个域使用的 shared 文件（S18）·
+  `lib → config` 的反向依赖（S21）；以及 **2 处声明写错**（`sessionStorage` 声明了却没用到；`new QueryClient`
+  写成匹配不上的名字 —— facts 里的 callee 其实是 `QueryClient`）—— 后两条正是 R-86 那条 self-report 点出来的。
+- 挂在 `pnpm check` 里（`guard:full`）：示例跟着门禁一起跑，不会烂掉。
+
 ### Changed（流程：本地门禁只跑 Node 24）
 
 - 双 Node（22.18 + 24）是"没有托管 CI"的代价；实测收益不抵那份时间 → **本地只在 Node 24 上跑 `pnpm check`**
