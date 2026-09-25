@@ -17,6 +17,11 @@
 
 ## [Unreleased]
 
+### Added（审计口径：收回本体的 12 条归位）
+
+- `docs/ECOSYSTEM-AUDIT.md` 新增 §6：把 0.4.0 收回本体的 12 条按"真独有 / 生态有但装了还得配 / 仍委派"
+  三类归位，并写明理由（配置成本高而我们事实本来就有）。
+
 ### Fixed（C10 的覆盖补齐：canonical 侧也钉住组维度规则）
 
 - C10 让 `canonical()` 的域成为组维度（`group: 'domain'`），但当时只有 `group-dimension` 一条夹具
