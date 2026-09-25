@@ -1,6 +1,8 @@
 import type { Diagnostic } from './codes.js'
 import type { ScanResult } from './scan.js'
 import { globToRegExp } from './util.js'
+import { resolveCallSiteApis } from './call-site-sources.js'
+import type { CallSiteGroupLike } from './call-site-sources.js'
 import type { Config, Facts } from './types.js'
 
 /**
@@ -172,17 +174,33 @@ function emptyFaceDeclarations(
       const value = face[key]
       if (Array.isArray(value)) checkFiles(`${label}.${key}`, value as string[])
     }
-    for (const key of ['apis', 'fetchApis'] as const) {
-      const value = face[key]
-      // env-reads 的 apis 是**成员访问链**（`import.meta.env.X`），不在 calls 里 —— 它走下面的 reads 那一支
-      if (key === 'apis' && label === 'env-reads') continue
-      if (Array.isArray(value)) checkCalls(`${label}.${key}`, value as string[])
+    /**
+     * **只盯项目自己写的名字**（R-92）：`apis` 是宿主的（`analytics({ apis })` / `callSites([{ apis }])`），
+     * 写错一个字母就会 0 命中 ✓ 要报。而 `fetchApis`（react-query kit 的默认清单，8 个钩子）与
+     * `env-reads.apis`（平台表给的读取根）是**面/平台/kit 的既有清单** —— 它们天然包含"这次没用到"的项，
+     * 报出来只会逼宿主把清单收窄（把 kit 的事实抄一遍），而收窄本身没有任何收益。
+     */
+    if (label === 'call-sites') {
+      for (const group of (face.groups ?? []) as CallSiteGroupLike[]) {
+        const groupLabel = `${label}[${group.name ?? '?'}]`
+        checkCalls(`${groupLabel}.apis`, group.apis ?? [])
+        checkFiles(`${groupLabel}.in`, group.in ?? [])
+        // `from` 指向的清单解析不出来（面没声明 / 字段为空）→ 那一组什么都没判，必须自述
+        if (group.from && resolveCallSiteApis(config, group).length === 0) {
+          empty.push(`${groupLabel}.from 的来源 ${group.from}`)
+        }
+      }
+      continue
     }
-    // 环境读取的"api"是**成员访问链**（`import.meta.env.X`），不在 calls 里 —— 拿 reads 判
-    if (label === 'env-reads' && Array.isArray(face.apis)) {
-      const apis = face.apis as string[]
-      for (const api of apis) {
-        if (!called(api, reads)) empty.push(`${label}.apis 的读取根 ${api}`)
+    if (label === 'analytics' && Array.isArray(face.apis)) {
+      checkCalls(`${label}.apis`, face.apis as string[])
+    }
+    if (label === 'env-reads') {
+      // 读取根默认来自平台表（R-93）：只在宿主**显式给了** apis 时才校验它写得对不对（`in` 上面已查过）
+      if (!face.apisFrom && Array.isArray(face.apis)) {
+        for (const api of face.apis as string[]) {
+          if (!called(api, reads)) empty.push(`${label}.apis 的读取根 ${api}`)
+        }
       }
     }
     if (Array.isArray(face.groups)) {

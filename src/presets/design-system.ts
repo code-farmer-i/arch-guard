@@ -54,8 +54,12 @@ export interface DesignSystemOptions {
 export interface NumberHome {
   /** 组名（进报告："请求策略的数字该在 …"） */
   name: string
-  /** 哪些名字算这一类：属性名（`staleTime`）或常量名（`PAGE_SIZE`） */
-  names: string[]
+  /**
+   * 哪些名字算这一类：属性名（`staleTime`）或常量名（`PAGE_SIZE`）。
+   * **可以不写** —— 缺省取组件库/方案适配器声明的名字（如 `reactQueryKit()` 的 `numberNames`：
+   * `staleTime` / `retry` / `gcTime`… 那是**库的事实**）。项目自己的常量（`PAGE_SIZE`）仍然要在这里列。
+   */
+  names?: string[]
   /** 只许出现在哪些落点（glob 列表） */
   in: string[]
 }

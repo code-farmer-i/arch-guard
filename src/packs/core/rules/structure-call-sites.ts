@@ -1,3 +1,4 @@
+import { resolveCallSiteApis } from '../../../engine/call-site-sources.js'
 import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
@@ -148,10 +149,16 @@ export const callsOnlyInDeclaredSites: Rule = {
     const out: Finding[] = []
     for (const group of callSiteGroupsOf(ctx.config)) {
       out.push(
-        ...callSitesOutside(ctx, 'S38', group.apis, group.in, ({ callee }) => ({
-          text: `在这里调用${group.name} API（${callee}）：它只许出现在声明的落点`,
-          hint: `把这次调用收进项目里的封装（${group.in.join(' / ')}），别处只调封装`,
-        })),
+        ...callSitesOutside(
+          ctx,
+          'S38',
+          resolveCallSiteApis(ctx.config, group),
+          group.in,
+          ({ callee }) => ({
+            text: `在这里调用${group.name} API（${callee}）：它只许出现在声明的落点`,
+            hint: `把这次调用收进项目里的封装（${group.in.join(' / ')}），别处只调封装`,
+          }),
+        ),
       )
     }
     return out

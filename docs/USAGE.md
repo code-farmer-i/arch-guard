@@ -127,9 +127,34 @@ export default {
 | 路由     | `router(reactRouterKit({ routeFiles }) \| noneRouterKit())` | `pathSource`→D23；`routeFiles` 还决定 S03/S04/S05/S14/S15 的入口词汇           |
 | 数据层   | `dataLayer(reactQueryKit({...}) \| noneDataLayerKit())`     | `queryKeyFrom`→D22 · `fetchIn`/`fetchApis`→S36                                 |
 | 样式     | `styles(cssModulesKit({...}) \| noneStylesKit())`           | `modulePatterns`→D16/D17                                                       |
-| 调用落点 | `callSites([{ name, apis, in }])`                           | S38（副作用 / 配置对象的落点）                                                 |
+| 调用落点 | `callSites([{ name, apis \| from, in }])`                   | S38（副作用 / 配置对象的落点）                                                 |
 | 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
-| 环境读取 | `envReads({ apis, in })`                                    | S44（`import.meta.env` / `process.env` 的落点）                                |
+| 环境读取 | `envReads({ apis?, in })`（缺省用平台表）                   | S44（`import.meta.env` / `process.env` 的落点）                                |
+
+`callSites` 的 `from` 用**导出的常量**（编辑器可补全、拼错立刻可见）：
+
+```js
+import { callSites, callSiteSources } from '@arch-guard/core'
+
+callSites([
+  { name: '本地存储', from: callSiteSources.platform.storage, in: ['src/shared/lib/storage.ts'] },
+  { name: '埋点上报', from: callSiteSources.analytics.gtag, in: ['src/shared/lib/analytics/**'] },
+  {
+    name: '全局单例',
+    from: callSiteSources.dataLayer.singletons,
+    in: ['src/shared/api/queryClient.ts'],
+  },
+])
+```
+
+| 来源常量                                                    | 给哪些 API 名                                                                           | 谁的事实                                       |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `callSiteSources.platform.storage` / `.timers` / `.network` | `localStorage` `sessionStorage` / `setTimeout` `setInterval` / `fetch` `XMLHttpRequest` | 浏览器平台（数据表）                           |
+| `callSiteSources.analytics.gtag` / `.segment` / `.sentry`   | `gtag` / `analytics.track` … / `Sentry.captureException` …                              | 分析 SDK（数据表）                             |
+| `callSiteSources.dataLayer.singletons`                      | `QueryClient`                                                                           | **你选的 kit**（`reactQueryKit().singletons`） |
+
+项目**自己的封装**（`appToast.success` 之类）不属于任何来源，显式写 `apis`；一组里 `apis` 与 `from` 同时给时 `apis` 优先。
+常量与 id 表**同源**（`callSiteSources` 从 `CALL_SITE_SOURCE_IDS` 派生），加来源只改数据表一处。
 
 kit 工厂与它们的参数：
 

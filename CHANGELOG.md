@@ -80,6 +80,26 @@
   `copy({ messageApis: [] }) 显式关掉` · `无 —— 这一半没在判`。C01 没在跑时不说（已由「因能力未声明而停用」明列）。
 - 单测四例（四种取值 + "C01 没跑就不提"）；冻结的 `NOTICE_CODES` 清单同步登记。
 
+### Added（R-95：`callSites` 的来源常量 —— 用户不必背字符串）
+
+- 用户反问"有点复杂，用户会配吗"，随后指出要害：**`from: 'platform.storage'` 这种取值只能靠背**。
+  现在导出常量命名空间（**兼容性新增**，同时导出 `CALL_SITE_SOURCE_IDS` / `ENV_READ_ROOTS`）：
+  ```js
+  import { callSites, callSiteSources } from '@arch-guard/core'
+  callSites([
+    { name: '本地存储', from: callSiteSources.platform.storage, in: ['src/shared/lib/storage.ts'] },
+    { name: '埋点上报', from: callSiteSources.analytics.gtag, in: ['src/shared/lib/analytics/**'] },
+    {
+      name: '全局单例',
+      from: callSiteSources.dataLayer.singletons,
+      in: ['src/shared/api/queryClient.ts'],
+    },
+  ])
+  ```
+  编辑器能补全、拼错立刻可见、改名可重构；字符串写法仍然支持（不破坏兼容）。
+- **常量从 id 表派生**（`callSiteSources` ← `CALL_SITE_SOURCE_IDS`，同 `NOTICE` / `SKIP` 的形态），
+  加一个来源只改数据表一处；新增门禁断言两者不许漂移。两个示例改成用常量。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

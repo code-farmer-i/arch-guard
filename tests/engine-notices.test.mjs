@@ -201,3 +201,43 @@ test('R-89：C01 没在跑时不提名单（它为什么停用由「因能力未
   assert.deepEqual(copyNotice(configFull({}), []), [])
   assert.deepEqual(copyNotice(configFull({}), ['C02', 'C03']), [])
 })
+
+/** R-92：只盯**项目自己写的**名字 —— 适配器 / 平台给的既有清单天然含"这次没用到"的项，不该点名 */
+
+test('R-92：kit 的 `fetchApis` 与平台表的 `env-reads.apis` 不参与"0 命中"；项目写的仍要点名', () => {
+  const browser = 'src/modules/crews/hooks/useCrews.ts'
+  const notice = noticeOfFull(
+    {
+      adapters: {
+        'data-layer': {
+          facet: 'data-layer',
+          id: 'react-query',
+          fetchApis: ['useQuery', 'useMutation'],
+          fetchIn: ['src/**'],
+        },
+        'env-reads': {
+          facet: 'env-reads',
+          id: 'declared',
+          apis: ['import.meta.env', 'process.env'],
+          // 这份名单是平台表给的（宿主没写）→ 不该被当成"项目声明"来点名
+          apisFrom: 'platform',
+          in: ['src/**'],
+        },
+        analytics: {
+          facet: 'analytics',
+          id: 'declared',
+          apis: ['trackX'],
+          eventSource: 'src/shared/lib/events.ts',
+        },
+      },
+      params: {},
+    },
+    [{ rel: browser }],
+    [browser],
+    new Map([[browser, { calls: [{ callee: 'useQuery', line: 1 }], reads: [] }]]),
+  )
+  assert.ok(notice, '项目自己写的 trackX 0 命中 → 应当自述')
+  assert.match(notice.text, /analytics\.apis 的调用名 trackX/)
+  assert.doesNotMatch(notice.text, /useMutation/, 'kit 的默认清单不点名')
+  assert.doesNotMatch(notice.text, /process\.env/, '平台表给的读取根不点名')
+})

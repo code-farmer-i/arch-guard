@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { callSites, coreRules } from '../es/index.js'
+import { CALL_SITE_SOURCE_IDS, callSiteSources, callSites, coreRules } from '../es/index.js'
 
 /**
  * 两个前端场景的分支：
@@ -258,6 +258,42 @@ test('S38：没声明组时不判（真跑时由 requires 明列停用）', () =
   )
 })
 
+test('callSites()：`apis` 可以省略，改用 `from` 指向既有清单（平台表 / kit）；来源写错 fail-closed', () => {
+  // R-91：省掉"把库/平台的事实抄一遍"
+  assert.doesNotThrow(() =>
+    callSites([{ name: '本地存储', from: 'platform.storage', in: ['src/shared/lib/storage.ts'] }]),
+  )
+  assert.doesNotThrow(() =>
+    callSites([
+      { name: '全局单例', from: 'data-layer.singletons', in: ['src/shared/api/queryClient.ts'] },
+    ]),
+  )
+  assert.throws(
+    () => callSites([{ name: '副作用', from: 'platform.storageX', in: ['x'] }]),
+    /来源 platform.storageX 不认识/,
+  )
+})
+
+test('S38：`from` 指向平台表时，落点外的调用照样抓（名单不必项目抄）', () => {
+  const groups = [{ name: '本地存储', from: 'platform.storage', in: ['src/shared/lib/storage.ts'] }]
+  const browser = 'src/modules/crews/views/CrewsPage.tsx'
+  const home = 'src/shared/lib/storage.ts'
+  const findings = rule('S38').run(
+    context({
+      cfg: config({ 'call-sites': { facet: 'call-sites', id: 'declared', groups } }),
+      records: [{ rel: browser }, { rel: home }],
+      facts: {
+        [browser]: { calls: [{ callee: 'localStorage.getItem', line: 3, stringArg: 'app.token' }] },
+        [home]: { calls: [{ callee: 'localStorage.getItem', line: 2, stringArg: 'app.token' }] },
+      },
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.file),
+    [browser],
+  )
+})
+
 test('callSites()：每组两样都要给，空值 / 重名 / 空清单一律 fail-closed', () => {
   const preset = callSites([
     { name: '副作用', apis: ['gtag'], in: ['src/shared/lib/analytics.ts'] },
@@ -267,7 +303,10 @@ test('callSites()：每组两样都要给，空值 / 重名 / 空清单一律 fa
   assert.deepEqual(preset.adapters?.['call-sites']?.groups?.[0]?.apis, ['gtag'])
 
   assert.throws(() => callSites([]), /至少要给一组/)
-  assert.throws(() => callSites([{ name: '副作用', apis: [], in: ['x'] }]), /apis 不能为空/)
+  assert.throws(
+    () => callSites([{ name: '副作用', apis: [], in: ['x'] }]),
+    /既没给 apis 也没给 from/,
+  )
   assert.throws(() => callSites([{ name: '副作用', apis: ['gtag'], in: [] }]), /in 不能为空/)
   assert.throws(() => callSites([{ name: '', apis: ['gtag'], in: ['x'] }]), /缺少 name/)
   assert.throws(
@@ -321,4 +360,13 @@ test('S44：落点外读环境报；落点内、测试文件、未声明都不�
     ['src/modules/crews/lib/api.ts:4', 'src/modules/crews/lib/api.ts:5'],
     '落点内与测试文件放过',
   )
+})
+
+test('常量命名空间 `callSiteSources` 从 id 表派生（单一出处，不许出现第二份清单）', () => {
+  const values = Object.values(callSiteSources).flatMap((group) => Object.values(group))
+  assert.deepEqual([...values].sort(), [...CALL_SITE_SOURCE_IDS].sort())
+  // 键名对人友好：段名转小驼峰，值仍是 id
+  assert.equal(callSiteSources.platform.storage, 'platform.storage')
+  assert.equal(callSiteSources.analytics.gtag, 'analytics.gtag')
+  assert.equal(callSiteSources.dataLayer.singletons, 'data-layer.singletons')
 })

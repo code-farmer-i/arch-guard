@@ -13,6 +13,7 @@ import {
   analytics,
   antdKit,
   callSites,
+  callSiteSources,
   copy,
   cssModulesKit,
   dataLayer,
@@ -47,7 +48,9 @@ export default {
         { rule: 'D14', allow: ['150ms'] },
       ],
       numberHomes: [
-        { name: '请求策略', names: ['staleTime', 'retry'], in: ['src/shared/api/queryClient.ts'] },
+        // 名字不用写：staleTime / retry / gcTime… 是 react-query 的事实（reactQueryKit 的 numberNames）
+        { name: '请求策略', in: ['src/shared/api/queryClient.ts'] },
+        // 项目自己的常量仍然要列
         { name: '分页阈值', names: ['PAGE_SIZE', 'ORDER_PAGE_SIZE'], in: ['src/shared/config/constants.ts'] },
       ],
       contrastPairs: [{ fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 }],
@@ -90,17 +93,19 @@ export default {
     dataLayer(
       reactQueryKit({
         queryKeyFrom: 'src/shared/api/queryKeys.ts',
-        fetchApis: ['useQuery'],
+        // fetchApis 不用写：reactQueryKit 自带全套钩子（R-92 后不再因"这次没用到"被点名）
         fetchIn: ['src/pages/*/api/**', 'src/shared/api/**'],
       }),
     ),
     styles(cssModulesKit()),
     analytics({ apis: ['sendEvent'], eventSource: 'src/shared/lib/analytics/events.ts' }),
-    envReads({ apis: ['import.meta.env'], in: ['src/shared/config/**'] }),
+    // 读取根（import.meta.env / process.env）是平台表给的，项目只说"只许在哪读"
+    envReads({ in: ['src/shared/config/**'] }),
+    // 组名 + 家在哪就够了；`from` 用常量（编辑器补全 / 拼错立刻可见 / 可重构）
     callSites([
-      { name: '本地存储', apis: ['localStorage'], in: ['src/shared/lib/storage.ts'] },
-      { name: '埋点上报', apis: ['gtag'], in: ['src/shared/lib/analytics/**'] },
-      { name: '全局单例', apis: ['QueryClient'], in: ['src/shared/api/queryClient.ts'] },
+      { name: '本地存储', from: callSiteSources.platform.storage, in: ['src/shared/lib/storage.ts'] },
+      { name: '埋点上报', from: callSiteSources.analytics.gtag, in: ['src/shared/lib/analytics/**'] },
+      { name: '全局单例', from: callSiteSources.dataLayer.singletons, in: ['src/shared/api/queryClient.ts'] },
     ]),
   ],
 

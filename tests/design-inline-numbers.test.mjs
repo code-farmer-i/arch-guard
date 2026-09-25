@@ -239,3 +239,47 @@ test('D20：不声明 numberHomes 就不判', () => {
     [],
   )
 })
+
+test('R-90：`numberHomes` 只写"家在哪"，名字由方案适配器（reactQueryKit 的 numberNames）给', () => {
+  const browser = 'src/modules/crews/hooks/useCrews.ts'
+  const home = 'src/shared/api/queryClient.ts'
+  const findings = rule('D20').run(
+    context({
+      cfg: {
+        params: { numberHomes: [{ name: '请求策略', in: ['src/shared/api/queryClient.ts'] }] },
+        adapters: {
+          'data-layer': {
+            facet: 'data-layer',
+            id: 'react-query',
+            numberNames: ['staleTime', 'retry'],
+          },
+        },
+      },
+      records: [{ rel: browser }, { rel: home }],
+      facts: {
+        [browser]: { numbers: [{ value: 999999, raw: '999_999', name: 'staleTime', line: 4 }] },
+        [home]: { numbers: [{ value: 300000, raw: '300_000', name: 'staleTime', line: 6 }] },
+      },
+    }),
+  )
+  assert.deepEqual(
+    findings.map((item) => item.file),
+    [browser],
+  )
+})
+
+test('R-90：既没给 names、适配器也没声明 numberNames → 这一组不判（不是"全都报"）', () => {
+  const browser = 'src/modules/crews/hooks/useCrews.ts'
+  const findings = rule('D20').run(
+    context({
+      cfg: {
+        params: { numberHomes: [{ name: '请求策略', in: ['src/shared/api/queryClient.ts'] }] },
+      },
+      records: [{ rel: browser }],
+      facts: {
+        [browser]: { numbers: [{ value: 999999, raw: '999_999', name: 'staleTime', line: 4 }] },
+      },
+    }),
+  )
+  assert.deepEqual(findings, [])
+})

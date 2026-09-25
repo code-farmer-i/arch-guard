@@ -138,11 +138,7 @@ export interface RoleDescriptor {
   slot?: string
   /** 排他角色：命中即独占（测试文件之类不该再和槽位争角色） */
   exclusive?: boolean
-  /**
-   * 组维度：本角色的文件属于"某个组"，组名取该捕获的值。
-   * 例：`pattern: 'src/pages/{slice}/ui/**', group: 'slice'` → 同一切片的文件同组。
-   * 组是 S22（组隔离）与 S23（公开面）的判定单位。
-   */
+  /** 组维度：组名取该捕获名的值（`src/pages/{slice}/ui/**` + `group: 'slice'`）；S22 / S23 的判定单位 */
   group?: string
   /** 本角色是所属组的**公开面（入口）**，配合 `structure.publicApi` 使用 */
   entry?: boolean
@@ -214,10 +210,7 @@ export interface UiKitAdapter {
   icons?: { from: string[] }
   vendorSelectors?: string[]
   vendorVars?: string[]
-  /**
-   * **这套库的「文案位」调用名**（C01 的另一半）：`message.success` / `notification.open`…
-   * 库的事实，别让每个宿主抄一遍；项目自己的封装由 `copy({ messageApis })` 覆盖这里。
-   */
+  /** **这套库的「文案位」调用名**（C01）：`message.success`…—— 库的事实；项目自己的封装用 `copy()` 覆盖 */
   messageApis?: string[]
   /** 这套库里**哪些对象属性算文案**（`message` / `description` / `title`…）；同样可被 `copy()` 覆盖 */
   messageProps?: string[]
@@ -297,6 +290,10 @@ export interface DataLayerAdapter {
    * `queryClient.invalidateQueries(...)`），因为接收者变量名由项目决定。
    */
   fetchApis?: string[]
+  /** 这套方案里**策略/阈值数字**的属性名（`staleTime` / `retry`…）：D20 的 `numberHomes` 缺省用它 */
+  numberNames?: string[]
+  /** 这套方案里**只许单例**的构造器（`QueryClient`…）：`callSites([{ from: 'data-layer.singletons' }])` 的来源 */
+  singletons?: string[]
   /**
    * **取数只许出现的落点**（glob 列表，如 `['src/modules/<域>/hooks/**','src/shared/api/**']`）——
    * 落点是**项目决定**，所以由 kit 选项传入；没声明 → 这条门禁明列停用。

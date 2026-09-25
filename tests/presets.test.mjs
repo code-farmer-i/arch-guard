@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../es/engine/defaults.js'
+import { ENV_READ_ROOTS } from '../es/data/env-roots.js'
 import {
   antdKit,
   canonical,
@@ -366,4 +367,14 @@ test('canonical：域角色声明 group=domain（否则按组判定的规则在�
   for (const role of domainRoles) {
     assert.equal(role.group, 'domain', `${role.id} 没声明 group: domain`)
   }
+})
+
+test('R-93：envReads({ in }) 省略 apis 时，读取根取平台表（不必每个宿主抄 import.meta.env）', () => {
+  const preset = envReads({ in: ['src/shared/config/**'] })
+  assert.deepEqual(preset.adapters['env-reads'].apis, ENV_READ_ROOTS)
+  assert.equal(preset.adapters['env-reads'].apisFrom, 'platform')
+  // 显式给了就按项目给的走（并且会被"0 命中"自述校验拼写）
+  const explicit = envReads({ apis: ['import.meta.env'], in: ['src/shared/config/**'] })
+  assert.deepEqual(explicit.adapters['env-reads'].apis, ['import.meta.env'])
+  assert.equal(explicit.adapters['env-reads'].apisFrom, undefined)
 })

@@ -117,9 +117,13 @@ export const numbersHaveHomes: Rule = {
     const groups = (ctx.config.params.numberHomes as NumberHome[] | undefined) ?? []
     if (groups.length === 0) return []
 
+    // names 缺省取**方案适配器**声明的名字（`reactQueryKit().numberNames`）—— 库的事实，不必宿主抄
+    const kitNames =
+      (ctx.config.adapters['data-layer'] as { numberNames?: string[] } | undefined)?.numberNames ??
+      []
     const out: Finding[] = []
     for (const group of groups) {
-      const names = new Set(group.names)
+      const names = new Set(group.names && group.names.length > 0 ? group.names : kitNames)
       if (names.size === 0) continue
       const homes = group.in.map((glob) => globToRegExp(glob))
       for (const record of ctx.records) {

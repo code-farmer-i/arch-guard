@@ -1,5 +1,6 @@
 import { AdapterError, defineAdapter, defineFacet } from '../engine/adapters.js'
 import type { GenericAdapter, Preset } from '../engine/types.js'
+import { CALL_SITE_SOURCE_IDS } from '../data/call-site-sources.js'
 
 /**
  * **调用落点**预设：某一类调用**只许出现在声明的封装里**。
@@ -24,14 +25,31 @@ defineFacet('call-sites', {
 export interface CallSiteGroup {
   /** 组名（出现在报告里："在这里调用副作用 API（gtag）…"） */
   name: string
-  /** 哪些调用算这一类：`['localStorage','gtag','Sentry.captureException']` */
-  apis: string[]
+  /**
+   * 哪些调用算这一类：`['localStorage','gtag','Sentry.captureException']`。
+   * **可以不写** —— 用 `from` 指向一处既有清单（平台表 / 面适配器），省得把库/平台的事实抄一遍。
+   */
+  apis?: string[]
+  /**
+   * API 名单的来源：`'platform.storage'` / `'platform.timers'` / `'platform.network'`（平台表）
+   * 或 `'analytics'` / `'data-layer.singletons'`（面适配器已声明的清单）。
+   * 写错来源会在**配置期报错**并列出可用值（不然那一组会安静地什么都不判）。
+   */
+  from?: string
   /** 只许出现在哪些落点（glob 列表）：`['src/shared/lib/storage.ts','src/app/**']` */
   in: string[]
 }
 
 export function callSites(groups: CallSiteGroup[]): Preset {
   const list = groups ?? []
+  for (const group of list) {
+    if (group.from && !CALL_SITE_SOURCE_IDS.includes(group.from)) {
+      throw new AdapterError(
+        `callSites()[${group.name ?? '?'}] 的来源 ${group.from} 不认识\n` +
+          `（可用：${CALL_SITE_SOURCE_IDS.join(' / ')}）`,
+      )
+    }
+  }
   if (list.length === 0) {
     throw new AdapterError(
       'callSites() 至少要给一组落点：`callSites([{ name: "副作用", apis: [...], in: [...] }])`\n' +
@@ -43,8 +61,11 @@ export function callSites(groups: CallSiteGroup[]): Preset {
     if (typeof group?.name !== 'string' || group.name.length === 0) {
       throw new AdapterError(`callSites() ${where} 缺少 name：组名会出现在报告里，不能为空`)
     }
-    if (!Array.isArray(group.apis) || group.apis.length === 0) {
-      throw new AdapterError(`callSites() ${where} 的 apis 不能为空：写清"哪些调用算这一类"`)
+    if ((!Array.isArray(group.apis) || group.apis.length === 0) && !group.from) {
+      throw new AdapterError(
+        `callSites() ${where} 既没给 apis 也没给 from：这一组什么都判不了\n` +
+          `（apis: 自己列调用名；from: 指向既有清单 ${CALL_SITE_SOURCE_IDS.join(' / ')}）`,
+      )
     }
     if (!Array.isArray(group.in) || group.in.length === 0) {
       throw new AdapterError(`callSites() ${where} 的 in 不能为空：写清"只许出现在哪些落点"`)
@@ -62,7 +83,9 @@ export function callSites(groups: CallSiteGroup[]): Preset {
         specVersion: '1',
         groups: list.map((group) => ({
           name: group.name,
-          apis: [...group.apis],
+          // 项目显式给了就带上；否则由 `from` 在判定时解析（引擎侧单一出处）
+          ...(group.apis ? { apis: [...group.apis] } : {}),
+          ...(group.from ? { from: group.from } : {}),
           in: [...group.in],
         })),
       }),

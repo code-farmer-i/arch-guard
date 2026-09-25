@@ -389,7 +389,29 @@ const MUTATIONS = [
     // 声明写错（多打一个字母）不会被任何规则报 —— 但必须被"0 命中自述"点名
     name: '声明写错：落点名没人命中',
     expectNotice: 'declaration-no-match',
-    apply: (dir) => patch(dir, 'arch.config.mjs', "apis: ['gtag'],", "apis: ['gtagX'],"),
+    apply: (dir) => patch(dir, 'arch.config.mjs', "names: ['PAGE_SIZE']", "names: ['PAGE_SIZE_X']"),
+  },
+  {
+    // R-90 现场：numberHomes 只写"家在哪"，名字由 reactQueryKit 的 numberNames 给 —— 数字跑到家外要抓
+    name: 'R-90：策略数字（名字来自 kit）跑到了家外',
+    expect: ['D20'],
+    apply: (dir) =>
+      append(
+        dir,
+        'src/modules/crews/hooks/useCrews.ts',
+        '\nexport const adHocPolicy = { staleTime: 999_999 }\n',
+      ),
+  },
+  {
+    // R-91 现场：callSites 只写"家在哪"，API 名来自 kit 的 singletons —— 别处再 new 一个要抓
+    name: 'R-91：单例（名字来自 kit）在别处又 new 了一个',
+    expect: ['S38'],
+    apply: (dir) =>
+      append(
+        dir,
+        'src/modules/crews/lib/format.ts',
+        "\nimport { QueryClient } from '@tanstack/react-query'\n\nexport const secondClient = new QueryClient()\n",
+      ),
   },
   {
     name: '组数量超上限（把预算调小）',
@@ -559,7 +581,8 @@ const FSD_MUTATIONS = [
   {
     name: 'FSD：声明写错（落点名没人命中）',
     expectNotice: 'declaration-no-match',
-    apply: (dir) => config(dir, "apis: ['gtag'],", "apis: ['gtagX'],"),
+    apply: (dir) =>
+      config(dir, "names: ['PAGE_SIZE', 'ORDER_PAGE_SIZE']", "names: ['PAGE_SIZE_X']"),
   },
 ]
 
