@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S38",
+      "file": "src/modules/crews/hooks/useCrews.ts"
+    },
+    {
+      "rule": "S38",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    }
+  ],
+  "exact": true
+}

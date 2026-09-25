@@ -1,26 +1,64 @@
 import { resolveSpecifier } from '../../../engine/graph.js'
-import type { Finding, Rule } from '../../../engine/types.js'
+import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
 
+import { fetchApisOf, fetchInOf, sideEffectApisOf, sideEffectLocationsOf } from './face-forms.js'
 import { finding } from './structure-util.js'
-import { fetchApisOf, fetchInOf } from './face-forms.js'
 
 /**
- * 「这类调用该发生在哪」两条：
+ * 「这类调用 / 引用该发生在哪」三条：
  *
  * - **S36 取数只在声明的落点**：页面里直接 `useQuery`、域里直接 `fetch('/api/x')` ——
- *   换数据层要翻遍页面、契约类型散在各域、测试必须 mock 网络。现在拦住。
+ *   换数据层要翻遍页面、契约类型散在各域、测试必须 mock 网络。
  * - **S37 页面必须动态 import**：路由表静态 import 页面 → 所有页面进主包（首屏变大）。
+ * - **S38 副作用只在声明的落点**：埋点/上报 SDK 与本地存储读写散在各域 ——
+ *   隐私判断、token 加密、换 SDK 都无处统一。
  *
- * 两条都**声明了才判**（没声明 → 明列停用），判据分别是 `facts.calls[].callee` 与
- * `facts.imports[].dynamic` —— 都已存在的事实，不需要新解析。
+ * 三条都**声明了才判**（没声明 → 明列停用），判据都来自已有事实（`facts.calls` / `facts.imports`）。
  */
 
-/** 取数 API 的匹配：整名，或 `.` 后缀（声明 `invalidateQueries` 也能抓 `queryClient.invalidateQueries`） */
-const callsApi = (callee: string, apis: string[]): string | null =>
-  apis.find((api) => callee === api || callee.endsWith(`.${api}`)) ?? null
+/**
+ * 调用名匹配：**整名 / 对象前缀 / 方法后缀**三种写法都算。
+ *
+ * - `useQuery` ↔ `useQuery`（整名）
+ * - `localStorage` ↔ `localStorage.getItem`（对象前缀：内置对象的方法名不必逐个声明）
+ * - `invalidateQueries` ↔ `queryClient.invalidateQueries`（方法后缀：接收者变量名由项目决定）
+ */
+const calledApiOf = (callee: string, apis: string[]): string | null =>
+  apis.find(
+    (api) => callee === api || callee.startsWith(`${api}.`) || callee.endsWith(`.${api}`),
+  ) ?? null
 
 const isTestFile = (rel: string): boolean => /\.(test|spec)\./.test(rel)
+
+/**
+ * 「这类调用只许出现在声明的落点」的公共骨架（S36 取数 / S38 副作用）：
+ * 跳过测试文件（renderHook、mock storage 都是正常用法）、跳过落点内的文件，其余一律报。
+ */
+function callSitesOutside(
+  ctx: RuleContext,
+  rule: string,
+  apis: string[],
+  globs: string[],
+  texts: (info: { callee: string; api: string }) => { text: string; hint: string },
+): Finding[] {
+  if (apis.length === 0 || globs.length === 0) return []
+  const patterns = globs.map((glob) => globToRegExp(glob))
+  const out: Finding[] = []
+  for (const record of ctx.records) {
+    if (record.role === 'test' || isTestFile(record.rel)) continue
+    if (patterns.some((pattern) => pattern.test(record.rel))) continue
+    const facts = ctx.facts.get(record.rel)
+    if (!facts) continue
+    for (const call of facts.calls) {
+      const api = calledApiOf(call.callee, apis)
+      if (!api) continue
+      const { text, hint } = texts({ callee: call.callee, api })
+      out.push(finding(rule, record.rel, call.line, text, hint))
+    }
+  }
+  return out
+}
 
 /* ---------------- S36 取数只在声明的落点 ---------------- */
 
@@ -32,33 +70,11 @@ export const fetchOnlyInDeclaredSites: Rule = {
   title: '取数只在声明的落点',
   hint: '取数落在一处（域内 hooks/ 或 shared/api）：页面只消费，换方案时不动页面，测试也不必 mock 网络',
   requires: ['dataLayer.fetchApis', 'dataLayer.fetchIn'],
-  run: (ctx) => {
-    const apis = fetchApisOf(ctx.config)
-    const patterns = fetchInOf(ctx.config).map((glob) => globToRegExp(glob))
-    if (apis.length === 0 || patterns.length === 0) return []
-    const out: Finding[] = []
-    for (const record of ctx.records) {
-      // 测试里调 useQuery（renderHook）是正常的，不判
-      if (record.role === 'test' || isTestFile(record.rel)) continue
-      if (patterns.some((pattern) => pattern.test(record.rel))) continue
-      const facts = ctx.facts.get(record.rel)
-      if (!facts) continue
-      for (const call of facts.calls) {
-        const hit = callsApi(call.callee, apis)
-        if (!hit) continue
-        out.push(
-          finding(
-            'S36',
-            record.rel,
-            call.line,
-            `在这里取数（${call.callee}）：取数只许出现在声明的落点`,
-            '把取数移进域内 hooks/（或 shared/api），页面改成消费那个 hook —— 这样换方案不用动页面',
-          ),
-        )
-      }
-    }
-    return out
-  },
+  run: (ctx) =>
+    callSitesOutside(ctx, 'S36', fetchApisOf(ctx.config), fetchInOf(ctx.config), ({ callee }) => ({
+      text: `在这里取数（${callee}）：取数只许出现在声明的落点`,
+      hint: '把取数移进域内 hooks/（或 shared/api），页面改成消费那个 hook —— 这样换方案不用动页面',
+    })),
 }
 
 /* ---------------- S37 页面必须动态 import ---------------- */
@@ -108,4 +124,31 @@ export const viewsAreLazy: Rule = {
   },
 }
 
-export const structureCallSiteRules: Rule[] = [fetchOnlyInDeclaredSites, viewsAreLazy]
+/* ---------------- S38 副作用只在声明的落点 ---------------- */
+
+export const sideEffectsOnlyInDeclaredSites: Rule = {
+  id: 'S38',
+  domain: 'structure',
+  level: 'L2',
+  severity: 'error',
+  title: '副作用只在声明的落点',
+  hint: '埋点/上报与本地存储在项目里各有一处封装（隐私判断、加密、迁移都在那儿做）：散着写，换 SDK 或加迁移就得全仓找',
+  requires: ['sideEffects.apis', 'sideEffects.in'],
+  run: (ctx) =>
+    callSitesOutside(
+      ctx,
+      'S38',
+      sideEffectApisOf(ctx.config),
+      sideEffectLocationsOf(ctx.config),
+      ({ callee }) => ({
+        text: `在这里调用副作用 API（${callee}）：它只许出现在声明的落点`,
+        hint: '把这次调用收进项目里的封装（如 shared/lib/storage.ts / shared/lib/analytics.ts），别处只调封装',
+      }),
+    ),
+}
+
+export const structureCallSiteRules: Rule[] = [
+  fetchOnlyInDeclaredSites,
+  viewsAreLazy,
+  sideEffectsOnlyInDeclaredSites,
+]

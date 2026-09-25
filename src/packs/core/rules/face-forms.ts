@@ -12,6 +12,13 @@ import type {
   StylesAdapter,
 } from '../../../engine/types.js'
 
+/** 副作用面（由 `sideEffects()` 预设登记）：只读两个字段 */
+interface SideEffectsAdapter {
+  facet: string
+  apis?: string[]
+  in?: string[]
+}
+
 /**
  * **方案面形态**的唯一读取处：域的公开面入口文件名（router 面）与组件样式文件形态（styles 面）。
  *
@@ -88,6 +95,19 @@ export function fetchApisOf(config: Config): string[] {
 /** **取数只许出现的落点**（S36，glob 列表）：项目决定，空 = 停用 */
 export function fetchInOf(config: Config): string[] {
   return adapterOf<DataLayerAdapter>(config, 'data-layer')?.fetchIn ?? []
+}
+
+/**
+ * **副作用 API 名**（S38）：埋点/上报 SDK 与本地存储的调用名 —— 项目声明（`sideEffects({ apis })`）。
+ * 空 = 停用（不猜"什么算副作用"）。
+ */
+export function sideEffectApisOf(config: Config): string[] {
+  return adapterOf<SideEffectsAdapter>(config, 'side-effects')?.apis ?? []
+}
+
+/** **副作用只许出现的落点**（S38，glob 列表） */
+export function sideEffectLocationsOf(config: Config): string[] {
+  return adapterOf<SideEffectsAdapter>(config, 'side-effects')?.in ?? []
 }
 
 const regexCache = new Map<string, RegExp>()

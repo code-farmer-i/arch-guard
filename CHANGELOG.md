@@ -15,6 +15,17 @@
 
 ## [Unreleased]
 
+### Added（前端场景：埋点/上报与本地存储的落点）
+
+- **场景：`gtag()` / `Sentry.captureException()` / `localStorage.getItem('token')` 散在各域** ——
+  "用户没同意隐私协议就别上报"这条判断没地方统一；后来要给 token 加密、加版本迁移、换埋点 SDK，
+  就得全仓找。**现在拦住**：`sideEffects({ apis, in })` 声明"哪些调用算副作用 + 只许出现在哪"后，
+  落点外的调用一律报（对象方法按**前缀**匹配，`localStorage` 一条就盖住 `getItem` / `setItem` / `clear`；
+  测试文件豁免）。
+- 新面 `side-effects`（由 `sideEffects()` 预设登记，项目直接给数据 —— 同 `deps({ allow })` 的形态）；
+  `apis` 或 `in` 为空时 **fail-closed 报错**（配了却什么都不判 = 静默失能）。
+- 规则 **74 → 75**，夹具 **53 → 54**，单测 +3 例。
+
 ### Added（三个前端场景的门禁：页面里取数 / 页面被静态 import / 退路残留）
 
 - **场景 ①：页面里直接 `useQuery`、域里直接 `fetch('/api/x')`** —— 换数据层要翻遍页面、

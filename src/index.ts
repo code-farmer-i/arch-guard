@@ -87,6 +87,7 @@ export {
   styles,
   cssModulesKit,
   noneStylesKit,
+  sideEffects,
 } from './presets/index.js'
 
 export { coreRules } from './packs/core/index.js'
