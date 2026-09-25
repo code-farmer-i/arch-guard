@@ -237,6 +237,45 @@ export const declaredDesignSystem: Rule = {
 
 /* ---------------- 注册 ---------------- */
 
+/* ---------------- D02 色板只放静态令牌 ---------------- */
+
+/**
+ * 判据：色板文件里定义的自定义属性，**名字必须带声明的静态前缀**。
+ *
+ * 为什么需要：语义令牌（会被明暗两套覆盖的那种）必须定义在主题文件里 —— 混进色板就会出现
+ * 「它永远不随主题变」的假语义名（明暗切换时那处不变，排查半天）。
+ */
+export const paletteStaticOnly: Rule = {
+  id: 'D02',
+  domain: 'design',
+  requires: ['designSystem.paletteFile', 'designSystem.staticPrefix'],
+  level: 'L1',
+  severity: 'error',
+  title: '色板只放静态令牌',
+  hint: '色板只定义静态值（带静态前缀）；语义令牌放主题文件 —— 否则那个语义名不会随主题变',
+  run: (ctx) => {
+    const params = designParams(ctx)
+    const prefix = ctx.config.params.staticPrefix
+    if (typeof prefix !== 'string' || prefix === '') return []
+    const file = cssFiles(ctx).find((item) => item.rel === params.paletteFile)
+    if (!file) return []
+    const out: Finding[] = []
+    for (const item of file.vars) {
+      if (item.name.startsWith(prefix)) continue
+      out.push(
+        finding(
+          'D02',
+          file.rel,
+          item.line,
+          `色板里定义了非静态令牌 ${item.name}：语义令牌该放主题文件（否则它不会随主题变）`,
+          `只有 ${prefix}* 属于色板；语义层放 themeFile`,
+        ),
+      )
+    }
+    return out
+  },
+}
+
 /* ---------------- D01 颜色字面量只在色板 ---------------- */
 
 /**
@@ -279,6 +318,7 @@ export const colorLiteralsOnlyInPalette: Rule = {
 }
 
 export const designTokenRules: Rule[] = [
+  paletteStaticOnly,
   // 颜色字面量只在色板（D01，0.4.0 收回本体；原先委派 stylelint color-no-hex + overrides）
   colorLiteralsOnlyInPalette,
   paletteColorUnique,

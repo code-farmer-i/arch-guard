@@ -1,0 +1,4 @@
+/* 语义层（主题文件）：明暗两套都在这 */
+:root {
+  --sh-brand: var(--sh-static-gray-3);
+}

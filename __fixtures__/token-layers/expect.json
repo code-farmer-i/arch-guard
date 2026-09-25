@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "D02",
+      "file": "src/shared/styles/tokens/palette.css"
+    },
+    {
+      "rule": "D18",
+      "file": "src/modules/crews/views/CrewsPage.module.css"
+    }
+  ],
+  "exact": true
+}

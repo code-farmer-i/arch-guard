@@ -1,0 +1,8 @@
+/* 违规：组件直接引静态值；合规：引语义令牌 */
+.page {
+  color: var(--sh-static-gray-3);
+}
+
+.card {
+  color: var(--sh-brand);
+}

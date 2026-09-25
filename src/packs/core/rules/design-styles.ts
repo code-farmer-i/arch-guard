@@ -116,6 +116,47 @@ export const cssModuleContract: Rule = {
   },
 }
 
+/* ---------------- D18 组件样式只消费语义令牌 ---------------- */
+
+/**
+ * 判据：**组件样式文件**里引用静态令牌（`var(--sh-static-*)`）即报 —— 该走语义令牌。
+ *
+ * 为什么需要：组件直接引底层静态值，换主题 / 换品牌色时那一处不跟着变（语义层被绕过）。
+ * 只判组件样式文件（形态由方案面声明）；全局样式与 vendor 覆盖不在其列。
+ */
+export const componentsUseSemanticTokens: Rule = {
+  id: 'D18',
+  domain: 'design',
+  requires: ['designSystem.staticPrefix'],
+  level: 'L1',
+  severity: 'error',
+  title: '组件样式只消费语义令牌',
+  hint: '组件样式里用语义令牌（如 var(--brand)），别直接引色板里的静态值 —— 换主题时它不会跟着变',
+  run: (ctx) => {
+    const prefix = ctx.config.params.staticPrefix
+    if (typeof prefix !== 'string' || prefix === '') return []
+    const patterns = modulePatternsOf(ctx.config)
+    if (patterns.length === 0) return []
+    const out: Finding[] = []
+    for (const file of cssFiles(ctx)) {
+      if (!isModuleStyle(file.rel, patterns)) continue
+      for (const ref of file.varRefs) {
+        if (!ref.name.startsWith(prefix)) continue
+        out.push(
+          finding(
+            'D18',
+            file.rel,
+            ref.line,
+            `组件样式引用了静态令牌 ${ref.name}：该用语义令牌`,
+            '语义令牌在主题文件里（明暗两套），静态值只属于色板',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 /* ---------------- D09 禁 !important ---------------- */
 
 /**
@@ -231,4 +272,5 @@ export const designStyleRules: Rule[] = [
   stylesInModules,
   cssModuleContract,
   noImportant,
+  componentsUseSemanticTokens,
 ]

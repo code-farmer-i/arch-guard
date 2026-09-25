@@ -33,6 +33,11 @@ export interface DesignSystemOptions {
    */
   contrastPairs?: ContrastPair[]
   /**
+   * **静态令牌前缀**（D02 / D18）：例如 `'--sh-static-'`。色板只放静态值、组件样式只消费语义令牌 ——
+   * 两个「不能跨层用」的方向都靠它判；**不声明这两条就不判**（前缀是项目的事实）。
+   */
+  staticPrefix?: string
+  /**
    * 数值三族的白名单（D12 长度 / D13 层级 / D14 时长）：**声明哪一族才判哪一族**。
    * 例：`[{ rule: 'D12', allow: ['4px','8px','12px'] }, { rule: 'D13', allow: ['1','10'] }]`
    */
@@ -96,6 +101,8 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       'D13',
       'D14',
       'D24',
+      'D02',
+      'D18',
     ],
     params: {
       /**
@@ -108,6 +115,7 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       themes: options.themes ?? ['dark', 'light'],
       htmlKeys: options.htmlKeys ?? ['theme'],
       valueWhitelists: options.valueWhitelists ?? [],
+      ...(options.staticPrefix ? { staticPrefix: options.staticPrefix } : {}),
       contrastPairs: options.contrastPairs ?? [],
       // 落点：用户显式给的（paths）放最后，压过任何默认推导
       ...paths,

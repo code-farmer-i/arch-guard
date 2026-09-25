@@ -1,0 +1,6 @@
+/* 合规：静态值带静态前缀 */
+:root {
+  --sh-static-gray-3: #cccccc;
+  /* 违规：语义名不该定义在色板里 */
+  --sh-brand: #ff5a1f;
+}
