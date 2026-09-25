@@ -135,8 +135,8 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 98 条**（以 `arch-guard --stats` / `coreRules` 为准）：
-> `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S44`、`D01–D10`、`D10b`、`D11–D20`、`D21–D24`、`C01–C07`、`P01–P08`、`P11`、`P12`、`H06–H09`、`H12`、`H13`、`M02–M09`。
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 99 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S45`、`D01–D10`、`D10b`、`D11–D20`、`D21–D24`、`C01–C07`、`P01–P08`、`P11`、`P12`、`H06–H09`、`H12`、`H13`、`M02–M09`。
 > 不在本体跑的：`S10`（相对越级，0.4.0 由 S43 取代）按 §4.9 **委派**给 eslint / dependency-cruiser / knip；
 > `H01–H05` 同理（**委派**）；`H10` **没有独立规则** —— 手搓时间格式化的判据在 `data/wheel-fingerprints.ts`
 > 的 `datetime` 指纹里，由 **P06** 消费，**声明 `capabilities.datetime` 才判**（不声明不判：不用日期库的项目用原生 `Intl` 是正当的）。
@@ -193,6 +193,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | S42 | **跳转守卫只在声明的落点**：字符串实参 / JSX `to` 命中 `structure.authRedirects.loginPaths` 的"跳登录"动作只许在守卫落点 —— 不数"重复了几遍"                                                                                | 调用 + 文案事实      | L2    | error                                                                                                        |
 | S43 | **禁相对越级**：`../` 向上爬的层数超过 `structure.maxRelativeUp.max` 即报（不声明不判）—— 与 S32 互补：S32 管"跨组别用相对"，这条管"同组内也别爬太深"                                                                       | 路径                 | L1    | error                                                                                                        |
 | S44 | **环境读取只在声明的落点**：`import.meta.env.X` / `process.env.X` 只许出现在声明的配置模块里（`envReads({ apis, in })`）—— 散着读，改名与换环境都要全仓搜，且读到的是无默认值无校验的原始字符串                             | 读取事实 + glob 落点 | L2    | error                                                                                                        |
+| S45 | **导入的成员必须真的被导出**：路径解析得到、名字却不存在（含 default）即报 —— 这类"假绿"最容易发生：TS 编译不过 / 运行时 undefined，而架构门禁此前一路通过                                                                  | 导入 + 导出事实      | L1    | error                                                                                                        |
 | S35 | **组必须有片段**：只有公开面入口、没有任何非入口文件的组是空壳（`structure.segmentedGroups` 声明了才判）。**编号说明**：S24 是「契约扫描域不得为空」，本规则排在其后                                                        | 路径 + 角色          | L3    | error                                                                                                        |
 | S36 | **取数只在声明的落点**：`useQuery` / `fetch` 这类取数调用只许出现在 `dataLayer({ fetchIn })` 声明的目录里（页面里直接取数、域里直连后端都报；测试文件豁免）                                                                 | 调用 + glob 落点     | L2    | error（声明落点才判）                                                                                        |
 | S37 | **页面必须动态 import**：域入口对 `views/` 的 import 必须是 `lazy: () => import(...)`（静态 import 会让所有页面随主包下载）；`canonical({ lazyViews: true })` 声明才判                                                      | AST import           | L2    | error（声明才判）                                                                                            |

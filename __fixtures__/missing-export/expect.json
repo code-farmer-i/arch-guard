@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S45",
+      "file": "src/app/main.tsx"
+    }
+  ],
+  "exact": true
+}

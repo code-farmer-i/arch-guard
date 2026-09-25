@@ -13,6 +13,11 @@ export interface ImportFact {
   line: number
   typeOnly: boolean
   dynamic: boolean
+  /** 具名导入的**原名**（`import { a as b }` 记 `a`）· 是否有默认导入 —— S45 靠它们与目标的导出集对账 */
+  names?: string[]
+  hasDefault?: boolean
+  /** `import * as ns` / `export * from`：导出集未知，S45 跳过名字对账 */
+  star?: boolean
 }
 
 export interface ExportFact {
@@ -249,7 +254,6 @@ export interface RouterAdapter {
   packages: string[]
   /**
    * 域的**公开面入口文件名**（S03 / S04 / S05 / S14 / S15 的词汇）。
-   *
    * 缺省 = `src/data/face-forms.ts` 的 `DEFAULT_ROUTE_FILES`（`routes.ts` / `routes.tsx`）。
    * 声明 `[]` 表达的是「**这种文件不存在**」—— 文件路由的元框架里路由由目录约定产生，
    * 没有 per-domain 出口文件；依赖它的规则因此不判，而不是拿 `routes.tsx` 去量一个
@@ -258,8 +262,7 @@ export interface RouterAdapter {
   routeFiles?: string[]
   /**
    * **路由路径的唯一出处**（落点，如 `src/shared/config/paths.ts`）：D23 判「路径字面量只许出现在这里」。
-   *
-   * 落点是**项目决定**（同 `designSystem({ styleDir })`），所以由 kit 选项传入而不是 kit 写死；
+   * 落点是**项目决定**（同 `designSystem({ styleDir })`），由 kit 选项传入而不是 kit 写死；
    * 没声明 → D23 明列停用（`requires`），不空转。
    */
   pathSource?: string

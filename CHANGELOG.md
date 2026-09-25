@@ -115,6 +115,19 @@
   （官方明确说"页面布局可以放在 widgets 层"）—— 示例现在用满 5 层：app / pages / widgets / features / entities / shared。
 - 已知偏离照旧钉着：官方 `@x` 跨引用公开面**未实现**（用了会被报 S01，见 `tests/fsd-conformance`）。
 
+### Added（R-107 / S45：导入的成员必须真的被导出 —— 最容易发生的一类"假绿"）
+
+- 用户问「`crewPolicy` 放在 `shared/api/queryClient.ts` 合理吗」，核对时撞出两处**门禁看不见的假绿**：
+  4 个 hook 从 `@/shared/api/client` 引根本不存在的 `crewPolicy`；示例唯一的测试 import 了不存在的常量
+  （坏了很久）。根因同一个：**路径解析得到、名字却不存在**，此前没有任何规则管。
+- 新规则 **S45**（L1 error）：本地 import 的具名成员（含 default）必须真的被导出。
+  事实模型据此扩了三个字段（`ImportFact.names` / `hasDefault` / `star`），`FACTS_CACHE_SPEC` 6 → 7。
+  边界（宁少报不误伤）：目标解析不到（第三方 / 域外）不判 · 目标没有事实（CSS 等非 TS）不判 ·
+  星号导出（`export *`）导出集未知 → 整条跳过 · `import * as ns` 不判名字。
+- 夹具：`missing-export`（专锁上面四条边界 + 一处违规）；既有的 `graph` 夹具里三处**真阳性**
+  （默认导入目标无 default · 具名导入名字对不上）补进期望 —— 夹具数 79 → 80。
+- 顺带修：示例的 4 处断 import 改成从 `queryClient` 引；示例自己的测试进 `pnpm check`（`examples:test`）。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

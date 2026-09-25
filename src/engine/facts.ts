@@ -221,19 +221,31 @@ export function extractFacts(input: FactInput): Facts {
         : inheritedStyle
     /* ---- import / re-export ---- */
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      const clause = node.importClause
+      const bindings = clause?.namedBindings
       facts.imports.push({
         spec: node.moduleSpecifier.text,
         line: lineOf(sf, node.getStart(sf)),
-        typeOnly: node.importClause?.isTypeOnly === true,
+        typeOnly: clause?.isTypeOnly === true,
         dynamic: false,
+        ...(bindings && ts.isNamedImports(bindings)
+          ? { names: bindings.elements.map((el) => (el.propertyName ?? el.name).text) }
+          : {}),
+        ...(clause?.name ? { hasDefault: true } : {}),
+        ...(bindings && ts.isNamespaceImport(bindings) ? { star: true } : {}),
       })
     } else if (ts.isExportDeclaration(node)) {
       if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        const clause = node.exportClause
         facts.imports.push({
           spec: node.moduleSpecifier.text,
           line: lineOf(sf, node.getStart(sf)),
           typeOnly: node.isTypeOnly,
           dynamic: false,
+          ...(clause && ts.isNamedExports(clause)
+            ? { names: clause.elements.map((el) => (el.propertyName ?? el.name).text) }
+            : {}),
+          ...(clause ? {} : { star: true }),
         })
       }
       const start = lineOf(sf, node.getStart(sf))

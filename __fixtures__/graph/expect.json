@@ -91,6 +91,18 @@
     {
       "rule": "S21",
       "file": "src/shared/lib/format.ts"
+    },
+    {
+      "rule": "S45",
+      "file": "src/app/App.tsx"
+    },
+    {
+      "rule": "S45",
+      "file": "src/app/main.tsx"
+    },
+    {
+      "rule": "S45",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
     }
   ],
   "exact": true

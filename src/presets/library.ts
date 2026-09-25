@@ -89,6 +89,7 @@ export function library(options: LibraryOptions = {}): Preset {
       'S21',
       'S22',
       'S23',
+      'S45',
       // 扫描域非空：库也一样——`include`/`entry` 写错就会「0 个文件 → 通过」
       'S24',
       // 声明驱动的组规则（结构声明化）：组完整性 / 保留名 / 规模阈值
