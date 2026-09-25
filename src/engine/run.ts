@@ -7,7 +7,12 @@ import { depsPolicyFrom, policyConflicts, readProjectDeps } from './deps.js'
 import { wheelFingerprints } from '../data/wheel-fingerprints.js'
 import { collectSources } from './collect.js'
 import { buildGraph } from './graph.js'
-import { pushAdapterNotice, pushDeclarationNotices, pushScanNotices } from './notices.js'
+import {
+  pushAdapterNotice,
+  pushCopyListNotice,
+  pushDeclarationNotices,
+  pushScanNotices,
+} from './notices.js'
 import { collectI18n } from './i18n.js'
 import { json, out } from './output.js'
 import { createRegistry } from './registry.js'
@@ -196,6 +201,9 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     ...(options.domain ? { domain: options.domain } : {}),
     ...(options.minLevel ? { minLevel: options.minLevel } : {}),
   })
+
+  // C01 的名单来源要自述（换库会让那一半静默关掉）—— 放在 registry 之后，因为它只在 C01 真的跑时才说
+  pushCopyListNotice(config, registry, notices)
 
   const i18n = collectI18n({
     records: scan.records,

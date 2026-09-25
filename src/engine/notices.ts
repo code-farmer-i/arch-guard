@@ -209,3 +209,40 @@ function emptyFaceDeclarations(
 
   return empty
 }
+
+/**
+ * **C01 的「文案位名单」取自哪里**（R-89）。
+ *
+ * 为什么需要：名单可以来自项目（`copy({ messageApis })`）或组件库适配器（`uiKit(antdKit())` 自带 antd 那份）。
+ * 后者让宿主少抄一张表，但也带来一个后果：**换个没有这份数据的 kit（或干脆没装 uiKit），那一半会安静地关掉** ——
+ * 报告显示"✔ 通过"，却不提它没在判。`requires` 是**整条规则**粒度，盖不住"一条规则两半"这种情况，
+ * 所以把来源**自述**出来：三种取值（项目声明 / 适配器默认 / 无）互相不可混淆。
+ */
+export function pushCopyListNotice(
+  config: Config,
+  registry: { enabled: { id: string }[] },
+  notices: Diagnostic[],
+): void {
+  // C01 没在跑就没有"名单来源"可谈（它为什么停用，报告已经明列在「因能力未声明而停用」里）
+  if (!registry.enabled.some((rule) => rule.id === 'C01')) return
+  const project = config.params.messageApis as string[] | undefined
+  const adapter = Object.values(config.adapters ?? {}).find((item) => item.facet === 'ui-kit') as
+    { id?: string; messageApis?: string[] } | undefined
+  const kitCount = adapter?.messageApis?.length ?? 0
+  const kitName = adapter?.id ? `uiKit(${adapter.id})` : '组件库适配器'
+
+  let source: string
+  if (project !== undefined && project.length === 0) {
+    source = '`copy({ messageApis: [] })` —— 显式关掉「组件库调用里的文案」这一半'
+  } else if (project !== undefined) {
+    source =
+      `\`copy({ messageApis })\` 项目声明 ${project.length} 条` +
+      (kitCount > 0 ? `（覆盖 ${kitName} 默认 ${kitCount} 条）` : '')
+  } else if (kitCount > 0) {
+    source = `${kitName} 默认 ${kitCount} 条`
+  } else {
+    source =
+      '无 ——「组件库调用里的文案」这一半没在判（写 copy({ messageApis })，或在组件库适配器里声明 messageApis）'
+  }
+  notices.push({ code: 'copy-list-source', text: `C01 的文案位名单：${source}` })
+}

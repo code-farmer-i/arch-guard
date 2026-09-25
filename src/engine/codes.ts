@@ -71,6 +71,8 @@ export const NOTICE_CODES = [
   'coverage-update-skipped',
   /** 检测到 arch.baseline.json：基线机制已移除 */
   'legacy-baseline',
+  /** C01 的「文案位名单」取自哪里（项目声明 / 组件库适配器默认 / 无）—— 换库时那一半会静默关掉 */
+  'copy-list-source',
 ] as const
 
 export type NoticeCode = (typeof NOTICE_CODES)[number]

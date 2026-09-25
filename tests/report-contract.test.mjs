@@ -116,6 +116,7 @@ test('冻结：notices 的稳定 code 清单（文案不是契约，code 才是�
     'adapters-in-use',
     'config-aliases',
     'config-no-manifest',
+    'copy-list-source',
     'coverage-update-skipped',
     'coverage-updated',
     'declaration-no-match',

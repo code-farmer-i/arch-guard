@@ -869,6 +869,11 @@ v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`
   （与 `defineFacet` 对同一个面的态度一致）；真要覆盖预设里的那份，用 `overrides.adapters`。
 - **报告自述 `adapters-in-use`**：适配器只写在配置里，报告此前完全不提它 —— "跑的是哪套 kit"只能翻配置。
   现在每次运行都有一行 `生效的适配器：router=react-router · styles=css-modules`（`notices`，见 §6.9）。
+- **自述 `copy-list-source`（R-89）**：C01 的「组件库调用里的文案」那一半名单可以来自项目
+  （`copy({ messageApis })`）或组件库适配器（`uiKit(antdKit())` 自带 antd 那份）。后者让宿主少抄一张表，
+  但**换个没有这份数据的 kit（或没装 uiKit）那一半会安静地关掉** —— `requires` 是**整条规则**粒度，
+  盖不住"一条规则两半"。所以每次运行自述来源：`项目声明 N 条（覆盖 uiKit(antd) 默认 M 条）` /
+  `uiKit(antd) 默认 M 条` / `无 —— 这一半没在判` / `copy({ messageApis: [] }) 显式关掉`（四种取值互不混淆）。
 - **字段级全貌在 `--verify-deps`**：整张适配表（`facet` / `id` / `specVersion` / 形态字段 / 包对账），
   **没有 npm 包的 kit 也在表里**（CSS Module 就是这种方案）—— 否则"我配了 `styles()` 吗、它认哪种文件"看不见。
 - **`overrides.adapters` 绕开 kit，但不绕开校验**：合并后的适配器**全部**再过一遍 `defineAdapter`

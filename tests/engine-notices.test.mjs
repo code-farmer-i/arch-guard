@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { pushDeclarationNotices } from '../es/engine/notices.js'
+import { pushCopyListNotice, pushDeclarationNotices } from '../es/engine/notices.js'
 
 /** M1：声明配了却 0 命中 → 必须自述（不然那条纪律是空的，报告还显示通过） */
 
@@ -157,4 +157,47 @@ test('方案面声明命中时不自述：调用名 / 落点 / 环境读取根�
     ]),
   )
   assert.equal(notice, undefined, '方法后缀（analytics.track）也算命中，别误报')
+})
+
+/** R-89：C01 的文案位名单取自哪里，必须自述（换库会让那一半静默关掉） */
+
+const copyNotice = (config, enabled = ['C01']) => {
+  const notices = []
+  pushCopyListNotice(config, { enabled: enabled.map((id) => ({ id })) }, notices)
+  return notices
+}
+
+test('R-89：名单来源三种取值互相不可混淆（项目声明 / 适配器默认 / 无）', () => {
+  const kit = {
+    'ui-kit': {
+      facet: 'ui-kit',
+      id: 'antd',
+      packages: ['antd'],
+      messageApis: ['message.success', 'notification.open'],
+    },
+  }
+
+  assert.deepEqual(
+    copyNotice(configFull({ adapters: kit, params: {} })).map((item) => item.text),
+    ['C01 的文案位名单：uiKit(antd) 默认 2 条'],
+  )
+  assert.deepEqual(
+    copyNotice(configFull({ adapters: kit, params: { messageApis: ['appToast.success'] } })).map(
+      (item) => item.text,
+    ),
+    ['C01 的文案位名单：`copy({ messageApis })` 项目声明 1 条（覆盖 uiKit(antd) 默认 2 条）'],
+  )
+  assert.deepEqual(
+    copyNotice(configFull({ adapters: kit, params: { messageApis: [] } })).map((item) => item.text),
+    ['C01 的文案位名单：`copy({ messageApis: [] })` —— 显式关掉「组件库调用里的文案」这一半'],
+  )
+  const none = copyNotice(configFull({ adapters: {}, params: {} }))
+  assert.equal(none.length, 1)
+  assert.match(none[0].text, /^C01 的文案位名单：无 ——/)
+  assert.match(none[0].text, /这一半没在判/)
+})
+
+test('R-89：C01 没在跑时不提名单（它为什么停用由「因能力未声明而停用」明列）', () => {
+  assert.deepEqual(copyNotice(configFull({}), []), [])
+  assert.deepEqual(copyNotice(configFull({}), ['C02', 'C03']), [])
 })

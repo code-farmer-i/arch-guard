@@ -347,6 +347,10 @@ overrides: {
   以及方案面的 `callSites` / `envReads` / `analytics` / `router.pathSource` / `dataLayer.queryKeyFrom` /
   `designSystem.numberHomes`）。名字或路径写错一个字母就会命中它：**先看这条，再看 findings** ——
   否则"生效的适配器：analytics=declared"会让你以为纪律在跑。
+- **`code: 'copy-list-source'`**：C01 的「组件库调用里的文案」那一半**名单取自哪里** ——
+  `copy({ messageApis }) 项目声明` / `uiKit(antd) 默认` / `copy({ messageApis: [] }) 显式关掉` /
+  `无 —— 这一半没在判`。**换组件库时看这一行**：换到一个没声明 `messageApis` 的 kit，那一半会安静关掉，
+  报告不会报错（这条自述就是为了让"少判一半"看得见）。
 - **机读 ⊇ 人读**：摘要行里的每个数字 JSON 里都有。
 - **`skipped[]`**：因能力未声明而停用的规则（`code: 'capability-missing'`，`reason` 里点名缺哪个能力）。
 - **`exceptions[]`**：每条例外的命中数（0 = 未命中，提示可以删）。

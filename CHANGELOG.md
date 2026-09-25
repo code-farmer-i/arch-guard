@@ -68,6 +68,18 @@
 - 新夹具 `copy-from-kit`（**79** 个夹具）：故意**不写** `copy({...})`，断言 antdKit 给的名单照样判出裸文案；
   单测补三例：适配器默认 / 项目覆盖 / 显式空数组关掉。
 
+### Added（R-89：C01 的名单来源自述 —— 换库不再"安静地少判一半"）
+
+- 用户追问了一句"这样做不算架构耦合吧"：**不算**（规则读适配器数据是既定机制，方向单向、
+  与 H06 读 `uiKit.detachedApis` / D10 读 `vendorSelectors` 同形、本体仍零库名），
+  但顺着这个问题实测出一处**静默**：C01 对 `uiKit.messageApis` 是**可选读取**，`requires` 又是整条规则粒度 ——
+  换成没声明这份名单的 kit（或 `uiKit(noneKit())`）时，"组件库调用里的文案"那一半**安静地关掉**，
+  报告只显示"✔ 通过"。
+- 现在每次运行自述 `copy-list-source`（`notices`，**兼容性新增**，不 bump `apiVersion`）：
+  `copy({ messageApis }) 项目声明 N 条（覆盖 uiKit(antd) 默认 M 条）` · `uiKit(antd) 默认 M 条` ·
+  `copy({ messageApis: [] }) 显式关掉` · `无 —— 这一半没在判`。C01 没在跑时不说（已由「因能力未声明而停用」明列）。
+- 单测四例（四种取值 + "C01 没跑就不提"）；冻结的 `NOTICE_CODES` 清单同步登记。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）
