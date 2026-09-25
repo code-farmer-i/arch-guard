@@ -17,6 +17,16 @@
 
 ## [Unreleased]
 
+### Added（新①：范式预设的结构词汇必须完整 —— 元门禁）
+
+- 起因：2026-09-25 实测发现 **6 条已实现的规则**因为两行数据缺失（`canonical()` 的角色没声明
+  `group: 'domain'`、`routes.tsx` 没标 `entry: true`）**在前端应用里从来没跑过** ——
+  规则、声明、夹具都齐，**范式预设这条路却是断的**，而门禁显示"通过"。
+- 新门禁 `tests/paradigm-coverage.test.mjs`：把"每个范式预设必须提供哪些结构词汇"写成显式期望表
+  （canonical → `domain` + entry；fsd → `slice` + entry；library → 都没有，靠"声明才判"而非数据），
+  删掉 `group` / `entry` 就红。
+- 需求 R-74 落盘；ARCHITECTURE §7 的元门禁表补一行。
+
 ### Fixed（委派口径的两处撞名与漂移）
 
 - 我自己在 REQUIREMENTS 里写过"不再另开一份委派清单"，而 DESIGN §4.9 就叫「委派清单」—— 两处撞名、
