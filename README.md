@@ -312,7 +312,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 - [x] **可替换面 + 开放注册**：`ui-kit` · `i18n` · `router` · `data-layer` · `styles` · `call-sites`（新面由预设登记，加面不改引擎；一个面只能有一个方案）
 - [x] **唯一出处**：色值 · 令牌 · 路由路径 · 缓存键 · 副作用调用 —— 手写第二处就报
 - [x] **与 lint 生态不交叉**：单文件语法卫生、颜色 / `!important` / 数值白名单、幽灵依赖、裸文案等按 `docs/DESIGN.md` §4.9 委派出去
-- [ ] **待做与优先级**：见 [`REQUIREMENTS.md`](./REQUIREMENTS.md) 第六节（上帝域 · 状态纪律 · 权限散落 · 路由守卫 · 迁移单向 · monorepo…）
+- [ ] **待做与优先级**：见 [`REQUIREMENTS.md`](./REQUIREMENTS.md) 第七节（上帝域 · 状态纪律 · 权限散落 · 路由守卫 · 迁移单向 · monorepo…）
 
 ## 许可
 
