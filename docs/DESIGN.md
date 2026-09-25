@@ -30,6 +30,9 @@
 | 通用引擎 | `src/`，解析 / 建图 / 规则 / 报告                       | **零项目字面量**（P2/P3 自检） |
 | 项目实例 | `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明）    | 每个仓库一份，约 60 行         |
 
+> **本体自身**的架构（分层 / 数据流 / 模块职责 / 边界 / 扩展点）见 [`ARCHITECTURE.md`](./ARCHITECTURE.md) ——
+> 那是它唯一的家；本文只讲规则、判定与协议。
+
 **红线只落在可判定等级 L1–L3**；L5 语义判断一律不写进红线，只列在「门禁管不到」清单里，保证零误报。
 
 ---
@@ -275,21 +278,8 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ### 6.1 机制分工
 
-| 规则族                                          | 机制                                                       | 理由                                           |
-| ----------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------- |
-| 导入 / 依赖方向 / 公开面 / 环 / 可达            | TS AST + 自建 resolver → 文件图                            | 要区分 import 与字符串同文本                   |
-| 导出形态                                        | TS AST（`ExportDeclaration`、modifiers、declaration kind） | 正则判不出 `export *`                          |
-| 字面量唯一出处（颜色/数字/路由/storage/env）    | TS AST + CSS 扫描器，**带上下文**（属性名、参数键）        | `padding: 12px` vs 注释同理                    |
-| 中文明文                                        | AST 字符串节点 + `JSXText`                                 | 注释天然不算（本仓库注释全中文）               |
-| 类型逃生舱 / 调试残留 / 空 catch / 内联样式     | AST 节点种类                                               | 正则分不清 `Company`/`many`/`!x`/`!=`/`as any` |
-| 体积                                            | AST 起止位置 + 导出计数                                    | 需精确行范围                                   |
-| CSS 令牌 / 长度 / `!important` / `.ant-*` / hex | 自带 CSS 结构化扫描器                                      | 要区分属性名/值/注释                           |
-| CSS Module 双向契约                             | CSS 类名集合 ↔ AST `styles.X`                              | 两侧都要结构化结果                             |
-| 明暗令牌 / 引用闭合 / 死令牌                    | CSS 变量引用图（第二张图）                                 | 可达性算法                                     |
-| 对比度                                          | 令牌解析 + 求值（沿用旧守卫实现）                          | 数值计算                                       |
-| 目录白名单 / 深度 / 槽位 / 命名 / 配对          | 路径正则                                                   | 这里正则 100% 正确                             |
-| TODO / suppression                              | 注释正则                                                   | AST 不保留注释节点                             |
-| 依赖选型                                        | `JSON.parse` + 白名单                                      | —                                              |
+> **权威在 [`ARCHITECTURE.md`](./ARCHITECTURE.md) §4**：判据机制表（谁用什么机制、为什么不用正则）
+> 与六条边界都在那里。本节不再复制 —— 那张表既讲机制又讲架构边界，属架构内容。
 
 ### 6.1.1 解析后端：TypeScript Compiler API（parser-only）
 
@@ -324,7 +314,7 @@ f = {
 名字在爷爷那一层 —— 数组 / 对象 / 括号 / 断言 / 展开 / 三元不改变它，函数体与调用实参**断开**
 （`getKey(['a'])` 里的 `['a']` 不是 `queryKey` 的值）。D22「缓存键只有一个出处」就是它的消费者。
 
-```
+````
 
 好处有两条：① **换 parser 只重写 pack 的 `parse` + 事实提取层，规则一行不改**；② pack 因此天然能承载别的元框架 —— Vue 用 `@vue/compiler-sfc`、Svelte 用 `svelte/compiler`，**都是目标仓库自带的编译器，所以跨 pack 不必新增 parser 依赖**。
 
@@ -334,50 +324,8 @@ f = {
 
 ### 6.2 目录与模块职责
 
-```
-
-src/
-index.ts 公共 API（宿主的唯一导入面）
-cli.ts CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 报告
-engine/ 引擎（与框架、与宿主布局都无关）
-scan.ts 遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign；
-三层"别碰"：宿主 ignore / .gitignore（git 判定，只作用于契约域外）/ 产物目录数据表
-facts.ts 事实模型：AST/JSON → imports / exports / strings / calls / functions / comments
-facts-cache.ts facts 的持久缓存（按文件内容 + rel + role）
-graph.ts import 图 + 令牌引用图（可达 / 环 / 入度来源）
-config.ts 配置加载与合并（预设 + overrides），fail-closed 校验都在这里
-defaults.ts 阈值与命名契约的**唯一默认值**
-adapters.ts defineAdapter：字段白名单 / 类型 / 正则 / 冲突校验 + 冻结
-registry.ts 能力协商：requires 未满足的规则不注册并记入 skipped
-rule.ts createRule：域 ↔ id 前缀、error 只落 L1–L3（代码强制）
-pack.ts definePack：框架包声明
-git.ts scope 的 git 事实 + git 判定「不在仓库里」的路径（.gitignore 基础层）
-run.ts 编排：scope / 过滤器 / 报告 / --stats
-git.ts scope 的 git 事实（changed / staged 的 index 内容 / since）
-collect.ts 读源 + 提事实 + facts 缓存（契约域内与域外都解析；staged 取 index 内容）
-filters.ts scope / --paths / --severity（只过滤报告且必须自述）
-explain.ts --explain：角色 / 依赖 / 落点 / 适用规则（与 scan 共用角色匹配）
-docs.ts 文档管理块：块渲染 + 标记解析（--render-docs / --check-docs）
-report.ts 渲染 coverage.ts M 域产物的解析
-deps.ts/deps-audit.ts 依赖事实与策略 i18n.ts 文案资源索引 css.ts CSS 结构化扫描
-portability.ts P1–P4 自检 self-test.ts 夹具回归 util.ts/ts-api.ts/output.ts
-types.ts 规则面向的契约（事实模型 / 配置 / 规则 / 发现项）
-packs/ 框架包 = **源码形态**的落地（一个项目一个）
-core/ 共享规则实现：rules/{structure,structure-graph,structure-declared,design-tokens,
-design-vendor,design-styles,design-shared,copy,deps,deps-adapters,
-hygiene-context,metrics,placement}.ts + index.ts 组装 coreRules
-typescript/ tsPack（framework: typescript）—— 库 / CLI / 纯 TS 项目
-react/ reactPack（framework: react）—— React 应用；JSX 专属规则将来的家
-presets/ 范式（canonical / library / fsd）+ 域预设（design-system / copy / hygiene / metrics /
-stack / kit）+ 各面适配器（ui-kits/ · i18n-kits/，**纯数据**）
-data/ 纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 源码形态扩展名
-（framework-sources）· 通用产物目录（build-output-dirs：walk 的兜底跳过名单）
-（framework-sources）—— 引擎零库名，由 P4 自检强制
-**fixtures**/ 27 个夹具项目：每条规则一对「违规必报 × 合规不报」样例
-examples/minimal/ 干净的宿主示例（可搬运性验证）
-arch.config.mjs 门禁自己的配置（库范式 + 依赖选型 + 度量）
-
-````
+> **权威在 [`ARCHITECTURE.md`](./ARCHITECTURE.md) §3**：`src/` 的模块职责表都在那里。
+> 这里不再复制 —— 那张表以前放在本节，已经漂移过（写着"27 个夹具"、缺了后来加的 6 个模块）。
 
 规则是纯函数，只消费事实模型（**不碰 TS AST**）—— 形状示意（权威实现见
 `src/packs/core/rules/structure.ts` 的 `noBarrel`，此处不照抄，避免文档变成第二处真相）：
