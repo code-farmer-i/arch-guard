@@ -1,5 +1,16 @@
-import { DEFAULT_MODULE_PATTERNS, DEFAULT_ROUTE_FILES } from '../../../data/face-forms.js'
-import type { Config, RouterAdapter, StylesAdapter } from '../../../engine/types.js'
+import {
+  DEFAULT_MODULE_PATTERNS,
+  DEFAULT_NAVIGATE_CALLS,
+  DEFAULT_PATH_PROPS,
+  DEFAULT_QUERY_KEY_PROPS,
+  DEFAULT_ROUTE_FILES,
+} from '../../../data/face-forms.js'
+import type {
+  Config,
+  DataLayerAdapter,
+  RouterAdapter,
+  StylesAdapter,
+} from '../../../engine/types.js'
 
 /**
  * **方案面形态**的唯一读取处：域的公开面入口文件名（router 面）与组件样式文件形态（styles 面）。
@@ -35,6 +46,35 @@ export function routeEntriesOf(config: Config, domain: string): string[] {
  */
 export function modulePatternsOf(config: Config): string[] {
   return adapterOf<StylesAdapter>(config, 'styles')?.modulePatterns ?? DEFAULT_MODULE_PATTERNS
+}
+
+/**
+ * **缓存键的唯一出处**（D22 的落点）。空串 = 没声明 → 依赖它的规则由 `requires` 明列停用。
+ */
+export function queryKeyFromOf(config: Config): string {
+  return adapterOf<DataLayerAdapter>(config, 'data-layer')?.queryKeyFrom ?? ''
+}
+
+/** 缓存键挂在哪几个属性上（默认 `['queryKey']`） */
+export function queryKeyPropsOf(config: Config): string[] {
+  return adapterOf<DataLayerAdapter>(config, 'data-layer')?.queryKeyProps ?? DEFAULT_QUERY_KEY_PROPS
+}
+
+/**
+ * **路由路径的唯一出处**（D23 的落点）。空串 = 没声明 → D23 明列停用。
+ */
+export function pathSourceOf(config: Config): string {
+  return adapterOf<RouterAdapter>(config, 'router')?.pathSource ?? ''
+}
+
+/** 承载路由路径的属性名（默认 `['path','to']`） */
+export function pathPropsOf(config: Config): string[] {
+  return adapterOf<RouterAdapter>(config, 'router')?.pathProps ?? DEFAULT_PATH_PROPS
+}
+
+/** 触发跳转的调用名（默认 `navigate` / `router.push`…） */
+export function navigateCallsOf(config: Config): string[] {
+  return adapterOf<RouterAdapter>(config, 'router')?.navigateCalls ?? DEFAULT_NAVIGATE_CALLS
 }
 
 const regexCache = new Map<string, RegExp>()

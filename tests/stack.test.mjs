@@ -78,9 +78,9 @@ test('stack()：组合出来的规则集 = 各域的并集；能力齐了就不�
   // i18n 与组件库的能力都声明了 → 不因能力缺失而停用
   assert.ok(hasCapability(config, 'i18n.resourceDir'))
   assert.ok(hasCapability(config, 'uiKit.vendorSelectors'))
-  // 只有"测试文件必须配测试"与"门禁链路自检"两条需要更具体的项目声明（tests.requireTestsFor / checkChain）；
-  // i18n 与组件库的能力已齐 —— 它们**不该**再出现在停用名单里。
-  assert.deepEqual(skippedIds(config).sort(), ['M08', 'M09'])
+  // `stack()` 里没有 router / data-layer 面 → D22 / D23 的落点能力缺失，**明列停用**（不是静默通过）；
+  // 另外两条需要更具体的项目声明（M08 tests.requireTestsFor / M09 checkChain）。
+  assert.deepEqual(skippedIds(config).sort(), ['D22', 'D23', 'M08', 'M09'])
 })
 
 test('stack()：默认 i18n（none kit）时 C 域**明列停用**，不是静默通过', async () => {

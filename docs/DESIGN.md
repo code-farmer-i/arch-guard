@@ -111,8 +111,8 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 69 条**（以 `arch-guard --stats` / `coreRules` 为准）：
-> `S00–S06`、`S08`、`S09`、`S11–S35`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`H06`、`P01`、`P02`、`P04–P07`、`P11`、`P12`、`M02–M09`。
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 71 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> `S00–S06`、`S08`、`S09`、`S11–S35`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`P01`、`P02`、`P04–P07`、`P11`、`P12`、`M02–M09`。
 > `S10`（相对越级）、`P03`（幽灵依赖）、`P08`（死依赖）等已按 §4.9 **委派**给
 > eslint / dependency-cruiser / knip，不在本体实现；`H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。
 > **依赖环（S08）与未解析导入（S33）已收回本体**：`graph.cycles` / `graph.unresolved` 本来就算好了，
@@ -160,30 +160,32 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ### 5.2 设计系统与魔法数字（D）
 
-| ID   | 红线                                                                                                                                 | 判据                 | 等级    | 级别            |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------- | --------------- |
-| D01  | 颜色字面量只在 `tokens/palette.css`                                                                                                  | AST + CSS            | L2      | error           |
-| D02  | palette 只放 `--sh-static-*`                                                                                                         | CSS                  | L2      | error           |
-| D03  | 同一色值只写一次                                                                                                                     | CSS                  | L2      | error           |
-| D04  | 令牌引用闭合（无悬空 `var()`）                                                                                                       | 令牌图               | L3      | error           |
-| D05  | 无死令牌                                                                                                                             | 令牌图               | L3      | error           |
-| D06  | 明暗两套令牌名一致                                                                                                                   | CSS                  | L2      | error           |
-| D07  | 对比度基线（正文 4.5 / 弱文字 3.0 / 主按钮 4.2 / 链接 4.0 / 状态与 Tooltip 4.5）                                                     | `metric` 数值        | L2+数值 | error           |
-| D08  | storage key 与 `index.html` 内联脚本一致                                                                                             | twinDeclaration      | L1+L2   | error           |
-| D09  | 禁 `!important`                                                                                                                      | CSS/AST              | L2      | error           |
-| D10  | **组件库选择器只许在 vendor 目录**：适配表声明的选择器前缀与变量前缀（如 antd 的 `.ant-*` / `--ant-*`）只许出现在 `styles/vendor/**` | 适配表 + 路径 + CSS  | L1      | error           |
-| D10b | **vendor 目录反向封闭**：`styles/vendor/**` 里只许出现适配表声明的选择器 / 变量前缀，禁业务类名                                      | 适配表 + CSS         | L1      | error           |
-| D11  | **无框架残留**：命中「已知组件库指纹」但不在本项目适配表内 → 报错；`.vue` / `@apply` / `dark:` 变体属通用禁用语法                    | 指纹表 + 适配表      | L2      | error           |
-| D12  | **魔法数字·长度**：间距/尺寸/圆角/字号/边框必须走刻度令牌                                                                            | AST + CSS 属性上下文 | L2      | error           |
-| D13  | **魔法数字·层级**：`z-index` 必须令牌                                                                                                | L2                   | error   |
-| D14  | **魔法数字·时长**：动效时长必须令牌或常量                                                                                            | L2                   | error   |
-| D15  | 内联样式纪律：禁颜色属性、禁裸数字与 `px/rem/em`                                                                                     | AST JSX              | L2      | error           |
-| D16  | 自研样式只在组件样式文件（默认 `*.module.css`，形态由 `styles.modulePatterns` 声明）                                                 | 路径                 | L1      | error           |
-| D17  | CSS Module 双向契约（形态同上：`styles.X` 有定义 / 类被引用 / 组件样式文件被同名组件 import）                                        | CSS ↔ AST            | L2      | error           |
-| D18  | 组件样式只消费语义令牌（禁直接引 `--sh-static-*`）                                                                                   | CSS                  | L2      | error           |
-| D19  | 同一 `(属性, 数值)` 跨 ≥3 文件重复 → 提示提取令牌                                                                                    | AST + CSS            | L2      | warn（默认关）  |
-| D20  | 请求策略与业务阈值数字必须有家（登记后生效）                                                                                         | AST 上下文           | L2      | error（默认关） |
-| D21  | **声明了设计系统就必须真有令牌文件**：加了 `designSystem()` 但 `paletteFile` / `tokenDir` 零匹配 → D 域这部分等于没跑                | 路径 + CSS 文件集    | L1      | warn            |
+| ID   | 红线                                                                                                                                                                                   | 判据                 | 等级    | 级别                  |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ------- | --------------------- |
+| D01  | 颜色字面量只在 `tokens/palette.css`                                                                                                                                                    | AST + CSS            | L2      | error                 |
+| D02  | palette 只放 `--sh-static-*`                                                                                                                                                           | CSS                  | L2      | error                 |
+| D03  | 同一色值只写一次                                                                                                                                                                       | CSS                  | L2      | error                 |
+| D04  | 令牌引用闭合（无悬空 `var()`）                                                                                                                                                         | 令牌图               | L3      | error                 |
+| D05  | 无死令牌                                                                                                                                                                               | 令牌图               | L3      | error                 |
+| D06  | 明暗两套令牌名一致                                                                                                                                                                     | CSS                  | L2      | error                 |
+| D07  | 对比度基线（正文 4.5 / 弱文字 3.0 / 主按钮 4.2 / 链接 4.0 / 状态与 Tooltip 4.5）                                                                                                       | `metric` 数值        | L2+数值 | error                 |
+| D08  | storage key 与 `index.html` 内联脚本一致                                                                                                                                               | twinDeclaration      | L1+L2   | error                 |
+| D09  | 禁 `!important`                                                                                                                                                                        | CSS/AST              | L2      | error                 |
+| D10  | **组件库选择器只许在 vendor 目录**：适配表声明的选择器前缀与变量前缀（如 antd 的 `.ant-*` / `--ant-*`）只许出现在 `styles/vendor/**`                                                   | 适配表 + 路径 + CSS  | L1      | error                 |
+| D10b | **vendor 目录反向封闭**：`styles/vendor/**` 里只许出现适配表声明的选择器 / 变量前缀，禁业务类名                                                                                        | 适配表 + CSS         | L1      | error                 |
+| D11  | **无框架残留**：命中「已知组件库指纹」但不在本项目适配表内 → 报错；`.vue` / `@apply` / `dark:` 变体属通用禁用语法                                                                      | 指纹表 + 适配表      | L2      | error                 |
+| D12  | **魔法数字·长度**：间距/尺寸/圆角/字号/边框必须走刻度令牌                                                                                                                              | AST + CSS 属性上下文 | L2      | error                 |
+| D13  | **魔法数字·层级**：`z-index` 必须令牌                                                                                                                                                  | L2                   | error   |
+| D14  | **魔法数字·时长**：动效时长必须令牌或常量                                                                                                                                              | L2                   | error   |
+| D15  | 内联样式纪律：禁颜色属性、禁裸数字与 `px/rem/em`                                                                                                                                       | AST JSX              | L2      | error                 |
+| D16  | 自研样式只在组件样式文件（默认 `*.module.css`，形态由 `styles.modulePatterns` 声明）                                                                                                   | 路径                 | L1      | error                 |
+| D17  | CSS Module 双向契约（形态同上：`styles.X` 有定义 / 类被引用 / 组件样式文件被同名组件 import）                                                                                          | CSS ↔ AST            | L2      | error                 |
+| D18  | 组件样式只消费语义令牌（禁直接引 `--sh-static-*`）                                                                                                                                     | CSS                  | L2      | error                 |
+| D19  | 同一 `(属性, 数值)` 跨 ≥3 文件重复 → 提示提取令牌                                                                                                                                      | AST + CSS            | L2      | warn（默认关）        |
+| D20  | 请求策略与业务阈值数字必须有家（登记后生效）                                                                                                                                           | AST 上下文           | L2      | error（默认关）       |
+| D21  | **声明了设计系统就必须真有令牌文件**：加了 `designSystem()` 但 `paletteFile` / `tokenDir` 零匹配 → D 域这部分等于没跑                                                                  | 路径 + CSS 文件集    | L1      | warn                  |
+| D22  | **缓存键只有一个出处**：`{ queryKey: ['crews', id] }` 这类键字面量只许出现在 `dataLayer({ queryKeyFrom })` 声明的文件里（含数组内的字面量，靠 facts 的 `strings[].prop` 透传拿属性名） | AST 字面量 + 路径    | L2      | error（声明落点才判） |
+| D23  | **路由路径只有一个出处**：`path` / `to` 属性与 `navigate()` 这类跳转调用的**绝对路径字面量**只许出现在 `router({ pathSource })` 声明的文件里                                           | AST 字面量 + 路径    | L2      | error（声明落点才判） |
 
 **魔法数字语义域登记表**（D12–D14 / D20 的配置形态）：
 
@@ -304,14 +306,20 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 
 ```js
 f = {
-  path, rel, role,
-  imports: [...], exports: [...],           // 依赖方向 / 公开面 / 导出形态
-  strings: [...], jsxText: [...],           // 文案与字面量（带上下文）
-  styleObjects: [...],                      // 内联样式：prop / value / kind / line
-  calls: [...], catches: [...],             // 调试残留 / 吞异常
-  functions: [{ name, lines, isComponent }],// 体积阈值
-  tokens: [...],                            // 位置与范围
+  file, rel, role, lineCount, parseErrors,
+  imports: [...], exports: [...],                    // 依赖方向 / 公开面 / 导出形态
+  strings: [{ value, line, context, prop }],         // 字面量：prop = 祖先里**最近的属性名**
+  calls: [{ callee, line, stringArg?, keyPrefix? }], // 调试残留 / 文案调用 / 跳转
+  functions: [{ name, lines, isComponent }],         // 体积阈值
+  comments: [{ line, text, kind, pos, end }],        // 抑制注释 / 未完成标记
+  hasJsx,
 }
+```
+
+`strings[].prop` 是**透传**来的：`useQuery({ queryKey: ['crews', id] })` 里那个字面量的直接父节点是数组，
+名字在爷爷那一层 —— 数组 / 对象 / 括号 / 断言 / 展开 / 三元不改变它，函数体与调用实参**断开**
+（`getKey(['a'])` 里的 `['a']` 不是 `queryKey` 的值）。D22「缓存键只有一个出处」就是它的消费者。
+
 ```
 
 好处有两条：① **换 parser 只重写 pack 的 `parse` + 事实提取层，规则一行不改**；② pack 因此天然能承载别的元框架 —— Vue 用 `@vue/compiler-sfc`、Svelte 用 `svelte/compiler`，**都是目标仓库自带的编译器，所以跨 pack 不必新增 parser 依赖**。
@@ -323,47 +331,49 @@ f = {
 ### 6.2 目录与模块职责
 
 ```
+
 src/
-  index.ts          公共 API（宿主的唯一导入面）
-  cli.ts            CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 报告
-  engine/           引擎（与框架、与宿主布局都无关）
-    scan.ts           遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign；
-                      三层"别碰"：宿主 ignore / .gitignore（git 判定，只作用于契约域外）/ 产物目录数据表
-    facts.ts          事实模型：AST/JSON → imports / exports / strings / calls / functions / comments
-    facts-cache.ts    facts 的持久缓存（按文件内容 + rel + role）
-    graph.ts          import 图 + 令牌引用图（可达 / 环 / 入度来源）
-    config.ts         配置加载与合并（预设 + overrides），fail-closed 校验都在这里
-    defaults.ts       阈值与命名契约的**唯一默认值**
-    adapters.ts       defineAdapter：字段白名单 / 类型 / 正则 / 冲突校验 + 冻结
-    registry.ts       能力协商：requires 未满足的规则不注册并记入 skipped
-    rule.ts           createRule：域 ↔ id 前缀、error 只落 L1–L3（代码强制）
-    pack.ts           definePack：框架包声明
-    git.ts            scope 的 git 事实 + git 判定「不在仓库里」的路径（.gitignore 基础层）
-    run.ts            编排：scope / 过滤器 / 报告 / --stats
-    git.ts            scope 的 git 事实（changed / staged 的 index 内容 / since）
-    collect.ts        读源 + 提事实 + facts 缓存（契约域内与域外都解析；staged 取 index 内容）
-    filters.ts        scope / --paths / --severity（只过滤报告且必须自述）
-    explain.ts        --explain：角色 / 依赖 / 落点 / 适用规则（与 scan 共用角色匹配）
-    docs.ts           文档管理块：块渲染 + 标记解析（--render-docs / --check-docs）
-    report.ts         渲染    coverage.ts  M 域产物的解析
-    deps.ts/deps-audit.ts  依赖事实与策略    i18n.ts  文案资源索引    css.ts  CSS 结构化扫描
-    portability.ts    P1–P4 自检    self-test.ts  夹具回归    util.ts/ts-api.ts/output.ts
-    types.ts          规则面向的契约（事实模型 / 配置 / 规则 / 发现项）
-  packs/           框架包 = **源码形态**的落地（一个项目一个）
-    core/            共享规则实现：rules/{structure,structure-graph,structure-declared,design-tokens,
-                   design-vendor,design-styles,design-shared,copy,deps,deps-adapters,
-                   hygiene-context,metrics,placement}.ts + index.ts 组装 coreRules
-    typescript/      tsPack（framework: typescript）—— 库 / CLI / 纯 TS 项目
-    react/           reactPack（framework: react）—— React 应用；JSX 专属规则将来的家
-  presets/          范式（canonical / library / fsd）+ 域预设（design-system / copy / hygiene / metrics /
-                    stack / kit）+ 各面适配器（ui-kits/ · i18n-kits/，**纯数据**）
-  data/             纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 源码形态扩展名
-                    （framework-sources）· 通用产物目录（build-output-dirs：walk 的兜底跳过名单）
-                    （framework-sources）—— 引擎零库名，由 P4 自检强制
-__fixtures__/       27 个夹具项目：每条规则一对「违规必报 × 合规不报」样例
-examples/minimal/   干净的宿主示例（可搬运性验证）
-arch.config.mjs     门禁自己的配置（库范式 + 依赖选型 + 度量）
-```
+index.ts 公共 API（宿主的唯一导入面）
+cli.ts CLI：配置 → 扫描 → 解析 → 建图 → 规则 → 报告
+engine/ 引擎（与框架、与宿主布局都无关）
+scan.ts 遍历 → 角色判定（L1）；`include` 域外文件进 outside、别的框架的源码进 foreign；
+三层"别碰"：宿主 ignore / .gitignore（git 判定，只作用于契约域外）/ 产物目录数据表
+facts.ts 事实模型：AST/JSON → imports / exports / strings / calls / functions / comments
+facts-cache.ts facts 的持久缓存（按文件内容 + rel + role）
+graph.ts import 图 + 令牌引用图（可达 / 环 / 入度来源）
+config.ts 配置加载与合并（预设 + overrides），fail-closed 校验都在这里
+defaults.ts 阈值与命名契约的**唯一默认值**
+adapters.ts defineAdapter：字段白名单 / 类型 / 正则 / 冲突校验 + 冻结
+registry.ts 能力协商：requires 未满足的规则不注册并记入 skipped
+rule.ts createRule：域 ↔ id 前缀、error 只落 L1–L3（代码强制）
+pack.ts definePack：框架包声明
+git.ts scope 的 git 事实 + git 判定「不在仓库里」的路径（.gitignore 基础层）
+run.ts 编排：scope / 过滤器 / 报告 / --stats
+git.ts scope 的 git 事实（changed / staged 的 index 内容 / since）
+collect.ts 读源 + 提事实 + facts 缓存（契约域内与域外都解析；staged 取 index 内容）
+filters.ts scope / --paths / --severity（只过滤报告且必须自述）
+explain.ts --explain：角色 / 依赖 / 落点 / 适用规则（与 scan 共用角色匹配）
+docs.ts 文档管理块：块渲染 + 标记解析（--render-docs / --check-docs）
+report.ts 渲染 coverage.ts M 域产物的解析
+deps.ts/deps-audit.ts 依赖事实与策略 i18n.ts 文案资源索引 css.ts CSS 结构化扫描
+portability.ts P1–P4 自检 self-test.ts 夹具回归 util.ts/ts-api.ts/output.ts
+types.ts 规则面向的契约（事实模型 / 配置 / 规则 / 发现项）
+packs/ 框架包 = **源码形态**的落地（一个项目一个）
+core/ 共享规则实现：rules/{structure,structure-graph,structure-declared,design-tokens,
+design-vendor,design-styles,design-shared,copy,deps,deps-adapters,
+hygiene-context,metrics,placement}.ts + index.ts 组装 coreRules
+typescript/ tsPack（framework: typescript）—— 库 / CLI / 纯 TS 项目
+react/ reactPack（framework: react）—— React 应用；JSX 专属规则将来的家
+presets/ 范式（canonical / library / fsd）+ 域预设（design-system / copy / hygiene / metrics /
+stack / kit）+ 各面适配器（ui-kits/ · i18n-kits/，**纯数据**）
+data/ 纯数据表：组件库指纹（kit-fingerprints）· 轮子指纹（wheel-fingerprints）· 源码形态扩展名
+（framework-sources）· 通用产物目录（build-output-dirs：walk 的兜底跳过名单）
+（framework-sources）—— 引擎零库名，由 P4 自检强制
+**fixtures**/ 27 个夹具项目：每条规则一对「违规必报 × 合规不报」样例
+examples/minimal/ 干净的宿主示例（可搬运性验证）
+arch.config.mjs 门禁自己的配置（库范式 + 依赖选型 + 度量）
+
+````
 
 规则是纯函数，只消费事实模型（**不碰 TS AST**）—— 形状示意（权威实现见
 `src/packs/core/rules/structure.ts` 的 `noBarrel`，此处不照抄，避免文档变成第二处真相）：
@@ -383,7 +393,7 @@ export const noBarrel: Rule = {
         .map((entry) => finding('S11', record.rel, entry.line, '禁 barrel：export * from ...')),
     ),
 }
-```
+````
 
 ### 6.2.1 结构声明（structure as data）
 
@@ -834,25 +844,25 @@ v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`
 
 **（1）可替换面总表**
 
-| #   | 可替换面            | 现在写死在哪                                                                                                                                                                            | 换掉后崩什么                                                                                                                | Tier                            |
-| --- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| 1   | UI 组件库           | §7.1 适配表 ✅                                                                                                                                                                          | —                                                                                                                           | 已做                            |
-| 2   | **数据层**          | **适配器已建**（`dataLayer()` + P12 判同类混用）；数据层的**形态**规则（缓存键唯一出处、取数落点）**尚未实现** —— 换 SWR / Jotai / Redux / Pinia / Vue Query 目前只影响 P12 / P04 / P01 | 换库后那些形态规则不存在，也就谈不上"识别不到触发点"（是缺口，不是写死）                                                    | T1 第一半已做（形态规则未实现） |
-| 3   | **路由模式与出口**  | **适配器已建**（`router()` + P12）；域的公开面入口由 `router.routeFiles` 声明（默认 `routes.ts` / `routes.tsx`），**S03 / S04 / S05 / S14 / S15 照它判**；paths 唯一出处未实现          | Next / Remix / Nuxt 文件路由：声明 `routeFiles: []` = "没有 per-domain 出口文件"，那几条规则**不判**（域根散件仍由 S03 报） | T1 已做（paths 唯一出处未实现） |
-| 4   | **样式方案**        | **适配器已建**（`styles()` + P12）；D16 / D17 认 `styles.modulePatterns` 声明的组件样式形态（默认 `*.module.css`，可换成 `*.module.scss` 等）                                           | Tailwind / CSS-in-JS 声明 `modulePatterns: []` → 没有组件样式文件，D16 / D17 不判                                           | T1 已做                         |
-| 5   | **i18n 形态**       | C 域全部按 `t('key')` + 两份 TS 嵌套对象                                                                                                                                                | `<FormattedMessage id>`、扁平 JSON、ICU 复数规则                                                                            | T1                              |
-| 6   | 网络客户端          | B1 检测 `fetch / XHR / EventSource`                                                                                                                                                     | 项目合法用 axios → B1 失去触发点                                                                                            | T2                              |
-| 7   | 令牌来源            | D01–D07 全走 CSS 自定义属性                                                                                                                                                             | 令牌在 TS 对象（`theme.ts` / Style Dictionary）→ 扫描器读不到                                                               | T2                              |
-| 8   | 主题机制            | `data-theme` 属性 + storage key                                                                                                                                                         | class 切换、`prefers-color-scheme` 媒体查询                                                                                 | T2                              |
-| 9   | 装配与入口          | D08 校验 `index.html`；可达性入口 = `main.tsx`                                                                                                                                          | Next / Nuxt 没有 HTML 模板                                                                                                  | T2                              |
-| 10  | 测试框架与布局      | `*.test.ts(x)` co-located 且豁免可达性                                                                                                                                                  | Jest `__tests__/`、Playwright `e2e/` → 孤儿文件误报                                                                         | T2                              |
-| 11  | 命名契约            | `*Page.tsx`、`use*`、`use*Store`                                                                                                                                                        | 项目用 `*.view.tsx` / 自定义 hook 前缀                                                                                      | T2                              |
-| 12  | 导出风格            | views 必须 default export                                                                                                                                                               | 全 named export 的项目                                                                                                      | T2                              |
-| 13  | 硬编码文案判定      | 中文字符检测                                                                                                                                                                            | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关）                                                           | T2 已缓解                       |
-| 14  | 依赖选型表          | P01 白名单（`deps({ allow })`）与文档里的选型表各写一份                                                                                                                                 | 表改了、config 没改 → 漂移                                                                                                  | T1（见 §7.3）                   |
-| 15  | 时间库              | H10 建议 dayjs                                                                                                                                                                          | date-fns / Temporal                                                                                                         | T3                              |
-| 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                                                                                                                                      | monorepo 需要多实例配置                                                                                                     | 范围外                          |
-| 17  | **契约扫描域**      | 全树遍历 + 宿主逐条 `ignore`                                                                                                                                                            | 非源码 ts/css 全被报 S01；每个新工具配置都要补一条 ignore                                                                   | 已做（`include`）               |
+| #   | 可替换面            | 现在写死在哪                                                                                                                                                                                                       | 换掉后崩什么                                                                                                                                           | Tier              |
+| --- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| 1   | UI 组件库           | §7.1 适配表 ✅                                                                                                                                                                                                     | —                                                                                                                                                      | 已做              |
+| 2   | **数据层**          | **适配器已建**（`dataLayer()` + P12 判同类混用 + **D22 缓存键唯一出处**）：`dataLayer(reactQueryKit({ queryKeyFrom }))` 声明键的落点，D22 判"键字面量只许在那里"                                                   | 换 SWR / Jotai：`queryKeyProps` 一改就跟着换（位置参数形态如 `useSWR('key')` 仍不在 v1，见 §7.2(4)）；没声明落点 → D22 明列停用                        | T1 已做           |
+| 3   | **路由模式与出口**  | **适配器已建**（`router()` + P12 + **D23 路由路径唯一出处**）：`routeFiles` 声明域入口词汇（S03 / S04 / S05 / S14 / S15 照它判），`pathSource` 声明路径落点（D23 判 `path` / `to` 属性与跳转调用的绝对路径字面量） | Next / Remix / Nuxt 文件路由：`routeFiles: []` = "没有 per-domain 出口文件"，那几条规则**不判**（域根散件仍由 S03 报）；不声明 `pathSource` → D23 停用 | T1 已做           |
+| 4   | **样式方案**        | **适配器已建**（`styles()` + P12）；D16 / D17 认 `styles.modulePatterns` 声明的组件样式形态（默认 `*.module.css`，可换成 `*.module.scss` 等）                                                                      | Tailwind / CSS-in-JS 声明 `modulePatterns: []` → 没有组件样式文件，D16 / D17 不判                                                                      | T1 已做           |
+| 5   | **i18n 形态**       | C 域全部按 `t('key')` + 两份 TS 嵌套对象                                                                                                                                                                           | `<FormattedMessage id>`、扁平 JSON、ICU 复数规则                                                                                                       | T1                |
+| 6   | 网络客户端          | B1 检测 `fetch / XHR / EventSource`                                                                                                                                                                                | 项目合法用 axios → B1 失去触发点                                                                                                                       | T2                |
+| 7   | 令牌来源            | D01–D07 全走 CSS 自定义属性                                                                                                                                                                                        | 令牌在 TS 对象（`theme.ts` / Style Dictionary）→ 扫描器读不到                                                                                          | T2                |
+| 8   | 主题机制            | `data-theme` 属性 + storage key                                                                                                                                                                                    | class 切换、`prefers-color-scheme` 媒体查询                                                                                                            | T2                |
+| 9   | 装配与入口          | D08 校验 `index.html`；可达性入口 = `main.tsx`                                                                                                                                                                     | Next / Nuxt 没有 HTML 模板                                                                                                                             | T2                |
+| 10  | 测试框架与布局      | `*.test.ts(x)` co-located 且豁免可达性                                                                                                                                                                             | Jest `__tests__/`、Playwright `e2e/` → 孤儿文件误报                                                                                                    | T2                |
+| 11  | 命名契约            | `*Page.tsx`、`use*`、`use*Store`                                                                                                                                                                                   | 项目用 `*.view.tsx` / 自定义 hook 前缀                                                                                                                 | T2                |
+| 12  | 导出风格            | views 必须 default export                                                                                                                                                                                          | 全 named export 的项目                                                                                                                                 | T2                |
+| 13  | 硬编码文案判定      | 中文字符检测                                                                                                                                                                                                       | 源语言是英文时失效 → 已改为 **C01「JSX 裸文本禁止」**（语言无关）                                                                                      | T2 已缓解         |
+| 14  | 依赖选型表          | P01 白名单（`deps({ allow })`）与文档里的选型表各写一份                                                                                                                                                            | 表改了、config 没改 → 漂移                                                                                                                             | T1（见 §7.3）     |
+| 15  | 时间库              | H10 建议 dayjs                                                                                                                                                                                                     | date-fns / Temporal                                                                                                                                    | T3                |
+| 16  | 包管理器 / monorepo | 单包 + pnpm 锁文件                                                                                                                                                                                                 | monorepo 需要多实例配置                                                                                                                                | 范围外            |
+| 17  | **契约扫描域**      | 全树遍历 + 宿主逐条 `ignore`                                                                                                                                                                                       | 非源码 ts/css 全被报 S01；每个新工具配置都要补一条 ignore                                                                                              | 已做（`include`） |
 
 **（2.0）一个面一个方案 + 生效的适配器必须自述**
 
@@ -888,11 +898,13 @@ src/presets/{router-kits,data-layer-kits,styles-kits}/   路由 / 数据层 / �
 （`routes.tsx` / `*.module.css`），于是换方案（`routes.ts` 配置式路由、`*.module.scss`）时规则照着旧形态量，
 报出一批假阳性。现在形态由方案面的**数据字段**声明，规则只读它们：
 
-| 面       | 字段                                   | 谁读                        | 默认                           |
-| -------- | -------------------------------------- | --------------------------- | ------------------------------ |
-| `router` | `routeFiles: string[]`（域入口文件名） | S03 · S04 · S05 · S14 · S15 | `['routes.ts','routes.tsx']`   |
-| `styles` | `modulePatterns: string[]`（正则）     | D16 · D17                   | `['\\.module\\.css$']`         |
-| 其余面   | 各自的落点 / 形态字段                  | 见 §7.1 与 §7.4             | 由范式或 `designSystem()` 提供 |
+| 面           | 字段                                                           | 谁读                        | 默认                                                            |
+| ------------ | -------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------- |
+| `router`     | `routeFiles: string[]`（域入口文件名）                         | S03 · S04 · S05 · S14 · S15 | `['routes.ts','routes.tsx']`                                    |
+| `router`     | `pathSource` / `pathProps` / `navigateCalls`（路径落点与形态） | D23                         | 落点空 → 停用；`['path','to']` / `['navigate','router.push',…]` |
+| `styles`     | `modulePatterns: string[]`（正则）                             | D16 · D17                   | `['\\.module\\.css$']`                                          |
+| `data-layer` | `queryKeyFrom` / `queryKeyProps`（键落点与属性名）             | D22                         | 落点空 → 停用；`['queryKey']`                                   |
+| 其余面       | 各自的落点 / 形态字段                                          | 见 §7.1 与 §7.4             | 由范式或 `designSystem()` 提供                                  |
 
 两条纪律：
 
@@ -952,7 +964,9 @@ export const reactRouterKit = () =>
 **（4）v1 明确不支持（不假装「配置即可」）**：元框架 Vue / Svelte；文件路由（Next / Remix / Nuxt）下的域结构规则
 （能声明 `router.routeFiles: []` 让 S03 / S04 / S05 / S14 / S15 里的入口相关判定停判，但**域结构本身仍按三根范式判**，
 文件路由是另一套角色表，不在 v1）；monorepo 多包；CSS-in-JS（`modulePatterns: []` 只是让 D16 / D17 停判，
-不是支持它的写法）；TS 对象令牌；JS-only 项目。每项在文档里写「不支持」而不是「可配置」。
+不是支持它的写法）；**位置参数形态的缓存键**（`useSWR('/api/crews')` 那种第一个实参就是键的写法：
+D22 只认**具名属性**（`queryKeyProps`），位置参数要另加一种形态字段才谈得上支持；在那之前
+`queryKeyFrom` 声明了也只覆盖具名属性那一半）；TS 对象令牌；JS-only 项目。每项在文档里写「不支持」而不是「可配置」。
 
 ### 7.3 两处真相的收敛（已实现）
 

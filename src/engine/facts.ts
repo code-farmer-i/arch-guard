@@ -80,10 +80,31 @@ function collectComments(
  * 而解析是 facts 提取的绝对大头；真正需要父节点的只有这里的几处。显式传参后，
  * 解析就能按 DESIGN §6.1.1 写的那样用 `setParentNodes = false`。
  */
-function propNameOf(parent: ts.Node | undefined, sf: ts.SourceFile): string | null {
-  if (!parent) return null
-  if (ts.isPropertyAssignment(parent)) return parent.name.getText(sf)
-  if (ts.isJsxAttribute(parent)) return parent.name.getText(sf)
+/**
+ * 「最近属性名」的**透传容器**：数组 / 对象 / 括号 / 断言 / 展开 / 三元不改变它。
+ *
+ * 为什么要穿透：`useQuery({ queryKey: ['crews', id] })` 里那个字面量的直接父节点是**数组**，
+ * 名字在爷爷那一层 —— 只看直接父节点的话 `StringFact.prop` 永远是 null，
+ * 「缓存键唯一出处」（D22）这类规则就没法判。函数体 / 语句 / 调用实参都会**断开**透传
+ * （`getKey(['a'])` 里的 `['a']` 不是 `queryKey` 的值）。
+ */
+function carriesProp(node: ts.Node): boolean {
+  return (
+    ts.isArrayLiteralExpression(node) ||
+    ts.isObjectLiteralExpression(node) ||
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isNonNullExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isSpreadElement(node) ||
+    ts.isConditionalExpression(node)
+  )
+}
+
+/** 本级是属性 / JSX 属性时，它带给子树的属性名 */
+function declaredPropOf(node: ts.Node, sf: ts.SourceFile): string | null {
+  if (ts.isPropertyAssignment(node)) return node.name.getText(sf)
+  if (ts.isJsxAttribute(node)) return node.name.getText(sf)
   return null
 }
 
@@ -168,7 +189,14 @@ export function extractFacts(input: FactInput): Facts {
     hasJsx: false,
   }
 
-  const visit = (node: ts.Node, parent: ts.Node | undefined): void => {
+  const visit = (
+    node: ts.Node,
+    parent: ts.Node | undefined,
+    /** 祖先里**最近的那个属性名**（`queryKey` / `path` / `to`…）：透传容器不改变它 */
+    inheritedProp: string | null,
+  ): void => {
+    // 传给子孙的"最近属性名"：本级是属性 → 用它；本级只是透传容器 → 继承；其它 → 断开
+    const childProp = declaredPropOf(node, sf) ?? (carriesProp(node) ? inheritedProp : null)
     /* ---- import / re-export ---- */
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       facts.imports.push({
@@ -290,7 +318,8 @@ export function extractFacts(input: FactInput): Facts {
         value: node.text,
         line: lineOf(sf, node.getStart(sf)),
         context: stringContext(parent),
-        prop: propNameOf(parent, sf),
+        // 最近的那个属性名（不一定是直接父节点：`queryKey: ['a']` 的字面量在数组里）
+        prop: inheritedProp,
       })
     }
     if (
@@ -346,10 +375,10 @@ export function extractFacts(input: FactInput): Facts {
       })
     }
 
-    ts.forEachChild(node, (child) => visit(child, node))
+    ts.forEachChild(node, (child) => visit(child, node, childProp))
   }
 
-  visit(sf, undefined)
+  visit(sf, undefined, null)
   return facts
 }
 

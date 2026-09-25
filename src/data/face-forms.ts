@@ -22,3 +22,27 @@ export const DEFAULT_ROUTE_FILES: string[] = ['routes.ts', 'routes.tsx']
  * `*.module.css?inline`、`*.module.less` 都是同一个方案的不同写法。
  */
 export const DEFAULT_MODULE_PATTERNS: string[] = ['\\.module\\.css$']
+
+/**
+ * **缓存键属性名**（数据层方案）：`useQuery({ queryKey: [...] })` 里的 `queryKey`。
+ * 值本身由**项目**决定（`data-layer` 面的 `queryKeyProps`），这里只是默认形态。
+ */
+export const DEFAULT_QUERY_KEY_PROPS: string[] = ['queryKey']
+
+/**
+ * 承载**路由路径**的属性名：路由表的 `{ path: '/crews' }` 与链接的 `<Link to="/crews" />`。
+ * 只认以 `/` 开头的绝对路径 —— 嵌套路由的相对段（`path: 'detail'`）是另一种东西。
+ */
+export const DEFAULT_PATH_PROPS: string[] = ['path', 'to']
+
+/**
+ * 触发**跳转**的调用名：`navigate('/crews')` / `router.push('/crews')` /
+ * `history.replace('/crews')` —— 它们的第一个字符串实参也是路径落点。
+ */
+export const DEFAULT_NAVIGATE_CALLS: string[] = [
+  'navigate',
+  'router.push',
+  'router.replace',
+  'history.push',
+  'history.replace',
+]

@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D22",
+      "file": "src/modules/crews/hooks/useCrews.ts"
+    }
+  ],
+  "exact": true
+}

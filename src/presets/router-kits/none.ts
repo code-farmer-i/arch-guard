@@ -3,7 +3,7 @@ import { defineAdapter, defineFacet } from '../../engine/adapters.js'
 import type { RouterAdapter } from '../../engine/types.js'
 
 defineFacet('router', {
-  fields: ['packages', 'routeFiles', 'examples'],
+  fields: ['packages', 'routeFiles', 'pathSource', 'pathProps', 'navigateCalls', 'examples'],
   capabilityRoot: 'router',
 })
 

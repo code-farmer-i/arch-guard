@@ -141,6 +141,13 @@ function assertStringArray(value: unknown, field: string, facet: string): void {
   }
 }
 
+/** 落点类字段：空串不是"没声明"，而是**拼错了**（`requires` 会把它当缺能力 → 规则静默停用） */
+function assertNonEmptyString(value: unknown, field: string, facet: string): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new AdapterError(`[${facet}] 字段 ${field} 必须是非空字符串（落点/文件名）`)
+  }
+}
+
 function validatePatterns(value: unknown, field: string, facet: string): void {
   assertStringArray(value, field, facet)
   for (const pattern of value as string[]) {
@@ -218,6 +225,15 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
   if (spec.routeFiles !== undefined) assertStringArray(spec.routeFiles, 'routeFiles', facet)
   if (spec.modulePatterns !== undefined)
     validatePatterns(spec.modulePatterns, 'modulePatterns', facet)
+  // 「唯一出处」的落点与它们的形态（D22 缓存键 / D23 路由路径）
+  if (spec.queryKeyFrom !== undefined)
+    assertNonEmptyString(spec.queryKeyFrom, 'queryKeyFrom', facet)
+  if (spec.queryKeyProps !== undefined)
+    assertStringArray(spec.queryKeyProps, 'queryKeyProps', facet)
+  if (spec.pathSource !== undefined) assertNonEmptyString(spec.pathSource, 'pathSource', facet)
+  if (spec.pathProps !== undefined) assertStringArray(spec.pathProps, 'pathProps', facet)
+  if (spec.navigateCalls !== undefined)
+    assertStringArray(spec.navigateCalls, 'navigateCalls', facet)
   if (spec.detachedApis !== undefined) {
     if (!Array.isArray(spec.detachedApis))
       throw new AdapterError(`[${facet}] detachedApis 必须是数组`)

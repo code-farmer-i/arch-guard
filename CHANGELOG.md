@@ -15,6 +15,25 @@
 
 ## [Unreleased]
 
+### Added（字面量唯一出处：D22 缓存键 · D23 路由路径）
+
+- **D22 缓存键只有一个出处**：`dataLayer(reactQueryKit({ queryKeyFrom: 'src/shared/api/queryKeys.ts' }))`
+  声明键的落点后，`{ queryKey: ['crews', id] }` 这类**键字面量**只许出现在那个文件里（引用
+  `keys.detail(id)` 合规）。判据来自 facts 的 `strings[].prop`。
+- **D23 路由路径只有一个出处**：`router(reactRouterKit({ pathSource: 'src/shared/config/paths.ts' }))`
+  声明路径落点后，`path` / `to` 属性与 `navigate()` / `router.push()` 这类跳转调用的**绝对路径字面量**
+  只许出现在那个文件里；属性名与调用名由方案面声明（`pathProps` / `navigateCalls`）。
+- 两条都是**声明落点才判**（`requires`）：没声明 → 报告里明列停用，不空转。落点写错（文件不存在）时
+  **只报一条"落点不存在"**，不逐条把项目刷红。
+- `engine/facts.ts` 的 `StringFact.prop` 现在会**透传**（数组 / 对象 / 括号 / 断言 / 展开 / 三元不改变
+  "最近的属性名"，函数体与调用实参断开）—— 否则 `queryKey: ['crews']` 里的字面量永远拿不到属性名。
+  这也是那个字段的第一个消费者；`FACTS_CACHE_SPEC` 1 → **2**（事实语义变了，旧缓存必须作废）。
+- `facts` 的两组新读法对应两条新规则，落点字段进适配器白名单并有类型校验（空串 = 拼错了，直接报）。
+- 夹具 **50 个**：新增 `route-paths`（路径字面量 × 引用对照）与 `cache-keys`（手拼键 × 引用键对照）；
+  `tests/design-sources.test.mjs` 5 例（落点缺失 / 未声明 / 形态可配 / 引用与落点文件内不报）。
+- 顺手改正 DESIGN §6.1.1 的事实模型示意（还写着 `jsxText` / `styleObjects` / `catches` / `tokens`
+  这些委派后已删的字段，与实际 `Facts` 不符）。
+
 ### Added（一个面一个方案 + 生效的适配器可见）
 
 - **报告自述 `adapters-in-use`**（`notices` 新 code，**兼容性新增**：不 bump `apiVersion`，

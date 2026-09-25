@@ -74,12 +74,15 @@ export const finding = (
   line: number,
   text: string,
   hint?: string,
+  /** 全局发现项（不挂在某个文件的具体行上，如"声明的落点不存在"） */
+  global = false,
 ): Finding => ({
   rule,
   file,
   line,
   text,
   ...(hint ? { hint } : {}),
+  ...(global ? { global: true } : {}),
 })
 
 /** 用事实模型里的注释区间把注释遮罩成空格（避免注释里的示例被误判） */

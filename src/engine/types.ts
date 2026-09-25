@@ -229,6 +229,17 @@ export interface RouterAdapter {
    * 不存在的约定（那才是误报）。
    */
   routeFiles?: string[]
+  /**
+   * **路由路径的唯一出处**（落点，如 `src/shared/config/paths.ts`）：D23 判「路径字面量只许出现在这里」。
+   *
+   * 落点是**项目决定**（同 `designSystem({ styleDir })`），所以由 kit 选项传入而不是 kit 写死；
+   * 没声明 → D23 明列停用（`requires`），不空转。
+   */
+  pathSource?: string
+  /** 承载路径的属性名（默认 `['path','to']`，见 `data/face-forms.ts`） */
+  pathProps?: string[]
+  /** 触发跳转的调用名（默认 `navigate` / `router.push`… 见 `data/face-forms.ts`） */
+  navigateCalls?: string[]
   examples?: AdapterExamples
 }
 
@@ -241,6 +252,10 @@ export interface DataLayerAdapter {
   id: string
   specVersion?: string
   packages: string[]
+  /** **缓存键的唯一出处**（落点）：D22 判「键字面量只许出现在这里」；没声明 → D22 停用 */
+  queryKeyFrom?: string
+  /** 缓存键挂在哪几个属性上（默认 `['queryKey']`） */
+  queryKeyProps?: string[]
   examples?: AdapterExamples
 }
 

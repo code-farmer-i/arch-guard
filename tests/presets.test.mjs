@@ -96,6 +96,9 @@ test('能力提供者必须启用消费它的规则（防"适配器装了却静�
     i18n: copy(),
     metrics: metrics(),
     uiKit: uiKit(antdKit()),
+    // 方案面：落点类能力（`dataLayer.queryKeyFrom` / `router.pathSource`）由装了适配器那一侧启用
+    dataLayer: dataLayer(reactQueryKit()),
+    router: router(reactRouterKit()),
     // `structure.slots` 是**范式事实**（参数型能力）：由带槽位语义的范式声明 —— canonical 是那个
     structure: canonical(),
   }
@@ -281,6 +284,19 @@ test('presets：方案面（router / data-layer / styles）各自贡献 P12，ki
   assert.deepEqual(dataLayer(reactQueryKit()).adapters?.['data-layer']?.packages, [
     '@tanstack/react-query',
   ])
+  // 方案面的**落点**由 kit 收参，并带出它消费的规则（D22 缓存键唯一出处）
+  const dataPreset = dataLayer(reactQueryKit({ queryKeyFrom: 'src/shared/api/queryKeys.ts' }))
+  assert.equal(dataPreset.enable.includes('D22'), true, '声明了落点就要启用消费它的规则')
+  assert.equal(dataPreset.adapters?.['data-layer']?.queryKeyFrom, 'src/shared/api/queryKeys.ts')
+  assert.equal(
+    router(reactRouterKit({ pathSource: 'src/shared/config/paths.ts' })).enable.includes('D23'),
+    true,
+  )
+  assert.equal(
+    router(reactRouterKit({ pathSource: 'src/shared/config/paths.ts' })).adapters?.router
+      ?.pathSource,
+    'src/shared/config/paths.ts',
+  )
 
   const stylesPreset = styles(cssModulesKit())
   assert.equal(stylesPreset.enable.includes('P12'), true)

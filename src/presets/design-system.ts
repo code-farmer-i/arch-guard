@@ -59,8 +59,30 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
   }
   if (options.storageFile) paths.storageFile = options.storageFile
   return {
-    // 本预设贡献 D 域（多个预设之间是**并集**，见 Preset.enable 的说明）
-    enable: ['D03', 'D04', 'D05', 'D06', 'D07', 'D08', 'D10', 'D10b', 'D11', 'D16', 'D17', 'D21'],
+    /**
+     * 本预设贡献 **D 域全部规则**（多个预设之间是**并集**，见 `Preset.enable` 的说明）。
+     *
+     * `D22` / `D23`（缓存键 / 路由路径的唯一出处）由 `dataLayer()` / `router()` 那侧**也**启用 ——
+     * 域预设列全、方案面预设列自己消费的那几条，两处都列不冲突（并集），
+     * 保证「只装设计系统」和「只装方案适配器」两种配法都不会漏挂规则（`engine-unit` 那条守卫盯着）。
+     * 它们真正的开关是**能力**：没声明 `queryKeyFrom` / `pathSource` 就明列停用。
+     */
+    enable: [
+      'D03',
+      'D04',
+      'D05',
+      'D06',
+      'D07',
+      'D08',
+      'D10',
+      'D10b',
+      'D11',
+      'D16',
+      'D17',
+      'D21',
+      'D22',
+      'D23',
+    ],
     params: {
       /**
        * 显式标记「项目声明了设计系统」。D21 靠它把两种情况分开：

@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "D23",
+      "file": "src/app/router/index.ts"
+    },
+    {
+      "rule": "D23",
+      "file": "src/shared/components/ui/Nav.tsx"
+    }
+  ],
+  "exact": true
+}

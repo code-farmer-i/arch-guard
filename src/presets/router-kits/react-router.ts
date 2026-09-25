@@ -4,7 +4,7 @@ import type { RouterAdapter } from '../../engine/types.js'
 
 // 面由**预设**登记（E2）：加一个面不改引擎
 defineFacet('router', {
-  fields: ['packages', 'routeFiles', 'examples'],
+  fields: ['packages', 'routeFiles', 'pathSource', 'pathProps', 'navigateCalls', 'examples'],
   capabilityRoot: 'router',
 })
 
@@ -17,6 +17,17 @@ export interface ReactRouterKitOptions {
    * 与 DESIGN §7.2(2.1)），否则 S12 / S13 这类**槽位规则**看不到它。
    */
   routeFiles?: string[]
+  /**
+   * **路由路径的唯一出处**（如 `src/shared/config/paths.ts`）→ 启用 D23。
+   *
+   * 落点是**项目决定**（同 `designSystem({ styleDir })`），所以由这里传入而不是 kit 写死；
+   * 不传 → D23 明列停用（`requires`），不空转。
+   */
+  pathSource?: string
+  /** 承载路径的属性名（缺省 `path` / `to`） */
+  pathProps?: string[]
+  /** 触发跳转的调用名（缺省 `navigate` / `router.push`…） */
+  navigateCalls?: string[]
 }
 
 /**
@@ -32,5 +43,8 @@ export function reactRouterKit(options: ReactRouterKitOptions = {}): RouterAdapt
     specVersion: '1',
     packages: ['react-router', 'react-router-dom'],
     routeFiles: [...(options.routeFiles ?? DEFAULT_ROUTE_FILES)],
+    ...(options.pathSource ? { pathSource: options.pathSource } : {}),
+    ...(options.pathProps ? { pathProps: [...options.pathProps] } : {}),
+    ...(options.navigateCalls ? { navigateCalls: [...options.navigateCalls] } : {}),
   })
 }

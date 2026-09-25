@@ -30,18 +30,21 @@ export function i18n(adapter: I18nAdapter): Preset {
 
 /**
  * P12 = "登记的方案面不许混入同类库"（判据来自 `src/data/solution-alternatives.ts`）。
- * 三个方案面各自贡献它 —— 装了适配器却一条不跑是静默失效。
+ * 装了适配器却一条不跑是静默失效，所以每个方案面各自贡献它的规则集：
+ * - `router` 面还带来 **D23 路由路径唯一出处**（声明了 `pathSource` 才真的判）
+ * - `data-layer` 面还带来 **D22 缓存键唯一出处**（声明了 `queryKeyFrom` 才真的判）
+ * - `styles` 面今天只贡献 P12：形态类判定（D16 / D17）的家是 `designSystem()`
  */
 const SOLUTION_RULES = ['P12']
 
-/** 路由适配器：`router(reactRouterKit())` */
+/** 路由适配器：`router(reactRouterKit({ pathSource: 'src/shared/config/paths.ts' }))` */
 export function router(adapter: RouterAdapter): Preset {
-  return { enable: SOLUTION_RULES, adapters: { [adapter.facet]: adapter } }
+  return { enable: [...SOLUTION_RULES, 'D23'], adapters: { [adapter.facet]: adapter } }
 }
 
-/** 数据层适配器：`dataLayer(reactQueryKit())` */
+/** 数据层适配器：`dataLayer(reactQueryKit({ queryKeyFrom: 'src/shared/api/queryKeys.ts' }))` */
 export function dataLayer(adapter: DataLayerAdapter): Preset {
-  return { enable: SOLUTION_RULES, adapters: { [adapter.facet]: adapter } }
+  return { enable: [...SOLUTION_RULES, 'D22'], adapters: { [adapter.facet]: adapter } }
 }
 
 /** 样式适配器：`styles(cssModulesKit())` */
