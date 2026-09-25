@@ -1,0 +1,17 @@
+{
+  "findings": [
+    {
+      "rule": "D12",
+      "file": "src/modules/crews/views/CrewsPage.module.css"
+    },
+    {
+      "rule": "D13",
+      "file": "src/modules/crews/views/CrewsPage.module.css"
+    },
+    {
+      "rule": "D14",
+      "file": "src/modules/crews/views/CrewsPage.module.css"
+    }
+  ],
+  "exact": true
+}

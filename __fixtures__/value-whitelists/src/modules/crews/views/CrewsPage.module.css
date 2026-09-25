@@ -1,0 +1,11 @@
+.page {
+  margin: 13px;
+  z-index: 9999;
+  transition-duration: 200ms;
+}
+
+.card {
+  margin: 8px;
+  z-index: 10;
+  transition-duration: 150ms;
+}

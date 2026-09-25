@@ -32,6 +32,11 @@ export interface DesignSystemOptions {
    * 形状 `[{ fg, bg, usage, min }]`，token 名由项目按自己的语义层填。
    */
   contrastPairs?: ContrastPair[]
+  /**
+   * 数值三族的白名单（D12 长度 / D13 层级 / D14 时长）：**声明哪一族才判哪一族**。
+   * 例：`[{ rule: 'D12', allow: ['4px','8px','12px'] }, { rule: 'D13', allow: ['1','10'] }]`
+   */
+  valueWhitelists?: { rule: string; allow: string[] }[]
 }
 
 /**
@@ -87,6 +92,9 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       'D21',
       'D22',
       'D23',
+      'D12',
+      'D13',
+      'D14',
     ],
     params: {
       /**
@@ -98,6 +106,7 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       designSystemDeclared: true,
       themes: options.themes ?? ['dark', 'light'],
       htmlKeys: options.htmlKeys ?? ['theme'],
+      valueWhitelists: options.valueWhitelists ?? [],
       contrastPairs: options.contrastPairs ?? [],
       // 落点：用户显式给的（paths）放最后，压过任何默认推导
       ...paths,

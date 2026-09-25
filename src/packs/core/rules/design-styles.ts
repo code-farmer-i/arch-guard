@@ -1,6 +1,7 @@
 import { parseCss } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
+import { cssValueFamilies } from '../../../data/css-value-families.js'
 import { cssFiles, designParams, finding } from './design-shared.js'
 import { isModuleStyle, modulePatternsOf } from './face-forms.js'
 
@@ -156,8 +157,77 @@ export const noImportant: Rule = {
   },
 }
 
+/* ---------------- D12 / D13 / D14 数值三族的白名单 ---------------- */
+
+/** 从一个声明值里取出该族的数值（`margin: 13px 4px` → ['13px','4px']） */
+const numericTokens = (value: string, units: string[]): string[] =>
+  value
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => {
+      if (token === '') return false
+      if (units.length === 0) return /^-?\d+$/.test(token)
+      return new RegExp(`^-?\\d*\\.?\\d+(?:${units.join('|')})$`).test(token)
+    })
+
+interface ValueWhitelist {
+  rule: string
+  allow: string[]
+}
+
+const whitelistOf = (
+  ctx: { config: { params: Record<string, unknown> } },
+  rule: string,
+): string[] | null => {
+  const lists = (ctx.config.params.valueWhitelists as ValueWhitelist[] | undefined) ?? []
+  const found = lists.find((item) => item.rule === rule)
+  return found && found.allow.length > 0 ? found.allow : null
+}
+
+const valueFamilyRules: Rule[] = cssValueFamilies.map((family) => ({
+  id: family.rule,
+  domain: 'design',
+  level: 'L1',
+  severity: 'error',
+  title: `${family.title}必须走声明的刻度`,
+  hint: family.hint,
+  requires: ['designSystem.styleDir'],
+  run: (ctx) => {
+    const allow = whitelistOf(ctx, family.rule)
+    if (allow === null) return [] // 声明才判
+    const allowed = new Set(allow)
+    const out: Finding[] = []
+    for (const file of cssFiles(ctx)) {
+      for (const block of file.rules) {
+        for (const declaration of block.declarations) {
+          const prop = declaration.prop.replace(/^--/, '')
+          if (
+            !family.properties.some((prefix) => prop === prefix || prop.startsWith(`${prefix}-`))
+          ) {
+            continue
+          }
+          for (const token of numericTokens(declaration.value, family.units)) {
+            if (token === '0' || allowed.has(token)) continue
+            out.push(
+              finding(
+                family.rule,
+                file.rel,
+                declaration.line,
+                `${declaration.prop}: ${token} 不在${family.title}的刻度里（允许：${allow.join(' / ')}）`,
+                family.hint,
+              ),
+            )
+          }
+        }
+      }
+    }
+    return out
+  },
+}))
+
 export const designStyleRules: Rule[] = [
-  // 魔法数字三族（D12–D14）委派给 stylelint declaration-property-value-allowed-list
+  // 数值三族（D12–D14）由数据表 + 项目声明的白名单驱动（0.4.0 收回本体）
+  ...valueFamilyRules,
   stylesInModules,
   cssModuleContract,
   noImportant,

@@ -17,6 +17,16 @@
 
 ## [Unreleased]
 
+### Added（C6：CSS 数值三族收回本体）
+
+- **场景**：间距 / 层级 / 时长各写各的数（`margin: 13px`、`z-index: 9999`、`transition-duration: 200ms`）——
+  间距刻度、层级刻度、动效节奏都无从统一。
+- **现在**：`designSystem({ valueWhitelists: [{ rule: 'D12', allow: [...] }, …] })` 声明哪一族就判哪一族
+  （D12 长度 / D13 层级 / D14 时长），不在刻度里的数值报；`0` 永远放行。
+- 原先委派给 stylelint `declaration-property-value-allowed-list` —— 那段要**逐属性列白名单**（几十行），
+  是委派清单里配置成本最高的一条。族的属性形态放 `src/data/css-value-families.ts`（纯数据）。
+- 规则 86 → **89**；夹具 67 → **68**。
+
 ### Added（C7 收尾：假异步与假数据收回本体）
 
 - **H07 疑似假异步**（warn）：文件里 `new Promise` 与 `setTimeout` 同时出现 —— 用睡眠冒充异步。
