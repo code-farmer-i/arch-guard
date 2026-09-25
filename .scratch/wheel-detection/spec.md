@@ -1,6 +1,6 @@
 # 手搓轮子检测补全（P07 + 指纹覆盖）
 
-Status: ready-for-agent
+Status: in-progress（P07 两证据已落地；剩「指纹可覆盖」）
 
 ## 背景与问题
 
@@ -37,3 +37,7 @@ P06 只认**强指纹**（形态无歧义，如 `JSON.parse(JSON.stringify(x))`�
 ## Comments
 
 - 2026-09-23 初稿。范围收窄到 P07 + 覆盖机制；`--verify-deps` 拆成独立特性。
+- 2026-09-25 现状核对：**第一条目标已实现** —— P07 已是「弱指纹 ∧ 命名指纹」两证据才报
+  （`softSyntax` 必须与 `apiNames` 成对，`data/wheel-fingerprints.ts` 有断言），`__fixtures__/wheels`
+  里覆盖到 P07；**剩下的只有「宿主可在配置里覆盖单个能力的指纹」**（验收 #2 因此仍是失败的），
+  以及那条专门的 `wheel-soft` 对照夹具。需求视角见 REQUIREMENTS（演进类）。

@@ -88,22 +88,23 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 判定标准：**纯语法/纯图属性、且不需要项目专有数据的约束，一律委派**；只有需要「角色表 / 适配器 /
 能力表」这类项目数据的约束才由本工具实现。
 
-| 已委派的约束                                    | 原规则      | 交给谁                                                                                                                        |
-| ----------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `any` / 非空断言 / ts 注释逃生舱                | H01         | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                             |
-| console / debugger / alert                      | H03         | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                      |
-| 未完成标记（TODO 等）                           | H04         | `no-warning-comments`                                                                                                         |
-| 空 catch / 空块                                 | H05         | `no-empty`                                                                                                                    |
-| 假异步、`Math.random`、硬编码地址、假数据字面量 | H07–H09     | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                    |
-| 文件行数 / 函数行数                             | S16         | `max-lines` · `max-lines-per-function`                                                                                        |
-| 相对越级 `../`                                  | S10         | `no-restricted-imports`                                                                                                       |
-| 依赖环                                          | S08         | `import/no-cycle` · dependency-cruiser `no-circular`                                                                          |
-| 孤儿文件                                        | S15（部分） | dependency-cruiser `no-orphans`                                                                                               |
-| 幽灵依赖 / 声明但未使用                         | P03 · P08   | `knip` · `depcheck`                                                                                                           |
-| 颜色字面量只在色板                              | D01         | stylelint `color-no-hex` + `overrides`                                                                                        |
-| `!important`                                    | D09         | stylelint `declaration-no-important`                                                                                          |
-| 长度 / z-index / 时长白名单                     | D12–D14     | stylelint `declaration-property-value-allowed-list`                                                                           |
-| JSX 裸文案                                      | C01         | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
+| 已委派的约束                                                   | 原规则      | 交给谁                                                                                                                        |
+| -------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `any` / 非空断言 / ts 注释逃生舱                               | H01         | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                             |
+| console / debugger / alert                                     | H03         | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                      |
+| 未完成标记（TODO 等）                                          | H04         | `no-warning-comments`                                                                                                         |
+| 空 catch / 空块                                                | H05         | `no-empty`                                                                                                                    |
+| 假异步、`Math.random`、硬编码地址、假数据字面量                | H07–H09     | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                    |
+| 抑制注释（`eslint-disable` / `oxlint-disable` / `@ts-ignore`） | H02         | **未实现、也委派不出去**：eslint 默认不禁止 disable 注释（要装 `eslint-comments` 之类插件）。见 REQUIREMENTS `R-70`           |
+| 文件行数 / 函数行数                                            | S16         | `max-lines` · `max-lines-per-function`                                                                                        |
+| 相对越级 `../`                                                 | S10         | `no-restricted-imports`                                                                                                       |
+| 依赖环                                                         | S08         | `import/no-cycle` · dependency-cruiser `no-circular`                                                                          |
+| 孤儿文件                                                       | S15（部分） | dependency-cruiser `no-orphans`                                                                                               |
+| 幽灵依赖 / 声明但未使用                                        | P03 · P08   | `knip` · `depcheck`                                                                                                           |
+| 颜色字面量只在色板                                             | D01         | stylelint `color-no-hex` + `overrides`                                                                                        |
+| `!important`                                                   | D09         | stylelint `declaration-no-important`                                                                                          |
+| 长度 / z-index / 时长白名单                                    | D12–D14     | stylelint `declaration-property-value-allowed-list`                                                                           |
+| JSX 裸文案                                                     | C01         | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
 
 **代价（必须知道）**：委派之后，**宿主没有对应工具就等于失去这层覆盖**。所以接入清单里要一起做：
 装 eslint（含 typescript-eslint）、stylelint、knip，并在 `pnpm lint` 链路里跑起来。
@@ -1045,13 +1046,13 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 **只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` 的**本地对账部分** / `definePack` / config 的 `specVersion` 均已落地，从本表移除）
 已落地的能力见 [`CHANGELOG.md`](../CHANGELOG.md)，进度见 [`README.md`](../README.md) 的 Roadmap。
 
-| ID   | 缺口                                                                                                                                                                                                                                                                                                                  | 影响                                                 |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| R1   | **已拍板（方案 c，见 PARADIGM §6.3）**：跨域组合一律提升到 `shared/components/common`（业务中立组合件）或 `shared/api`（数据契约），由 `app` 组合；**给域开第二个公开面 `index.ts` 的方案已否**（深模块会变成两个出口）                                                                                               | —                                                    |
-| R4   | **已解决**：例外已是规则级 + 必写理由 + 可设 `expires`（过期即红），见 §6.6                                                                                                                                                                                                                                           | 正当的永久例外会被记成"存量债"，语义腐败             |
-| R6   | 有规则级 `exceptions`，但没有「生成代码必须带 `@generated` 标记」的可证伪要求                                                                                                                                                                                                                                         | 豁免可以被随意扩大                                   |
-| D 域 | **11 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（stylelint 的值白名单 + eslint 的 `no-restricted-syntax`，见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖   |
-| C 域 | **5 条已落地**（C02–C06：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键）；C01 裸文案委派给 `eslint-plugin-i18next`                                                                                                                                                                                         | 动态键（`t(\`ns.${x}\`)`）只按静态前缀放行，不做求值 |
+| ID   | 缺口                                                                                                                                                                                                                                                                                                                                | 影响                                               |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| R1   | **已拍板（方案 c，见 PARADIGM §6.3）**：跨域组合一律提升到 `shared/components/common`（业务中立组合件）或 `shared/api`（数据契约），由 `app` 组合；**给域开第二个公开面 `index.ts` 的方案已否**（深模块会变成两个出口）                                                                                                             | —                                                  |
+| R4   | **已解决**：例外已是规则级 + 必写理由 + 可设 `expires`（过期即红），见 §6.6                                                                                                                                                                                                                                                         | 正当的永久例外会被记成"存量债"，语义腐败           |
+| R6   | 有规则级 `exceptions`，但没有「生成代码必须带 `@generated` 标记」的可证伪要求                                                                                                                                                                                                                                                       | 豁免可以被随意扩大                                 |
+| D 域 | **14 条已落地**（D03–D08 / D10 / D10b / D11 / D16 / D17 / D21 / D22 / D23：色值唯一 / 令牌闭合 / 死令牌 / 明暗双份 / 对比度 / storage key / vendor 边界与反向封闭 / 无框架残留 / 样式落点 / CSS Module 双向契约 / 声明与事实对账 / 缓存键唯一出处 / 路由路径唯一出处）；**D01 · D02 · D09 · D12–D15 · D18 已委派后删除**（见 §4.9） | 委派出去的那半宿主要自己装并配好；没装等于失去覆盖 |
+| C 域 | **6 条已落地**（C02–C07：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账）；C01 裸文案委派给 `eslint-plugin-i18next`                                                                                                                                                                                      | 动态键（`t(`ns.${x}`)`）只按静态前缀放行，不做求值 |
 
 ## 16. 选型纪律：优先成熟开源方案（反造轮子）
 

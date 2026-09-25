@@ -269,13 +269,24 @@ pnpm guard:sample              # 拿 examples/minimal 当宿主跑一遍
 pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 ```
 
-## 文档
+## 文档地图
 
-- [`PARADIGM.md`](./PARADIGM.md) —— **通用范式**：三条公理、十个检测原语（分类词汇）、五条设计律、目录契约、判定等级、适配器契约、scope 语义。可直接搬到别的仓库当规约。
-- [`docs/DESIGN.md`](./docs/DESIGN.md) —— 怎么实现 + 还没做什么：引擎机制、规则清单、已知缺口。
-- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) —— **本体架构的唯一来源**：三层分离、数据流、模块职责、不能破的边界、扩展点与元门禁。
-- [`docs/ALTERNATIVES.md`](./docs/ALTERNATIVES.md) —— **替代组合与竞品盘点**：不装本门禁能覆盖多少（≈30/53）、FSD 场景怎么拼、我们立得住的是什么。
-- [`docs/adr/`](./docs/adr/) —— 为什么这么设计（可判定性优先 / 适配器是数据 / 两类工程范式 / 只发 ESM / 白名单显式 / 原语是词汇）。
+> **这份表是文档地图的唯一来源**（`docs/ARCHITECTURE.md` §10 与 `REQUIREMENTS.md` 附录都只给指针）。
+> 「唯一来源」= 那件事只在那里写，别处不许复制第二份。
+
+| 文档                                                                                                 | 读者         | 回答什么                                                         | 唯一来源范围 |
+| ---------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------- | ------------ |
+| [`REQUIREMENTS.md`](./REQUIREMENTS.md)                                                               | 所有人       | 痛点（带例子）/ 期望行为 / 状态 / 这条由谁来做（本体 or 委派）   | ✅ 需求      |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)                                                     | 改本体的人   | 三层分离 / 数据流 / 模块职责 / 不能破的边界 / 扩展点 / 元门禁    | ✅ 本体架构  |
+| [`PARADIGM.md`](./PARADIGM.md)                                                                       | 宿主团队     | 目录契约 / 三条公理 / 原语 / 判定等级 / 适配器契约（可整篇搬走） | ✅ 宿主规范  |
+| [`docs/DESIGN.md`](./docs/DESIGN.md)                                                                 | 改规则的人   | 规则清单 / 判定等级 / 配置协议 / 报告契约 / 选型纪律             | 规则与协议   |
+| [`CONTEXT.md`](./CONTEXT.md)                                                                         | 所有人       | 词汇表（角色 / 组 / 落点 / 方案面 / 唯一出处…）                  | ✅ 词汇      |
+| [`docs/adr/`](./docs/adr/)                                                                           | 所有人       | 决策的**理由**（不可变记录；其中的数量是当时快照）               | ✅ 决策      |
+| [`docs/ALTERNATIVES.md`](./docs/ALTERNATIVES.md) · [`ECOSYSTEM-AUDIT.md`](./docs/ECOSYSTEM-AUDIT.md) | 选型的人     | 与生态的对比 / 逐条覆盖审计（0.3.x 快照 + 修订段）               | 分析         |
+| [`docs/agents/`](./docs/agents/)                                                                     | agent        | 协作约定（需求只讲场景 / issue tracker / triage / domain）       | ✅ 约定      |
+| [`.scratch/<slug>/spec.md`](./.scratch)                                                              | 做那件事的人 | 单个需求的实现规格（场景 / 验收 / 边界 / Comments）              | 单特性       |
+| [`AGENTS.md`](./AGENTS.md)                                                                           | agent        | 改代码前 / 提交前怎么做（含 `--render-docs` 生成的配置块）       | 操作指南     |
+| [`README.md`](./README.md) · [`CHANGELOG.md`](./CHANGELOG.md)                                        | 外部读者     | 概览与进度 / 每个版本实际发生了什么                              | 概览与历史   |
 
 ## Roadmap
 
