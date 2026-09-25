@@ -17,6 +17,14 @@
 
 ## [Unreleased]
 
+### Fixed（C10 的覆盖补齐：canonical 侧也钉住组维度规则）
+
+- C10 让 `canonical()` 的域成为组维度（`group: 'domain'`），但当时只有 `group-dimension` 一条夹具
+  证明 S32 生效；**S22 组隔离 / S23 公开面 / S26 组数量 / S28 外部引用下限** 在 canonical 下仍无夹具。
+- 新夹具 `canonical-groups`：声明 `isolate: ['domain']` 与 `groupCountLimits: [{ dimension: 'domain', max: 2 }]` 后，
+  跨域直连（S22）与"第 10 层 3 个域超上限"（S26）都报 —— 证明这条路径真的在跑。
+- 夹具 69 → **70**。
+
 ### Fixed（C01 补齐：JSX 文本节点进事实模型）
 
 - C01 原来只判面向用户的**属性**（`title="保存"`），JSX **文本节点**（`<button>保存</button>` 里那半）
