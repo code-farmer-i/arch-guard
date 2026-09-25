@@ -7,7 +7,7 @@ import type { Preset } from '../engine/types.js'
 export function hygiene(): Preset {
   return {
     // H01–H05 已委派给 eslint（见 docs/ECOSYSTEM-AUDIT.md）；本体实现 H06 与 H12
-    enable: ['H08', 'H06', 'H12'],
+    enable: ['H07', 'H09', 'H08', 'H06', 'H12'],
     // 这里原先还写了一遍 `thresholds: { functionLines: 150 }` —— 与引擎默认值逐字相同，
     // 是「同一个事实的第二处存放」（默认值在 engine/defaults.ts）。删掉，行为不变。
   }

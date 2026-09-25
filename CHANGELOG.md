@@ -17,6 +17,14 @@
 
 ## [Unreleased]
 
+### Added（C7 收尾：假异步与假数据收回本体）
+
+- **H07 疑似假异步**（warn）：文件里 `new Promise` 与 `setTimeout` 同时出现 —— 用睡眠冒充异步。
+  刻意**不判裸 `setTimeout`**（防抖 / 轮询是正当用法），两证据同时成立才提示。
+- **H09 假数据不该进生产路径**（warn）：`mock` / `fake` / `dummy` / `fixtures` 命名的文件或导出
+  出现在非测试代码里（只按命名判 —— 数据长什么样我们看不出来，但"叫 mock 的东西不该在生产路径"是确定的）。
+- 两条原先委派给 eslint `no-restricted-syntax`（要项目自己写 esquery 选择器）。规则 84 → **86**；夹具 66 → **67**。
+
 ### Added（C7 第一半：硬编码本地地址收回本体）
 
 - **场景**：`const api = 'http://localhost:3000/api'` 写进源码 → 跟着构建进生产。

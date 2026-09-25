@@ -118,7 +118,89 @@ export const localHostLiterals: Rule = {
   },
 }
 
+/* ---------------- H07 假异步 · H09 假数据 ---------------- */
+
+/**
+ * H07 **假异步**（warn）：文件里同时出现 `new Promise` 与 `setTimeout` —— 用睡眠冒充异步。
+ *
+ * 刻意**不判裸 `setTimeout`**：防抖 / 轮询 / 节流是正当用法（`timers.ts` 就是例子），
+ * 单看它必然误伤。两条证据同时成立才提示，且只提示（warn）——"疑似"就该是可解释的提示。
+ */
+export const fakeAsync: Rule = {
+  id: 'H07',
+  domain: 'hygiene',
+  level: 'L2',
+  severity: 'warn',
+  title: '疑似假异步',
+  hint: '用睡眠冒充异步（`await new Promise(r => setTimeout(r, ms))`）：真实等待应该来自数据层，不是定时器',
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.role === 'test' || /\.(test|spec)\./.test(record.rel)) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      const promise = facts.calls.find((call) => call.callee === 'Promise')
+      const timer = facts.calls.find((call) => call.callee === 'setTimeout')
+      if (!promise || !timer) continue
+      out.push(
+        finding(
+          'H07',
+          record.rel,
+          promise.line,
+          '疑似假异步：这个文件里 `new Promise` 与 `setTimeout` 同时出现（用睡眠冒充异步？）',
+          '把等待换成真实的异步来源；确实需要延迟（防抖 / 重试）就只留定时器，别包成 Promise 假装请求',
+        ),
+      )
+    }
+    return out
+  },
+}
+
+/**
+ * H09 **假数据**（warn）：`mock` / `fake` / `dummy` / `fixtures` 命名的文件或导出出现在**非测试**代码里。
+ *
+ * 只按**命名**判，不按内容判：数据长什么样我们看不出来，但"叫 mock 的东西不该出现在生产路径"是确定的。
+ */
+const FAKE_NAME = /(?:^|[^a-z])(mock|fake|dummy|fixtures?)(?:[^a-z]|$)/i
+
+export const fakeData: Rule = {
+  id: 'H09',
+  domain: 'hygiene',
+  level: 'L2',
+  severity: 'warn',
+  title: '假数据不该进生产路径',
+  hint: '假数据只该出现在测试里（`*.test.ts` / `__tests__`）：命名带 mock / fake / dummy 的文件留在生产路径，迟早被当真实数据用',
+  run: (ctx) => {
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.role === 'test' || /\.(test|spec)\./.test(record.rel)) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      const stem = (record.rel.split('/').pop() ?? '').replace(/\.(ts|tsx|mts|cts|js|mjs|cjs)$/, '')
+      const byFile = FAKE_NAME.test(stem)
+      const exported = facts.exports.find(
+        (item) => item.name !== 'default' && item.name !== '*' && FAKE_NAME.test(item.name),
+      )
+      if (!byFile && !exported) continue
+      out.push(
+        finding(
+          'H09',
+          record.rel,
+          exported?.line ?? 1,
+          byFile
+            ? `假数据文件出现在生产路径：${stem}（命名带 mock / fake / dummy）`
+            : `假数据导出出现在生产路径：${exported?.name}`,
+          '挪进测试目录 / 测试文件；确实要给下游做示例，就把命名与落点写进契约',
+        ),
+      )
+    }
+    return out
+  },
+}
+
 export const contextHygieneRules: Rule[] = [
+  fakeAsync,
+  fakeData,
   localHostLiterals,
   // 其余退化模式已委派：假异步/随机、硬编码地址、假数据 → eslint no-restricted-syntax；
   // 手搓时间格式化 → P06（能力指纹，项目声明了日期库才算手搓，比语法级封杀更准）。

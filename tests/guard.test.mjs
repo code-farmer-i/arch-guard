@@ -45,7 +45,7 @@ test('报告过滤：--domain 只跑指定域的规则', async () => {
   // violations 夹具里的 hygiene 类规则已委派给 eslint，改用仍带 H 域命中的 rules 夹具
   const result = await run('hygiene-context', { domain: ['hygiene'] })
   const rules = new Set(result.all.map((finding) => finding.rule))
-  assert.deepEqual([...rules].sort(), ['H06', 'H08'])
+  assert.deepEqual([...rules].sort(), ['H06', 'H08', 'H09'])
 })
 
 test('报告过滤：--min-level=L1 只跑路径级规则', async () => {

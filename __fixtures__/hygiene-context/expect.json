@@ -13,6 +13,10 @@
       "file": "src/shared/config/env.ts"
     },
     {
+      "rule": "H09",
+      "file": "src/shared/lib/fixtures.ts"
+    },
+    {
       "rule": "S15",
       "file": "src/shared/api/client.ts"
     },

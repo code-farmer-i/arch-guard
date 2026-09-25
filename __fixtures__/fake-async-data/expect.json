@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "H07",
+      "file": "src/shared/lib/sleep.ts"
+    },
+    {
+      "rule": "H09",
+      "file": "src/shared/lib/mock-crews.ts"
+    }
+  ],
+  "exact": true
+}
