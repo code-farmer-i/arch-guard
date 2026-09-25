@@ -10,6 +10,13 @@ export interface CanonicalOptions {
   modules?: string
   /** 跨域共享层 */
   shared?: string
+  /**
+   * **页面必须动态 import**（`lazy: () => import('./views/X')`）→ 启用 S37。
+   *
+   * 场景：路由表静态 import 页面 → 所有页面进主包，首屏跟着变大。
+   * 声明了才判（没声明 → S37 明列停用）：有些应用就是不分包。
+   */
+  lazyViews?: boolean
 }
 
 /**
@@ -95,6 +102,8 @@ export function canonical(options: CanonicalOptions = {}): Preset {
     params: {
       // 本范式**带槽位语义**（views / hooks / model / lib）→ S13 才有东西可判
       slots: true,
+      // 只有项目声明了才判（见 CanonicalOptions.lazyViews）：S37 的开关
+      ...(options.lazyViews ? { lazyViews: true } : {}),
       styleDir: `${src}/shared/styles`,
       tokenDir: `${src}/shared/styles/tokens`,
       vendorDir: `${src}/shared/styles/vendor`,

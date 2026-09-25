@@ -256,6 +256,18 @@ export interface DataLayerAdapter {
   queryKeyFrom?: string
   /** 缓存键挂在哪几个属性上（默认 `['queryKey']`） */
   queryKeyProps?: string[]
+  /**
+   * **取数 / 缓存 API 的名字**（`useQuery` / `useMutation`…）—— 由 kit 按方案声明。
+   *
+   * 判据按**整名或 `.` 后缀**匹配（声明 `invalidateQueries` 也能抓到
+   * `queryClient.invalidateQueries(...)`），因为接收者变量名由项目决定。
+   */
+  fetchApis?: string[]
+  /**
+   * **取数只许出现的落点**（glob 列表，如 `['src/modules/<域>/hooks/**','src/shared/api/**']`）——
+   * 落点是**项目决定**，所以由 kit 选项传入；没声明 → 这条门禁明列停用。
+   */
+  fetchIn?: string[]
   examples?: AdapterExamples
 }
 

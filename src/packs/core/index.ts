@@ -4,6 +4,7 @@ import { copyRules } from './rules/copy.js'
 import { adapterRules } from './rules/deps-adapters.js'
 import { depsRules } from './rules/deps.js'
 import { contextHygieneRules } from './rules/hygiene-context.js'
+import { hygieneRetiredRules } from './rules/hygiene-retired.js'
 import { designSourceRules } from './rules/design-sources.js'
 import { designStyleRules } from './rules/design-styles.js'
 import { designTokenRules } from './rules/design-tokens.js'
@@ -12,6 +13,7 @@ import { metricsRules } from './rules/metrics.js'
 import { declaredStructureRules } from './rules/structure-declared.js'
 import { structureGraphRules } from './rules/structure-graph.js'
 import { structureGroupRules } from './rules/structure-groups.js'
+import { structureCallSiteRules } from './rules/structure-call-sites.js'
 import { structureLocalityRules } from './rules/structure-locality.js'
 import { scanScopeNotEmpty } from './rules/structure-scan.js'
 import { structureRules } from './rules/structure.js'
@@ -35,6 +37,7 @@ export const coreRules: Rule[] = [
   ...declaredStructureRules,
   ...structureGroupRules,
   ...structureLocalityRules,
+  ...structureCallSiteRules,
   // 扫描域非空是"逐文件规则能跑"的先决条件，放在结构域里
   scanScopeNotEmpty,
   ...designTokenRules,
@@ -46,4 +49,5 @@ export const coreRules: Rule[] = [
   ...adapterRules,
   ...metricsRules,
   ...contextHygieneRules,
+  ...hygieneRetiredRules,
 ]

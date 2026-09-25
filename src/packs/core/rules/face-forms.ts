@@ -77,6 +77,19 @@ export function navigateCallsOf(config: Config): string[] {
   return adapterOf<RouterAdapter>(config, 'router')?.navigateCalls ?? DEFAULT_NAVIGATE_CALLS
 }
 
+/**
+ * **取数 API 名**（S36）：由 kit 按方案声明（`useQuery` / `useMutation`…）。
+ * 空清单 = 没声明 → S36 明列停用（不猜"什么算取数"）。
+ */
+export function fetchApisOf(config: Config): string[] {
+  return adapterOf<DataLayerAdapter>(config, 'data-layer')?.fetchApis ?? []
+}
+
+/** **取数只许出现的落点**（S36，glob 列表）：项目决定，空 = 停用 */
+export function fetchInOf(config: Config): string[] {
+  return adapterOf<DataLayerAdapter>(config, 'data-layer')?.fetchIn ?? []
+}
+
 const regexCache = new Map<string, RegExp>()
 
 /**

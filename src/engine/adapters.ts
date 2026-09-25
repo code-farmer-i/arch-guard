@@ -234,6 +234,9 @@ export function defineAdapter<T extends Adapter>(facet: string, spec: Record<str
   if (spec.pathProps !== undefined) assertStringArray(spec.pathProps, 'pathProps', facet)
   if (spec.navigateCalls !== undefined)
     assertStringArray(spec.navigateCalls, 'navigateCalls', facet)
+  // 取数 API 名与取数落点（S36：页面/域里直接取数、直连后端）
+  if (spec.fetchApis !== undefined) assertStringArray(spec.fetchApis, 'fetchApis', facet)
+  if (spec.fetchIn !== undefined) assertStringArray(spec.fetchIn, 'fetchIn', facet)
   if (spec.detachedApis !== undefined) {
     if (!Array.isArray(spec.detachedApis))
       throw new AdapterError(`[${facet}] detachedApis 必须是数组`)

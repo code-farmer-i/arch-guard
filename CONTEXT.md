@@ -163,6 +163,12 @@ _Avoid_: 约定优于配置（那是"没配就猜"，这里要求能说出"这�
 落点由**项目**声明 —— 没声明时规则明列停用，而不是拿一个默认路径去量别人的项目。
 _Avoid_: 魔法值、常量集中营
 
+**落点（landing spot）**：
+某类东西**只许出现的地方**：全局 CSS 的落点在 `designSystem({ styleDir })`、令牌在 `tokenDir`、
+路由路径在 `router({ pathSource })`、缓存键在 `dataLayer({ queryKeyFrom })`、取数调用在 `fetchIn`。
+落点是**项目事实**（不是库选型），所以由项目声明；没声明时依赖它的规则**明列停用**，不猜默认值。
+_Avoid_: 约定优于配置（那是"没配就猜"）、默认路径
+
 **同类方案（alternatives）**：
 同一个面里**互相替代**的库（`src/data/solution-alternatives.ts`）。登记了某个面之后再 import 同面里的另一个库 → P12。
 刻意不收传输层 / 客户端状态 / 原子类与预处理器（并存是常规写法）。

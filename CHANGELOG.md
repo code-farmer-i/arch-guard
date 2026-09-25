@@ -15,6 +15,23 @@
 
 ## [Unreleased]
 
+### Added（三个前端场景的门禁：页面里取数 / 页面被静态 import / 退路残留）
+
+- **场景 ①：页面里直接 `useQuery`、域里直接 `fetch('/api/x')`** —— 换数据层要翻遍页面、
+  契约类型散在各域、测试必须 mock 网络。
+  **现在**：`dataLayer(reactQueryKit({ fetchIn: [...] }))` 声明取数落点后，**S36** 拦住落点外的取数调用
+  （测试文件豁免；方法名按 `.` 后缀匹配，所以 `queryClient.invalidateQueries` 也抓得到；
+  取数 API 名由 kit 按方案声明，`fetch` / 自家 hook 可以追加）。没声明落点 → 明列停用。
+- **场景 ②：路由表静态 import 页面** —— 所有页面随主包下载，首屏跟着变大，第一个月没人发现。
+  **现在**：`canonical({ lazyViews: true })` 声明后，**S37** 报"页面被入口静态 import"；
+  组件之间互相引用不管（那不是首屏问题）。
+- **场景 ③：重构后旧实现留在仓库里**（`CrewsPage.old.tsx` / `useCrewsLegacy.ts`）——
+  没人敢删、新人抄了旧的那一份、两套实现行为不一致。
+  **现在**：**H12** 判"整段命中"（子串不算、目录名不算，所以 `legacy-support.ts` 与
+  `src/legacy/**` 迁移容器都不受牵连）；`hygiene()` 默认启用。
+- 适配器新增两组字段：`data-layer` 的 `fetchApis`（kit 按方案声明）/ `fetchIn`（项目声明落点）；
+  `reactQueryKit({ fetchIn, fetchApis })` 收参。规则 **71 → 74**，夹具 **50 → 53**，单测 +7 例。
+
 ### Added（字面量唯一出处：D22 缓存键 · D23 路由路径）
 
 - **D22 缓存键只有一个出处**：`dataLayer(reactQueryKit({ queryKeyFrom: 'src/shared/api/queryKeys.ts' }))`

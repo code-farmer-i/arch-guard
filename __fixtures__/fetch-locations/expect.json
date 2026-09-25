@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S36",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    },
+    {
+      "rule": "S36",
+      "file": "src/modules/orders/lib/api.ts"
+    }
+  ],
+  "exact": true
+}

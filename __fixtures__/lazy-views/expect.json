@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S37",
+      "file": "src/modules/orders/routes.ts"
+    }
+  ],
+  "exact": true
+}

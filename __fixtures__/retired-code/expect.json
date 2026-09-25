@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "H12",
+      "file": "src/modules/crews/hooks/useCrewsLegacy.ts"
+    },
+    {
+      "rule": "H12",
+      "file": "src/modules/crews/views/CrewsPage.old.tsx"
+    }
+  ],
+  "exact": true
+}
