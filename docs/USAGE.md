@@ -1,0 +1,472 @@
+# 使用说明（唯一来源）
+
+> **这份文档回答"怎么用"**：装什么、`arch.config.mjs` 每个字段是什么意思、有哪些预设与参数、
+> 命令怎么敲、报告怎么读、怎么接进 CI、出了问题怎么查。
+>
+> **「唯一来源」= 这几件事只写在这里**，别处只给指针（`README.md` 的文档地图登记了它的归属）。
+> 四份姊妹文档各管一件事，本文不复制它们的内容：
+>
+> | 你想要的                                         | 去哪                                                                                   |
+> | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+> | **契约的权威表述**                               | [`DESIGN.md`](./DESIGN.md) §6.9（JSON 字段 / notice code / `apiVersion` / 退出码语义） |
+> | **宿主规范**（目录契约 / 例外语义 / 判定等级）   | [`../PARADIGM.md`](../PARADIGM.md)                                                     |
+> | **这条规则为什么存在、谁在做**                   | [`../REQUIREMENTS.md`](../REQUIREMENTS.md)                                             |
+> | **本体内部**（模块职责 / 数据流 / 元门禁）       | [`ARCHITECTURE.md`](./ARCHITECTURE.md)                                                 |
+> | **每个规则的判据**                               | [`DESIGN.md`](./DESIGN.md) §5                                                          |
+> | **词汇**（角色 / 组 / 落点 / 方案面 / 唯一出处） | [`../CONTEXT.md`](../CONTEXT.md)                                                       |
+
+---
+
+## 0. 三十秒
+
+```bash
+pnpm add -D @arch-guard/core        # 包名是 @arch-guard/core；命令名是 arch-guard
+```
+
+要求 **Node ≥ 22.18**、**TypeScript 5.4 – 6.x**（`typescript@7` 是原生重写，JS 侧不再暴露编译期 API，
+装到它会明确报错，而不是崩在 `undefined`）。
+
+在项目根建 `arch.config.mjs`（最小可用形态）：
+
+```js
+import { canonical, designSystem, hygiene, reactPack } from '@arch-guard/core/presets'
+
+export default {
+  packs: [reactPack], // 框架包：声明的是**源码形态**，一个项目一个
+  presets: [canonical(), designSystem(), hygiene()], // 范式（三选一）+ 域（任意子集）
+}
+```
+
+```bash
+npx arch-guard                    # 全项目检查
+echo $?                           # 0 = 通过；1 = 有 error；2 = 请求无法满足（见 §6）
+```
+
+**包名与导入面**（`package.json` 的 `exports` 是权威）：
+
+| 导入                                                  | 是什么                                                                        |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `@arch-guard/core`                                    | 公共 API：`runGuard` / `loadConfig` / `createRule` / `coreRules` / code 常量… |
+| `@arch-guard/core/presets`                            | **宿主最常用的面**：范式和域预设、kit 工厂                                    |
+| `@arch-guard/core/presets/*`                          | 单个预设文件（按需精确引入）                                                  |
+| `@arch-guard/core/ui-kits/*` · `/packs/*` · `/data/*` | 适配器 kit / 框架包 / 纯数据表（自写适配器时用）                              |
+
+> **CLI 名与包名不是一个东西**：命令叫 `arch-guard`，包叫 `@arch-guard/core`。
+> 复制配置示例时最容易踩的就是这里 —— `from 'arch-guard/presets'` 解析不到。
+
+---
+
+## 1. `arch.config.mjs` 全字段
+
+```js
+export default {
+  specVersion: '1', // 配置格式版本：省略 = 用当前版本；写了与本工具不一致则**显式报错**，而不是猜
+  packs: [reactPack], // 框架包（一项目一个）：tsPack（TS/JS 家族）· reactPack（React）
+  presets: [...], // 预设：范式 + 域 + 方案面（见 §2）
+  overrides: {...}, // 项目差异只写这里（下表的每个键都是 `Config` 的逐键覆盖）
+}
+```
+
+### 1.1 `overrides` 常用字段
+
+| 字段                 | 类型                                 | 作用                                                                                                 |
+| -------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `include`            | `string[]`                           | **契约扫描域**（配置根相对 glob）。域外文件**不判目录契约，但仍会被解析、仍进依赖图**。空 = 全树参与 |
+| `ignore`             | `string[]`                           | **别碰**：不进文件集、不解析、不进依赖图（构建产物 / 示例 / 夹具 / 一次性 spike 用这个）             |
+| `addRoles`           | `RoleDescriptor[]`                   | 在范式角色表**之上追加**角色（项目自己的目录 / dev-only 形态靠它）                                   |
+| `roles`              | `RoleDescriptor[]`                   | **整体替换**范式角色表（自写范式才用；随手写会把自己范式的角色全删掉）                               |
+| `params`             | `Record<string, unknown>`            | 落点参数（`styleDir` / `i18nDir` / `paletteFile`…）。预设参数最终都并到这里                          |
+| `exceptions`         | `{ rule, glob, reason, expires? }[]` | **规则级例外**（唯一的宽松通道；见 §5）                                                              |
+| `aliases`            | `Record<string, string>`             | 别名映射（默认从 `tsconfig.json` 的 `paths` 读）                                                     |
+| `enable` · `disable` | `string[] \| 'all'`                  | 规则开关（`disable` 在 `enable` 求完之后再减）                                                       |
+| `thresholds`         | 对象                                 | 行数 / 导出数 / 组件数阈值（S16 / S19）                                                              |
+| `naming`             | 对象                                 | `hookPrefix` / `viewSuffix`（S12 / S13 的词汇）                                                      |
+| `structure`          | 对象                                 | 层序 / 组隔离 / 公开面声明（S21–S23、S32、S39–S43 的判据来源）                                       |
+| `entries`            | `string[]`                           | 额外入口（可达性分析用）                                                                             |
+
+### 1.2 三个通道别混（这是最容易配错的一处）
+
+| 你的意思               | 用哪个                               | 副作用                                                                     |
+| ---------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| 这片树**不属于契约**   | `include`（收窄）或 `ignore`（别碰） | `include` 域外仍进图；`ignore` 的连依赖图都不进                            |
+| **这条规则**对它不适用 | `exceptions`（必须写 `reason`）      | 文件照常有角色、进图、被**其它**规则判定，只摘掉指名的那条                 |
+| 暂时不想修             | **没有这个通道**                     | 没有基线、没有"记下来以后再说"（见 [`../PARADIGM.md`](../PARADIGM.md) §7） |
+
+---
+
+## 2. 预设清单（选什么 = 配什么）
+
+**范式三选一**；域预设任意子集叠加；方案面**一个面只能有一个方案**。
+
+### 2.1 范式（`canonical` / `library` / `fsd`）
+
+| 范式          | 用于                                    | 参数                                                                                                          |
+| ------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `canonical()` | 前端应用（`app/` `modules/` `shared/`） | `src` · `app` · `modules` · `shared` · `lazyViews`（页面必须动态 import → S37）                               |
+| `library()`   | 库 / CLI / 纯 TS 项目                   | `src` · `modules`（目录名→层号，**不传就只认入口**，其余报 S01）· `entry`（默认 `['index.ts']`）              |
+| `fsd()`       | Feature-Sliced Design                   | `slicedLayers` · `appLayer` · `sharedLayer` · `segments` · `sharedSegments` · `appSegments` · `slicesGrouped` |
+
+### 2.2 域预设（域名 = 预设名）
+
+| 预设                | 域  | 关键参数（完整字段见 §2.4）                                                                                                                                        |
+| ------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `designSystem({…})` | D   | `paletteFile` · `tokenDir` · `themeFile` · `styleDir` · `vendorDir` · `storageFile` · `staticPrefix` · `valueWhitelists` · `contrastPairs` · `themes` · `htmlKeys` |
+| `copy({…})`         | C   | `messageApis` · `messageProps`（C01 的"组件库调用里的文案"那一半）                                                                                                 |
+| `deps({…})`         | P   | `allow`（fail-closed 白名单 → P01）· `deny` · `capabilities`（能力→首选方案 → P06）· `unusedDeps`（P08，默认关）· `fingerprints`                                   |
+| `metrics({…})`      | M   | `coverage`（`report` / `perDirMin` / `zeroAllow` / `ratchet` / `baselineFile` / `mustCover` / `pathRewrite`）· `tests` · `depsBudget`                              |
+| `hygiene()`         | H   | 无参数（H06 / H07 / H08 / H09 / H12 / H13，按能力协商）                                                                                                            |
+
+### 2.3 方案面（可替换轴）
+
+每个面都是"**声明哪个方案 → 贡献哪些规则**"；不声明 = 那批规则**明列停用**（不是通过）。
+
+| 面       | 声明方式                                                    | 贡献的规则（以 `requires` 为准）                                               |
+| -------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 组件库   | `uiKit(antdKit() \| noneKit())`                             | `vendorSelectors`→D10/D10b · `detachedApis`→H06 · `icons`→P05 · `packages`→P11 |
+| i18n     | `i18n(i18nextKit({ languages }) \| noneI18nKit())`          | `resourceDir`→C01–C07                                                          |
+| 路由     | `router(reactRouterKit({ routeFiles }) \| noneRouterKit())` | `pathSource`→D23；`routeFiles` 还决定 S03/S04/S05/S14/S15 的入口词汇           |
+| 数据层   | `dataLayer(reactQueryKit({...}) \| noneDataLayerKit())`     | `queryKeyFrom`→D22 · `fetchIn`/`fetchApis`→S36                                 |
+| 样式     | `styles(cssModulesKit({...}) \| noneStylesKit())`           | `modulePatterns`→D16/D17                                                       |
+| 调用落点 | `callSites([{ name, apis, in }])`                           | S38（副作用 / 配置对象的落点）                                                 |
+| 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
+| 环境读取 | `envReads({ apis, in })`                                    | S44（`import.meta.env` / `process.env` 的落点）                                |
+
+kit 工厂与它们的参数：
+
+| kit                                         | 参数                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------- |
+| `antdKit()` · `noneKit()`                   | 无                                                                              |
+| `i18nextKit({…})` · `noneI18nKit()`         | `resourceDir` · `languages` · `fn`（默认 `t`）· `hook`（默认 `useTranslation`） |
+| `reactRouterKit({…})` · `noneRouterKit()`   | `routeFiles` · `pathSource` · `pathProps` · `navigateCalls`                     |
+| `reactQueryKit({…})` · `noneDataLayerKit()` | `queryKeyFrom` · `queryKeyProps` · `fetchIn` · `fetchApis`                      |
+| `cssModulesKit({…})` · `noneStylesKit()`    | `modulePatterns` · `examples`（自定义正则**必须**给样例）                       |
+
+### 2.4 组合糖 `stack()`
+
+`stack()` 不含任何硬编码：组件库 / i18n 方案 / 语言 / 白名单全部由你传，
+不传就是"声明空能力"（对应规则明列停用）。它返回**预设数组**，所以要展开：
+
+```js
+import { antdKit, i18nextKit, stack } from '@arch-guard/core/presets'
+
+presets: [
+  canonical(),
+  ...stack({
+    designSystem: { styleDir: 'src/shared/styles' },
+    deps: { allow: ['react', 'react-dom', 'antd', 'i18next', 'react-i18next'] },
+    uiKit: antdKit(), // 换库只改这一行；不用库写 noneKit()
+    i18n: i18nextKit({ languages: ['zh-CN', 'en'] }), // 换 i18n 只改这一行
+    metrics: { coverage: { report: 'coverage/coverage-summary.json' } }, // 给了才加
+  }),
+]
+```
+
+不用 `stack()` 就照它展开写：`designSystem(…) · copy() · deps(…) · hygiene() · i18n(kit) · uiKit(kit) · metrics(…)`。
+
+### 2.5 声明 → 规则（照 `requires` 排的权威表）
+
+| 声明                                       | 打开的规则            |
+| ------------------------------------------ | --------------------- |
+| `designSystem.paletteFile`                 | D01 · D02 · D03 · D21 |
+| `designSystem.tokenDir`                    | D01 · D21             |
+| `designSystem.staticPrefix`                | D02 · D18             |
+| `designSystem.themeFile`                   | D06 · D07             |
+| `designSystem.styleDir`                    | D12 · D13 · D14 · D16 |
+| `designSystem.vendorDir`                   | D09 · D10 · D10b      |
+| `designSystem.storageFile`                 | D08                   |
+| `i18n.resourceDir`                         | C01–C07               |
+| `router.pathSource`                        | D23                   |
+| `dataLayer.queryKeyFrom`                   | D22                   |
+| `dataLayer.fetchIn` · `fetchApis`          | S36                   |
+| `callSites.groups`                         | S38                   |
+| `analytics.apis` · `analytics.eventSource` | D24                   |
+| `envReads.apis` · `envReads.in`            | S44                   |
+| `uiKit.vendorSelectors`                    | D10 · D10b            |
+| `uiKit.detachedApis`                       | H06                   |
+| `uiKit.icons`                              | P05                   |
+| `uiKit.packages`                           | P11                   |
+| `metrics.coverage`                         | M02–M06               |
+| `metrics.tests`                            | M08                   |
+| `metrics.checkChain`                       | M09                   |
+| `structure.lazyViews`                      | S37                   |
+
+**没声明的能力 = 规则不跑，并在报告里明列**（`skipped[]` + `code: 'capability-missing'`）。
+"明列停用"是刻意的：安静地少跑一批规则，比多报更危险。
+
+---
+
+## 3. 命令参考
+
+```bash
+arch-guard [options]
+```
+
+| 选项                           | 作用                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `--config <path>`              | 配置文件路径（默认 `arch.config.mjs`）                                           |
+| `--scope <mode>`               | `full`（默认）· `changed` · `staged` · `since:<ref>`（见 §4）                    |
+| `--paths <globs>`              | 只报告匹配路径（逗号分隔）；**零匹配 = 退出码 2**                                |
+| `--domain <letters>`           | 只跑指定域：`S,D,C,P,H,M`                                                        |
+| `--only <ids>`                 | 只跑指定规则（逗号分隔）                                                         |
+| `--min-level <level>`          | 只跑判定等级不低于下限的规则：`L1`（路径级）· `L2`（单文件 AST）· `L3`（依赖图） |
+| `--severity <s>`               | 只报告 `error` 或 `warn`                                                         |
+| `--format <f>`                 | `pretty`（默认）· `json` · `github`（CI 注解）                                   |
+| `--stats`                      | 每条规则的耗时与命中数（排查"为什么这么慢"/"这条规则该不该留"）                  |
+| `--no-cache`                   | 不做 facts 持久缓存（每轮全量解析）                                              |
+| `--verify-deps`                | 只对账：适配表声明的包 vs `package.json` 实际依赖（不跑规则）                    |
+| `--explain <paths>`            | **写代码之前**问契约（角色 / 能依赖谁 / 该放哪 / 适用规则）；退出码恒 0          |
+| `--report-only`                | 只报告，不因 error 退出非零                                                      |
+| `--local-only`                 | `scope` 非全量时允许跳过不可归属的全局违规（会打印跳过条数）                     |
+| `--coverage-report <path>`     | 覆盖率产物路径（覆盖 metrics 适配器里的配置）                                    |
+| `--update-coverage`            | 刷新覆盖率棘轮快照（M04）；**与"豁免违规"无关**                                  |
+| `--render-docs`                | 把文档里的管理块按 `arch.config.mjs` 重写（见 §7）                               |
+| `--check-docs`                 | 只校验管理块：漂移即失败                                                         |
+| `--self-test`                  | 夹具回归（维护本体用）                                                           |
+| `--self-check-portability`     | 本体自包含 P1–P4（维护本体用）                                                   |
+| `-v, --version` · `-h, --help` | 版本 / 帮助                                                                      |
+
+### 3.1 常用组合
+
+```bash
+# CI（提交前 / PR）
+arch-guard --scope=full --format=github     # GitHub 注解
+arch-guard --scope=since:origin/main        # 只看这次 PR 动过的
+arch-guard --format=json > guard.json       # 给 bot / 插件消费
+
+# 本地
+arch-guard --scope=changed                  # agent 迭代：只报告变更（含未跟踪）
+arch-guard --scope=staged                   # pre-commit：读 index 内容，不读工作区
+arch-guard --domain=D --min-level=L2        # 只看设计系统，跳过纯路径规则
+arch-guard --explain src/modules/crews/views/CrewsList.tsx   # ★ 写之前先问
+
+# 排查
+arch-guard --stats                          # 哪条规则最贵 / 命中最多
+arch-guard --verify-deps                    # 适配表 vs package.json
+arch-guard --no-cache                       # 怀疑缓存时
+```
+
+---
+
+## 4. 检测范围（`--scope`）
+
+> **scope 只过滤报告，不过滤正确性。**语义的权威表述在 [`../PARADIGM.md`](../PARADIGM.md) §9。
+
+| 场景        | 命令                        | 说明                          |
+| ----------- | --------------------------- | ----------------------------- |
+| CI / 提交前 | `--scope=full`（默认）      | 全项目                        |
+| pre-commit  | `--scope=staged`            | 读 **index** 内容，不读工作区 |
+| agent 迭代  | `--scope=changed`           | 含未跟踪文件                  |
+| PR          | `--scope=since:origin/main` | 与某个 ref 的差异             |
+
+**安全语义**（这几条是不能省的）：
+
+- facts **按文件缓存**（增量），**图与全局谓词每轮全量重建** —— 所以不会出现 stale-cache 假绿；
+- **不可归属的全局违规默认仍然失败**（只有显式 `--local-only` 才允许跳过，且会打印跳过条数）；
+- 无 git / 空 diff / staged 失败都有明确提示（`scope-degraded-no-git` / `staged-fallback` 等 notice），**绝不静默降级**；
+- `include` 非空却 0 个文件 → 由 **S24** 直接报错。
+
+---
+
+## 5. 例外（唯一的宽松通道）
+
+> 语义权威在 [`../PARADIGM.md`](../PARADIGM.md) §7；这里只讲怎么写、什么时候写。
+
+```js
+overrides: {
+  exceptions: [
+    // 「这条规则对这类文件不适用」—— 不是「这个文件免检」
+    { rule: 'H08', glob: 'src/shared/config/**', reason: '地址唯一出处（本地兜底值）', expires: '2026-12-31' },
+  ],
+}
+```
+
+- `rule` 拼错 → **直接报错**（否则"例外没生效"是假绿）；`reason` 必填；`expires` 写了就**过期即红**；
+- 每次运行都会**点名**每条例外（命中几处 / 未命中），未命中的提示"可能可以删掉"；
+- 实现是**后置过滤**：文件照常有角色、进依赖图、被其它规则判定；
+- **没有内联豁免注释**（连 `eslint-disable` 本身都是红线 H02）。
+
+### 5.1 三个高频场景
+
+| 场景                                            | 怎么写                                                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 项目自己的目录（`src/features/**`）             | `addRoles: [{ id: 'module:views', pattern: '…', layer: 10, slot: 'views' }]`，**不是** `roles`                                                    |
+| dev-only 形态（Storybook 故事 / dev-only 模块） | `addRoles: [{ id: 'test', pattern: '**/*.stories.{ts,tsx}', layer: 99, exclusive: true }]` —— 这条"非生产"豁免被 H07/H08/H09/C01/S36/S38/S44 共用 |
+| 确实要留在代码里的本地地址兜底值                | 规则级 `exceptions`（首选仍是**地址进环境变量**，见 [`../PARADIGM.md`](../PARADIGM.md) §7.1）                                                     |
+
+> 别和**覆盖率棘轮**（M04）混淆：它比的是覆盖率快照（`--update-coverage` 维护），不豁免任何违规。
+
+---
+
+## 6. 退出码与 `ok`（两者故意不同）
+
+| 场景                             | 退出码                       |
+| -------------------------------- | ---------------------------- |
+| full / changed，有 error         | 非零（`1`）                  |
+| changed，仅全局 error（默认）    | 非零                         |
+| `--local-only` 且有全局 error    | 零（打印跳过条数）           |
+| `--report-only`                  | 零（仅警告）                 |
+| `--paths` **一个文件都没匹配上** | **2**（请求无法满足）        |
+| 配置错 / 未知等级 / 未知格式     | **2**                        |
+| 引擎 / 解析异常                  | **永远非零**                 |
+| `--explain`                      | 恒 `0`（这是查询，不是判决） |
+
+- **退出码回答"要不要拦"**；JSON 里的 **`ok` 回答"结论是不是通过"** —— 两者不一致是**设计**：
+  `ok` 的两条判据是"判过的东西没有 error"**且**"确实判了"（`paths === null` 或 `matched > 0`，且 `scopeFiles > 0`）。
+- 只读 stdout 的消费方以 `ok` 为准，别把两者对齐（对齐会产生 `ok: true` 与 `errors: 3` 并存）。
+
+---
+
+## 7. 读报告
+
+### 7.1 三种格式
+
+| `--format=` | 用途                                                                 |
+| ----------- | -------------------------------------------------------------------- |
+| `pretty`    | 人读（默认）：按域分组、给出修法提示、末尾摘要 + 停用规则 + 例外点名 |
+| `json`      | 机读契约：给 CI / PR bot / IDE 插件 / agent                          |
+| `github`    | GitHub Actions 注解（纯文本，**没有 code**；要判状态请用 `json`）    |
+
+### 7.2 JSON 顶层字段（19 个，被 `tests/report-contract.test.mjs` 冻结）
+
+`apiVersion` · `ok` · `scope` · `scopeFiles` · `contractScope` · `rulesEnabled` · `rulesTotal` ·
+`findings` · `errors` · `warnings` · `globalFindings` · `outsideContract` · `skipped` ·
+`skippedGlobals` · `filteredBySeverity` · `exceptions` · `paths` · `notices` · `durationMs`
+
+要点：
+
+- **`notices: [{ code, text }]`**：按 `code` 判，**文案不是契约**（随时可改）；`code` 清单在 `src/engine/codes.ts`，
+  经 `NOTICE_CODES` / `isNoticeCode` 导出。消费方三条纪律（断言 `apiVersion` · 未知 code 明说 · 已知 code 用穷举映射）
+  见 [`DESIGN.md`](./DESIGN.md) §6.9 与 `README.md` 的示例。
+- **机读 ⊇ 人读**：摘要行里的每个数字 JSON 里都有。
+- **`skipped[]`**：因能力未声明而停用的规则（`code: 'capability-missing'`，`reason` 里点名缺哪个能力）。
+- **`exceptions[]`**：每条例外的命中数（0 = 未命中，提示可以删）。
+- **`paths: { requested, matched }`**：`null` = 没问；`matched: 0` = 问了没命中（退出码 2 + `ok: false`）。
+
+### 7.3 `apiVersion` 变更分级
+
+| 级别           | 例子                                               | `apiVersion`  | 消费方会怎样                                 |
+| -------------- | -------------------------------------------------- | ------------- | -------------------------------------------- |
+| **破坏性**     | 删/改名 code、改字段含义、删顶层字段、改退出码语义 | **必须 bump** | 断言版本 → 直接拒绝运行                      |
+| **兼容性新增** | 新增 code、新增顶层字段                            | 不 bump       | 穷举映射的编译期就红；**CHANGELOG 单独标注** |
+
+当前 `apiVersion = 2`（v2 把 `ok` 语义收窄，属**破坏性**变更）。权威表述见 [`DESIGN.md`](./DESIGN.md) §6.9。
+
+---
+
+## 8. 接进项目（宿主侧清单）
+
+### 8.1 该装哪些工具（委派出去的覆盖责任）
+
+本体**不做**单文件语法卫生，那部分委派给 eslint；其余生态工具是**补充**（0.4.0 已把 D01/D02/D09/D12–D14/P03/P08 收回本体）：
+
+| 工具                       | 管什么                                                  | 必需？               |
+| -------------------------- | ------------------------------------------------------- | -------------------- |
+| eslint + typescript-eslint | H01–H05（`any` / 非空断言 / console / TODO / 空 catch） | **必需**（本体不做） |
+| stylelint                  | 颜色 / `!important` / 数值白名单的**补充**              | 可选                 |
+| dependency-cruiser         | 环 / 孤儿文件的**补充**（本体 S08 / S15 已判）          | 可选                 |
+| knip / depcheck            | 幽灵依赖 / 声明未用的**补充**（本体 P03 / P08 已判）    | 可选                 |
+
+> **委派 ≠ 有人在管**：宿主没装、没配、没跑，那一类就是零覆盖。逐条评估见
+> [`DELEGATION-REVIEW.md`](./DELEGATION-REVIEW.md)。
+
+### 8.2 scripts 与门禁链路
+
+```json
+{
+  "scripts": {
+    "guard": "arch-guard",
+    "guard:changed": "arch-guard --scope=changed",
+    "guard:docs": "arch-guard --check-docs",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm coverage && pnpm guard && pnpm guard:docs"
+  }
+}
+```
+
+把 `guard` 放进你已有的 `check` 链路（跟 lint / test 并列），而不是另开一个没人跑的命令。
+用 `metrics({ tests: { checkChain: { script: 'check', require: ['test', 'coverage'] } } })` 让 **M09** 盯着
+"test / coverage 有没有被从 check 里摘掉" —— 这类漏跑只有门禁自己能查。
+
+### 8.3 CI（GitHub Actions 示例）
+
+```yaml
+- run: pnpm install --frozen-lockfile
+- run: pnpm check
+- run: npx arch-guard --scope=since:origin/main --format=github
+```
+
+### 8.4 让文档与配置同一份真相
+
+`arch.config.mjs` 是唯一机读真相，但文档里的角色表 / 阈值 / 选型表是**手抄**的 —— 用管理块消掉这层手抄：
+
+```md
+<!-- arch-guard:begin roles -->
+
+（本节由 `arch-guard --render-docs` 生成，别手改）
+<!-- arch-guard:end roles -->
+```
+
+```bash
+arch-guard --render-docs    # 按配置重写块内容
+arch-guard --check-docs     # 只校验：不一致即红
+```
+
+可用块名：`deps` · `thresholds` · `layout` · `structure` · `scan-scope` · `roles` · `params` · `exceptions`。
+**块名拼错直接报错**（否则"文档已同步"是假象）。宿主架构说明的起手模板见
+[`templates/ARCHITECTURE.md.template`](./templates/ARCHITECTURE.md.template)。
+
+### 8.5 缓存与速度
+
+- 解析（把每个文件拆成事实）是唯一昂贵的一步，结果**按文件缓存**：
+  键 = `rel + role + 文件内容哈希`，整份缓存的键 = 事实模型版本 + TypeScript 版本 —— 内容或角色一变就重算，
+  **不会读到旧结果**；图与全局谓词每轮全量重建。
+- 位置跟 Vite 一样：有 `node_modules` 就写 `node_modules/.arch-guard-cache/facts.json.gz`，
+  否则退回项目根 `.arch-guard-cache/`；每次运行打印命中数与路径；`--no-cache` 可关。
+- 实测（3043 个 ts 文件 / 21.5 万行）：冷跑 5.9s → 热跑 **1.2s**。
+
+---
+
+## 9. 常见任务
+
+| 任务                             | 怎么做                                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档 |
+| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                             |
+| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                            |
+| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                        |
+| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                 |
+| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                    |
+| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)                |
+| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                     |
+
+---
+
+## 10. 排查（症状 → 原因 → 怎么办）
+
+| 症状                                      | 多半是                                                                                          | 怎么办                                                                             |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 报告一片绿，但明显有问题                  | `include` 把它划出契约域 / `ignore` 吃掉 / 角色未命中                                           | 看摘要里的 `outsideContract` 与 `scan-empty` / `scan-scope-outside` notice         |
+| 明明违规却没报                            | ① 能力未声明（规则**停用**）② `--min-level` / `--paths` / `--severity` 过滤 ③ 命中 `exceptions` | 看 `skipped[]`（`capability-missing`）· `filteredBySeverity` · `exceptions[]` 命中 |
+| 报了"文件不在目录契约内"（S01）           | 目录没进角色表（新目录 / dev-only 形态）                                                        | `addRoles`（追加）；`--explain <路径>` 会告诉你该放哪                              |
+| 退出码 0 但有 error                       | 用了 `--report-only`（或 `--local-only` 跳过全局违规）                                          | 看 `ok`：它才是"结论是否通过"                                                      |
+| 退出码 2                                  | `--paths` 零匹配 / 配置错 / 未知等级或格式                                                      | 看 `notices[].code === 'paths-no-match'` 与 `paths.matched`                        |
+| 例外写了却"未命中（可能可以删掉）"        | `glob` 没匹配到文件，或那条规则本来就没在这些文件上报                                           | 收紧/删掉它 —— 未命中的例外会被点名                                                |
+| 变慢                                      | 冷缓存（解析是唯一昂贵的一步）                                                                  | 第二次跑看命中数；`--stats` 找最贵的规则                                           |
+| 怀疑缓存读到旧结果                        | 不该发生（键含内容哈希 + 事实版本 + TS 版本）                                                   | `--no-cache` 复现一次；仍不一致请当 bug 报                                         |
+| `Cannot find module 'arch-guard/presets'` | 包名写成 CLI 名了                                                                               | 用 `@arch-guard/core/presets`（§0）                                                |
+| 装 `typescript@7` 报错                    | v7 是原生重写，JS 侧不再暴露编译期 API                                                          | 用 TS 5.4 – 6.x                                                                    |
+| `--check-docs` 失败                       | 文档里的管理块与 `arch.config.mjs` 漂移，或块名拼错                                             | `--render-docs` 重写；块名清单见 §8.4                                              |
+
+---
+
+## 11. 谁来回答什么（别在两处找同一个答案）
+
+| 问题                                                 | 去哪                                       |
+| ---------------------------------------------------- | ------------------------------------------ |
+| 这个字段什么意思 / 这个选项怎么用                    | **本文**                                   |
+| JSON 里这个 code 什么意思、能不能改、改了要不要 bump | [`DESIGN.md`](./DESIGN.md) §6.9            |
+| 这条规则的判据、等级、为什么是这个等级               | [`DESIGN.md`](./DESIGN.md) §5              |
+| 目录该怎么摆、角色 / 组 / 落点怎么定                 | [`../PARADIGM.md`](../PARADIGM.md)         |
+| 某个词是什么意思（角色 / 组 / 方案面 / 唯一出处）    | [`../CONTEXT.md`](../CONTEXT.md)           |
+| 这个痛点有没有被覆盖、谁在做                         | [`../REQUIREMENTS.md`](../REQUIREMENTS.md) |
+| 本体内部怎么实现、哪些边界不能破                     | [`ARCHITECTURE.md`](./ARCHITECTURE.md)     |
+| 每个版本实际改了什么                                 | [`../CHANGELOG.md`](../CHANGELOG.md)       |

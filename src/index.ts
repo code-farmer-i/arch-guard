@@ -1,10 +1,11 @@
 /**
  * arch-guard 公共 API。
  *
+ * 包名是 `@arch-guard/core`（命令名才是 `arch-guard`）：
  * 宿主项目（写 arch.config.mjs）：
- *   import { canonical, designSystem, hygiene, uiKit, antdKit } from 'arch-guard/presets'
+ *   import { canonical, designSystem, hygiene, uiKit, antdKit } from '@arch-guard/core/presets'
  * 程序化用法（CI / 工具集成）：
- *   import { runGuard } from 'arch-guard'
+ *   import { runGuard } from '@arch-guard/core'
  */
 
 export type * from './engine/types.js'

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, normalize } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
@@ -209,6 +209,66 @@ test('流程：DESIGN 写成单一等级的规则，判定等级必须与注册�
     .map((rule) => `${rule.id}: 代码 ${rule.level} ≠ DESIGN ${docLevels.get(rule.id)}`)
   assert.ok(docLevels.size >= 80, `只解析到 ${docLevels.size} 行等级，DESIGN 的表格格式变了？`)
   assert.deepEqual(mismatches, [])
+})
+
+test('流程：用法文档里的包名必须等于 package.json 的 name（CLI 名 ≠ 包名）', () => {
+  // 真实踩过：README 与配置示例写着 `from 'arch-guard/presets'` / `pnpm add -D arch-guard`，
+  // 而包名是 `@arch-guard/core`（`arch-guard` 只是 bin 名）—— 照着抄的人第一步就解析不到模块。
+  // 用法文档是"唯一来源"，它写错等于没有用法文档。
+  const pkgName = JSON.parse(read('package.json')).name
+  const problems = []
+  let checked = 0
+
+  for (const file of ['README.md', 'docs/USAGE.md']) {
+    for (const line of read(file).split('\n')) {
+      // 安装命令：只看命令本身（`#` 后面是注释，可以提 CLI 名）
+      const command = line.split('#')[0]
+      if (/(?:pnpm add|npm i|npm install|yarn add)/.test(command)) {
+        for (const token of command.match(/@?arch-guard[\w/.-]*/g) ?? []) {
+          checked += 1
+          if (token !== pkgName) problems.push(`${file}: 安装命令里的包名 '${token}' ≠ ${pkgName}`)
+        }
+      }
+      // import 语句：裸 `arch-guard/...` 解析不到（只查真 import，放行文档里"这是错的"这类引用）
+      for (const match of line.matchAll(/import[^\n]*from\s+'([^']+)'/g)) {
+        if (!match[1].startsWith('arch-guard')) continue
+        checked += 1
+        problems.push(`${file}: import '${match[1]}' ≠ ${pkgName}/…`)
+      }
+      if (line.includes(`from '${pkgName}`)) checked += 1
+    }
+  }
+
+  assert.ok(checked >= 4, `只校验了 ${checked} 处包名引用，用法文档的示例形态变了？`)
+  assert.deepEqual(problems, [])
+})
+
+test('流程：README 与 USAGE 里的相对链接必须真的能打开（文档地图不许指空气）', () => {
+  // 真实踩过：文档地图指向 `docs/templates/ARCHITECTURE.md`，而磁盘上的文件叫 `ARCHITECTURE.md.template`。
+  // 用法文档是"唯一来源"，链接断了就等于把人引到墙上；围栏代码块里的示例链接不算。
+  const problems = []
+  let checked = 0
+
+  for (const file of ['README.md', 'docs/USAGE.md']) {
+    let fence = null
+    for (const [index, line] of read(file).split('\n').entries()) {
+      const marker = /^\s*(```+|~~~+)/.exec(line)
+      if (marker) {
+        fence = fence === null ? marker[1][0] : fence === marker[1][0] ? null : fence
+        continue
+      }
+      if (fence !== null) continue
+      for (const match of line.matchAll(/\]\((\.\.?\/[^)#\s]*)(?:#[^)]*)?\)/g)) {
+        checked += 1
+        if (!existsSync(normalize(join(ROOT, dirname(file), match[1])))) {
+          problems.push(`${file}:${index + 1} 链接打不开：${match[1]}`)
+        }
+      }
+    }
+  }
+
+  assert.ok(checked >= 10, `只校验了 ${checked} 个相对链接，解析逻辑变了？`)
+  assert.deepEqual(problems, [])
 })
 
 function requirementIdsFrom(text, status) {

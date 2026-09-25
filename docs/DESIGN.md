@@ -641,7 +641,7 @@ import {
   uiKit,
   antdKit,
   reactPack,
-} from 'arch-guard/presets' // 子路径导出：presets / packs/* / data/*
+} from '@arch-guard/core/presets' // 子路径导出：presets / packs/* / data/* / ui-kits/*
 
 export default {
   packs: [reactPack], // 框架包（一个项目一个）：规则集由它给；CLI 不再硬编码规则数组
@@ -1142,4 +1142,4 @@ P09 并入 P06、P10 是 P01 的 fail-closed 表述，都不另立规则；剩�
 - 2026-09-23 补充 §6.1.1 解析后端选型：确定 TS Compiler API parser-only（零新增依赖）；**规则只消费归一化事实模型（facts），不直接消费 TS AST** —— 换 parser 只重写 pack 的 parse/事实提取层，规则不动；Vue/Svelte pack 用各自框架自带的编译器，保持零新增依赖。同时记录 fail-closed 所需的语法诊断只能走 `transpileModule` 或非公开字段，必须由 fixtures 锁住行为。
 - 2026-09-23 补充 §6.8 检测范围（scope）：确立 **scope 只过滤报告、不过滤正确性** —— facts 按文件缓存（增量），图与全局谓词每轮全量重建（防 stale-cache 假绿）；支持 `full/changed/staged/since` + 路径/域/规则/等级/严重度/格式筛选；不可归属的全局违规默认仍然失败，禁止静默降级与静默丢弃；pre-commit 跑 index blob；CI 必须 full。据此把 R7 从"缺口"改为"已设计"。
 - 2026-09-23 补充 §15 门禁本体的归属与抽取：本体收进 `tools/arch-guard/` 单目录（含自带 `package.json`、唯一导入面 `index.mjs`、通用范式 `PARADIGM.md`），项目只留 `arch.config.mjs` / `arch.baseline.json` / `ARCHITECTURE.md`；确立本体自包含三条可机检不变式 P1–P3（只依赖 `node:*`+`typescript`+本体相对路径、无项目字面量、项目事实只经 `--config`）；抽取时只改 config 一行 import，不引入 workspace。`scripts/arch-baseline.json` → `arch.baseline.json`，范式文档 → `tools/arch-guard/PARADIGM.md`。
-  **（已过时，勿照做）** 本体后来独立成 `@arch-guard/core` 并以 npm 包发布：源码在 `src/`（TS，构建产物 `es/`），导入面是包名 `arch-guard/presets`，不再是单目录复制。现行口径见 §6.2 与本文件开头。
+  **（已过时，勿照做）** 本体后来独立成 `@arch-guard/core` 并以 npm 包发布：源码在 `src/`（TS，构建产物 `es/`），导入面是包名 `@arch-guard/core/presets`（命令名才是 `arch-guard`），不再是单目录复制。现行口径见 §6.2 与本文件开头。

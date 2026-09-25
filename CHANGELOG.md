@@ -17,6 +17,19 @@
 
 ## [Unreleased]
 
+### Added（用法唯一来源：`docs/USAGE.md`）
+
+- 新增 [`docs/USAGE.md`](./docs/USAGE.md) 作为**使用说明唯一来源**（`README.md` 的文档地图登记归属）：
+  安装与导入面 · `arch.config.mjs` 全字段（含 `include` / `ignore` / `exceptions` / `addRoles` 三个通道的区别）·
+  预设清单与参数（范式 / 域 / 方案面 / kit 工厂）· **「声明 → 打开哪条规则」权威表**（照 `requires` 排）·
+  命令参考与常用组合 · 退出码与 `ok` 的分工 · JSON 报告怎么消费 · scope 安全语义 · 缓存与速度 ·
+  接进 CI 与 pre-commit · 常见任务 · 症状→原因→怎么办的排查表 · 文档分工。
+- `README.md` 里重复的操作细节收进 USAGE，只留最短可用的一份 + 指针（「同一件事只有一处」）。
+- **顺手修掉一个真会让人踩空的错**：包名是 `@arch-guard/core`（`arch-guard` 只是 bin 名），
+  而 `README.md` / `docs/DESIGN.md` / `src/index.ts` 的示例写的是 `arch-guard/presets` ——
+  照抄的人第一步就 `Cannot find module`；现已统一，并加元门禁：
+  **用法文档里的包名必须等于 `package.json` 的 `name`**（故意改错 → 变红 → 字节级还原验证过）。
+
 ### Fixed（0.4.0「收回本体」那一批的收尾：等级与口径）
 
 - **8 条规则的判定等级写错，已改对**：`H08`（硬编码本机 / 内网地址）· `D01` · `D02` · `D09` · `D12` · `D13` · `D14` · `D18` ——

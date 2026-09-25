@@ -2,7 +2,7 @@
 
 把架构约束写成**可判定不变量**的编码门禁：本体是通用引擎 + 数据表，宿主项目只提供一张配置表。
 
-需求 `REQUIREMENTS.md`（**唯一来源**）｜架构 `docs/ARCHITECTURE.md`（本体自身）｜规范 `PARADIGM.md`（宿主）｜设计 `docs/DESIGN.md`｜词汇 `CONTEXT.md`｜决策 `docs/adr/`
+需求 `REQUIREMENTS.md`（**唯一来源**）｜用法 `docs/USAGE.md`（**使用说明唯一来源**）｜架构 `docs/ARCHITECTURE.md`（本体自身）｜规范 `PARADIGM.md`（宿主）｜设计 `docs/DESIGN.md`｜词汇 `CONTEXT.md`｜决策 `docs/adr/`
 
 ## 改代码前
 
