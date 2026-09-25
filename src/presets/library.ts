@@ -100,7 +100,6 @@ export function library(options: LibraryOptions = {}): Preset {
       'S30',
       'S31',
       'S32',
-      'S33',
       'S34',
       'S35',
       'P01',

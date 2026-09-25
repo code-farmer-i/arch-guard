@@ -4,8 +4,9 @@
  * - S11 barrel 再导出（`export *` 把真实依赖藏起来）
  * - S13 lib 槽位禁止 default 导出
  * - S15 孤儿文件（合成夹具里没有入口引用它）
- * - S33 悬空说明符（`./helpers.internal` 不存在）—— **故意留的**，别"顺手修好"：
- *   barrel 把真实依赖藏起来时，指向不存在的文件在图上就是无边
+ *
+ * `export *` 指向一个不存在的文件：悬空说明符本身**不再报**（S33 已移除，交 eslint
+ * `import/no-unresolved`）—— 保留它是为了让 S11 的 barrel 形态成立。
  *
  * 曾因 `.gitignore` 的裸 `lib/` 规则被吞掉而从未进过 git —— 干净克隆下门禁必红。
  */

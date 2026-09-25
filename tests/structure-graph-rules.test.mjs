@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { coreRules } from '../es/index.js'
 
-/** 只填 S08 / S33 会读的字段 */
+/** 只填 S08 会读的字段（`unresolved` 等仍保留，镜像真实图形状） */
 function context({ records, cycles = [], unresolved = {}, imports = {}, files }) {
   const facts = new Map(
     Object.entries(imports).map(([rel, list]) => [
@@ -118,35 +118,6 @@ test('S08：长环的路径被截断（报文不能无限长）', () => {
   assert.equal(findings.length, 1)
   assert.match(findings[0].text, /…/)
   assert.match(findings[0].text, /共 9 个文件/)
-})
-
-test('S33：报出解析不到的说明符（含行号），去重且有序；没有事实时退化到第 1 行', () => {
-  const records = [record('src/engine/a.ts'), record('src/engine/b.ts')]
-  const findings = run(
-    'S33',
-    context({
-      records,
-      unresolved: {
-        'src/engine/a.ts': ['./missing', './another', './missing'],
-        'src/engine/b.ts': ['@/gone'],
-      },
-      imports: {
-        'src/engine/a.ts': [
-          ['./another', 7],
-          ['./missing', 3],
-        ],
-        // b.ts 故意不给 facts：行号要退化成 1，而不是崩
-      },
-    }),
-  )
-  assert.deepEqual(
-    findings.map((finding) => `${finding.file}:${finding.line} ${finding.text}`),
-    [
-      'src/engine/a.ts:7 导入解析不到：./another（路径写错 / 文件被删 / 别名没配）',
-      'src/engine/a.ts:3 导入解析不到：./missing（路径写错 / 文件被删 / 别名没配）',
-      'src/engine/b.ts:1 导入解析不到：@/gone（路径写错 / 文件被删 / 别名没配）',
-    ],
-  )
 })
 
 test('S34：入度与出度各按声明判，同一条记录可以两条都报；没声明就完全不参与', () => {

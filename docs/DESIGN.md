@@ -90,23 +90,24 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 判定标准：**纯语法/纯图属性、且不需要项目专有数据的约束，一律委派**；只有需要「角色表 / 适配器 /
 能力表」这类项目数据的约束才由本工具实现。
 
-| 已委派的约束                                                   | 原规则      | 交给谁                                                                                                                        |
-| -------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `any` / 非空断言 / ts 注释逃生舱                               | H01         | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                             |
-| console / debugger / alert                                     | H03         | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                      |
-| 未完成标记（TODO 等）                                          | H04         | `no-warning-comments`                                                                                                         |
-| 空 catch / 空块                                                | H05         | `no-empty`                                                                                                                    |
-| 假异步、`Math.random`、硬编码地址、假数据字面量                | H07–H09     | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                    |
-| 抑制注释（`eslint-disable` / `oxlint-disable` / `@ts-ignore`） | H02         | **未实现、也委派不出去**：eslint 默认不禁止 disable 注释（要装 `eslint-comments` 之类插件）。见 REQUIREMENTS `R-70`           |
-| 文件行数 / 函数行数                                            | S16         | `max-lines` · `max-lines-per-function`                                                                                        |
-| 相对越级 `../`                                                 | S10         | `no-restricted-imports`                                                                                                       |
-| 依赖环                                                         | S08         | `import/no-cycle` · dependency-cruiser `no-circular`                                                                          |
-| 孤儿文件                                                       | S15（部分） | dependency-cruiser `no-orphans`                                                                                               |
-| 幽灵依赖 / 声明但未使用                                        | P03 · P08   | `knip` · `depcheck`                                                                                                           |
-| 颜色字面量只在色板                                             | D01         | stylelint `color-no-hex` + `overrides`                                                                                        |
-| `!important`                                                   | D09         | stylelint `declaration-no-important`                                                                                          |
-| 长度 / z-index / 时长白名单                                    | D12–D14     | stylelint `declaration-property-value-allowed-list`                                                                           |
-| JSX 裸文案                                                     | C01         | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
+| 已委派的约束                                                   | 原规则            | 交给谁                                                                                                                        |
+| -------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `any` / 非空断言 / ts 注释逃生舱                               | H01               | `@typescript-eslint/no-explicit-any` · `no-non-null-assertion` · `ban-ts-comment`                                             |
+| console / debugger / alert                                     | H03               | `no-console` · `no-debugger` · `no-alert`（oxlint 内置）                                                                      |
+| 未完成标记（TODO 等）                                          | H04               | `no-warning-comments`                                                                                                         |
+| 空 catch / 空块                                                | H05               | `no-empty`                                                                                                                    |
+| 假异步、`Math.random`、硬编码地址、假数据字面量                | H07–H09           | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                    |
+| 抑制注释（`eslint-disable` / `oxlint-disable` / `@ts-ignore`） | H02               | **未实现、也委派不出去**：eslint 默认不禁止 disable 注释（要装 `eslint-comments` 之类插件）。见 REQUIREMENTS `R-70`           |
+| 文件行数 / 函数行数                                            | S16               | `max-lines` · `max-lines-per-function`                                                                                        |
+| 相对越级 `../`                                                 | S10               | `no-restricted-imports`                                                                                                       |
+| 依赖环                                                         | S08               | `import/no-cycle` · dependency-cruiser `no-circular`                                                                          |
+| 导入路径解析不到                                               | S33（**已移除**） | `import/no-unresolved`（见 §5 的说明：本体原先自己实现，0.4.0 交回生态）                                                      |     |
+| 孤儿文件                                                       | S15（部分）       | dependency-cruiser `no-orphans`                                                                                               |
+| 幽灵依赖 / 声明但未使用                                        | P03 · P08         | `knip` · `depcheck`                                                                                                           |
+| 颜色字面量只在色板                                             | D01               | stylelint `color-no-hex` + `overrides`                                                                                        |
+| `!important`                                                   | D09               | stylelint `declaration-no-important`                                                                                          |
+| 长度 / z-index / 时长白名单                                    | D12–D14           | stylelint `declaration-property-value-allowed-list`                                                                           |
+| JSX 裸文案                                                     | C01               | `eslint-plugin-i18next` 的 `no-literal-string`（实测该插件**只有这一条规则**：不做键存在性与未使用键，所以 C02 / C06 留本体） |
 
 **代价（必须知道）**：委派之后，**宿主没有对应工具就等于失去这层覆盖**。所以接入清单里要一起做：
 装 eslint（含 typescript-eslint）、stylelint、knip，并在 `pnpm lint` 链路里跑起来。
@@ -117,12 +118,13 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 75 条**（以 `arch-guard --stats` / `coreRules` 为准）：
-> `S00–S06`、`S08`、`S09`、`S11–S38`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`H12`、`P01`、`P02`、`P04–P07`、`P11`、`P12`、`M02–M09`。
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 74 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S38`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`H12`、`P01`、`P02`、`P04–P07`、`P11`、`P12`、`M02–M09`。
 > `S10`（相对越级）、`P03`（幽灵依赖）、`P08`（死依赖）等已按 §4.9 **委派**给
 > eslint / dependency-cruiser / knip，不在本体实现；`H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。
-> **依赖环（S08）与未解析导入（S33）已收回本体**：`graph.cycles` / `graph.unresolved` 本来就算好了，
-> 委派出去只会让不装 dc / eslint 的宿主失去覆盖（S33 上线当天就抓到我们自己的两处坏路径）。
+> **依赖环（S08）留在本体**：`graph.cycles` 本来就算好了，委派出去只会让不装 dc 的宿主失去覆盖。
+> **未解析导入（S33）已移除**（0.4.0）：`import/no-unresolved` 是更成熟的等价物、宿主本来就有 eslint，
+> 而"路径写错"本质是编辑器与编译器就能说的错，不该占目录契约的一条红线（引擎事实 `graph.unresolved` 保留，图要用）。
 
 ### 5.1 结构与边界（S）
 
@@ -160,7 +162,6 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | S30 | **组名里的重复词**：同一桶内 > 2 个组名都含同一个词（`crews-page` / `order-page` / `user-page`）                                                                                                                            | 路径             | L1    | error                 |
 | S31 | **组名单复数一致性**：同一层内单数与复数混用；词形判据来自 `src/data/plural-forms.ts`（pluralize），机械可判定                                                                                                              | 路径 + 数据表    | L1    | error                 |
 | S32 | **导入局部性**：同组内必须相对导入、跨组必须非相对（`structure.importLocality` 声明了才判，与社区 linter 一样默认关）                                                                                                       | import 前缀 + 图 | L2    | error                 |
-| S33 | **导入必须解析得到**：契约内的相对 / 别名说明符解析不到即报（`graph.unresolved`）。解析不到的边在图上不存在，等于给「写错路径」开后门                                                                                       | 解析 + 图        | L3    | error                 |
 | S34 | **文件级入/出度上限**：命中声明角色的文件，项目内入度 / 出度超过 `structure.degreeLimits` 即报（组粒度看不见的「神模块 / 改一处动全身」）                                                                                   | 解析 + 图        | L3    | error                 |
 | S35 | **组必须有片段**：只有公开面入口、没有任何非入口文件的组是空壳（`structure.segmentedGroups` 声明了才判）。**编号说明**：S24 是「契约扫描域不得为空」，本规则排在其后                                                        | 路径 + 角色      | L3    | error                 |
 | S36 | **取数只在声明的落点**：`useQuery` / `fetch` 这类取数调用只许出现在 `dataLayer({ fetchIn })` 声明的目录里（页面里直接取数、域里直连后端都报；测试文件豁免）                                                                 | 调用 + glob 落点 | L2    | error（声明落点才判） |

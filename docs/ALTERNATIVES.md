@@ -91,7 +91,7 @@ forbidden: [
 | H（2）   | 全覆盖       | —（H12 退路不留属路径规则，生态无等价）                                                      |
 | **合计** | **≈30 / 75** | 45 条（0.4.0 新增的基本都落在空缺这一列）                                                    |
 
-> **这张表是 0.3.x 的快照**（当时 53 条规则，逐条核对过）；域名后的数字已更新到今天的 75 条，
+> **这张表是 0.3.x 的快照**（当时 53 条规则，逐条核对过）；域名后的数字已更新到今天的 74 条，
 > 「组合覆盖 ≈N」仍是当年逐条核对的结论 —— 0.4.0 新增的规则归在哪一类，见 `ECOSYSTEM-AUDIT.md` 的修订段。
 
 **一笔隐形成本**：角色表要在 dependency-cruiser / boundaries / project-structure **各写一遍**（= 把契约抄三份）。
@@ -477,8 +477,8 @@ export default {
 ## 5. dependency-cruiser vs steiger
 
 > **2026-09-24 更新**：dependency-cruiser 三件"我们原来没有"的图能力已收回本体 ——
-> **依赖环 → S08**（`graph.cycles`）、**未解析导入 → S33**（`graph.unresolved`，fail-closed）、
-> **文件级入/出度阈值 → S34**（`structure.degreeLimits`）。
+> **依赖环 → S08**（`graph.cycles`）、**文件级入/出度阈值 → S34**（`structure.degreeLimits`）。
+> （**未解析导入原先也收回了本体（S33），0.4.0 又交回生态**：`import/no-unresolved` 更成熟，见 DESIGN §4.9。）
 > 仍留给它的只剩**依赖图可视化**（`--format dot`）：那是"看"的工具，门禁是"判"的工具。
 
 |          | dependency-cruiser                                                                                                                                                        | steiger                                                                    |

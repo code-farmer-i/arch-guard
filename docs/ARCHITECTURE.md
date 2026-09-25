@@ -35,15 +35,15 @@ cli.ts            解析参数 → 载配置 → 编排（--stats / scope / 过�
 
 每个阶段一条不变量：
 
-| 阶段       | 唯一真相 / 纪律                                                                                 | fail-closed 点                                                      |
-| ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `scan`     | 角色表（来自范式预设）决定"这个文件是什么"；三层"别碰"（宿主 ignore / .gitignore / 产物目录表） | 未命中任何角色 → `missing`（S01 报）；角色歧义 → `ambiguous`        |
-| `collect`  | **事实模型是 parser ↔ 规则之间唯一的契约**（规则不碰 AST）                                      | 解析失败 → `parseErrors` → S00 直接报（该文件失去全部检查）         |
-| `graph`    | 边只来自**解析成功**的 import；解析不到的边不存在                                               | 解析不到的说明符 → `unresolved`（S33 报）                           |
-| `registry` | 规则是否注册只由**能力**决定（适配器声明了什么）                                                | 缺能力 → 不注册 + `skipped`（报告里逐条明列，不静默通过）           |
-| `rules`    | 纯函数：无 IO、无状态、不读原始文本（除 `sourceOf` 取行文本做锚点）                             | 规则抛异常 → 记为该规则失败，**绝不静默通过**                       |
-| `filters`  | 过滤只影响报告，不改变判定结论                                                                  | 被过滤的必须进 `notices`（`paths-no-match` / `severity-filtered`…） |
-| `report`   | 报告是**对外契约**（`apiVersion` / code 清单 / 退出码语义）                                     | 契约变更必须 bump 或在 CHANGELOG 标注（DESIGN §6.9）                |
+| 阶段       | 唯一真相 / 纪律                                                                                 | fail-closed 点                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `scan`     | 角色表（来自范式预设）决定"这个文件是什么"；三层"别碰"（宿主 ignore / .gitignore / 产物目录表） | 未命中任何角色 → `missing`（S01 报）；角色歧义 → `ambiguous`                            |
+| `collect`  | **事实模型是 parser ↔ 规则之间唯一的契约**（规则不碰 AST）                                      | 解析失败 → `parseErrors` → S00 直接报（该文件失去全部检查）                             |
+| `graph`    | 边只来自**解析成功**的 import；解析不到的边不存在                                               | 解析不到的说明符 → `unresolved`（引擎事实；门禁不报，交 eslint `import/no-unresolved`） |
+| `registry` | 规则是否注册只由**能力**决定（适配器声明了什么）                                                | 缺能力 → 不注册 + `skipped`（报告里逐条明列，不静默通过）                               |
+| `rules`    | 纯函数：无 IO、无状态、不读原始文本（除 `sourceOf` 取行文本做锚点）                             | 规则抛异常 → 记为该规则失败，**绝不静默通过**                                           |
+| `filters`  | 过滤只影响报告，不改变判定结论                                                                  | 被过滤的必须进 `notices`（`paths-no-match` / `severity-filtered`…）                     |
+| `report`   | 报告是**对外契约**（`apiVersion` / code 清单 / 退出码语义）                                     | 契约变更必须 bump 或在 CHANGELOG 标注（DESIGN §6.9）                                    |
 
 ## 3. 模块职责（唯一来源）
 
@@ -81,7 +81,7 @@ src/
   packs/        框架包 = **源码形态**的落地（一个项目一个）
     core/           共享规则实现（框架无关）
       index.ts        组装 coreRules（今天 tsPack / reactPack 共用同一份）
-      rules/          75 条规则的实现：structure / structure-graph / structure-declared /
+      rules/          74 条规则的实现：structure / structure-graph / structure-declared /
                       structure-groups / structure-locality / structure-routes / structure-scan /
                       structure-call-sites / structure-util / placement / face-forms /
                       design-tokens / design-vendor / design-styles / design-sources / design-shared /
@@ -95,7 +95,7 @@ src/
                 solution-alternatives（同类方案）· framework-sources（源码形态扩展名）·
                 face-forms（方案面形态词汇）· retired-names（退路标记）· plural-forms（词形）·
                 icon-packages · build-output-dirs（产物目录兜底跳过名单）
-__fixtures__/   54 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
+__fixtures__/   53 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
 examples/minimal/  干净的宿主示例（可搬运性验证）
 arch.config.mjs    门禁自己的配置（库范式 + 依赖选型 + 度量）
 ```

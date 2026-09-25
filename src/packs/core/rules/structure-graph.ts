@@ -356,44 +356,6 @@ export const noCycles: Rule = {
   },
 }
 
-/* ---------------- S33 导入必须解析得到 ---------------- */
-
-/**
- * 判据：契约内文件的相对 / 别名说明符**解析不到**（`graph.unresolved`）。
- *
- * 为什么必须有这条：解析不到的边在图上**不存在**，于是所有图规则都看不见它 ——
- * 把跨层违规写成 `../dash/ui/Dash`（少一层 `..`）是零成本的绕过口子。
- * 只判契约内的文件：`include` 之外（构建配置、脚本）写错路径不归目录契约管。
- */
-export const unresolvedImports: Rule = {
-  id: 'S33',
-  domain: 'structure',
-  level: 'L3',
-  severity: 'error',
-  title: '导入必须解析得到',
-  hint: '项目内的相对 / 别名路径必须指向真实文件：写错路径会让这条依赖在图上消失，门禁看不见它',
-  run: (ctx) => {
-    const out: Finding[] = []
-    for (const record of ctx.records) {
-      const specs = ctx.graph.unresolved.get(record.rel)
-      if (!specs || specs.length === 0) continue
-      const imports = ctx.facts.get(record.rel)?.imports ?? []
-      for (const spec of [...new Set(specs)].sort()) {
-        const line = imports.find((item) => item.spec === spec)?.line ?? 1
-        out.push(
-          finding(
-            'S33',
-            record.rel,
-            line,
-            `导入解析不到：${spec}（路径写错 / 文件被删 / 别名没配）`,
-          ),
-        )
-      }
-    }
-    return out
-  },
-}
-
 /* ---------------- S34 文件级入/出度上限 ---------------- */
 
 /**
@@ -455,6 +417,5 @@ export const structureGraphRules: Rule[] = [
   reachability,
   duplicateExportNames,
   sharedUsedByOneDomain,
-  unresolvedImports,
   degreeLimits,
 ]

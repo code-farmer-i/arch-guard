@@ -1,9 +1,0 @@
-{
-  "findings": [
-    {
-      "rule": "S33",
-      "file": "src/engine/b.ts"
-    }
-  ],
-  "exact": true
-}

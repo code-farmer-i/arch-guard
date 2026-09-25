@@ -92,3 +92,7 @@ Status: done
 - 2026-09-24 **口径撤销**：用户要求"联网成熟度查询"这条**不再作为待办/不做项列出** ——
   README Roadmap 的那条待办、REQUIREMENTS 的 N-02、PARADIGM §12.5、DESIGN §16.4 都已删除
   （DESIGN §16.5 → §16.4）。上面那条移植记录保留为历史，现状是：`--verify-deps` 只做本地对账。
+- 2026-09-25 **口径撤销**：S33「导入必须解析得到」被移除（用户判定为多余功能）——
+  代码（规则实现 / `library()` 的 enable 项 / 专用夹具）、测试期望与 `violations` 夹具里的期望一并删掉；
+  DESIGN §4.9 记入委派清单（→ eslint `import/no-unresolved`），REQUIREMENTS 的 R-04 状态改为「不做（委派）」，
+  CHANGELOG 记了这条破坏性变更。**引擎事实 `graph.unresolved` 保留**（图与 `--explain` 要用）。
