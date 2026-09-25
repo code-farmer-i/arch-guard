@@ -53,6 +53,9 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
       layer: 10,
       slot: 'routes',
       group: 'domain',
+      // 域的**公开面入口**：S03 的题目就是「域根目录只许域的公开面入口」，routes 就是这个入口 ——
+      // 不标 entry 的话，S23（公开面）在应用范式下同样不生效（与 group 那次是同一个根因）
+      entry: true,
     },
     {
       id: 'module:views',

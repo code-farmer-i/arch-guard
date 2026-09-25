@@ -17,6 +17,17 @@
 
 ## [Unreleased]
 
+### Fixed（C 收尾：canonical 的域入口补 `entry: true`，S23 在应用范式下生效）
+
+- 与 C10 同源的**第二个数据缺口**：S23（公开面）靠角色描述符上的 `entry: true` 认入口，而 `canonical()`
+  的 `module:routes` 没标 —— 于是"跨域绕过公开面直连内部文件"在应用范式下**从来没被判过**。
+- 修法：`canonical()` 的 `routes.{ts,tsx}` 标 `entry: true`（S03 的题目就是"域根目录只许域的公开面入口"，
+  routes 正是那个入口）。
+- 新夹具 `canonical-public-api`：`publicApi: ['domain']` 下，跨域直接引用 `views/CrewsPage.tsx` 报；
+  经 `crews/routes`（入口）引用不报。夹具 70 → **71**。
+- **顺带发现一个待核问题**：同一夹具里 `groupInDegree`（S28 外部引用下限）把"已经合规经入口被引用的域"
+  也报成"没有任何外部引用"，疑似与 S23 重复报同一根因 —— 已从夹具里移除，留待单独核（见下）。
+
 ### Added（D2：宿主侧 ARCHITECTURE.md 模板）
 
 - DESIGN §1 一直写着"项目实例 = `arch.config.mjs`（填表）+ `ARCHITECTURE.md`（说明），每个仓库一份约 60 行"，

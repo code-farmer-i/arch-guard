@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S23",
+      "file": "src/modules/orders/views/OrdersPage.tsx"
+    }
+  ],
+  "exact": true
+}
