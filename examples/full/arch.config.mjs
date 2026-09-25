@@ -71,10 +71,9 @@ export default {
     }),
     hygiene(),
     metrics({
-      coverage: {
-        report: 'coverage/coverage-summary.json',
-        perDirMin: { 'src/shared/**': 80, 'src/modules/**': 70 },
-      },
+      // **故意不声明 `coverage`**：M02–M06 要一份「比最近一次提交还新」的覆盖率产物（M06 fail-closed），
+      // 而入库的产物必然比它的提交旧 —— 本仓自己的 arch.config.mjs 也是因此不声明 coverage。
+      // 真实项目里它由 `pnpm coverage` 生成，配法见 docs/USAGE.md §2.2。
       tests: {
         requireTestsFor: ['src/shared/lib/**'],
         testGlobs: ['src/**/*.test.ts'],

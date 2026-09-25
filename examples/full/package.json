@@ -6,7 +6,7 @@
   "scripts": {
     "guard": "arch-guard",
     "test": "node --test",
-    "coverage": "node --test --experimental-test-coverage",
+    "coverage": "mkdir -p coverage && node --test --experimental-test-coverage > coverage/coverage-summary.txt 2>&1",
     "check": "pnpm test && pnpm coverage && pnpm guard"
   },
   "dependencies": {

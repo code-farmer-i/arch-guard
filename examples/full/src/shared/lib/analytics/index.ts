@@ -1,4 +1,5 @@
-import { ANALYTICS_EVENTS } from './events'
+// Node 直跑（node --test / 覆盖率）需要带扩展名；打包器风格的源码里其余 import 保持无扩展名
+import { ANALYTICS_EVENTS } from './events.ts'
 
 declare function gtag(command: string, name: string): void
 

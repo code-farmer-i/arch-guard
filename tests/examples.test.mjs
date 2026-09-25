@@ -63,6 +63,13 @@ const patch = (dir, rel, from, to) => {
 const config = (dir, from, to) => patch(dir, 'arch.config.mjs', from, to)
 const append = (dir, rel, text) => write(dir, rel, `${read(dir, rel)}${text}`)
 
+/**
+ * 示例**故意不声明** `metrics.coverage`：M02–M06 要一份「比最近一次提交还新」的覆盖率产物（M06 fail-closed），
+ * 而入库的产物必然比它的提交旧 —— 本仓自己的 `arch.config.mjs` 也是因此不声明 coverage。
+ * 所以样板"配全"的标准是：**除了这 5 条，其余全在跑**。
+ */
+const COVERAGE_SKIPPED = ['M02', 'M03', 'M04', 'M05', 'M06']
+
 const run = (dir) =>
   runGuard({
     cwd: dir,
@@ -73,9 +80,11 @@ const run = (dir) =>
   })
 const rulesOf = (result) => new Set(result.all.map((item) => item.rule))
 const skippedOf = (result) =>
-  createRegistry(coreRules, result.config).skipped.map((item) => item.rule)
+  createRegistry(coreRules, result.config)
+    .skipped.map((item) => item.rule)
+    .sort()
 
-test('示例基线：examples/full 是 98/98 在跑、0 finding、没有"声明 0 命中"自述', async () => {
+test('示例基线：examples/full 除覆盖率 5 条外全在跑、0 finding、没有"声明 0 命中"自述', async () => {
   const result = await run(EXAMPLE)
   assert.deepEqual(
     result.all.map((item) => `${item.rule} ${item.file}`),
@@ -87,11 +96,18 @@ test('示例基线：examples/full 是 98/98 在跑、0 finding、没有"声明 
     false,
     '样板里不该有"声明配了却 0 命中"',
   )
-  assert.deepEqual(skippedOf(result), [], '样板要把 98 条全配上 —— 停用清单是"还没配"的清单')
-  assert.equal(createRegistry(coreRules, result.config).enabled.length, coreRules.length)
+  assert.deepEqual(
+    skippedOf(result),
+    COVERAGE_SKIPPED,
+    '样板里只该剩覆盖率那 5 条（它们要一份比 HEAD 新的产物）—— 其余停用都是"还没配"',
+  )
+  assert.equal(
+    createRegistry(coreRules, result.config).enabled.length,
+    coreRules.length - COVERAGE_SKIPPED.length,
+  )
 })
 
-test('示例预算：minimal 的停用条数不许增加，full 必须是 0', async () => {
+test('示例预算：minimal 的停用条数不许增加，full 只许剩覆盖率那 5 条', async () => {
   const minimal = await run(MINIMAL)
   const skipped = skippedOf(minimal)
   assert.deepEqual(minimal.all, [], 'minimal 也该是干净的（它是"最短可用"的答案）')
@@ -101,7 +117,7 @@ test('示例预算：minimal 的停用条数不许增加，full 必须是 0', as
   )
 
   const full = await run(EXAMPLE)
-  assert.equal(skippedOf(full).length, 0)
+  assert.deepEqual(skippedOf(full), COVERAGE_SKIPPED)
   assert.ok(
     createRegistry(coreRules, full.config).enabled.length >
       createRegistry(coreRules, minimal.config).enabled.length,
