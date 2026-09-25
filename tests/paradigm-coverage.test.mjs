@@ -80,3 +80,57 @@ test('范式预设：有入口语义的范式必须有 entry 角色（否则 S23
     }
   }
 })
+
+/**
+ * **元门禁：范式无关的规则，不许在某个范式下"静默消失"**（R-87，R-74 的姊妹条）。
+ *
+ * R-74 管的是"规则注册了却在某个范式下永远不命中"；这条管**更靠前的一步**：
+ * 规则**根本没被任何预设启用** —— 它既不跑、也不在报告的 `skipped` 停用清单里，
+ * 于是宿主配了声明（`clientState` / `authRedirects` / `couplingLimits`…）也毫无作用，
+ * 而报告一个字都不提。实测：`fsd()` 复用 `library()` 的启用清单，那清单里少了 9 条与范式无关的规则。
+ *
+ * 判据用**两份真实示例**（canonical 与 FSD，声明都给全）的差集，而不是手写规则名：
+ * 差集必须**正好**是下面这批"应用专属"的规则，多一条就红。
+ */
+const APP_ONLY = [
+  'S03', // 域根只许公开面入口
+  'S04', // 域内 / 域外引用形态（别名约定）
+  'S05', // 域外只许引 routes
+  'S06', // views 对域外私有
+  'S09', // app/layouts 不得 import modules
+  'S14', // 域有 views 就必须有 routes
+  'S15', // 可达性（域 routes 必被 app/router 聚合）
+  'S18', // shared 只被一个域使用 → 下沉
+  'S19', // 单文件导出值上限（应用侧的体积卫生；库的模块就是 API 面）
+]
+
+test('范式覆盖：除明列的应用专属规则，canonical 与 fsd 的注册集必须一致（不许静默消失）', async () => {
+  const { coreRules, createRegistry, loadConfig } = await import('../es/index.js')
+  const { join } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const root = fileURLToPath(new URL('..', import.meta.url))
+
+  const registered = async (example) => {
+    const { config } = await loadConfig({ root: join(root, 'examples', example) })
+    const registry = createRegistry(coreRules, config)
+    return new Set([
+      ...registry.enabled.map((rule) => rule.id),
+      ...registry.skipped.map((item) => item.rule),
+    ])
+  }
+
+  const canonicalSet = await registered('full')
+  const fsdSet = await registered('full-fsd')
+  const all = coreRules.map((rule) => rule.id)
+
+  assert.deepEqual(
+    all.filter((id) => !canonicalSet.has(id)),
+    [],
+    'canonical 示例里不许有"根本不注册"的规则（声明都给全了）',
+  )
+  assert.deepEqual(
+    all.filter((id) => canonicalSet.has(id) && !fsdSet.has(id)).sort(),
+    [...APP_ONLY].sort(),
+    'fsd 少注册的规则必须**正好**是这批应用专属的；多一条 = 又有一条规则在某个范式下静默消失',
+  )
+})

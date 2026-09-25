@@ -1,6 +1,10 @@
 {
   "findings": [
     {
+      "rule": "S17",
+      "file": "src/pages/crews/ui/Helper.tsx"
+    },
+    {
       "rule": "S32",
       "file": "src/entities/crew/ui/CrewCard.tsx"
     },

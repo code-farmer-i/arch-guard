@@ -33,6 +33,7 @@ import { coreRules, createRegistry, reactPack, runGuard } from '../es/index.js'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const EXAMPLE = join(ROOT, 'examples', 'full')
 const MINIMAL = join(ROOT, 'examples', 'minimal')
+const FSD_EXAMPLE = join(ROOT, 'examples', 'full-fsd')
 
 const copies = []
 after(() => {
@@ -40,9 +41,9 @@ after(() => {
 })
 
 /** 复制一份示例（跳过缓存：每份都从零解析，结果与缓存无关） */
-const clone = () => {
+const clone = (example = 'full') => {
   const dir = mkdtempSync(join(ROOT, 'examples', 'mut-'))
-  cpSync(EXAMPLE, dir, {
+  cpSync(join(ROOT, 'examples', example), dir, {
     recursive: true,
     filter: (src) => !src.includes('.arch-guard-cache'),
   })
@@ -510,5 +511,77 @@ test('变异：示例被改坏时必须抓到（这就是"规则还有效"的回
     }
   }
   assert.ok(MUTATIONS.length >= 30, `变异太少（${MUTATIONS.length}）—— 覆盖会名不副实`)
+  assert.deepEqual(failures, [])
+})
+
+/**
+ * **FSD 版样板（R-87 的现场）**：`fsd()` 复用 `library()` 的启用清单，那份清单曾经少了 9 条
+ * 与范式无关的规则 —— 它们在 FSD 下**既不跑、也不在停用清单里**。
+ * 现在注册集与 canonical 只差"应用专属"那 9 条（见 tests/paradigm-coverage）。
+ */
+test('示例基线（FSD）：除明列停用外全在跑、0 finding、没有"声明 0 命中"自述', async () => {
+  const result = await run(FSD_EXAMPLE)
+  assert.deepEqual(
+    result.all.map((item) => `${item.rule} ${item.file}`),
+    [],
+    'FSD 样板也必须是干净的',
+  )
+  assert.equal(
+    result.notices.some((notice) => notice.code === 'declaration-no-match'),
+    false,
+  )
+  assert.deepEqual(skippedOf(result), ['M02', 'M03', 'M04', 'M05', 'M06', 'S13', 'S37'])
+})
+
+const FSD_MUTATIONS = [
+  {
+    name: 'FSD：跨切片绕过公开面直引内部文件',
+    expect: ['S23'],
+    apply: (dir) =>
+      patch(
+        dir,
+        'src/pages/orders/ui/OrdersPage.tsx',
+        "import { OrderCard } from '@/entities/order'",
+        "import { OrderCard } from '@/entities/order'\nimport { CrewsPage } from '@/pages/crews/ui/CrewsPage'",
+      ),
+  },
+  {
+    name: 'FSD：低层反向依赖高层（entities → features）',
+    expect: ['S21'],
+    apply: (dir) =>
+      patch(
+        dir,
+        'src/entities/crew/ui/CrewCard.tsx',
+        "import { AppTag } from '@/shared/ui/app-tag'",
+        "import { CrewFilter } from '@/features/crew-filter'\nimport { AppTag } from '@/shared/ui/app-tag'",
+      ),
+  },
+  {
+    name: 'FSD：声明写错（落点名没人命中）',
+    expectNotice: 'declaration-no-match',
+    apply: (dir) => config(dir, "apis: ['gtag'],", "apis: ['gtagX'],"),
+  },
+]
+
+test('变异（FSD）：改坏 FSD 示例时该抓的必须抓到', async () => {
+  const failures = []
+  for (const mutation of FSD_MUTATIONS) {
+    const dir = clone('full-fsd')
+    mutation.apply(dir)
+    const result = await run(dir)
+    const rules = rulesOf(result)
+    for (const rule of mutation.expect ?? []) {
+      if (!rules.has(rule)) {
+        failures.push(
+          `${mutation.name}：该抓 ${rule} 没抓到（实际 ${[...rules].sort().join(',') || '无 finding'}）`,
+        )
+      }
+    }
+    if (mutation.expectNotice) {
+      const hit = result.notices.some((notice) => notice.code === mutation.expectNotice)
+      if (!hit) failures.push(`${mutation.name}：没出现 ${mutation.expectNotice} 自述`)
+    }
+  }
+  assert.equal(FSD_MUTATIONS.length, 3)
   assert.deepEqual(failures, [])
 })

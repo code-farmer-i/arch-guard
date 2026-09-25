@@ -32,6 +32,27 @@
   这正是搭示例时撞出来的。现在 `layers` · `groupCountLimits.max` · `directoryItemLimits.max` ·
   `groupInDegree.min` · `degreeLimits.maxIn|maxOut` 都要求整数，写错直接报错并说明"会让声明静默空转"。
 
+### Added（FSD 样板 + R-87：范式无关的规则不许"静默消失"）
+
+- 新宿主示例 [`examples/full-fsd/`](./examples/full-fsd/)（60 个文件）：`fsd()` 六层 + 切片 + 片段封闭枚举，
+  与 `examples/full` **对称** —— 同一套 5 个域 + 8 个方案面 + 结构声明，只换落点
+  （`src/shared/routes/paths.ts` · `src/shared/api/queryKeys.ts` · `src/shared/lib/analytics/events.ts` ·
+  `src/shared/lib/shell/**`…）。**82/98 在跑 · 0 finding**；差的是覆盖率 5 条（同 canonical）+
+  `S13`（判据来自 canonical 的槽位声明）+ `S37`（本示例不分包）。
+- **R-87：范式无关的规则不许在某个范式下"静默消失"**。搭 FSD 样板时实测：`fsd()` 复用 `library()` 的启用清单，
+  那清单少了 **9 条与范式无关的规则**（S17 · S20 · S37 · S39 · S40 · S41 · S42 · S43）—— 它们在 FSD 下
+  **既不跑、也不在"停用"清单里**，宿主配了 `clientState` / `authRedirects` / `couplingLimits` / `maxRelativeUp`
+  也毫无作用，而报告一个字都不提。（R-74 的姊妹条：那条管"注册了却永远不命中"，这条管**压根没注册**。）
+  已补进共享启用清单；`S19`（单文件导出值上限）**不收** —— 库的模块本来就是 API 面，补上后本仓自己 16 处"超限"。
+- **新增元门禁**（`tests/paradigm-coverage`）：拿两份真实示例（`canonical` / `fsd`）的**注册差集**判定，
+  差集必须**正好**是明列的 9 条"应用专属"规则，多一条就红（做过"故意删掉一条启用项 → 变红 → 字节级还原"验证）。
+- 顺带修两个真问题：
+  - **S20 不尊重 `ignore`**：`foreign`（别的框架的源码扩展名）在 ignore 过滤**之前**收集，
+    于是"已明确移出扫描范围"的夹具（`.vue`）照样触发 S20 —— 而 S20 自己的提示正是"移出扫描范围（ignore）"。
+    现在 foreign 也走 ignore，这类文件还会正确计入"ignore 命中 N 个文件"。
+  - 夹具 `fsd-import-locality` / `import-locality` 的期望补上 `S17`：两个 `Helper.tsx` 同名导出，
+    **本来就是真阳性**，只是 S17 此前在 FSD/库范式下没启用才漏掉。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

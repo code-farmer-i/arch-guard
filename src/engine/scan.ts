@@ -199,15 +199,19 @@ export function scanProject(
     extensions: [...TS_EXTENSIONS, ...CSS_EXTENSIONS, '.json', '.html', ...allFrameworkExtensions],
   }).map((full) => relOf(root, full))
 
+  const index = buildRoleIndex(config, options.vcsIgnored)
+
   const foreign: string[] = []
   const files = walked.filter((rel) => {
     const ext = rel.slice(rel.lastIndexOf('.'))
     if (supported.has(ext) || !foreign_ext.has(ext)) return true
+    // `ignore` 是**项目边界**：既然明确说了"不进文件集"，就不该再因为"量不了"被 S20 报出来
+    // —— S20 自己的提示就是"要么把这段源码移出扫描范围（ignore）"，而 ignore 此前不在这一步生效。
+    // 放回 files 让正常流程把它记进 `ignored`（这样"ignore 命中 N 个文件"也数得对）。
+    if (resolveRole(index, rel).status === 'ignored') return true
     foreign.push(rel)
     return false
   })
-
-  const index = buildRoleIndex(config, options.vcsIgnored)
 
   const records: FileRecord[] = []
   const missing: string[] = []
