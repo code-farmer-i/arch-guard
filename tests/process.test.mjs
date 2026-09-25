@@ -109,3 +109,27 @@ test('流程：设计文档里的规则数 / 夹具数与实际一致（不同�
     'ARCHITECTURE 的夹具数与 __fixtures__ 实际目录数不一致',
   )
 })
+
+test('流程：DESIGN §4.9 的委派去向与 REQUIREMENTS 的「已委派」条数一致', () => {
+  const design = read('docs/DESIGN.md')
+  const section = design.slice(design.indexOf('## 4.9 委派去向'), design.indexOf('## 5. 规则清单'))
+  const rows = section
+    .split('\n')
+    .filter(
+      (line) => line.startsWith('| ') && !line.includes('---') && !line.includes('已委派的约束'),
+    )
+    .filter((line) => !/~~.+~~/.test(line)) // 划线 = 已收回本体
+    .filter((line) => !/本体 S08|本体 S15|本体 S16|既没实现|已移除/.test(line)) // 这几种本来就不是"委派出去"
+  const delegated = requirementIdsFrom(read('REQUIREMENTS.md'), '已委派')
+  assert.deepEqual(
+    rows.length,
+    delegated.length,
+    `§4.9 仍委派的 ${rows.length} 行与需求侧 ${delegated.length} 条「已委派」对不上 —— 要么补/删表行，要么改需求状态`,
+  )
+})
+
+function requirementIdsFrom(text, status) {
+  return [...text.matchAll(/^\*\*(R-\d+) [^*]+\*\* · ([^·]+) ·/gm)]
+    .filter((match) => match[2].trim() === status)
+    .map((match) => match[1])
+}
