@@ -2,7 +2,7 @@
 
 把架构约束写成**可判定不变量**的编码门禁：本体是通用引擎 + 数据表，宿主项目只提供一张配置表。
 
-规范 `PARADIGM.md`｜设计 `docs/DESIGN.md`｜词汇 `CONTEXT.md`｜决策 `docs/adr/`
+需求 `REQUIREMENTS.md`（**唯一来源**）｜规范 `PARADIGM.md`｜设计 `docs/DESIGN.md`｜词汇 `CONTEXT.md`｜决策 `docs/adr/`
 
 ## 改代码前
 
@@ -91,7 +91,8 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 ### 需求只讲场景
 
 **对需求先讲场景，不讲规则**：谁在什么时候会疼、具体长什么样、现在拦不拦得住、漏掉的后果 ——
-规则（id / 判据 / 实现）只在被问到时才展开。`spec.md` 的「场景」一节写不出真实场景的需求先不做。
+规则（id / 判据 / 实现）只在被问到时才展开。**需求的全貌与状态在 `REQUIREMENTS.md`（唯一来源）**：
+新需求先写那里，再开工；`spec.md` 的「场景」一节写不出真实场景的需求先不做。
 见 `docs/agents/scenario-first.md`。
 
 ### Issue tracker

@@ -12,7 +12,7 @@
 
 Status: draft | ready-for-agent | in-progress | done
 
-## 场景（写不出这一节的需求先不做）
+## 场景（对应 REQUIREMENTS.md 的 R-xx；写不出这一节的需求先不做）
 
 - {换库 / 上生产 / 重构 / 多人协作 / 发版}时：{具体长什么样} → {漏掉的后果}。**现在：{会报 / 不会报 / 只覆盖一半}。**
 
