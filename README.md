@@ -294,6 +294,7 @@ pnpm guard:self                # 狗粮：门禁跑自己（library() 范式）
 | [`CONTEXT.md`](./CONTEXT.md)                                                                         | 所有人       | 词汇表（角色 / 组 / 落点 / 方案面 / 唯一出处…）                           | ✅ 词汇      |
 | [`docs/adr/`](./docs/adr/)                                                                           | 所有人       | 决策的**理由**（不可变记录；其中的数量是当时快照）                        | ✅ 决策      |
 | [`docs/ALTERNATIVES.md`](./docs/ALTERNATIVES.md) · [`ECOSYSTEM-AUDIT.md`](./docs/ECOSYSTEM-AUDIT.md) | 选型的人     | 与生态的对比 / 逐条覆盖审计（0.3.x 快照 + 修订段）                        | 分析         |
+| [`docs/DELEGATION-REVIEW.md`](./docs/DELEGATION-REVIEW.md)                                           | 选型的人     | **委派评审**：委出去的那几条，宿主开启可能性多高、哪几条该收回来          | 分析         |
 | [`docs/agents/`](./docs/agents/)                                                                     | agent        | 协作约定（**开发流程** / 需求只讲场景 / issue tracker / triage / domain） | ✅ 约定      |
 | [`.scratch/<slug>/spec.md`](./.scratch)                                                              | 做那件事的人 | 单个需求的实现规格（场景 / 验收 / 边界 / Comments）                       | 单特性       |
 | [`AGENTS.md`](./AGENTS.md)                                                                           | agent        | 改代码前 / 提交前怎么做（含 `--render-docs` 生成的配置块）                | 操作指南     |
