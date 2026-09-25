@@ -1,0 +1,6 @@
+.tag {
+  color: var(--surface);
+  background: var(--brand);
+  padding: 4px 8px;
+  border-radius: 4px;
+}

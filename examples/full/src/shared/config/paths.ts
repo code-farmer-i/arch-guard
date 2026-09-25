@@ -3,5 +3,7 @@ export const PATHS = {
   root: '/',
   crews: '/crews',
   orders: '/orders',
+  customers: '/customers',
+  billing: '/billing',
   login: '/login',
 }

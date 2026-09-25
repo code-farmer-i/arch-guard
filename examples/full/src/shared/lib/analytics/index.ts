@@ -9,3 +9,5 @@ export function sendEvent(eventName: string): void {
 
 export const crewsViewEvent = ANALYTICS_EVENTS.crewsView
 export const ordersViewEvent = ANALYTICS_EVENTS.ordersView
+export const customersViewEvent = ANALYTICS_EVENTS.customersView
+export const billingViewEvent = ANALYTICS_EVENTS.billingView

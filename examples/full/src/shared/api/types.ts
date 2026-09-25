@@ -1,0 +1,19 @@
+export interface CrewDto {
+  id: string
+  name: string
+}
+
+export interface OrderDto {
+  id: string
+  total: number
+}
+
+export interface CustomerDto {
+  id: string
+  name: string
+}
+
+export interface InvoiceDto {
+  id: string
+  amount: number
+}

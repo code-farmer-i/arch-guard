@@ -2,4 +2,6 @@
 export const ANALYTICS_EVENTS = {
   crewsView: 'crews_view',
   ordersView: 'orders_view',
+  customersView: 'customers_view',
+  billingView: 'billing_view',
 }

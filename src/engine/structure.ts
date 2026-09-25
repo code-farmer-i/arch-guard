@@ -209,6 +209,34 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
   for (const item of structure.groupInDegree) needDimension('groupInDegree', item.dimension)
   for (const item of structure.nameCollisions) needDimension('nameCollisions', item.dimension)
   for (const item of structure.pluralConsistency) needDimension('pluralConsistency', item.dimension)
+  /**
+   * **数字字段必须是整数**：写错类型（`layers: ['modules']` 而不是层号、`max: '20'`）不会报错，
+   * 只会让那条声明**静默空转** —— 比较永远为假，规则照常"在跑"却什么都不判。
+   * 这是实测撞出来的：`pluralConsistency.layers` 写成层名，S31 在示例上一条都没跑过。
+   */
+  const needIntegers = (field: string, values: (number | undefined)[]): void => {
+    for (const value of values) {
+      if (value === undefined) continue
+      if (!Number.isInteger(value)) {
+        throw new StructureDeclarationError(
+          `structure.${field} 必须是整数（收到 ${JSON.stringify(value)}）—— 类型写错会让这条声明静默空转`,
+        )
+      }
+    }
+  }
+  for (const item of structure.pluralConsistency) {
+    needIntegers('pluralConsistency.layers', item.layers ?? [])
+  }
+  for (const item of structure.groupCountLimits) needIntegers('groupCountLimits.max', [item.max])
+  for (const item of structure.directoryItemLimits) {
+    needIntegers('directoryItemLimits.max', [item.max])
+  }
+  for (const item of structure.groupInDegree) needIntegers('groupInDegree.min', [item.min])
+  for (const item of structure.degreeLimits) {
+    needIntegers('degreeLimits.maxIn', [item.maxIn])
+    needIntegers('degreeLimits.maxOut', [item.maxOut])
+  }
+
   // 新②：**声明可命中性** —— 声明了"组必须有公开面"却没有 entry 角色，这条声明永远不命中
   const entryRoles = roles.filter((role) => role.entry === true).map((role) => role.id)
   for (const [field, values] of [

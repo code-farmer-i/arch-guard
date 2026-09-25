@@ -7,3 +7,11 @@ export const crewKeys = {
 export const orderKeys = {
   list: ['orders'] as const,
 }
+
+export const customerKeys = {
+  list: (keywords: string) => ['customers', keywords] as const,
+}
+
+export const invoiceKeys = {
+  list: (period: string) => ['invoices', period] as const,
+}

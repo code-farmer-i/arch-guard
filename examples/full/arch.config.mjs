@@ -131,7 +131,7 @@ export default {
       directoryItemLimits: [{ role: 'module:components', max: 15 }],
       nameCollisions: [{ dimension: 'domain', vocabularyRoles: ['module:components'] }],
       repetitiveNaming: ['domain'],
-      pluralConsistency: [{ dimension: 'domain', layers: ['modules'] }],
+      pluralConsistency: [{ dimension: 'domain', neutralWords: ['billing'] }],
       degreeLimits: [{ role: 'shared:lib', maxIn: 30 }],
       couplingLimits: [{ dimension: 'domain', maxFanIn: 6, maxFanOut: 6 }],
       importLocality: ['domain'],

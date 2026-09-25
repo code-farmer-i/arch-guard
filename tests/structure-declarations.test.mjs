@@ -230,3 +230,45 @@ test('声明可命中性：nameCollisions 的词汇角色 / degreeLimits 的角�
     StructureDeclarationError,
   )
 })
+
+/**
+ * 数字字段写错类型 = **静默空转**（比较永远为假，规则照常"在跑"却什么都不判）。
+ * 实测撞出来的：`pluralConsistency.layers` 写成层名（`['modules']`）时 S31 一条都没跑过。
+ */
+test('结构声明：数字字段必须是整数（写错类型不许静默空转）', () => {
+  const cases = [
+    [
+      { pluralConsistency: [{ dimension: 'slice', layers: ['modules'] }] },
+      /pluralConsistency\.layers/,
+    ],
+    [{ pluralConsistency: [{ dimension: 'slice', layers: [1.5] }] }, /pluralConsistency\.layers/],
+    [{ groupCountLimits: [{ dimension: 'slice', max: '20' }] }, /groupCountLimits\.max/],
+    [{ directoryItemLimits: [{ role: 'fsd:shared:lib', max: '3' }] }, /directoryItemLimits\.max/],
+    [{ groupInDegree: [{ dimension: 'slice', min: '1' }] }, /groupInDegree\.min/],
+    [{ degreeLimits: [{ role: 'fsd:shared:lib', maxIn: '3' }] }, /degreeLimits\.maxIn/],
+    [{ degreeLimits: [{ role: 'fsd:shared:lib', maxOut: 1.5 }] }, /degreeLimits\.maxOut/],
+  ]
+  for (const [preset, pattern] of cases) {
+    assert.throws(
+      () => resolveStructure({ preset, roles }),
+      (error) => {
+        assert.ok(error instanceof StructureDeclarationError, JSON.stringify(preset))
+        assert.match(error.message, pattern)
+        assert.match(error.message, /静默空转/)
+        return true
+      },
+      JSON.stringify(preset),
+    )
+  }
+
+  // 合法写法照常通过
+  const ok = resolveStructure({
+    preset: {
+      pluralConsistency: [{ dimension: 'slice', layers: [5] }],
+      groupCountLimits: [{ dimension: 'slice', max: 20 }],
+      degreeLimits: [{ role: 'fsd:shared:lib', maxIn: 3 }],
+    },
+    roles,
+  })
+  assert.deepEqual(ok.pluralConsistency, [{ dimension: 'slice', layers: [5] }])
+})
