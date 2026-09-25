@@ -4,7 +4,7 @@
  * 差别全在**落点**上，规则一条不用改：
  * - 层级与切片：`fsd()` 自带六层角色表 + `structure`（层序 / 切片隔离 / 公开面 / 片段封闭枚举 /
  *   组维度 slice 的阈值…），这里只补它没声明的几条（导入局部性 / 出入度 / 耦合 / 状态与守卫落点…）；
- * - 落点参数：`styleDir=src/app/styles`、`tokenDir=src/shared/ui/styles/tokens`、
+ * - 落点参数：`styleDir=src/app/styles`、`tokenDir=src/app/styles/tokens`、
  *   `i18nDir=src/shared/i18n/locales`、`storageFile=src/shared/config/storage.ts` —— 都由 `fsd()` 声明；
  * - 唯一出处：路径进 `src/shared/routes/paths.ts`、缓存键进 `src/shared/api/queryKeys.ts`、
  *   事件名进 `src/shared/lib/analytics/events.ts`。
