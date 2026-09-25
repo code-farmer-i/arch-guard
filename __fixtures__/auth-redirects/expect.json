@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S42",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    },
+    {
+      "rule": "S42",
+      "file": "src/modules/orders/views/OrdersPage.tsx"
+    }
+  ],
+  "exact": true
+}

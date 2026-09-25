@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S41",
+      "file": "src/modules/crews/hooks/useOrdersStore.ts"
+    }
+  ],
+  "exact": true
+}

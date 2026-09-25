@@ -156,6 +156,9 @@ export function resolveStructure(input: {
       overrides?.couplingLimits ?? [],
     ),
     migrating: union(preset?.migrating, overrides?.migrating),
+    clientState: [...(preset?.clientState ?? []), ...(overrides?.clientState ?? [])],
+    // 单值声明：overrides 给了就用 overrides（与 thresholds 一个语义）
+    authRedirects: overrides?.authRedirects ?? preset?.authRedirects,
   }
   validate(structure, roles)
   return structure
@@ -228,6 +231,26 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
           `structure.couplingLimits 的 ${field} 必须是 ≥1 的整数（收到 ${String(value)}）`,
         )
       }
+    }
+  }
+  for (const spec of structure.clientState) {
+    if (!spec.naming || spec.naming.trim() === '') {
+      throw new StructureDeclarationError('structure.clientState 的 naming 不能为空')
+    }
+    if (spec.in.length === 0) {
+      throw new StructureDeclarationError(
+        `structure.clientState 的 naming「${spec.naming}」没给落点（in）—— 这条声明等于"哪里都不许"，可疑`,
+      )
+    }
+  }
+  if (structure.authRedirects) {
+    if (structure.authRedirects.loginPaths.length === 0) {
+      throw new StructureDeclarationError('structure.authRedirects 的 loginPaths 不能为空')
+    }
+    if (structure.authRedirects.in.length === 0) {
+      throw new StructureDeclarationError(
+        'structure.authRedirects 的 in 不能为空 —— 没有落点就等于"哪里都不许跳登录"',
+      )
     }
   }
   for (const glob of structure.migrating) {

@@ -17,6 +17,20 @@
 
 ## [Unreleased]
 
+### Added（状态纪律 · 权限判断 · 跳转守卫 —— 同一套"形态 + 落点"）
+
+三条原本都属"需定口味"，拍板原则：**能判"落在哪"，就不判"写得好不好"**；形态清单一律由项目提供。
+
+- **R-45 状态纪律（S41）**：`stores/crews.ts` 导出 `useCrewsStore` 合规，另一个域把 `useOrdersStore`
+  写在 `hooks/` 里就报（`structure.clientState: [{ naming: 'use*Store', in: [...] }]`）。
+  **按命名 + 落点判，不按 import 的库**（那会把库名写进引擎）。只单向判：落点里放别的不管。
+- **R-46 权限判断（复用 S38，不新立规则）**：把**原始权限形态**列进 `callSites([{ name: '权限判断',
+apis: ['permissions.includes'], in: ['src/shared/auth/**'] }])` —— 落点外报，而
+  **高层 API（`can('x')`）不在清单里 → 到哪都合法**（这就是"哪些算合法展示判断"的答案）。
+- **R-47 跳转守卫（S42）**：`navigate('/login')` 与 `<Navigate to="/login" />` 只许出现在
+  `structure.authRedirects.in` 里。**不数"重复了几遍"**（语义比对必然误伤），只判这个动作落在哪。
+- 规则 76 → **78**（S41 / S42，R-46 用现有能力表达）；夹具 56 → **59**。
+
 ### Added（指纹表可被项目覆盖 —— 收紧与放宽都行）
 
 - **场景 ①：企业规范只认公司内部那套实现**，或项目把 `JSON.parse(JSON.stringify(x))` 收进

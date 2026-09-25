@@ -85,6 +85,22 @@ export interface CouplingLimit {
   maxFanOut?: number
 }
 
+/** 客户端状态单元的**命名形态 + 落点**（S41）：导出名命中 `naming` 的文件必须在 `in` 里 */
+export interface ClientStateSpec {
+  /** 导出名 glob（如 `use*Store`）：只比导出名，不比文件内容 */
+  naming: string
+  /** 允许的落点（glob 列表） */
+  in: string[]
+}
+
+/** 跳转守卫的**落点**（S42）：跳到登录页这种动作只许出现在 `in` 里 */
+export interface AuthRedirectSpec {
+  /** 登录路径（字符串实参 / JSX `to` 命中它即视为"跳登录"） */
+  loginPaths: string[]
+  /** 守卫落点（glob 列表） */
+  in: string[]
+}
+
 /** 组名不许与其它单元重名（S29） */
 export interface NameCollisionSpec {
   dimension: string
@@ -144,6 +160,10 @@ export interface StructureSpec {
   couplingLimits?: CouplingLimit[]
   /** **在迁移中**的路径（glob）：它们可以引用别处，别处不许引用它们（S40） */
   migrating?: string[]
+  /** 客户端状态单元：命名形态 + 落点（S41） */
+  clientState?: ClientStateSpec[]
+  /** 跳转守卫：登录路径 + 守卫落点（S42） */
+  authRedirects?: AuthRedirectSpec
 }
 
 /** 归一化后的结构声明：宿主只声明一部分，配置加载后**每个字段都补齐**（数组默认空） */
@@ -164,4 +184,6 @@ export interface ResolvedStructure {
   importLocality: string[]
   couplingLimits: CouplingLimit[]
   migrating: string[]
+  clientState: ClientStateSpec[]
+  authRedirects: AuthRedirectSpec | undefined
 }
