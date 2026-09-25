@@ -168,4 +168,60 @@ export const migratingBoundary: Rule = {
   },
 }
 
-export const structureBoundaryRules: Rule[] = [groupCouplingLimits, migratingBoundary]
+/* ---------------- S43 相对越级 ---------------- */
+
+/** 数一条说明符向上爬了几层（`../x` = 1、`../../x` = 2；`./x` 与别名 = 0） */
+function relativeUpCount(spec: string): number {
+  let rest = spec
+  let count = 0
+  while (rest.startsWith('../')) {
+    count += 1
+    rest = rest.slice(3)
+  }
+  return count
+}
+
+/**
+ * 判据：声明了 `structure.maxRelativeUp` 之后，`../` 爬过的层数超过上限即报。
+ *
+ * 为什么需要（原委派给 eslint `no-restricted-imports`）：一串 `../` 爬到目录边界之外后，
+ * **看不出这条依赖跨没跨界**（同层？跨域？跨层？），而 patterns 要项目自己写、还容易写错。
+ * 与 S32（跨组必须走别名）互补：S32 管"跨组别用相对"，这条管"同组内也别爬太深"。
+ */
+export const relativeUpDepth: Rule = {
+  id: 'S43',
+  domain: 'structure',
+  level: 'L1',
+  severity: 'error',
+  title: '禁相对越级',
+  hint: '相对路径最多向上爬声明的层数：再往上就看不出来它跨没跨界了，用别名 / 包路径',
+  run: (ctx) => {
+    const limit = ctx.config.structure.maxRelativeUp
+    if (!limit) return []
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const imported of facts.imports) {
+        const up = relativeUpCount(imported.spec)
+        if (up <= limit.max) continue
+        out.push(
+          finding(
+            'S43',
+            record.rel,
+            imported.line,
+            `相对越级：${imported.spec} 向上爬了 ${up} 层（上限 ${limit.max}）`,
+            '改走别名 / 包路径 —— 一串 ../ 看不出来这条依赖跨没跨界',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+export const structureBoundaryRules: Rule[] = [
+  groupCouplingLimits,
+  migratingBoundary,
+  relativeUpDepth,
+]

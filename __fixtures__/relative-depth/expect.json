@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S43",
+      "file": "src/modules/crews/views/CrewsPage.tsx"
+    }
+  ],
+  "exact": true
+}

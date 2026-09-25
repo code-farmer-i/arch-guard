@@ -17,6 +17,14 @@
 
 ## [Unreleased]
 
+### Added（C9：禁相对越级收回本体）
+
+- **场景**：`import { format } from '../../../shared/lib/format'` —— 一串 `../` 爬到目录边界之外后，
+  **看不出这条依赖跨没跨界**（同层？跨域？跨层？）；目录一挪全崩。
+- **现在**：声明 `structure.maxRelativeUp: { max: 1 }` 后，爬过上限就报（不声明不判）。
+  原先委派给 eslint `no-restricted-imports` —— 那段 patterns 要项目自己写，"几层算越级"还因项目而异。
+- 与 S32 互补：S32 管"跨组必须走别名"，这条管"同组内也别爬太深"。规则 80 → **81**；夹具 62 → **63**。
+
 ### Added（C1 / C2：幽灵依赖与声明未用收回本体）
 
 - **P03 幽灵依赖**（error）：`import` 了没写进 `package.json` 的包 —— 本地靠间接依赖碰巧能跑，换机器 / CI 就崩。

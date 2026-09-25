@@ -85,6 +85,12 @@ export interface CouplingLimit {
   maxFanOut?: number
 }
 
+/** 相对越级的层数上限（S43）：`../` 最多向上爬几层 —— 超过就报（不声明不判） */
+export interface RelativeUpLimit {
+  /** 上限：`../x` 记 1 层、`../../x` 记 2 层，超过 max 即报 */
+  max: number
+}
+
 /** 客户端状态单元的**命名形态 + 落点**（S41）：导出名命中 `naming` 的文件必须在 `in` 里 */
 export interface ClientStateSpec {
   /** 导出名 glob（如 `use*Store`）：只比导出名，不比文件内容 */
@@ -164,6 +170,8 @@ export interface StructureSpec {
   clientState?: ClientStateSpec[]
   /** 跳转守卫：登录路径 + 守卫落点（S42） */
   authRedirects?: AuthRedirectSpec
+  /** 相对越级的层数上限（S43） */
+  maxRelativeUp?: RelativeUpLimit
 }
 
 /** 归一化后的结构声明：宿主只声明一部分，配置加载后**每个字段都补齐**（数组默认空） */
@@ -186,4 +194,5 @@ export interface ResolvedStructure {
   migrating: string[]
   clientState: ClientStateSpec[]
   authRedirects: AuthRedirectSpec | undefined
+  maxRelativeUp: RelativeUpLimit | undefined
 }

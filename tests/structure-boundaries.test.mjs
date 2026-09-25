@@ -253,3 +253,45 @@ test('S40：没声明 / 声明没命中任何文件 / 迁移中互引，都不�
     '声明没命中任何文件（可能刚迁完）不报',
   )
 })
+
+/* ---------------- S43 相对越级 ---------------- */
+
+test('S43：超过声明的层数才报；1 层与别名不报；没声明不判', () => {
+  const calls = (specs) => ({
+    imports: specs.map(([spec, line]) => ({ spec, line, typeOnly: false, dynamic: false })),
+  })
+  const cfg = config({ maxRelativeUp: { max: 1 } })
+  const findings = rule('S43').run(
+    context({
+      cfg,
+      records: [record('src/modules/crews/views/CrewsPage.tsx', 'crews')],
+      facts: {
+        'src/modules/crews/views/CrewsPage.tsx': calls([
+          ['../../../shared/lib/format', 2],
+          ['../hooks/helper', 3],
+          ['@/shared/lib/format', 4],
+          ['./local', 5],
+        ]),
+      },
+    }),
+  )
+  assert.equal(findings.length, 1)
+  assert.equal(findings[0].line, 2)
+  assert.match(findings[0].text, /向上爬了 3 层（上限 1）/)
+  assert.deepEqual(
+    rule('S43').run(context({ cfg: config(), records: [record('src/a.ts')], facts: {} })),
+    [],
+    '没声明不判',
+  )
+})
+
+test('S43：maxRelativeUp.max 为负 → 解析配置直接报错', () => {
+  assert.throws(
+    () =>
+      resolveStructure({
+        preset: { maxRelativeUp: { max: -1 } },
+        roles: [{ id: 'a', pattern: 'src/a/**', layer: 1 }],
+      }),
+    StructureDeclarationError,
+  )
+})

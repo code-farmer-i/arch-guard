@@ -159,6 +159,7 @@ export function resolveStructure(input: {
     clientState: [...(preset?.clientState ?? []), ...(overrides?.clientState ?? [])],
     // 单值声明：overrides 给了就用 overrides（与 thresholds 一个语义）
     authRedirects: overrides?.authRedirects ?? preset?.authRedirects,
+    maxRelativeUp: overrides?.maxRelativeUp ?? preset?.maxRelativeUp,
   }
   validate(structure, roles)
   return structure
@@ -242,6 +243,9 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
         `structure.clientState 的 naming「${spec.naming}」没给落点（in）—— 这条声明等于"哪里都不许"，可疑`,
       )
     }
+  }
+  if (structure.maxRelativeUp && structure.maxRelativeUp.max < 0) {
+    throw new StructureDeclarationError('structure.maxRelativeUp.max 不能是负数')
   }
   if (structure.authRedirects) {
     if (structure.authRedirects.loginPaths.length === 0) {

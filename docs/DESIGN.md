@@ -102,7 +102,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | 假异步、`Math.random`、硬编码地址、假数据字面量                                       | H07–H09           | `no-restricted-syntax` / `no-restricted-properties` 选择器                                                                           |
 | 抑制注释（`eslint-disable` / `oxlint-disable` / `@ts-ignore`）                        | H02               | **未实现、也委派不出去**：eslint 默认不禁止 disable 注释（要装 `eslint-comments` 之类插件）。见 REQUIREMENTS 第七节（原 R-70，已撤） |
 | 文件行数 / 函数行数                                                                   | S16               | `max-lines` · `max-lines-per-function`                                                                                               |
-| 相对越级 `../`                                                                        | S10               | `no-restricted-imports`                                                                                                              |
+| ~~相对越级 `../`~~（**0.4.0 收回本体**：S43，声明才判）                               | ~~S10~~           | —                                                                                                                                    |
 | 依赖环                                                                                | S08               | `import/no-cycle` · dependency-cruiser `no-circular`                                                                                 |
 | 导入路径解析不到                                                                      | S33（**已移除**） | `import/no-unresolved`（见 §5 的说明：本体原先自己实现，0.4.0 交回生态）                                                             |     |
 | 孤儿文件                                                                              | S15（部分）       | dependency-cruiser `no-orphans`                                                                                                      |
@@ -121,7 +121,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 规则 ID：`S` 结构 / `D` 设计系统 / `C` 文案 / `P` 依赖 / `H` 反退化。
 等级 = 判定等级；级别 = error / warn。
 
-> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 80 条**（以 `arch-guard --stats` / `coreRules` 为准）：
+> 本表是**完整设计**（含未实现项）。**已实现并带夹具的 81 条**（以 `arch-guard --stats` / `coreRules` 为准）：
 > `S00–S06`、`S08`、`S09`、`S11–S32`、`S34–S42`、`C02–C07`、`D03–D08`、`D10`、`D10b`、`D11`、`D16`、`D17`、`D21`、`D22`、`D23`、`H06`、`H12`、`P01`–`P08`、`P11`、`P12`、`M02–M09`。
 > `S10`（相对越级）等已按 §4.9 **委派**给 eslint / dependency-cruiser / knip，不在本体实现；
 > `H01–H05`、`C01`、`D01/D02/D09/D12–D15/D18` 同理。**P03 / P08 原委派给 knip · depcheck，0.4.0 已收回本体**（配置成本高而事实现成）。
@@ -173,6 +173,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | S40 | **迁移中的目录只出不进**：`structure.migrating` 命中的路径，外面引用它们即报（它们自己引用别处是目的）—— 让"待清理"不会变成"事实核心"                                                                                       | 解析 + 声明      | L2    | error                 |
 | S41 | **状态单元只在声明的落点**：导出名命中 `structure.clientState[].naming`（如 `use*Store`）的文件必须在 `in` 里 —— 只比命名与路径，不猜"这是不是状态"                                                                         | 导出 + 路径      | L2    | error                 |
 | S42 | **跳转守卫只在声明的落点**：字符串实参 / JSX `to` 命中 `structure.authRedirects.loginPaths` 的"跳登录"动作只许在守卫落点 —— 不数"重复了几遍"                                                                                | 调用 + 文案事实  | L2    | error                 |
+| S43 | **禁相对越级**：`../` 向上爬的层数超过 `structure.maxRelativeUp.max` 即报（不声明不判）—— 与 S32 互补：S32 管"跨组别用相对"，这条管"同组内也别爬太深"                                                                       | 路径             | L1    | error                 |
 | S35 | **组必须有片段**：只有公开面入口、没有任何非入口文件的组是空壳（`structure.segmentedGroups` 声明了才判）。**编号说明**：S24 是「契约扫描域不得为空」，本规则排在其后                                                        | 路径 + 角色      | L3    | error                 |
 | S36 | **取数只在声明的落点**：`useQuery` / `fetch` 这类取数调用只许出现在 `dataLayer({ fetchIn })` 声明的目录里（页面里直接取数、域里直连后端都报；测试文件豁免）                                                                 | 调用 + glob 落点 | L2    | error（声明落点才判） |
 | S37 | **页面必须动态 import**：域入口对 `views/` 的 import 必须是 `lazy: () => import(...)`（静态 import 会让所有页面随主包下载）；`canonical({ lazyViews: true })` 声明才判                                                      | AST import       | L2    | error（声明才判）     |
