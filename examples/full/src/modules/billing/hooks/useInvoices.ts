@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { INVOICE_PAGE_SIZE } from '@/shared/config/constants'
 import { invoiceKeys } from '@/shared/api/queryKeys'
-import { fetchInvoices, invoicePolicy } from '@/shared/api/client'
+import { fetchInvoices } from '@/shared/api/client'
+import { invoicePolicy } from '@/shared/api/queryClient'
 import type { InvoiceRow } from '../model/types'
 
 export function useInvoices(period: string): InvoiceRow[] {

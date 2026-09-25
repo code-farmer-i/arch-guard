@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { PAGE_SIZE } from '@/shared/config/constants'
 import { crewKeys } from '@/shared/api/queryKeys'
-import { crewPolicy, fetchCrews } from '@/shared/api/client'
+import { fetchCrews } from '@/shared/api/client'
+import { crewPolicy } from '@/shared/api/queryClient'
 import type { CrewRow } from '../model/types'
 
 /** 取数只许出现在这里（S36 声明的落点）：页面只消费，不直接打后端 */

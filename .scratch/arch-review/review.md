@@ -210,3 +210,50 @@ i18n 命名空间（语义，要改）       2 个   locales/{zh-CN,en}/index.ts
 | C-2 | **DTO ↔ 领域模型的映射约定**    | 是建模选择，不是可判定不变量；**示例里加 mapper**（A2）但本体不立规则                                    |
 | C-3 | **错误被吞掉 / try-catch 形态** | 同上                                                                                                     |
 | C-4 | **`@x` 之外的跨切片自由互引**   | 与 isolate 冲突；真要放开的只有官方 `@x` 这一条（B9）                                                    |
+
+---
+
+## 8. 追加发现（审查后核对时撞出来的两处**假绿**，已修）
+
+| 编号 | 位置                                               | 问题                                                                                                                                                    | 为什么严重                                                                                                 | 现状                                     |
+| ---- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| C17  | `examples/full/src/modules/*/hooks/*.ts`（4 处）   | hook 从 `@/shared/api/client` 引 `crewPolicy`/`orderPolicy`/…，但策略声明在 `shared/api/queryClient.ts`，client **不导出**、canonical **也没有 barrel** | **断 import**：TS 编译不过、运行时 `undefined`，而门禁 **0 finding ✔ 通过**                                | 已修（改成从 `queryClient` 引）          |
+| C18  | `examples/full-fsd/src/shared/lib/storage.test.ts` | 测试从 `./storage.ts` 引 `STORAGE_KEYS`，而该文件只 import 不 export                                                                                    | **示例唯一的测试一直是坏的**（`0 pass / 1 fail`）—— 因为 `pnpm check` 只跑守卫，**从没跑过示例自己的测试** | 已修 + `examples:test` 挂进 `pnpm check` |
+
+**核对手法**：写了个只读审计脚本（TS 解析，不跑类型检查），把两套示例的**每一个本地 import 的具名成员**与目标的导出集比对。
+结果：除上述两处，其余全部真实存在（剩下的 6 处是 CSS Module 的 `default`，脚本不认识 CSS，不是问题）。
+
+### 追加到计划（§7）
+
+| #                       | 新增                                     | 说明                                                                                                                                                                         |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **B11**（升级为**高**） | **本地 import 的具名成员必须真的被导出** | 前置：事实模型记录**导入的具名成员**（`ImportFact` 现在只有 `spec`/`line`/`typeOnly`/`dynamic`）。它能同时抓住 C17 与 C18 这两类"假绿"——这类错误最容易发生、门禁却完全看不见 |
+| **B12**（已顺手完成）   | **示例自带的测试必须被门禁跑**           | `examples:test` 进 `pnpm check`：不然"活样板"会像 C18 那样悄悄烂掉                                                                                                           |
+
+### 与用户问题的关系
+
+`crewPolicy` 放在 `shared/api/queryClient.ts` **不合理**，而且它不是孤例，是 C1 的一个切片：
+
+- `staleTime` / `retry` 是**每个域的数据时效**（crews 300s vs orders 60s 的**差异本身**就证明它是域的知识）；
+- 两份独立审查都点名了这个文件（canonical F2 / FSD #1）—— 域一多，它变成横向 merge 队列；
+- 与你确认的决策①/②冲突：取数归域/实体、键跟着模块走 → **策略该跟键住在一起**（"键的失效时间"与"键的语义"是一对）；
+- 附带：`crewPolicy` 与全局默认**完全相同**（`300_000`/`2`）→ 纯重复，删掉即可。
+
+**目标形态**：
+
+```ts
+// shared/api/queryClient.ts —— 只留"一个实例 + 全局兜底"（S38 落点）
+export const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 300_000, retry: 2 } },
+})
+
+// modules/crews/model/policy.ts —— 策略与 key 同屋
+export const crewPolicy = { staleTime: 60_000, retry: 1 }
+
+// arch.config.mjs —— in 支持 glob（D20 的 homes 是 glob 列表）
+numberHomes: [
+  { name: '请求策略', in: ['src/shared/api/queryClient.ts', 'src/modules/*/model/policy.ts'] },
+]
+```
+
+FSD 侧同理：`entities/<实体>/model/policy.ts`（决策①）。

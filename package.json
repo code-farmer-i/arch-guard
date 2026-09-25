@@ -88,13 +88,14 @@
     "self-check-portability": "node es/cli.js --self-check-portability",
     "check-docs": "node es/cli.js --check-docs",
     "render-docs": "node es/cli.js --render-docs",
-    "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm coverage && pnpm self-test && pnpm self-check-portability && pnpm check-docs && pnpm guard:sample && pnpm guard:full && pnpm guard:full-fsd && pnpm guard:self",
+    "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm coverage && pnpm self-test && pnpm self-check-portability && pnpm check-docs && pnpm guard:sample && pnpm guard:full && pnpm guard:full-fsd && pnpm examples:test && pnpm guard:self",
     "test": "node --test tests/*.test.mjs",
     "coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "guard:sample": "cd examples/minimal && node ../../es/cli.js",
     "guard:self": "node es/cli.js",
     "guard:full": "cd examples/full && node ../../es/cli.js",
-    "guard:full-fsd": "cd examples/full-fsd && node ../../es/cli.js"
+    "guard:full-fsd": "cd examples/full-fsd && node ../../es/cli.js",
+    "examples:test": "cd examples/full && pnpm test && cd ../full-fsd && pnpm test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
