@@ -390,7 +390,7 @@ const MUTATIONS = [
     // 声明写错（多打一个字母）不会被任何规则报 —— 但必须被"0 命中自述"点名
     name: '声明写错：落点名没人命中',
     expectNotice: 'declaration-no-match',
-    apply: (dir) => patch(dir, 'arch.config.mjs', "names: ['PAGE_SIZE']", "names: ['PAGE_SIZE_X']"),
+    apply: (dir) => patch(dir, 'arch.config.mjs', "'CREW_PAGE_SIZE'", "'CREW_PAGE_SIZE_X'"),
   },
   {
     // R-90 现场：numberHomes 只写"家在哪"，名字由 reactQueryKit 的 numberNames 给 —— 数字跑到家外要抓
@@ -582,7 +582,7 @@ const FSD_MUTATIONS = [
     name: 'FSD：声明写错（落点名没人命中）',
     expectNotice: 'declaration-no-match',
     apply: (dir) =>
-      config(dir, "names: ['PAGE_SIZE', 'ORDER_PAGE_SIZE']", "names: ['PAGE_SIZE_X']"),
+      config(dir, "names: ['CREW_PAGE_SIZE', 'ORDER_PAGE_SIZE']", "names: ['PAGE_SIZE_X']"),
   },
 ]
 

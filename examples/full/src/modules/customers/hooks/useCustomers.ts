@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchCustomers } from '@/shared/api/client'
 import { queryStateOf, type QueryState } from '@/shared/api/queryState'
-import { CUSTOMER_PAGE_SIZE } from '@/shared/config/constants'
 import { toCustomerRow } from '../lib/mapper'
-import { customerKeys, customerPolicy } from '../model/query'
+import { CUSTOMER_PAGE_SIZE, customerKeys, customerPolicy } from '../model/query'
 import type { CustomerRow } from '../model/types'
 
 export function useCustomers(keywords: string): QueryState<CustomerRow[]> {

@@ -57,7 +57,12 @@ export default {
           in: ['src/shared/api/queryClient.ts', 'src/modules/*/model/query.ts'],
         },
         // 项目自己的常量仍然要列
-        { name: '分页阈值', names: ['PAGE_SIZE'], in: ['src/shared/config/constants.ts'] },
+        // 分页大小跟域走（R-117）：阈值数字的家就是各域自己的查询契约
+        {
+          name: '分页阈值',
+          names: ['CREW_PAGE_SIZE', 'ORDER_PAGE_SIZE', 'CUSTOMER_PAGE_SIZE', 'INVOICE_PAGE_SIZE'],
+          in: ['src/modules/*/model/query.ts'],
+        },
       ],
       contrastPairs: [
         { fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 },

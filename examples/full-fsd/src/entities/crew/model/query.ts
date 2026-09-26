@@ -10,3 +10,8 @@ export const crewKeys = {
 }
 
 // 与 queryClient 的全局兜底相同 → 继承全局，不重复声明
+
+/**
+ * 分页大小：**这个实体自己的 UX 决定**（R-117）—— 与键、策略同处，不放进 shared。
+ */
+export const CREW_PAGE_SIZE = 20

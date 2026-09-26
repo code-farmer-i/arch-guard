@@ -10,3 +10,9 @@ export const crewKeys = {
 }
 
 // 与 queryClient 的全局兜底相同 → 不重复声明（继承全局即可）
+
+/**
+ * 分页大小：**这个域自己的 UX 决定**（R-117）—— 与键、策略同处，不放进 shared。
+ * 判据：本域迭代发起（跟域走）· 加一个域不必改共享文件 · 名空间是局部的。
+ */
+export const CREW_PAGE_SIZE = 20
