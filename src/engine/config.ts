@@ -14,6 +14,7 @@ import type { Diagnostic } from './codes.js'
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
 import { resolveStructure } from './structure.js'
+import { ADVICE_SIGNALS } from './advice.js'
 import type { StructureSpec } from './structure-spec.js'
 import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
 import { exists, mergePresets } from './util.js'
@@ -151,6 +152,7 @@ const KNOWN_OVERRIDE_KEYS: Record<keyof ConfigOverrides, true> = {
   include: true,
   metaFramework: true,
   exceptions: true,
+  adviceAllow: true,
   aliases: true,
   autoFix: true,
   addRoles: true,
@@ -392,6 +394,7 @@ export async function loadConfig(options: {
     // 范式标识带进最终配置：`placementHint` / `--explain` 靠它区分「三根 / 库 / FSD」三套落点
     ...(paradigms[0] ? { paradigm: paradigms[0] } : {}),
     exceptions: [...(preset.exceptions ?? []), ...(overrides.exceptions ?? [])],
+    adviceAllow: [...(overrides.adviceAllow ?? [])],
     aliases,
   }
 
@@ -412,6 +415,33 @@ export async function loadConfig(options: {
   if (badExpiry !== undefined) {
     throw new Error(`exceptions 的 expires 必须是 YYYY-MM-DD：${JSON.stringify(badExpiry)}`)
   }
+  // 建议的例外（R-121）：与 exceptions 同一套纪律 —— 指名信号 / 写理由 / 到期必过期
+  const badAllow = config.adviceAllow.find(
+    (entry) => !entry.signal?.trim() || !entry.glob?.trim() || !entry.reason?.trim(),
+  )
+  if (badAllow !== undefined) {
+    throw new Error(
+      'adviceAllow 的每一条都必须写清 signal / glob / reason —— 它是「这条建议对这类主体不适用」，' +
+        '不是「别提示我」：' +
+        JSON.stringify(badAllow),
+    )
+  }
+  const badSignal = config.adviceAllow.find(
+    (entry) => !(ADVICE_SIGNALS as readonly string[]).includes(entry.signal),
+  )
+  if (badSignal !== undefined) {
+    throw new Error(
+      `adviceAllow 里不认识的信号：${badSignal.signal}（可用：${ADVICE_SIGNALS.join(' / ')}）\n` +
+        '（拼错的信号等于没写 —— 与其静默不生效，不如现在就说）',
+    )
+  }
+  const badAllowExpiry = config.adviceAllow.find(
+    (entry) => entry.expires !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(entry.expires),
+  )
+  if (badAllowExpiry !== undefined) {
+    throw new Error(`adviceAllow 的 expires 必须是 YYYY-MM-DD：${JSON.stringify(badAllowExpiry)}`)
+  }
+
   if (config.roles.length === 0) {
     throw new Error(
       '配置里没有角色表（roles）。请至少引入一个结构预设，例如 presets: [canonical()]',

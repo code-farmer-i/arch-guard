@@ -271,3 +271,36 @@ test('组合：不认识的配置键一律 fail-closed（R-113 —— 声明了�
     'addRoles 在 overrides 层照旧生效',
   )
 })
+
+test('R-121：adviceAllow 的配置期校验（信号必存在 / 理由必填 / 到期格式）', async () => {
+  await assert.rejects(
+    () =>
+      load(
+        'canonical()',
+        ", overrides: { adviceAllow: [{ signal: 'no-such', glob: 'x', reason: 'y' }] }",
+      ),
+    /不认识的信号/,
+  )
+  await assert.rejects(
+    () =>
+      load(
+        'canonical()',
+        ", overrides: { adviceAllow: [{ signal: 'group-granularity', glob: 'x' }] }",
+      ),
+    /必须写清 signal \/ glob \/ reason/,
+  )
+  await assert.rejects(
+    () =>
+      load(
+        'canonical()',
+        ", overrides: { adviceAllow: [{ signal: 'group-granularity', glob: 'x', reason: 'y', expires: '明天' }] }",
+      ),
+    /expires 必须是 YYYY-MM-DD/,
+  )
+  // 合法写法照旧能加载
+  const config = await load(
+    'canonical()',
+    ", overrides: { adviceAllow: [{ signal: 'group-granularity', glob: 'domain tiny', reason: '已知的横切适配器', expires: '2099-01-01' }] }",
+  )
+  assert.equal(config.adviceAllow.length, 1)
+})

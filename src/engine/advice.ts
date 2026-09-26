@@ -1,9 +1,23 @@
 import { resolveSpecifier, type Graph } from './graph.js'
+import { globToRegExp } from './util.js'
 import type { Diagnostic } from './codes.js'
 import type { Config, Facts, FileRecord } from './types.js'
 
+/** 稳定的信号 id：写进配置的 `adviceAllow` 与报告自述都用它（不是文案） */
+export const ADVICE_SIGNALS = ['per-domain-exports', 'group-granularity'] as const
+
+/** 一条候选建议：信号 id + 主体（文件 rel 或组名）+ 给人看的文本 */
+interface Advice {
+  signal: (typeof ADVICE_SIGNALS)[number]
+  subject: string
+  text: string
+}
+
 /** 保守阈值：**≥3 个导出各自只被一个域用**才算信号（2 个可能是巧合） */
 const MIN_PER_DOMAIN_EXPORTS = 3
+/** 组粒度的保守阈值：1 个文件太细、20 个文件太粗（先写死，后续可声明化） */
+const MIN_GROUP_FILES = 2
+const MAX_GROUP_FILES = 20
 
 export interface AdviceInput {
   config: Config
@@ -25,8 +39,54 @@ interface PerDomainExport {
  * 为什么放在「自述」里而不是规则里：规则是"违规 → 红"，必须机械可判定、零误报；而"这坨东西该不该
  * 跟域走"是**判断**，只能给信号 + 选项，让人来定。所以建议走 notice：进报告、进 JSON、**不影响退出码**。
  *
- * 第一条信号：**一个文件里的导出各归各域**（≥3 个导出，每个只被**一个域**消费，且域各不相同）——
- * 这正是架构审查里"shared 长成第二套 modules"的可判定形态：加/下线一个域都要改这个文件。
+ * 两条信号：
+ * - `per-domain-exports`：一个文件里 **≥3 个导出各自只被一个域用**（域各不相同）——
+ *   架构审查里"shared 长成第二套 modules"的可判定形态（加 / 下线一个域都要改这个文件）。
+ * - `group-granularity`：某个组只有 1 个源文件（"组"其实是一个文件）/ 超过 20 个（可能装了俩业务）。
+ *
+ * **豁免**（R-121）：`overrides.adviceAllow` 可以按（信号 × 主体 glob）声明"这条建议对它不适用"，
+ * 但必须写理由、写了到期就必过期，而且**豁免本身会在报告里自述**（静默关闭是这套机制最该防的事）。
+ */
+export function pushAdviceNotices(input: AdviceInput, notices: Diagnostic[]): void {
+  const { config, records } = input
+  if (records.length === 0) return
+  const candidates: Advice[] = [...perDomainExportAdvice(input), ...groupGranularityAdvice(records)]
+  const allow = config.adviceAllow ?? []
+  const used = new Set<number>()
+  let suppressed = 0
+  for (const advice of candidates) {
+    const hit = allow.findIndex(
+      (entry) => entry.signal === advice.signal && globToRegExp(entry.glob).test(advice.subject),
+    )
+    if (hit === -1) {
+      notices.push({ code: 'architecture-advice', text: advice.text })
+      continue
+    }
+    used.add(hit)
+    suppressed += 1
+  }
+  // **豁免必须可见**：静默关闭是这套机制最该防的事
+  if (suppressed > 0) {
+    notices.push({
+      code: 'architecture-advice',
+      text:
+        `架构建议：${suppressed} 条被 \`adviceAllow\` 声明豁免（理由与到期在配置里）—— ` +
+        '豁免是**可见的**，不是关掉提示',
+    })
+  }
+  const unused = allow.filter((_, index) => !used.has(index))
+  if (unused.length > 0) {
+    notices.push({
+      code: 'architecture-advice',
+      text:
+        `adviceAllow 里有 ${unused.length} 条没命中任何建议（可能可以删掉）：` +
+        unused.map((entry) => `${entry.signal} × ${entry.glob}`).join(' · '),
+    })
+  }
+}
+
+/**
+ * 信号一：**一个文件里的导出各归各域**。
  *
  * 边界（宁少报不误伤）：
  * - **纯类型导出不算**（`interface` / `type`）：DTO 这类"契约镜像"常常按域命名却该集中；
@@ -34,59 +94,8 @@ interface PerDomainExport {
  * - 只看**具名导入**；`export *` 中转、默认导入、动态导入不参与；
  * - 已经声明为公开面入口（`entry: true`）的文件不判 —— 那个的用途就是给外面引。
  */
-/** 组粒度的保守阈值：1 个文件太细、20 个文件太粗（先写死，后续可声明化） */
-const MIN_GROUP_FILES = 2
-const MAX_GROUP_FILES = 20
-
-/**
- * 第二条信号：**组粒度**（R-120）。
- *
- * 两种"门禁全绿但结构在变坏"的形态：
- * - **组只有 1 个源文件**：多半是 stub 或误分类 —— "域"这个词失去意义
- *   （50 个组里 30 个各一个文件，边界图看着整齐，其实没切）；
- * - **组 ≥20 个源文件**：多半是两个业务挤在一起 —— 改起来仍是全组搜。
- *
- * 组取的是**仓库自己的概念**（`record.groupName` + `record.group`，即结构声明里的组维度），
- * 所以范式无关：canonical 的 `{domain}` 与 FSD 的 `{slice}` 都吃。测试文件（layer ≥ 90）不计。
- */
-function pushGroupGranularityAdvice(notices: Diagnostic[], records: FileRecord[]): void {
-  const groups = new Map<string, { label: string; files: string[] }>()
-  for (const record of records) {
-    if (record.layer >= 90) continue
-    if (!record.groupName || !record.group) continue
-    const key = `${record.groupName}:${record.group}`
-    const entry = groups.get(key) ?? { label: `${record.groupName} ${record.group}`, files: [] }
-    entry.files.push(record.rel)
-    groups.set(key, entry)
-  }
-  for (const { label, files } of groups.values()) {
-    if (files.length < MIN_GROUP_FILES) {
-      notices.push({
-        code: 'architecture-advice',
-        text:
-          `${label} 只有 1 个源文件（${files[0]}）：这一层"组"其实是一个文件。\n` +
-          `  常见处置：① 并进相邻组 ② 如果它确实横切、被多个组用，提升为共享层` +
-          ` ③ 确认它只是 stub，那就先别单独成组\n` +
-          `  （建议不阻断 —— 门禁这一轮照常通过）`,
-      })
-      continue
-    }
-    if (files.length > MAX_GROUP_FILES) {
-      notices.push({
-        code: 'architecture-advice',
-        text:
-          `${label} 有 ${files.length} 个源文件：这个组可能装了两个业务（改一处仍要全组搜）。\n` +
-          `  常见处置：① 按子域拆成两个组 ② 若它确实是一个域，把这条阈值显式调高（声明出来）\n` +
-          `  （建议不阻断 —— 门禁这一轮照常通过）`,
-      })
-    }
-  }
-}
-
-export function pushAdviceNotices(input: AdviceInput, notices: Diagnostic[]): void {
+function perDomainExportAdvice(input: AdviceInput): Advice[] {
   const { config, records, facts, graph, files } = input
-  if (records.length === 0) return
-  pushGroupGranularityAdvice(notices, records)
   const fileSet = new Set(files)
   const byRel = new Map(records.map((record) => [record.rel, record]))
   const domainOf = (rel: string): string => {
@@ -96,6 +105,7 @@ export function pushAdviceNotices(input: AdviceInput, notices: Diagnostic[]): vo
   const entryRoleIds = new Set(
     config.roles.filter((role) => role.entry === true).map((role) => role.id),
   )
+  const out: Advice[] = []
 
   for (const record of records) {
     const own = facts.get(record.rel)
@@ -133,14 +143,60 @@ export function pushAdviceNotices(input: AdviceInput, notices: Diagnostic[]): vo
       .slice(0, 4)
       .map((item) => `${item.name}→${item.domain}`)
       .join(' · ')
-    notices.push({
-      code: 'architecture-advice',
+    out.push({
+      signal: 'per-domain-exports',
+      subject: record.rel,
       text:
         `${record.rel} 里有 ${perDomain.length} 个导出**各归各域**（${listing}${perDomain.length > 4 ? ' …' : ''}）：` +
-        `加 / 下线一个域都要改这个文件。\n` +
-        `  常见处置：① 下沉到各自的域（跟着域走，判据见 PARADIGM §6.15）` +
-        ` ② 若它确实是跨域中立的，把归属声明出来即可消掉这条建议\n` +
-        `  （建议不阻断 —— 门禁这一轮照常通过）`,
+        '加 / 下线一个域都要改这个文件。\n' +
+        '  常见处置：① 下沉到各自的域（跟着域走，判据见 PARADIGM §6.15）' +
+        ' ② 若它确实是跨域中立的，用 `overrides.adviceAllow` 声明豁免（要写理由）\n' +
+        '  （建议不阻断 —— 门禁这一轮照常通过）',
     })
   }
+  return out
+}
+
+/**
+ * 信号二：**组粒度**（R-120）。
+ *
+ * 组取的是**仓库自己的概念**（`record.groupName` + `record.group`，即结构声明里的组维度），
+ * 所以范式无关：canonical 的 `{domain}` 与 FSD 的 `{slice}` 都吃。测试文件（layer ≥ 90）不计。
+ */
+function groupGranularityAdvice(records: FileRecord[]): Advice[] {
+  const groups = new Map<string, { label: string; files: string[] }>()
+  for (const record of records) {
+    if (record.layer >= 90) continue
+    if (!record.groupName || !record.group) continue
+    const key = `${record.groupName}:${record.group}`
+    const entry = groups.get(key) ?? { label: `${record.groupName} ${record.group}`, files: [] }
+    entry.files.push(record.rel)
+    groups.set(key, entry)
+  }
+  const out: Advice[] = []
+  for (const { label, files } of groups.values()) {
+    if (files.length < MIN_GROUP_FILES) {
+      out.push({
+        signal: 'group-granularity',
+        subject: label,
+        text:
+          `${label} 只有 1 个源文件（${files[0]}）：这一层「组」其实是一个文件。\n` +
+          '  常见处置：① 并进相邻组 ② 如果它确实横切、被多个组用，提升为共享层' +
+          ' ③ 确认它只是 stub，那就先别单独成组\n' +
+          '  （建议不阻断 —— 门禁这一轮照常通过）',
+      })
+      continue
+    }
+    if (files.length > MAX_GROUP_FILES) {
+      out.push({
+        signal: 'group-granularity',
+        subject: label,
+        text:
+          `${label} 有 ${files.length} 个源文件：这个组可能装了两个业务（改一处仍要全组搜）。\n` +
+          '  常见处置：① 按子域拆成两个组 ② 若它确实是一个域，用 `adviceAllow` 声明豁免\n' +
+          '  （建议不阻断 —— 门禁这一轮照常通过）',
+      })
+    }
+  }
+  return out
 }

@@ -91,6 +91,22 @@ export interface NamingRules {
  *   ② 这条规则对它不适用 → 这里（唯一需要例外的情形：修了功能就没了 / 夹具就没意义了）
  *   ③ 暂时不想修（存量债）→ **没有这个通道**（基线机制已移除，不合规就是红）
  */
+/**
+ * **架构建议的已知例外**（R-121）：形状照抄 `ExceptionEntry` —— 必须指名信号、必须写理由、
+ * 写了到期日就必过期。为什么需要它：建议若不能豁免，团队会学会**无视整个建议区**
+ * （比没有建议更糟）；而豁免必须**可见**（报告里自述"被豁免了几条"），不能变成隐形关闭。
+ */
+export interface AdviceAllowEntry {
+  /** 信号 id（见 `ADVICE_SIGNALS`）：`per-domain-exports` / `group-granularity` */
+  signal: string
+  /** 主体：文件路径（前者的 rel）或组名（后者的 `domain crews`），支持 glob */
+  glob: string
+  /** 为什么这条建议对它不适用（必填，进 diff 可评审） */
+  reason: string
+  /** 到期日 `YYYY-MM-DD`：写了就必过期 —— 过期后门禁直接报错，逼你续期或删掉 */
+  expires?: string
+}
+
 export interface ExceptionEntry {
   /** 规则 id，必须真实存在（`runGuard` 会校验，拼错直接报错） */
   rule: string
@@ -339,6 +355,8 @@ export interface Config {
   /** 元框架标识：当前 pack 负责哪些源码扩展名（见 src/data/framework-sources.ts） */
   metaFramework: string
   exceptions: ExceptionEntry[]
+  /** 建议的已知例外（R-121）：豁免必须带理由、且会在报告里自述 */
+  adviceAllow: AdviceAllowEntry[]
   aliases: Record<string, string>
   autoFix?: boolean
 }

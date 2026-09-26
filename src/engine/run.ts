@@ -313,6 +313,14 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
         )
       }
     }
+    // 建议的例外同样"写了到期就必过期"（R-121，与 exceptions 同一纪律）
+    for (const item of config.adviceAllow) {
+      if (item.expires !== undefined && item.expires < today) {
+        throw new Error(
+          `adviceAllow 已过期：${item.signal} × ${item.glob}（expires ${item.expires}，今天 ${today}）—— 续期或删掉它`,
+        )
+      }
+    }
     const matchers = config.exceptions.map((entry) => globToRegExp(entry.glob))
     const kept: Finding[] = []
     for (const finding of all) {

@@ -21,11 +21,11 @@ const fact = (over = {}) => ({
   ...over,
 })
 
-function advise({ records, facts, edges }) {
+function advise({ records, facts, edges, adviceAllow = [] }) {
   const notices = []
   pushAdviceNotices(
     {
-      config: { roles: [] },
+      config: { roles: [], adviceAllow },
       records,
       facts: new Map(Object.entries(facts)),
       graph: { importers: edges.importers ?? new Map(), edges: new Map() },
@@ -171,4 +171,32 @@ test('R-120 域粒度：组只有 1 个源文件 / 组超过 20 个源文件 →
     edges: {},
   })
   assert.equal(ok.length, 0, '2 个文件不报；layer ≥ 90 的文件不算组的文件')
+})
+
+test('R-121：豁免按（信号 × 主体）生效，而且**豁免本身要自述**；没命中的豁免要能删', () => {
+  const records = [grouped('src/modules/tiny/index.ts', 'tiny')]
+  // 不豁免 → 一条建议
+  assert.equal(advise({ records, facts: {}, edges: {} }).length, 1)
+  // 豁免 → 0 条建议，但多一条"被豁免了 1 条"的自述（静默关闭是这套机制最该防的事）
+  const allowed = advise({
+    records,
+    facts: {},
+    edges: {},
+    adviceAllow: [
+      { signal: 'group-granularity', glob: 'domain tiny', reason: '它是单文件的横切适配器' },
+    ],
+  })
+  assert.equal(allowed.length, 1)
+  assert.match(allowed[0].text, /1 条被 `adviceAllow` 声明豁免/)
+  // 信号对不上 → 不生效（豁免必须指名信号）
+  assert.equal(
+    advise({
+      records,
+      facts: {},
+      edges: {},
+      adviceAllow: [{ signal: 'per-domain-exports', glob: 'domain tiny', reason: 'x' }],
+    }).length,
+    2,
+    '信号对不上时不豁免，并且要报"这条豁免没命中"',
+  )
 })
