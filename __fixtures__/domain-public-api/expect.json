@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S04",
+      "file": "src/modules/billing/lib/bad.ts"
+    },
+    {
+      "rule": "S05",
+      "file": "src/modules/billing/lib/bad.ts"
+    }
+  ],
+  "exact": true
+}

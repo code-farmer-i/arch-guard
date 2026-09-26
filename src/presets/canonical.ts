@@ -58,6 +58,16 @@ export function roleTable(options: CanonicalOptions = {}): RoleDescriptor[] {
       entry: true,
     },
     {
+      // **业务公开面**（R-98）：域想对外提供实体/工具时，这里就是合法通道（S04/S05 认 `entry` 角色）。
+      // 没有它的话，跨域协作的唯一出路是"把东西抬进 shared" —— 而 shared 会因此长成第二套 modules。
+      id: 'module:index',
+      pattern: `${modules}/{domain}/index.{ts,tsx}`,
+      layer: 10,
+      slot: 'index',
+      group: 'domain',
+      entry: true,
+    },
+    {
       id: 'module:views',
       pattern: `${modules}/{domain}/views/**`,
       layer: 10,

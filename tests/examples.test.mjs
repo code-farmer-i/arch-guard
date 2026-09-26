@@ -447,12 +447,11 @@ const MUTATIONS = [
     apply: (dir) => config(dir, 'maxIn: 30', 'maxIn: 1'),
   },
   {
-    name: '组耦合超上限（关掉 isolate + 预算调小 + 域间真的互引）',
+    name: '组耦合超上限（预算调小 + 域间真的互引）',
     expect: ['S39'],
     apply: (dir) => {
-      // `isolate` 开着时域间互引本来就是红线（S22）→ 耦合永远为 0。这正是两条声明的关系：
-      // 先靠隔离把耦合压成 0，或者不开隔离、改用耦合上限 —— 两者不该同时期望"有耦合数据"。
-      config(dir, "isolate: ['domain'],\n", '')
+      // 示例声明了 `publicApi`（跨域只许经公开面，R-98）而不是 `isolate` —— 所以域间互引本身是合法的，
+      // 耦合才真的算得出来；把上限调小即可触发。若声明 `isolate`，耦合永远是 0（互引直接被 S22 拦掉）。
       config(dir, 'maxFanIn: 6, maxFanOut: 6', 'maxFanIn: 1, maxFanOut: 1')
       for (const [file, name] of [
         ['src/modules/orders/routes.tsx', 'ordersCoupling'],

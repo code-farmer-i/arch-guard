@@ -143,6 +143,20 @@
 - 夹具 `cache-keys-multi`（81 个）：数组落点 + glob + 落点内合规 / 落点外违规；单测补多落点与
   "某个落点命中 0 个文件 → 逐个点名"。
 
+### Added（R-98：域有了业务公开面 —— 跨域协作不必再"抬进 shared"）
+
+- 两份独立审查都指向同一处（C2）：canonical 的域公开面**只有 `routes.tsx`**（那是路由入口），
+  而 `isolate: ['domain']` 禁一切同层互引 —— 域间要共享实体时，唯一出路是把它**抬进 `shared`**，
+  于是 `shared` 长成"第二套 modules"（C1：端点/DTO/键/策略全在那儿）。
+- 能力：**公开面改成声明驱动** —— S04 / S05 以前只认路由适配器的 `routeFiles`（`routes.tsx`），
+  现在认**所有 `entry: true` 的角色**（与 S23 早就用的口径一致）；canonical 新增角色
+  `module:index`（域根 `index.ts`/`index.tsx`，`group: 'domain'`、`entry: true`）。
+- 声明上的取舍写进 `PARADIGM.md` §6.9：`publicApi: ['domain']`（跨域只许经入口，**推荐**）
+  或 `isolate: ['domain']`（一律禁 —— 那时跨域只能靠 `app` 组装或抬进 `shared`）。
+- 示例（A4）：`modules/crews/index.ts` 作业务公开面，`billing` 页**真演示一次跨域取用**；
+  示例的声明从 `isolate` 改成 `publicApi`（保留 S23 兜底："直播捣内部照报"）。
+- 夹具 `domain-public-api`（82 个）：经公开面合规 · 直捣内部被 S04 + S05 报。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

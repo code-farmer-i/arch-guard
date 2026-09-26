@@ -15,6 +15,7 @@ import { designVendorRules } from './rules/design-vendor.js'
 import { metricsRules } from './rules/metrics.js'
 import { declaredStructureRules } from './rules/structure-declared.js'
 import { structureGraphRules } from './rules/structure-graph.js'
+import { structureImportRules } from './rules/structure-imports.js'
 import { structureGroupRules } from './rules/structure-groups.js'
 import { structureBoundaryRules } from './rules/structure-boundaries.js'
 import { structureCallSiteRules } from './rules/structure-call-sites.js'
@@ -40,6 +41,7 @@ import { structureRules } from './rules/structure.js'
 export const coreRules: Rule[] = [
   ...structureRules,
   ...structureGraphRules,
+  ...structureImportRules,
   ...declaredStructureRules,
   ...structureGroupRules,
   ...structureLocalityRules,

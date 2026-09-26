@@ -119,7 +119,8 @@ export default {
     // ④ 结构声明（只写这个项目真有、且真的能命中的形态）
     structure: {
       order: true,
-      isolate: ['domain'],
+      // 域间协作**留一条合法通道**（R-98）：不声明 `isolate`（那会禁掉一切同层互引），
+      // 用 `publicApi` —— 跨域只许经对方的公开面（`routes.tsx` 或业务 `index.ts`），直捣内部照报。
       publicApi: ['domain'],
       segmentedGroups: ['domain'],
       reservedNames: ['ui', 'utils', 'common'],

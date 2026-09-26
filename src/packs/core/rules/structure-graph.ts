@@ -1,10 +1,9 @@
-import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 import { presentFilesOf, routeEntriesOf, routeFilesOf } from './face-forms.js'
 
 /**
- * 依赖方向的图规则（S04–S09、S15、S17、S18、S45）。
+ * 依赖方向的图规则（S04–S09、S15、S17、S18）。
  *
  * 这一组全部落在 L3：判据是**依赖图**而不是单文件文本，所以能抓住「域间互引」「views 被外部
  * 直接引用」「shared 反向依赖」「孤儿文件」这些靠 grep 看不出来的问题。
@@ -47,6 +46,24 @@ const rootsOf = (ctx: RuleContext): { modulesRoot: string; sharedRoot: string } 
   sharedRoot: ctx.config.layout.shared,
 })
 
+/**
+ * 组（域）的**公开面入口**：**声明驱动** —— 命中 `entry: true` 角色的该组文件 ∪ 路由适配器
+ * 声明的入口文件名（`routeFiles`）。
+ *
+ * 为什么不能只看 `routeFiles`：那是**路由**的词汇（`routes.tsx`），表达不了"域的业务公开面"。
+ * 于是一个域想对外提供实体/工具时，唯一的合法通道就只有"把东西抬进 shared"——
+ * 而 shared 正是最先长成"第二套 modules"的地方（R-98：给域一个业务公开面 `index.ts`）。
+ */
+function publicEntriesOf(ctx: RuleContext, domain: string): Set<string> {
+  const entryRoles = new Set(
+    (ctx.config.roles ?? []).filter((role) => role.entry === true).map((role) => role.id),
+  )
+  const fromRoles = ctx.records
+    .filter((record) => record.domain === domain && entryRoles.has(record.role))
+    .map((record) => record.rel)
+  return new Set([...fromRoles, ...routeEntriesOf(ctx.config, domain)])
+}
+
 /* ---------------- S04 域内 import 前缀白名单 ---------------- */
 
 export const domainImportWhitelist: Rule = {
@@ -59,8 +76,10 @@ export const domainImportWhitelist: Rule = {
   run: (ctx) => {
     const { modulesRoot, sharedRoot } = rootsOf(ctx)
     const routeFiles = routeFilesOf(ctx.config)
-    // 声明了「本方案没有 per-domain 入口文件」（文件路由）：跨域引用没有合法落点可言，不判
-    if (routeFiles.length === 0) return []
+    // 既没有 per-domain 入口文件名、角色表里也没有 entry 角色：跨域引用没有合法落点可言，不判
+    const hasEntryRoles = (ctx.config.roles ?? []).some((role) => role.entry === true)
+    if (routeFiles.length === 0 && !hasEntryRoles) return []
+    const entries = new Map<string, Set<string>>()
     const out: Finding[] = []
     for (const record of ctx.records) {
       const domain = record.domain
@@ -69,8 +88,12 @@ export const domainImportWhitelist: Rule = {
         if (target.startsWith(`${modulesRoot}/`)) {
           const other = domainOf(target, modulesRoot)
           if (other === domain) continue
-          // 跨域只允许落在对方的公开面入口（由 S05 判定入口是否合法）
-          if (other && routeEntriesOf(ctx.config, other).includes(target)) continue
+          // 跨域只允许落在对方的**公开面入口**（routes 或业务 index）
+          if (other) {
+            const allowed = entries.get(other) ?? publicEntriesOf(ctx, other)
+            entries.set(other, allowed)
+            if (allowed.has(target)) continue
+          }
           out.push(finding('S04', record.rel, 1, `域 ${domain} 跨域引用：${target}`))
           continue
         }
@@ -95,14 +118,18 @@ export const crossDomainViaRoutes: Rule = {
   run: (ctx) => {
     const { modulesRoot } = rootsOf(ctx)
     const routeFiles = routeFilesOf(ctx.config)
-    if (routeFiles.length === 0) return []
+    const hasEntryRoles = (ctx.config.roles ?? []).some((role) => role.entry === true)
+    if (routeFiles.length === 0 && !hasEntryRoles) return []
+    const entries = new Map<string, Set<string>>()
     const out: Finding[] = []
     for (const record of ctx.records) {
       const from = domainOf(record.rel, modulesRoot)
       for (const target of ctx.graph.edges.get(record.rel) ?? []) {
         const to = domainOf(target, modulesRoot)
         if (!to || to === from) continue
-        if (routeEntriesOf(ctx.config, to).includes(target)) continue
+        const allowed = entries.get(to) ?? publicEntriesOf(ctx, to)
+        entries.set(to, allowed)
+        if (allowed.has(target)) continue
         out.push(finding('S05', record.rel, 1, `跨域引用了 ${to} 的内部文件：${target}`))
       }
     }
@@ -408,82 +435,7 @@ export const degreeLimits: Rule = {
   },
 }
 
-/* ---------------- S45 本地 import 的具名成员必须真的被导出 ---------------- */
-
-/**
- * 判据：路径能解析到项目里的某个文件，但导入的名字**不在它的导出集里** → 报。
- *
- * 为什么单列一条：这是**最容易发生、而此前完全没人管**的一类假绿 —— 目标文件存在、路径也没写错，
- * 只是名字没被导出：TS 编译不过 / 运行时 `undefined`，而架构门禁一路显示通过（实测：本仓示例里
- * 4 个 hook 这么引、另一个示例的测试引了不存在的常量，坏了很久没人知道）。
- *
- * 边界（宁少报不误伤）：目标解析不到（第三方 / 域外）不判 · 目标没有事实（CSS 等非 TS）不判 ·
- * 目标有 `export *` 时导出集未知（整条跳过，S11 本来也禁它）· `import * as ns` 不判名字。
- */
-export const resolvableImports: Rule = {
-  id: 'S45',
-  domain: 'structure',
-  level: 'L1',
-  severity: 'error',
-  title: '导入的成员必须真的被导出',
-  hint: '路径解析得到、名字却不存在：TS 编译不过 / 运行时 undefined —— 静态可判定，别等构建时才炸',
-  run: (ctx) => {
-    const files = new Set(ctx.records.map((record) => record.rel))
-    const out: Finding[] = []
-    for (const record of ctx.records) {
-      const facts = ctx.facts.get(record.rel)
-      if (!facts) continue
-      for (const imported of facts.imports) {
-        if (imported.star) continue
-        const target = resolveSpecifier(imported.spec, record.rel, ctx.config, files)
-        if (target === null || target === record.rel) continue
-        const targetFacts = ctx.facts.get(target)
-        if (!targetFacts) continue
-        if (targetFacts.exports.some((item) => item.isStar)) continue
-        /**
-         * `export default function App()` 在事实里是 `{ name: 'App', isDefault: true }` ——
-         * 它**只有**默认导出，没有具名导出 `App`。所以两个集合要分开算：
-         * 具名可导入集排除"带名字的 default"，默认导出看 `isDefault`（或 `name === 'default'`）。
-         */
-        const named = new Set(
-          targetFacts.exports
-            .filter((item) => !item.isStar && !(item.isDefault && item.name !== 'default'))
-            .map((item) => item.name),
-        )
-        const hasDefault = targetFacts.exports.some(
-          (item) => item.isDefault || item.name === 'default',
-        )
-        for (const name of imported.names ?? []) {
-          if (named.has(name)) continue
-          out.push(
-            finding(
-              'S45',
-              record.rel,
-              imported.line,
-              `导入的 ${name} 在 ${target} 里没有导出：路径解析得到，名字对不上`,
-              `改成 ${target} 真正导出的名字，或把它加进那个文件的导出`,
-            ),
-          )
-        }
-        if (imported.hasDefault && !hasDefault) {
-          out.push(
-            finding(
-              'S45',
-              record.rel,
-              imported.line,
-              `默认导入在 ${target} 里没有 default 导出`,
-              `改成具名导入（或给 ${target} 加 default 导出）`,
-            ),
-          )
-        }
-      }
-    }
-    return out
-  },
-}
-
 export const structureGraphRules: Rule[] = [
-  resolvableImports,
   domainImportWhitelist,
   crossDomainViaRoutes,
   viewsArePrivate,
