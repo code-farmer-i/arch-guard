@@ -1,4 +1,4 @@
-import { relative } from 'node:path'
+import { relative, sep } from 'node:path'
 
 import { disabledFactsCache, openFactsCache } from './facts-cache.js'
 import { extractFacts, factInputOf } from './facts.js'
@@ -70,11 +70,16 @@ export function collectSources(options: {
   if (options.useCache && stats.hits + stats.misses > 0) {
     // 命中数必须自述：不然「缓存到底有没有生效、写在哪」只能靠猜
     const where = stats.path === null ? '(未落盘)' : relative(config.root, stats.path)
+    // 缓存放哪：优先 `node_modules/.arch-guard-cache`（天然被 git 忽略）；没有 node_modules 的
+    // 项目（PnP / monorepo 子包 / 无依赖项目）退回项目根 —— 那种情况**只有**在这里说一句，
+    // 否则宿主 / 编码 agent 会把缓存提交进去（正常项目零噪音）。
+    const fallback = where !== '(未落盘)' && !where.startsWith(`node_modules${sep}`)
     notice({
       code: 'facts-cache',
       text:
         `facts 缓存 ${where}：命中 ${stats.hits}/${stats.hits + stats.misses}` +
-        (stats.hits > 0 ? '（省下的就是解析）' : '（首次或缓存作废，本轮全量解析）'),
+        (stats.hits > 0 ? '（省下的就是解析）' : '（首次或缓存作废，本轮全量解析）') +
+        (fallback ? '；本项目没有 node_modules，缓存落在项目根 —— 记得加进 .gitignore' : ''),
     })
   }
 

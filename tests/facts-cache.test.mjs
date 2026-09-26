@@ -1,3 +1,4 @@
+import { cacheDirOf } from '../es/engine/facts-cache.js'
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
@@ -6,7 +7,6 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { runGuard } from '../es/index.js'
 import { reactPack } from '../es/packs/react/index.js'
 import { FACTS_CACHE_SPEC } from '../es/engine/facts-cache.js'
 
@@ -159,6 +159,23 @@ test('facts 缓存：写盘内容带规范版本与 TypeScript 版本（换解�
     assert.equal(typeof raw.typescript, 'string')
     assert.ok(raw.typescript.length > 0)
     assert.ok(Object.keys(raw.files).length > 0)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('R-132：缓存默认塞进 node_modules，没有时才退回项目根（跟 Vite 同一策略）', () => {
+  // 只测**位置选择**这层逻辑：那条自述的文案是消息、不是契约（按 code 判，不匹配措辞）。
+  // 退回项目根的情形会在 facts-cache 自述里多一句"记得加进 .gitignore"（手测两套示例 / 本仓确认过）。
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cache-'))
+  try {
+    assert.equal(cacheDirOf(dir), join(dir, '.arch-guard-cache'), '没有 node_modules → 项目根')
+    mkdirSync(join(dir, 'node_modules'), { recursive: true })
+    assert.equal(
+      cacheDirOf(dir),
+      join(dir, 'node_modules', '.arch-guard-cache'),
+      '有 node_modules → 塞进去（天然被 git 忽略、rm -rf 顺手带走）',
+    )
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
