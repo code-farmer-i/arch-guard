@@ -1,0 +1,10 @@
+/**
+ * 全局样式的**唯一入口**：应用从 main.tsx 引这一份（顺序 = 分层顺序）。
+ *
+ * 为什么要有它：palette / theme / base / vendor 四份 CSS 以前谁都没引 —— 主题不生效，
+ * 而门禁一路绿（"声明了落点但没有任何入口"是一类静默失效，R-103 就是为了管它）。
+ */
+@import './tokens/palette.css';
+@import './tokens/theme.css';
+@import './base.css';
+@import './vendor/antd.css';

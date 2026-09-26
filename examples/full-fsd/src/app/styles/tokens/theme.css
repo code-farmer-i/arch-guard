@@ -2,10 +2,14 @@
   --surface: var(--sh-static-surface);
   --text-primary: var(--sh-static-ink);
   --brand: var(--sh-static-brand);
+  /* 品牌底上的文字：白色在 #ff5a1f 上只有 3.1:1（低于 AA），深墨色 5.06:1 ✓ */
+  --on-brand: var(--sh-static-ink);
 }
 
 [data-theme='dark'] {
   --surface: var(--sh-static-ink);
   --text-primary: var(--sh-static-surface);
   --brand: var(--sh-static-brand);
+  /* 品牌底上的文字：白色在 #ff5a1f 上只有 3.1:1（低于 AA），深墨色 5.06:1 ✓ */
+  --on-brand: var(--sh-static-ink);
 }

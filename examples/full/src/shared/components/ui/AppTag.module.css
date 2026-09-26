@@ -1,5 +1,5 @@
 .tag {
-  color: var(--surface);
+  color: var(--on-brand);
   background: var(--brand);
   padding: 4px 8px;
   border-radius: 4px;

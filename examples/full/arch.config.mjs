@@ -56,7 +56,11 @@ export default {
         // 项目自己的常量仍然要列
         { name: '分页阈值', names: ['PAGE_SIZE'], in: ['src/shared/config/constants.ts'] },
       ],
-      contrastPairs: [{ fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 }],
+      contrastPairs: [
+        { fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 },
+        // 真正容易翻车的那一对：品牌底上的文字（白字橙底只有 3.1:1，是审查里量出来的事故）
+        { fg: '--on-brand', bg: '--brand', usage: '品牌底上的文字', min: 4.5 },
+      ],
     }),
     // 文案位名单由 `uiKit(antdKit())` 给（antd 的事实），项目自己的封装才需要在这里写：
     // `copy({ messageApis: ['appToast.success'] })` —— 写了就以项目为准，`[]` = 关掉那一半。
@@ -101,7 +105,11 @@ export default {
       }),
     ),
     styles(cssModulesKit()),
-    analytics({ apis: ['sendEvent'], eventSource: 'src/shared/lib/analytics/events.ts' }),
+    analytics({
+      // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
+      apis: ['useTrackView', 'sendEvent'],
+      eventSource: 'src/shared/lib/analytics/events.ts',
+    }),
     // 读取根（import.meta.env / process.env）是平台表给的，项目只说"只许在哪读"
     envReads({ in: ['src/shared/config/**'] }),
     // 组名 + 家在哪就够了：localStorage 是平台的事实、gtag 是 analytics 面已声明的、QueryClient 是 kit 的
@@ -123,6 +131,8 @@ export default {
       // 用 `publicApi` —— 跨域只许经对方的公开面（`routes.tsx` 或业务 `index.ts`），直捣内部照报。
       publicApi: ['domain'],
       segmentedGroups: ['domain'],
+      // 保留名管的是**片段内嵌套**的目录（S25）：`views/common/`、`shared/lib/utils/` 这类"杂物间"。
+      // 注意 `shared/components/common` 本身是角色表**声明的槽位**（组合件），不在这一条的约束范围。
       reservedNames: ['ui', 'utils', 'common'],
       groupCountLimits: [{ dimension: 'domain', max: 20 }],
       directoryItemLimits: [{ role: 'module:components', max: 15 }],

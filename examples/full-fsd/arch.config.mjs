@@ -57,7 +57,11 @@ export default {
         // 项目自己的常量仍然要列
         { name: '分页阈值', names: ['PAGE_SIZE', 'ORDER_PAGE_SIZE'], in: ['src/shared/config/constants.ts'] },
       ],
-      contrastPairs: [{ fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 }],
+      contrastPairs: [
+        { fg: '--text-primary', bg: '--surface', usage: '正文', min: 4.5 },
+        // 真正容易翻车的那一对：品牌底上的文字（白字橙底只有 3.1:1，是审查里量出来的事故）
+        { fg: '--on-brand', bg: '--brand', usage: '品牌底上的文字', min: 4.5 },
+      ],
     }),
     // 文案位名单由 `uiKit(antdKit())` 给（antd 的事实），项目自己的封装才需要在这里写：
     // `copy({ messageApis: ['appToast.success'] })` —— 写了就以项目为准，`[]` = 关掉那一半。
@@ -103,7 +107,11 @@ export default {
       }),
     ),
     styles(cssModulesKit()),
-    analytics({ apis: ['sendEvent'], eventSource: 'src/shared/lib/analytics/events.ts' }),
+    analytics({
+      // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
+      apis: ['useTrackView', 'sendEvent'],
+      eventSource: 'src/shared/lib/analytics/events.ts',
+    }),
     // 读取根（import.meta.env / process.env）是平台表给的，项目只说"只许在哪读"
     envReads({ in: ['src/shared/config/**'] }),
     // 组名 + 家在哪就够了；`from` 用常量（编辑器补全 / 拼错立刻可见 / 可重构）

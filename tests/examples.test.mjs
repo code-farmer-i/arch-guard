@@ -188,14 +188,15 @@ const MUTATIONS = [
       patch(dir, 'src/modules/crews/views/CrewsPage.tsx', "{t('crews.title')}", '班组'),
   },
   {
+    // A5 之后页面用的是 useTrackView（受体是"接收事件名的调用"），所以字面量变异打在它身上
     name: '事件名直接写字面量',
     expect: ['D24'],
     apply: (dir) =>
       patch(
         dir,
         'src/modules/crews/views/CrewsPage.tsx',
-        'sendEvent(crewsViewEvent)',
-        "sendEvent('crews_view')",
+        'useTrackView(ANALYTICS_EVENTS.crewsView)',
+        "useTrackView('crews_view')",
       ),
   },
   {
@@ -205,8 +206,8 @@ const MUTATIONS = [
       patch(
         dir,
         'src/modules/crews/views/CrewsPage.tsx',
-        'sendEvent(crewsViewEvent)',
-        "sendEvent(crewsViewEvent)\n  localStorage.getItem('app.token')",
+        'useTrackView(ANALYTICS_EVENTS.crewsView)',
+        "useTrackView(ANALYTICS_EVENTS.crewsView)\n  localStorage.getItem('app.token')",
       ),
   },
   {
@@ -216,8 +217,8 @@ const MUTATIONS = [
       patch(
         dir,
         'src/modules/crews/views/CrewsPage.tsx',
-        'sendEvent(crewsViewEvent)',
-        'sendEvent(crewsViewEvent)\n  void import.meta.env.VITE_API_BASE_URL',
+        'useTrackView(ANALYTICS_EVENTS.crewsView)',
+        'useTrackView(ANALYTICS_EVENTS.crewsView)\n  void import.meta.env.VITE_API_BASE_URL',
       ),
   },
   {
@@ -497,8 +498,8 @@ const MUTATIONS = [
       patch(
         dir,
         'src/modules/crews/views/CrewsPage.tsx',
-        'const selected',
-        'const ls = localStorage\n  ls.getItem("app.token")\n  const selected',
+        'useTrackView(ANALYTICS_EVENTS.crewsView)',
+        'useTrackView(ANALYTICS_EVENTS.crewsView)\n  const ls = localStorage\n  ls.getItem("app.token")',
       ),
   },
 ]

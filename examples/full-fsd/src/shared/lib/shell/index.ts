@@ -1,1 +1,1 @@
-export { setShellSelected, useShellStore } from './store'
+export { setLocale, useShellStore } from './store'

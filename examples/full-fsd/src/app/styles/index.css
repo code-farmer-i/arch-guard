@@ -1,0 +1,5 @@
+/** 全局样式的**唯一入口**（官方 app 片段）：main.tsx 引这一份，顺序 = 分层顺序 */
+@import './tokens/palette.css';
+@import './tokens/theme.css';
+@import './base.css';
+@import './vendor/antd.css';

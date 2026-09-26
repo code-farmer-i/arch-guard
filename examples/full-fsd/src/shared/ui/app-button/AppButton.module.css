@@ -1,5 +1,5 @@
 .primary {
-  color: var(--surface);
+  color: var(--on-brand);
   background: var(--brand);
   border-radius: 8px;
   padding: 8px 16px;

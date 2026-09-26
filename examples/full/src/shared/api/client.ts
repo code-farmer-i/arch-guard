@@ -23,5 +23,5 @@ export async function fetchCustomers(limit: number): Promise<CustomerDto[]> {
 export async function fetchInvoices(limit: number): Promise<InvoiceDto[]> {
   const response = await fetch(`${API_BASE_URL}/invoices?limit=${limit}`)
   if (!response.ok) return []
-  return [{ id: 'invoices', amount: limit }]
+  return [{ id: 'invoices', amount: limit, crew: generatedCrewSchema }]
 }
