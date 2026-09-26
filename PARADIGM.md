@@ -400,6 +400,30 @@ endpoints({ from: callSiteSources.platform.network, source: ['src/modules/<域>/
 确认某条建议不适用时用 `overrides.adviceAllow` 声明豁免（形状同 `exceptions`：信号 + 主体 glob +
 理由必填 + 到期必过期），**报告里会自述被豁免了几条** —— 静默关闭是这套机制最该防的事。
 
+## 6.18 错误码 → 文案：推荐形态（**本体不判**）
+
+```ts
+// 唯一映射表：错误码 → 文案 key（一处）
+export const ERROR_MESSAGES = {
+  RATE_LIMIT: 'common.errorRateLimit',
+  NOT_FOUND: 'common.errorNotFound',
+}
+export function messageOf(code: string | null): string {
+  /* 不认识就回退通用文案 */
+}
+
+// 取数层只暴露一次错误码，页面不碰 `err.code`
+const { errorCode } = useCrews()
+t(messageOf(errorCode))
+```
+
+反例（**本体目前不判**，别这样写）：`if (err.code === 'RATE_LIMIT') setMsg('太频繁了')` —— 同一个错误码
+在三个页面各写各的说法，客服拿着日志对不上。
+
+**为什么不立判据**：判据必须贴真实写法（错误码是字符串还是数字、判断在组件还是 api 层、文案是 key 还是
+中文、表是对象还是 `Map`），没有真实项目提出这个场景就落 = 误报机（同 N-12 / N-14 / N-15）。
+形态照演进示例（两套都演），**判据留待**。
+
 ## 7. 例外：规则级，且必须指名
 
 - **违规没有存量豁免**：没有基线、没有"先记下来以后再说"。门禁的结论只有两种 —— **符合规范** 或 **不符合**。

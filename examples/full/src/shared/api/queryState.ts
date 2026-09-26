@@ -11,6 +11,12 @@ export interface QueryState<T> {
   data: T
   isPending: boolean
   isError: boolean
+  /**
+   * 后端错误码（没有就是 `null`）。**原始错误对象只在这里露一次** ——
+   * 页面不该去摸 `err.code`（同一个错误码在三个页面各写各的说法就散开了）。
+   * 页面拿它去查唯一的映射表：`messageOf(code)`（R-111 的推荐形态）。
+   */
+  errorCode: string | null
   retry: () => void
 }
 
@@ -22,6 +28,7 @@ export function queryStateOf<Raw, T>(
     data: (result.data ?? []).map(map),
     isPending: result.isPending,
     isError: result.isError,
+    errorCode: (result.error as { code?: string } | null)?.code ?? null,
     retry: () => {
       void result.refetch()
     },

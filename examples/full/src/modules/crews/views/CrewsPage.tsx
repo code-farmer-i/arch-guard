@@ -2,11 +2,12 @@ import { useTranslation } from 'react-i18next'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
 import { can, PERMISSIONS } from '@/shared/auth/permissions'
 import { CrewsTable } from '../components/CrewsTable'
+import { messageOf } from '@/shared/lib/errorMessages'
 import { useCrews } from '../hooks/useCrews'
 
 export default function CrewsPage() {
   const { t } = useTranslation()
-  const { data: crews, isPending, isError, retry } = useCrews()
+  const { data: crews, isPending, isError, errorCode, retry } = useCrews()
   useTrackView(ANALYTICS_EVENTS.crewsView)
   return (
     <section>
@@ -15,7 +16,8 @@ export default function CrewsPage() {
       {isPending ? <p>{t('common.loading')}</p> : null}
       {isError ? (
         <p>
-          {t('common.loadFailed')}
+          {/* 错误码 → 文案只走一处（`shared/lib/errorCopy`）：页面不碰 `err.code` */}
+          {t(messageOf(errorCode))}
           <button type="button" onClick={retry}>
             {t('common.retry')}
           </button>

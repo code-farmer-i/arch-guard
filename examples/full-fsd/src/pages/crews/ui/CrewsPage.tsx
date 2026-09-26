@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useCrews } from '@/entities/crew'
 import { applyFilter, CrewFilter, emptyFilter } from '@/features/crew-filter'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
+import { messageOf } from '@/shared/lib/errorMessages'
 import { can, PERMISSIONS } from '@/shared/auth/permissions'
 import { CrewList } from '@/widgets/crew-list'
 
 export function CrewsPage() {
   const { t } = useTranslation()
-  const { data: crews, isPending, isError, retry } = useCrews()
+  const { data: crews, isPending, isError, errorCode, retry } = useCrews()
   const [keywords, setKeywords] = useState(emptyFilter.keywords)
   useTrackView(ANALYTICS_EVENTS.crewsView)
   return (
@@ -18,7 +19,8 @@ export function CrewsPage() {
       {isPending ? <p>{t('common.loading')}</p> : null}
       {isError ? (
         <p>
-          {t('common.loadFailed')}
+          {/* 错误码 → 文案只走一处（`shared/lib/errorCopy`）：页面不碰 `err.code` */}
+          {t(messageOf(errorCode))}
           <button type="button" onClick={retry}>
             {t('common.retry')}
           </button>

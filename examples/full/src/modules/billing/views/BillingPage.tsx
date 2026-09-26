@@ -6,6 +6,7 @@ import { PageHeader } from '@/shared/components/common/PageHeader'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { useTenantId } from '@/shared/tenant/context'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
+import { messageOf } from '@/shared/lib/errorMessages'
 import { useInvoices } from '../hooks/useInvoices'
 
 export default function BillingPage() {
@@ -18,7 +19,19 @@ export default function BillingPage() {
     <section>
       <PageHeader title={t('billing.title')} />
       <p>{t('billing.tenant', { tenant: tenantId })}</p>
-      <p>{isPending ? t('common.loading') : t('billing.count', { count: invoices.length })}</p>
+      {isPending ? <p>{t('common.loading')}</p> : null}
+      {isError ? (
+        <p>
+          {/* 错误码 → 文案只走一处（`shared/lib/errorMessages`）：页面不碰 `err.code` */}
+          {t(messageOf(errorCode))}
+          <button type="button" onClick={retry}>
+            {t('common.retry')}
+          </button>
+        </p>
+      ) : null}
+      {!isPending && !isError ? (
+        <p>{t('billing.count', { count: crews.length })}</p>
+      ) : null}
       {/* 权限点取常量（D29）：字面量只许出现在 permissions.ts 里 */}
       {can(PERMISSIONS.invoiceEdit) ? <p>{t('billing.editHint')}</p> : null}
       {invoices.map((invoice) => (
