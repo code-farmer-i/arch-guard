@@ -9,16 +9,21 @@ import type { DetachedApi, Finding, Rule } from '../../../engine/types.js'
 const finding = (
   rule: string,
   file: string,
-  line: number,
+  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
+  line: number | { line: number; column?: number },
   text: string,
   hint?: string,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-})
+): Finding => {
+  const position = typeof line === 'number' ? { line } : line
+  return {
+    rule,
+    file,
+    line: position.line,
+    ...(position.column !== undefined ? { column: position.column } : {}),
+    text,
+    ...(hint ? { hint } : {}),
+  }
+}
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
 function packageOf(spec: string): string {
@@ -61,13 +66,7 @@ export const noDetachedApis: Rule = createRule({
           )
           if (!member) continue
           out.push(
-            finding(
-              'H06',
-              record.rel,
-              call.line,
-              `脱离上下文的全局调用：${call.callee}`,
-              group.suggest,
-            ),
+            finding('H06', record.rel, call, `脱离上下文的全局调用：${call.callee}`, group.suggest),
           )
         }
       }
@@ -107,7 +106,7 @@ export const localHostLiterals: Rule = {
           finding(
             'H08',
             record.rel,
-            text.line,
+            text,
             `硬编码本地地址：${text.value}`,
             '改成环境变量 / 配置项（本地默认值放在 .env 或构建配置里）',
           ),
@@ -146,7 +145,7 @@ export const fakeAsync: Rule = {
         finding(
           'H07',
           record.rel,
-          promise.line,
+          promise,
           '疑似假异步：这个文件里 `new Promise` 与 `setTimeout` 同时出现（用睡眠冒充异步？）',
           '把等待换成真实的异步来源；确实需要延迟（防抖 / 重试）就只留定时器，别包成 Promise 假装请求',
         ),

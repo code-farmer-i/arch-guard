@@ -41,6 +41,12 @@ export const TS_EXTENSIONS: string[] = Object.keys(SCRIPT_KIND)
 const lineOf = (sf: ts.SourceFile, pos: number): number =>
   sf.getLineAndCharacterOfPosition(pos).line + 1
 
+/** 行 + 列（都从 1 起） */
+const positionOf = (sf: ts.SourceFile, pos: number): { line: number; column: number } => {
+  const at = sf.getLineAndCharacterOfPosition(pos)
+  return { line: at.line + 1, column: at.character + 1 }
+}
+
 function scriptKindOf(file: string): ts.ScriptKind {
   const dot = file.lastIndexOf('.')
   return SCRIPT_KIND[file.slice(dot)] ?? ts.ScriptKind.TS
@@ -74,6 +80,9 @@ export interface FactInput {
  * 反过来的那次也记在这里：`inlineStyles` 曾在委派 D15 时删掉，0.4.0 把 D15 收回本体时
  * 以更小的形状（`styleProps`：只收 JSX `style` 里的**字面量**属性）加了回来；
  * 同一次还加了 `numbers`（D19 / D20 读它）。两组都改了事实形状 → `FACTS_CACHE_SPEC` 5 → 6。
+ *
+ * **R-128（列号）**：所有带位置的事实多了一个 `column`（行 + 列，都从 1 起）—— 报告与 `--format=github`
+ * 注解据此印 `file:line:col`，编辑器/CI 能跳到列。值变了 → `FACTS_CACHE_SPEC` 10 → **11**。
  */
 /**
  * import / re-export → 事实（S45 的名字对账、依赖图、C07 的语言对账都读它）。
@@ -87,7 +96,7 @@ function recordImports(node: ts.Node, facts: Facts, sf: ts.SourceFile): void {
     const bindings = clause?.namedBindings
     facts.imports.push({
       spec: node.moduleSpecifier.text,
-      line: lineOf(sf, node.getStart(sf)),
+      ...positionOf(sf, node.getStart(sf)),
       typeOnly: clause?.isTypeOnly === true,
       dynamic: false,
       ...(bindings && ts.isNamedImports(bindings)
@@ -101,7 +110,7 @@ function recordImports(node: ts.Node, facts: Facts, sf: ts.SourceFile): void {
       const clause = node.exportClause
       facts.imports.push({
         spec: node.moduleSpecifier.text,
-        line: lineOf(sf, node.getStart(sf)),
+        ...positionOf(sf, node.getStart(sf)),
         typeOnly: node.isTypeOnly,
         dynamic: false,
         ...(clause && ts.isNamedExports(clause)
@@ -137,7 +146,7 @@ function recordImports(node: ts.Node, facts: Facts, sf: ts.SourceFile): void {
           isStar: false,
           isDefault: false,
           typeOnly: node.isTypeOnly || element.isTypeOnly,
-          line: lineOf(sf, element.getStart(sf)),
+          ...positionOf(sf, element.getStart(sf)),
         })
       }
     }
@@ -148,7 +157,7 @@ function recordImports(node: ts.Node, facts: Facts, sf: ts.SourceFile): void {
       isStar: false,
       isDefault: true,
       typeOnly: false,
-      line: lineOf(sf, node.getStart(sf)),
+      ...positionOf(sf, node.getStart(sf)),
       declared: true,
     })
   } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
@@ -156,7 +165,7 @@ function recordImports(node: ts.Node, facts: Facts, sf: ts.SourceFile): void {
     if (argument && ts.isStringLiteral(argument)) {
       facts.imports.push({
         spec: argument.text,
-        line: lineOf(sf, node.getStart(sf)),
+        ...positionOf(sf, node.getStart(sf)),
         typeOnly: false,
         dynamic: true,
       })
@@ -283,7 +292,7 @@ export function extractFacts(input: FactInput): Facts {
         isStar: false,
         isDefault: isDefaultKeyword || name === 'default',
         typeOnly: kind === 'type' || kind === 'interface',
-        line: lineOf(sf, node.getStart(sf)),
+        ...positionOf(sf, node.getStart(sf)),
         declared: true,
       })
     }
@@ -298,7 +307,7 @@ export function extractFacts(input: FactInput): Facts {
       if (outermost) {
         const chain = node.getText(sf)
         if (ENV_READ_ROOTS.some((root) => chain === root || chain.startsWith(`${root}.`))) {
-          facts.reads.push({ name: chain, line: lineOf(sf, node.getStart(sf)) })
+          facts.reads.push({ name: chain, ...positionOf(sf, node.getStart(sf)) })
         }
       }
     }
@@ -316,7 +325,7 @@ export function extractFacts(input: FactInput): Facts {
           : undefined
       facts.strings.push({
         value: node.text,
-        line: lineOf(sf, node.getStart(sf)),
+        ...positionOf(sf, node.getStart(sf)),
         context: stringContext(parent),
         // 最近的那个属性名（不一定是直接父节点：`queryKey: ['a']` 的字面量在数组里）
         prop: inheritedProp,
@@ -335,7 +344,7 @@ export function extractFacts(input: FactInput): Facts {
       if (text !== '') {
         facts.strings.push({
           value: text,
-          line: lineOf(sf, node.getStart(sf)),
+          ...positionOf(sf, node.getStart(sf)),
           context: 'jsx',
           prop: null,
         })
@@ -365,7 +374,7 @@ export function extractFacts(input: FactInput): Facts {
           prop: node.name.getText(sf),
           value: literal.value,
           numeric: literal.numeric,
-          line: lineOf(sf, node.getStart(sf)),
+          ...positionOf(sf, node.getStart(sf)),
         })
       }
     }
@@ -380,7 +389,7 @@ export function extractFacts(input: FactInput): Facts {
           : null)
       const value = Number(raw.replace(/_/g, ''))
       if (Number.isFinite(value)) {
-        facts.numbers.push({ value, raw, name: named, line: lineOf(sf, node.getStart(sf)) })
+        facts.numbers.push({ value, raw, name: named, ...positionOf(sf, node.getStart(sf)) })
       }
     }
 
@@ -398,14 +407,14 @@ export function extractFacts(input: FactInput): Facts {
           : undefined
       facts.calls.push({
         callee: node.expression.getText(sf),
-        line: lineOf(sf, node.getStart(sf)),
+        ...positionOf(sf, node.getStart(sf)),
         ...(first && ts.isStringLiteralLike(first) ? { stringArg: first.text } : {}),
         ...(prefixOf(first) ? { keyPrefix: prefixOf(first) as string } : {}),
         ...(templateParts ? { templateParts } : {}),
       })
     }
     if (node.kind === ts.SyntaxKind.DebuggerStatement) {
-      facts.calls.push({ callee: 'debugger', line: lineOf(sf, node.getStart(sf)) })
+      facts.calls.push({ callee: 'debugger', ...positionOf(sf, node.getStart(sf)) })
     }
 
     /* ---- 函数体量 ---- */
@@ -429,7 +438,7 @@ export function extractFacts(input: FactInput): Facts {
         ...(inheritedOwnedProp ? { ownedProp: inheritedOwnedProp } : {}),
         ...(inheritedCall ? { inCall: inheritedCall } : {}),
         name: functionInfo.name,
-        line: lineOf(sf, functionInfo.start),
+        ...positionOf(sf, functionInfo.start),
         lines: lineOf(sf, functionInfo.end) - lineOf(sf, functionInfo.start) + 1,
         isComponent:
           /^[A-Z]/.test(functionInfo.name) && body !== undefined && ts.isBlock(body)

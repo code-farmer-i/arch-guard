@@ -131,7 +131,7 @@ export const vendorSelectorsConfined: Rule = {
             finding(
               'D10',
               file.rel,
-              item.line,
+              item,
               `组件库选择器出现在 vendor 之外：${item.selector.slice(0, 40)}`,
             ),
           )
@@ -141,15 +141,13 @@ export const vendorSelectorsConfined: Rule = {
       // 定义（`--ant-x: …`）与引用（`var(--ant-x)`）都算：直接消费组件库变量就是没走语义令牌
       for (const item of file.vars) {
         if (hitVar(item.name)) {
-          out.push(
-            finding('D10', file.rel, item.line, `组件库变量出现在 vendor 之外：${item.name}`),
-          )
+          out.push(finding('D10', file.rel, item, `组件库变量出现在 vendor 之外：${item.name}`))
         }
       }
       for (const item of file.varRefs) {
         if (hitVar(item.name)) {
           out.push(
-            finding('D10', file.rel, item.line, `组件库变量出现在 vendor 之外：var(${item.name})`),
+            finding('D10', file.rel, item, `组件库变量出现在 vendor 之外：var(${item.name})`),
           )
         }
       }
@@ -223,15 +221,13 @@ export const noFrameworkLeftovers: Rule = {
             finding(
               'D11',
               file.rel,
-              item.line,
+              item,
               `命中 ${hit.id} 的选择器：${item.selector.slice(0, 40)}`,
             ),
           )
         }
         if (/@apply\b/.test(item.selector) || /(^|[\s,])dark:/.test(item.selector)) {
-          out.push(
-            finding('D11', file.rel, item.line, `禁用语法残留：${item.selector.slice(0, 40)}`),
-          )
+          out.push(finding('D11', file.rel, item, `禁用语法残留：${item.selector.slice(0, 40)}`))
         }
       }
       for (const variable of file.vars) {
@@ -239,9 +235,7 @@ export const noFrameworkLeftovers: Rule = {
           kit.varPrefixes.some((pattern) => new RegExp(pattern).test(variable.name)),
         )
         if (hit)
-          out.push(
-            finding('D11', file.rel, variable.line, `命中 ${hit.id} 的变量：${variable.name}`),
-          )
+          out.push(finding('D11', file.rel, variable, `命中 ${hit.id} 的变量：${variable.name}`))
       }
     }
     for (const rel of ctx.files) {

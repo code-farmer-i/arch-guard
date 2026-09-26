@@ -132,3 +132,24 @@ test('事实模型：JSX 文本节点进 strings（context=jsx），纯空白跳
   assert.deepEqual(jsx.sort(), ['No crews yet', '保存'], '只收非空白的 JSX 文本')
   assert.equal(facts.hasJsx, true)
 })
+
+test('R-128：带位置的事实都有列号（行 + 列都从 1 起，指向字面量开头）', () => {
+  const facts = factsOf(`
+export const a = 1
+const label = 'hello'
+run('arg')
+`)
+  const label = facts.strings.find((item) => item.value === 'hello')
+  assert.ok(label, '字符串事实存在')
+  assert.equal(label.line, 3)
+  // 第 3 行：`const label = 'hello'` —— 引号在 15 列
+  assert.equal(label.column, 15, '列号指向字面量开头（1 起）')
+  const call = facts.calls.find((item) => item.callee === 'run')
+  assert.ok(call)
+  assert.equal(call.line, 4)
+  assert.equal(call.column, 1, '调用在行首')
+  assert.ok(
+    facts.exports.every((item) => typeof item.column === 'number'),
+    '导出事实也带上列号',
+  )
+})

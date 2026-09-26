@@ -95,7 +95,7 @@ export const repeatedCssValues: Rule = {
         finding(
           'D19',
           entry.rel,
-          entry.line,
+          entry,
           `${entry.prop}: ${entry.value} 在 ${entry.files.size} 个文件里重复出现 —— 该给它一个名字（令牌 / 刻度常量）`,
           '事实上已经定下来的口径没有名字：下次谁改都不确定要动几处',
         ),
@@ -137,7 +137,7 @@ export const numbersHaveHomes: Rule = {
             finding(
               'D20',
               record.rel,
-              number.line,
+              number,
               `${number.name}: ${number.raw} —— ${group.name}的数字该写在 ${group.in.join(' / ')}`,
               '口径只留一处：这里引用那份常量，而不是再写一个数',
             ),

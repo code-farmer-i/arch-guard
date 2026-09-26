@@ -17,6 +17,7 @@ import {
   i18nextKit,
   loadConfig,
   looksLikeRuleId,
+  renderGithubAnnotations,
   renderHeader,
   renderReport,
   renderSummary,
@@ -358,4 +359,24 @@ test('R-126：`--explain <规则 id>` 讲清这条规则（域/等级/需要什�
   assert.match(explainRules(['X99'], { rules: coreRules, format: 'pretty' }), /未知规则/)
   assert.equal(looksLikeRuleId('D29'), true)
   assert.equal(looksLikeRuleId('src/a.ts'), false)
+})
+
+test('R-128：发现项带列号时，报告印 `file:line:col`、GitHub 注解带 `col=`', () => {
+  const withColumn = capture(() =>
+    renderReport(
+      baseInput({
+        findings: [{ rule: 'D29', file: 'a.ts', line: 7, column: 23, text: 'x' }],
+      }),
+    ),
+  )
+  assert.match(withColumn, /a\.ts:7:23/)
+  const annotation = renderGithubAnnotations(
+    baseInput({ findings: [{ rule: 'D29', file: 'a.ts', line: 7, column: 23, text: 'x' }] }),
+  )
+  assert.match(annotation, /line=7,col=23/)
+  // 没给列号照旧只印行（规则可以逐族迁移，不必一次全改）
+  const without = capture(() =>
+    renderReport(baseInput({ findings: [{ rule: 'D29', file: 'a.ts', line: 7, text: 'x' }] })),
+  )
+  assert.match(without, /a\.ts:7 /)
 })

@@ -26,12 +26,7 @@ export const paletteColorUnique: Rule = {
       const prev = seen.get(key)
       if (prev) {
         out.push(
-          finding(
-            'D03',
-            file.rel,
-            item.line,
-            `色值 #${key} 与 ${prev.name}（第 ${prev.line} 行）重复`,
-          ),
+          finding('D03', file.rel, item, `色值 #${key} 与 ${prev.name}（第 ${prev.line} 行）重复`),
         )
         continue
       }
@@ -58,7 +53,7 @@ export const tokenRefsClosed: Rule = {
     for (const file of files) {
       for (const ref of file.varRefs) {
         if (defined.has(ref.name) || ref.hasFallback) continue
-        out.push(finding('D04', file.rel, ref.line, `未定义的令牌引用：${ref.name}`))
+        out.push(finding('D04', file.rel, ref, `未定义的令牌引用：${ref.name}`))
       }
     }
     return out
@@ -129,7 +124,7 @@ export const noDeadTokens: Rule = {
     const out: Finding[] = []
     for (const [name, info] of defined) {
       if (live.has(name)) continue
-      out.push(finding('D05', info.file, info.line, `未被引用的令牌：${name}`))
+      out.push(finding('D05', info.file, info, `未被引用的令牌：${name}`))
       if (out.length >= 40) break
     }
     return out
@@ -172,7 +167,7 @@ export const themeTwinBlocks: Rule = {
             finding(
               'D06',
               file.rel,
-              block.line,
+              block,
               `${block.theme} 缺少令牌：${name}（${reference.theme} 有）`,
             ),
           )
@@ -184,7 +179,7 @@ export const themeTwinBlocks: Rule = {
             finding(
               'D06',
               file.rel,
-              reference.line,
+              reference,
               `${reference.theme} 缺少令牌：${name}（${block.theme} 有）`,
             ),
           )
@@ -266,7 +261,7 @@ export const paletteStaticOnly: Rule = {
         finding(
           'D02',
           file.rel,
-          item.line,
+          item,
           `色板里定义了非静态令牌 ${item.name}：语义令牌该放主题文件（否则它不会随主题变）`,
           `只有 ${prefix}* 属于色板；语义层放 themeFile`,
         ),
@@ -307,7 +302,7 @@ export const colorLiteralsOnlyInPalette: Rule = {
           finding(
             'D01',
             file.rel,
-            literal.line,
+            literal,
             `颜色字面量 ${literal.text}：色值只许写进色板（${params.paletteFile}）`,
             '在色板里登记后引用令牌变量',
           ),

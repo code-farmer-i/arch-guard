@@ -108,7 +108,7 @@ export function renderReport(input: ReportInput): void {
       const badge = severity === 'warn' ? color.yellow('warn ') : color.red('error')
       const mark = finding.global ? color.dim('（全局）') : ''
       out(
-        `  ${badge} ${finding.file}:${finding.line} ${color.cyan(`[${finding.rule}]`)} ${finding.text}${mark}`,
+        `  ${badge} ${finding.file}:${finding.line}${finding.column !== undefined ? `:${finding.column}` : ''} ${color.cyan(`[${finding.rule}]`)} ${finding.text}${mark}`,
       )
       if (finding.hint) out(color.dim(`        → ${finding.hint}`))
     }
@@ -302,7 +302,10 @@ export function renderGithubAnnotations(input: ReportInput): string {
   for (const finding of input.findings) {
     const severity = severityOf(finding, input.ruleIndex) === 'warn' ? 'warning' : 'error'
     const title = `${finding.rule} ${finding.text}`.replace(/[\r\n]+/g, ' ')
-    lines.push(`::${severity} file=${finding.file},line=${finding.line},title=${title}::${title}`)
+    const col = finding.column !== undefined ? `,col=${finding.column}` : ''
+    lines.push(
+      `::${severity} file=${finding.file},line=${finding.line}${col},title=${title}::${title}`,
+    )
   }
   return lines.join('\n')
 }

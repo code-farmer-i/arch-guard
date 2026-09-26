@@ -43,7 +43,7 @@ export const clientStateUnits: Rule = {
             finding(
               'S41',
               record.rel,
-              exported.line,
+              exported,
               `${exported.name} 看起来是客户端状态单元，但不在声明的落点里（${spec.in.join(' / ')}）`,
               '把状态挪到声明的落点；只读它（消费）不受影响 —— 这条只管**定义在哪**',
             ),
@@ -80,7 +80,7 @@ export const authRedirects: Rule = {
           finding(
             'S42',
             record.rel,
-            call.line,
+            call,
             `${call.callee}(${JSON.stringify(call.stringArg)}) 是跳登录，只许出现在守卫落点（${spec.in.join(' / ')}）`,
             '把这道守卫交给声明的守卫组件/钩子，页面只管渲染',
           ),
@@ -94,7 +94,7 @@ export const authRedirects: Rule = {
           finding(
             'S42',
             record.rel,
-            text.line,
+            text,
             `${text.prop}="${text.value}" 是跳登录，只许出现在守卫落点（${spec.in.join(' / ')}）`,
             '把这道守卫交给声明的守卫组件/钩子，页面只管渲染',
           ),

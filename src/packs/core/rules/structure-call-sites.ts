@@ -122,7 +122,7 @@ export const viewsAreLazy: Rule = {
           finding(
             'S37',
             importer,
-            edge.line,
+            edge,
             `页面 ${record.rel} 被入口静态 import：它会随主包一起下载`,
             `改成懒加载：lazy: () => import('${edge.spec}')（需要预取就再加 preload）`,
           ),
@@ -202,7 +202,7 @@ export const envReadsOnlyInDeclaredSites: Rule = {
           finding(
             'S44',
             record.rel,
-            read.line,
+            read,
             `在这里读环境（${read.name}）：读取只许出现在声明的落点`,
             `收进配置模块（${globs.join(' / ')}）并给出默认值，别处 import 它`,
           ),
@@ -253,7 +253,7 @@ export const analyticsCallsInEffects: Rule = {
           finding(
             'S46',
             record.rel,
-            call.line,
+            call,
             `埋点上报 ${call.callee}() 写在组件 ${innermost.name} 的渲染体里：每次重渲染都会上报`,
             '包一层 hook（内部 effect 上报一次），或放进事件回调',
           ),

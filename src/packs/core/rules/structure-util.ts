@@ -10,18 +10,23 @@ import type { FileRecord, Finding } from '../../../engine/types.js'
 export const finding = (
   rule: string,
   file: string,
-  line: number,
+  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
+  line: number | { line: number; column?: number },
   text: string,
   hint?: string,
   global = false,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-  ...(global ? { global: true } : {}),
-})
+): Finding => {
+  const position = typeof line === 'number' ? { line } : line
+  return {
+    rule,
+    file,
+    line: position.line,
+    ...(position.column !== undefined ? { column: position.column } : {}),
+    text,
+    ...(hint ? { hint } : {}),
+    ...(global ? { global: true } : {}),
+  }
+}
 
 /**
  * 单元目录：优先从角色 pattern 的 `dir/**` 形态取；pattern 不是这个形态时，

@@ -6,6 +6,8 @@
 export interface ImportFact {
   spec: string
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   typeOnly: boolean
   dynamic: boolean
   /** 具名导入的**原名**（`import { a as b }` 记 `a`）· 是否有默认导入 —— S45 靠它们与目标的导出集对账 */
@@ -22,6 +24,8 @@ export interface ExportFact {
   isDefault: boolean
   typeOnly: boolean
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   declared?: boolean
 }
 
@@ -30,11 +34,15 @@ export interface ReadFact {
   /** 完整链文本（`import.meta.env.VITE_API_BASE`） */
   name: string
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
 }
 
 export interface StringFact {
   value: string
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   context: string
   prop: string | null
   /** 最近的**外层调用名**（`notification.open({ message: '保存' })` 里的那截）；C01 的对象实参形态靠它 */
@@ -49,6 +57,8 @@ export interface StringFact {
 export interface CallFact {
   callee: string
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   /** 第一个字符串字面量参数（t('nav.crews') 里的 nav.crews）；没有则缺省 */
   stringArg?: string
   /** 第一个参数是模板串时的静态前缀（t(`nav.${x}`) 里的 "nav."），动态键靠它判定「被用过」 */
@@ -66,6 +76,8 @@ export interface StylePropFact {
   value: string // 字面量文本（字符串去引号：`#ff5a1f` / `13px`；数字：`13`）
   numeric: boolean // 值是不是数字字面量（决定要不要按刻度白名单判）
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
 }
 
 /** **有名字**的数字字面量（D19 / D20）：最近的属性名（`staleTime: 300_000`）或 `const` 名（`PAGE_SIZE = 20`） */
@@ -74,6 +86,8 @@ export interface NumberFact {
   raw: string // 原样文本（`300_000` / `1e3` / `0x10`）
   name: string | null
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
 }
 
 export interface FunctionFact {
@@ -89,12 +103,16 @@ export interface FunctionFact {
    */
   inCall?: string
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   lines: number
   isComponent: boolean
 }
 
 export interface CommentFact {
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   text: string
   kind: string
   /** 区间 [pos, end)：指纹扫描时要遮罩掉注释，避免「注释里写了轮子」被误报 */
@@ -104,6 +122,8 @@ export interface CommentFact {
 
 export interface ParseErrorFact {
   line: number
+  /** 列号（1 起）：报告与 CI 注解用它精确定位；合成事实可以不给 */
+  column?: number
   message: string
 }
 

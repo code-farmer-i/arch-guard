@@ -157,7 +157,7 @@ export const migratingBoundary: Rule = {
           finding(
             'S40',
             record.rel,
-            imported.line,
+            imported,
             `引用了迁移中的文件：${target}`,
             '改成新实现；确实必须先用旧的，就把它从迁移声明里拿掉（别让迁移边界失去意义）',
           ),
@@ -209,7 +209,7 @@ export const relativeUpDepth: Rule = {
           finding(
             'S43',
             record.rel,
-            imported.line,
+            imported,
             `相对越级：${imported.spec} 向上爬了 ${up} 层（上限 ${limit.max}）`,
             '改走别名 / 包路径 —— 一串 ../ 看不出来这条依赖跨没跨界',
           ),

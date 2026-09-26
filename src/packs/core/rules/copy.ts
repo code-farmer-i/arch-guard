@@ -3,16 +3,21 @@ import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 const finding = (
   rule: string,
   file: string,
-  line: number,
+  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
+  line: number | { line: number; column?: number },
   text: string,
   hint?: string,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-})
+): Finding => {
+  const position = typeof line === 'number' ? { line } : line
+  return {
+    rule,
+    file,
+    line: position.line,
+    ...(position.column !== undefined ? { column: position.column } : {}),
+    text,
+    ...(hint ? { hint } : {}),
+  }
+}
 
 /* ---------------- C03 多语言键一致 ---------------- */
 
@@ -89,7 +94,7 @@ export const oneNamespacePerFile: Rule = {
             finding(
               'C04',
               file.rel,
-              key.line,
+              key,
               `${file.namespace}.ts 里重复了 ${head} 命名空间：${key.path}`,
             ),
           )
@@ -226,7 +231,7 @@ export const keysExist: Rule = {
           knownWithPlurals(known, key),
         )
         if (hit) continue
-        out.push(finding('C02', record.rel, call.line, `文案键不存在：${call.stringArg}`))
+        out.push(finding('C02', record.rel, call, `文案键不存在：${call.stringArg}`))
       }
     }
     return out
@@ -274,7 +279,7 @@ export const noDeadKeys: Rule = {
         // 复数变体由**基键**的使用点亮：`t('orders.count')` 用到了 `count_one` / `count_other`
         if (used.has(key.path) || used.has(baseKeyOf(key.path))) continue
         if (prefixes.some((prefix) => key.path.startsWith(prefix))) continue
-        out.push(finding('C06', file.rel, key.line, `死键：${key.path}`))
+        out.push(finding('C06', file.rel, key, `死键：${key.path}`))
       }
     }
     return out
@@ -413,7 +418,7 @@ export const bareCopy: Rule = {
             finding(
               'C01',
               record.rel,
-              call.line,
+              call,
               `裸文案：${call.callee}(${JSON.stringify(call.stringArg)})`,
               '改成 t(...) 并登记进资源；确实不该翻译就写进 i18n 的忽略清单',
             ),
@@ -435,7 +440,7 @@ export const bareCopy: Rule = {
             finding(
               'C01',
               record.rel,
-              text.line,
+              text,
               `裸文案：${text.inCall}({ ${text.prop}: ${JSON.stringify(text.value)} })`,
               '改成 t(...) 并登记进资源；确实不该翻译就写进 i18n 的忽略清单',
             ),
@@ -453,7 +458,7 @@ export const bareCopy: Rule = {
           finding(
             'C01',
             record.rel,
-            text.line,
+            text,
             `裸文案：${inUserFacingProp ? `${text.prop}="${text.value}"` : text.value}`,
             '改成 t(...) 并登记进资源；确实不该翻译（品牌名 / 代码片段）就写进 i18n 的忽略清单',
           ),

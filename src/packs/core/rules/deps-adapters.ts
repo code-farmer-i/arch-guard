@@ -19,18 +19,23 @@ import type { Facts, Finding, Rule } from '../../../engine/types.js'
 const finding = (
   rule: string,
   file: string,
-  line: number,
+  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
+  line: number | { line: number; column?: number },
   text: string,
   hint?: string,
   global = false,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-  ...(global ? { global: true } : {}),
-})
+): Finding => {
+  const position = typeof line === 'number' ? { line } : line
+  return {
+    rule,
+    file,
+    line: position.line,
+    ...(position.column !== undefined ? { column: position.column } : {}),
+    text,
+    ...(hint ? { hint } : {}),
+    ...(global ? { global: true } : {}),
+  }
+}
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
 function packageOf(spec: string): string {
@@ -130,7 +135,7 @@ export const iconSourceSingle: Rule = createRule({
           finding(
             'P05',
             record.rel,
-            item.line,
+            item,
             `图标来自未登记的包：${pkg}`,
             `改用适配器登记的图标包：${allowed.join(' / ')}`,
           ),
@@ -209,7 +214,7 @@ export const wheelSuspected: Rule = createRule({
           finding(
             'P07',
             record.rel,
-            naming.line,
+            naming,
             `疑似自造轮子：${entry.capability}（第 ${weakLine} 行有弱指纹，且自研了 ${naming.name}）`,
             entry.hint,
           ),
@@ -289,7 +294,7 @@ export const solutionAlternatives: Rule = createRule({
             finding(
               'P12',
               record.rel,
-              imported.line,
+              imported,
               `${adapter.facet} 面登记的是 ${declaredLabel}，这里却 import 了同类方案 ${pkg}`,
               '换库要改适配器那一行（而不是在代码里并存两套）；确实要并存就先去掉登记',
             ),

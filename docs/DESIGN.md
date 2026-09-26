@@ -344,7 +344,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | `tree-sitter`                          | 有（native）        | 极快 | 容错好，但引入查询语言生态                                                                                                                                        |
 | 纯正则                                 | 无                  | 极快 | 已在 §6.1 排除                                                                                                                                                    |
 
-**关键边界：规则不消费 TS AST。** `src/engine/facts.ts` 把 AST 归一成**事实模型（facts）**，规则只读 facts：
+**关键边界：规则不消费 TS AST。** `src/engine/facts.ts` 把 AST 归一成**事实模型（facts）**，规则只读 facts（带位置的事实都有 `line` + `column`，报告印 `file:line:col`）：
 
 ```js
 f = {

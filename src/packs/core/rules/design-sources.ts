@@ -83,7 +83,7 @@ export const cacheKeySingleSource: Rule = {
           finding(
             'D22',
             record.rel,
-            item.line,
+            item,
             `缓存键字面量 ${JSON.stringify(item.value)} 出现在这里：键只许来自 ${listed}`,
             `把键写进 ${listed}（例如导出一份 keys 对象），这里改成引用它：${item.prop}: keys.xxx`,
           ),
@@ -124,7 +124,7 @@ export const routePathSingleSource: Rule = {
           finding(
             'D23',
             record.rel,
-            item.line,
+            item,
             `路径字面量 ${JSON.stringify(item.value)} 出现在 ${item.prop} 上：路径只许来自 ${source}`,
             `在 ${source} 里声明它（如 paths.crews），这里引用那个常量`,
           ),
@@ -138,7 +138,7 @@ export const routePathSingleSource: Rule = {
           finding(
             'D23',
             record.rel,
-            call.line,
+            call,
             `跳转目标字面量 ${JSON.stringify(call.stringArg)} 出现在 ${call.callee}() 上：路径只许来自 ${source}`,
             `在 ${source} 里声明它（如 paths.crews），调用时传那个常量`,
           ),
@@ -186,7 +186,7 @@ export const analyticsEventSingleSource: Rule = {
           finding(
             'D24',
             record.rel,
-            call.line,
+            call,
             `埋点事件名直接写字面量：${call.callee}(${JSON.stringify(call.stringArg)})`,
             `从 ${source} 的常量表里取（改名时才只有一处要改）`,
           ),
@@ -234,7 +234,7 @@ export const permissionPointSingleSource: Rule = {
           finding(
             'D29',
             record.rel,
-            call.line,
+            call,
             `权限点直接写字面量：${call.callee}(${JSON.stringify(call.stringArg)})`,
             `从 ${source} 的常量表里取（改名时才只有一处要改）`,
           ),
@@ -289,7 +289,7 @@ export const failurePolicySingleSource: Rule = {
           finding(
             'D30',
             record.rel,
-            fn.line,
+            fn,
             `${fn.ownedProp} 写成了函数型策略，却在家外：函数体里的口径（次数 / 退避 / 条件）别人看不见`,
             `把整段策略搬进声明的落点（${globs.join(' / ')}），这里只引用它`,
           ),
@@ -302,7 +302,7 @@ export const failurePolicySingleSource: Rule = {
           finding(
             'D30',
             record.rel,
-            item.line,
+            item,
             `${item.prop} 写成了枚举型策略（${JSON.stringify(item.value)}），却在家外`,
             `值进声明的落点（${globs.join(' / ')}），这里只引用常量`,
           ),
@@ -366,7 +366,7 @@ export const endpointSingleSource: Rule = {
             finding(
               'D25',
               record.rel,
-              candidate.line,
+              candidate,
               `端点路径字面量 ${JSON.stringify(candidate.text)} 出现在 ${hit}() 的实参里：只许来自声明的落点`,
               `把端点写进声明的落点（${sources.join(' / ')}，例如导出一份 ENDPOINTS 表），这里改成拼常量：\`${'$'}{API_BASE_URL}${'$'}{ENDPOINTS.xxx}\``,
             ),
@@ -434,7 +434,7 @@ export const keyShapeConsistent: Rule = {
             finding(
               'D26',
               record.rel,
-              item.line,
+              item,
               `${factory} 里的键前缀不一致：这里是 ${JSON.stringify(item.head)}，同组多数是 ${JSON.stringify(majority)}`,
               `同一键工厂用同一前缀（invalidate 按前缀匹配：不一致就会"改了不生效"）`,
             ),

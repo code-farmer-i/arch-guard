@@ -29,18 +29,23 @@ export const parseFailClosed: Rule = {
 const finding = (
   rule: string,
   file: string,
-  line: number,
+  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
+  line: number | { line: number; column?: number },
   text: string,
   hint?: string,
   global = false,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-  ...(global ? { global: true } : {}),
-})
+): Finding => {
+  const position = typeof line === 'number' ? { line } : line
+  return {
+    rule,
+    file,
+    line: position.line,
+    ...(position.column !== undefined ? { column: position.column } : {}),
+    text,
+    ...(hint ? { hint } : {}),
+    ...(global ? { global: true } : {}),
+  }
+}
 
 /** S01 角色表互斥完备：每个文件必须恰好命中一个角色 */
 export const roleTableComplete: Rule = {
@@ -126,7 +131,7 @@ export const noBarrel: Rule = {
       if (!facts) return []
       return facts.exports
         .filter((entry) => entry.isStar && !entry.typeOnly)
-        .map((entry) => finding('S11', record.rel, entry.line, '禁 barrel：export * from ...'))
+        .map((entry) => finding('S11', record.rel, entry, '禁 barrel：export * from ...'))
     }),
 }
 
@@ -235,9 +240,7 @@ export const exportShape: Rule = {
           // 类型导出是 hook 的公开契约（ToolStep / ConversationStream…），不是"非 hook 导出"
           if (entry.typeOnly) continue
           if (entry.isDefault || !entry.name.startsWith(ctx.config.naming.hookPrefix)) {
-            out.push(
-              finding('S13', record.rel, entry.line, `hook 模块只允许导出 use*：${entry.name}`),
-            )
+            out.push(finding('S13', record.rel, entry, `hook 模块只允许导出 use*：${entry.name}`))
           }
         }
       }
@@ -248,7 +251,7 @@ export const exportShape: Rule = {
               finding(
                 'S13',
                 record.rel,
-                entry.line,
+                entry,
                 `model 只允许类型与字面量常量：${entry.name}（${entry.kind}）`,
               ),
             )
@@ -257,8 +260,7 @@ export const exportShape: Rule = {
       }
       if (record.slot === 'lib') {
         for (const entry of exports) {
-          if (entry.isDefault)
-            out.push(finding('S13', record.rel, entry.line, 'lib 禁止 default 导出'))
+          if (entry.isDefault) out.push(finding('S13', record.rel, entry, 'lib 禁止 default 导出'))
         }
         if (facts.hasJsx) out.push(finding('S13', record.rel, 1, 'lib 是纯函数层，不得包含 JSX'))
       }
@@ -301,7 +303,7 @@ export const sizeLimits: Rule = {
             finding(
               'S16',
               record.rel,
-              fn.line,
+              fn,
               `组件函数 ${fn.name} 有 ${fn.lines} 行，超过上限 ${functionLines}`,
             ),
           )

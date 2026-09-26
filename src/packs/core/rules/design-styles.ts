@@ -146,7 +146,7 @@ export const componentsUseSemanticTokens: Rule = {
           finding(
             'D18',
             file.rel,
-            ref.line,
+            ref,
             `组件样式引用了静态令牌 ${ref.name}：该用语义令牌`,
             '语义令牌在主题文件里（明暗两套），静态值只属于色板',
           ),
@@ -186,7 +186,7 @@ export const noImportant: Rule = {
             finding(
               'D09',
               file.rel,
-              declaration.line,
+              declaration,
               `${declaration.prop} 用了 !important：只许写在 vendor 目录里（第三方覆盖）`,
               '改层级 / 加语义类，而不是加更强的 !important',
             ),
@@ -287,7 +287,7 @@ export const contrastPairsDeclared: Rule = {
           finding(
             'D27',
             file.rel,
-            fg.line,
+            fg,
             `${fgToken} 叠在 ${bgToken} 上，但这一对没在 contrastPairs 里声明：没人算它们的对比度`,
             `加进 designSystem({ contrastPairs: [{ fg: '${fgToken}', bg: '${bgToken}', usage: '…', min: 4.5 }] })`,
           ),

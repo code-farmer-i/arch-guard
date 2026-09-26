@@ -368,6 +368,8 @@ export type Severity = 'error' | 'warn'
 export type Domain = 'structure' | 'design' | 'copy' | 'deps' | 'hygiene' | 'metrics'
 
 export interface Finding {
+  /** 列号（1 起）—— 事实里有就给，报告与 GitHub 注解用它精确定位 */
+  column?: number
   rule: string
   file: string
   line: number

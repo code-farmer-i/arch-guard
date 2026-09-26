@@ -49,7 +49,7 @@ export const importLocality: Rule = {
             finding(
               'S32',
               record.rel,
-              imported.line,
+              imported,
               `跨组不该用相对路径：${imported.spec}（跨组要走别名 / 包路径，依赖方向才看得见）`,
             ),
           )
@@ -58,7 +58,7 @@ export const importLocality: Rule = {
             finding(
               'S32',
               record.rel,
-              imported.line,
+              imported,
               `同组内该用相对路径：${imported.spec}（组内互相引用走别名会让人以为它跨了界）`,
             ),
           )

@@ -6,18 +6,23 @@ import type { Facts, Finding, Rule, RuleContext } from '../../../engine/types.js
 const finding = (
   rule: string,
   file: string,
-  line: number,
+  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
+  line: number | { line: number; column?: number },
   text: string,
   hint?: string,
   global = false,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-  ...(global ? { global: true } : {}),
-})
+): Finding => {
+  const position = typeof line === 'number' ? { line } : line
+  return {
+    rule,
+    file,
+    line: position.line,
+    ...(position.column !== undefined ? { column: position.column } : {}),
+    text,
+    ...(hint ? { hint } : {}),
+    ...(global ? { global: true } : {}),
+  }
+}
 
 /**
  * 依赖域（P）：管两件事
@@ -125,7 +130,7 @@ export const depsPhantom: Rule = {
           finding(
             'P03',
             record.rel,
-            imported.line,
+            imported,
             `幽灵依赖：${name} 没声明在 package.json 里（这里 import 了它）`,
           ),
         )
@@ -277,7 +282,7 @@ export const capabilityPreferred: Rule = {
         const findingEntry = finding(
           'P06',
           file,
-          hit.line,
+          hit,
           `手搓了 ${capability} 的活，但没在用登记的 ${preferred}${others > 0 ? `（该文件另有 ${others} 处）` : ''}`,
           entry.hint,
         )

@@ -65,6 +65,7 @@ export { anchorOf, globToRegExp, mergePresets, sha1 } from './engine/util.js'
 export {
   summarize,
   toJsonReport,
+  renderGithubAnnotations,
   renderHeader,
   renderReport,
   renderSummary,

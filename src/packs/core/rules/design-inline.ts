@@ -60,7 +60,7 @@ export const inlineStyleDiscipline: Rule = {
             finding(
               'D15',
               record.rel,
-              item.line,
+              item,
               `内联样式里写死颜色：${item.prop}: ${item.value}`,
               '颜色只写进色板 / 令牌，这里用 var(--token)：内联的色值换主题时不跟着变',
             ),
@@ -87,7 +87,7 @@ export const inlineStyleDiscipline: Rule = {
             finding(
               'D15',
               record.rel,
-              item.line,
+              item,
               `内联样式里的魔法数字：${kebab(item.prop)}: ${token} 不在${family.title}的刻度里（允许：${allow.join(' / ')}）`,
               family.hint,
             ),

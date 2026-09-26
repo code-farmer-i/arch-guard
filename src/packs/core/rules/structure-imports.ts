@@ -61,7 +61,7 @@ export const resolvableImports: Rule = {
             finding(
               'S45',
               record.rel,
-              imported.line,
+              imported,
               `导入的 ${name} 在 ${target} 里没有导出：路径解析得到，名字对不上`,
               `改成 ${target} 真正导出的名字，或把它加进那个文件的导出`,
             ),
@@ -72,7 +72,7 @@ export const resolvableImports: Rule = {
             finding(
               'S45',
               record.rel,
-              imported.line,
+              imported,
               `默认导入在 ${target} 里没有 default 导出`,
               `改成具名导入（或给 ${target} 加 default 导出）`,
             ),
