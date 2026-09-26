@@ -246,6 +246,11 @@ export default { count_one: '{{count}} order', count_other: '{{count}} orders' }
 export default { count_other: '共 {{count}} 个订单' }
 ```
 
+### 2.7 切片互引：`@x`（FSD）
+
+同层切片默认不许互引；官方留的唯一出口是 `<provider>/@x/<consumer>.ts`（只放行被指名的那一侧）。
+详见 [`PARADIGM.md`](../PARADIGM.md) §6.10 —— 规则侧是 S22 / S23 的同一条例外。
+
 ## 3. 命令参考
 
 ```bash

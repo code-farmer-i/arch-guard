@@ -153,6 +153,15 @@ export function fsdRoleTable(options: FsdOptions = {}): RoleDescriptor[] {
       group: 'slice',
       entry: true,
     })
+    // 官方 **`@x` 跨引用公开面**（R-105）：`<provider>/@x/<consumer>.ts` = "provider 允许 consumer 拿这些"。
+    // 这是 FSD 给"同层切片互引"留的唯一出口（实体互引最常见）：S22 / S23 为它开例外，
+    // 且**只放行被指名的那一侧**（`consumer` 捕获要与调用方的切片名相同）。
+    roles.push({
+      id: `fsd:${layer}:x`,
+      pattern: `${src}/${layer}/${slice}/@x/{consumer}.{ts,tsx}`,
+      layer: layerNumber,
+      group: 'slice',
+    })
     roles.push(
       // 片段两种形态都算：`model/` 目录，以及**单文件片段** `model.ts`
       // （社区模型按"去掉扩展名后的名字"认片段，`entities/user/model.ts` 在它眼里是合法切片；

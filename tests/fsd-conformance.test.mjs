@@ -105,21 +105,36 @@ test('核心规矩照旧：同层跨切片 = S22、缺公开面 = S23、向上�
   }
 })
 
-test('已知偏离：官方 `@x` 跨引用公开面未实现（行为变了必须改这条）', async () => {
+test('官方 `@x` 跨引用公开面：`<provider>/@x/<consumer>` 只放行被指名的那一侧（R-105）', async () => {
   const dir = makeProject({
     'src/app/index.tsx': 'export const app = 1\n',
     'src/entities/song/index.ts': 'export type { Song } from "./model/song"\n',
     'src/entities/song/model/song.ts': 'export interface Song {\n  id: string\n}\n',
+    // provider 侧声明"允许 artist 拿这些"（官方的 @x 写法）
+    'src/entities/song/@x/artist.ts': 'export type { Song } from "../model/song"\n',
     'src/entities/artist/index.ts': 'export type { Artist } from "./model/artist"\n',
     'src/entities/artist/model/artist.ts':
-      'import type { Song } from "../@x/song"\nexport interface Artist {\n  songs: Song[]\n}\n',
-    'src/entities/artist/@x/song.ts': 'export type { Song } from "../model/../song/index"\n',
+      'import type { Song } from "../../song/@x/artist"\nexport interface Artist {\n  songs: Song[]\n}\n',
+    // 没被指名的切片引同一个文件 → 该报
+    'src/entities/order/index.ts': 'export type { Order } from "./model/order"\n',
+    'src/entities/order/model/order.ts':
+      'import type { Song } from "../../song/@x/artist"\nexport interface Order {\n  song: Song\n}\n',
   })
   try {
     const found = pairs(await run(dir))
     assert.ok(
-      found.includes('S01 src/entities/artist/@x/song.ts'),
-      '`@x` 目录现在没有角色 → S01。实现了 @x 支持之后，这条断言必须改成"不报"',
+      !found.includes('S01 src/entities/song/@x/artist.ts'),
+      '`@x` 目录现在有角色了 —— 不该再报「文件不在目录契约内」',
+    )
+    assert.ok(
+      !found.some((item) => item.includes('entities/song/@x/artist.ts') && item.startsWith('S22')),
+      '被指名的 artist 从 @x 取用是**合法**的跨切片通道',
+    )
+    assert.ok(
+      found.some(
+        (item) => item.startsWith('S22') && item.includes('entities/order/model/order.ts'),
+      ),
+      '没被指名的 order 走同一个 @x 文件 → 仍然要报（只放行被指名的那一侧）',
     )
   } finally {
     rmSync(dir, { recursive: true, force: true })

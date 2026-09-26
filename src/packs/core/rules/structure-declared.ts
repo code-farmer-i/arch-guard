@@ -66,6 +66,23 @@ export const layerOrder: Rule = {
  *
  * 一条都不满足就放过：门禁宁可少报也不误报。声明 `structure.isolate: ['slice']` 才生效。
  */
+/**
+ * 官方 `@x` 跨引用公开面（R-105）：`<provider>/@x/<consumer>.{ts,tsx}` ——
+ * **只有被指名的那一侧**能引它（`consumer` 捕获 == 调用方的切片名）。
+ *
+ * 这是 FSD 给"同层切片互引"留的唯一出口：`entities/artist` 要用 `entities/song` 的类型时，
+ * 由 song 导出 `song/@x/artist.ts`，artist 只许从那个文件进 —— 连接是**显式**的，
+ * 重构时想忽略都难（官方 public-api 页的原话："make the connection impossible to miss"）。
+ */
+export function crossImportAllowed(
+  importer: { captures?: Record<string, string> },
+  target: { captures?: Record<string, string> },
+): boolean {
+  const consumer = target.captures?.consumer
+  if (consumer === undefined || consumer === '') return false
+  return importer.captures?.slice === consumer
+}
+
 export const groupIsolation: Rule = {
   id: 'S22',
   domain: 'structure',
@@ -88,6 +105,8 @@ export const groupIsolation: Rule = {
         if (to.groupName !== record.groupName) continue
         if (to.layer !== record.layer) continue
         if (to.group === record.group) continue
+        // 官方 `@x`：被指名的调用方可以跨切片拿（唯一出口）
+        if (crossImportAllowed(record, to)) continue
         out.push(
           finding(
             'S22',
@@ -175,6 +194,8 @@ export const declaredPublicApi: Rule = {
           record.group === to.group
         if (sameGroup) continue
         if (entryRoles.has(to.role)) continue
+        // 官方 `@x`：被指名的调用方可以直接引它（那是显式的跨引用公开面，不是"绕过"）
+        if (crossImportAllowed(record, to)) continue
         out.push(
           finding(
             'S23',

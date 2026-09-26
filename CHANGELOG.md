@@ -208,6 +208,17 @@
 - 实测（改坏示例 → 报 → 还原）：D27 抓 `--surface 叠在 --brand 上`；D28 在删掉样式入口后
   同时点名三个目录；S46 由夹具覆盖（渲染体上报 vs effect 内上报）。
 
+### Added（R-105：官方 `@x` 跨引用公开面 —— FSD 实体互引的唯一出口）
+
+- `fsd()` 认得 `<provider>/@x/<consumer>.{ts,tsx}`（每个切片层一个角色，带 `consumer` 捕获）：
+  provider 声明"允许 consumer 拿这些"，**只放行被指名的那一侧**。
+- S22（组隔离）与 S23（公开面）为它开**同一条例外** —— `@x` 文件不算组的公开入口，
+  但被指名的调用方可以直接引它。没被指名的切片引同一个文件 → 两条规则照旧报。
+- 一致性测试里那条"已知偏离"翻过来了：以前断言 `entities/song/@x/artist.ts` 会报 S01，
+  现在断言（① 不再报 S01 ② 被指名的一侧合规 ③ 没被指名的一侧 → S22）。夹具 `cross-import-x`（88 个）。
+- 为什么不是"放开同层互引"：连接从**看不见的横向依赖**变成**显式声明**，重构时想忽略都难
+  （官方原话："make the connection impossible to miss"）。文档：`PARADIGM.md` §6.10 · USAGE §2.7。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

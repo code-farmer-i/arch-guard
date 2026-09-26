@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "S22",
+      "file": "src/entities/order/model/order.ts"
+    },
+    {
+      "rule": "S23",
+      "file": "src/entities/order/model/order.ts"
+    }
+  ],
+  "exact": true
+}
