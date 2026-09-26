@@ -12,9 +12,11 @@ import {
   createRule,
   deps,
   designSystem,
+  explainRules,
   i18n,
   i18nextKit,
   loadConfig,
+  looksLikeRuleId,
   renderHeader,
   renderReport,
   renderSummary,
@@ -319,4 +321,41 @@ test('输出：GitHub 注解与 --stats 统计表（CI 与排查用）', async (
   ])
   assert.match(stats, /S16\s+structure\s+12\.50ms\s+2 命中/)
   assert.match(stats, /合计 13\.75ms \/ 2 条规则/)
+})
+
+test('R-126：`--brief` 只折叠、不删信息（说清各有几条 + 怎么展开）', () => {
+  const text = capture(() =>
+    renderSummary(
+      baseInput({
+        brief: true,
+        skipped: [
+          {
+            rule: 'D10',
+            code: 'capability-missing',
+            missing: ['uiKit.vendorSelectors'],
+            reason: '能力未声明：uiKit.vendorSelectors',
+          },
+        ],
+        exceptions: [],
+        notices: [
+          { code: 'config-aliases', text: '别名取自 tsconfig' },
+          { code: 'facts-cache', text: 'facts 缓存命中 3/3' },
+        ],
+      }),
+    ),
+  )
+  assert.match(text, /自述 2 条/)
+  assert.match(text, /因能力停用 1 条规则/)
+  assert.match(text, /去掉 --brief 展开/, '折叠必须说清怎么看全（不许静默）')
+  assert.doesNotMatch(text, /别名取自 tsconfig/, '折叠时不再逐条展开')
+})
+
+test('R-126：`--explain <规则 id>` 讲清这条规则（域/等级/需要什么声明/怎么改）', () => {
+  const output = explainRules(['D29'], { rules: coreRules, format: 'pretty' })
+  assert.match(output, /D29/)
+  assert.match(output, /等级/)
+  assert.match(output, /只想跑它：arch-guard --only D29/)
+  assert.match(explainRules(['X99'], { rules: coreRules, format: 'pretty' }), /未知规则/)
+  assert.equal(looksLikeRuleId('D29'), true)
+  assert.equal(looksLikeRuleId('src/a.ts'), false)
 })

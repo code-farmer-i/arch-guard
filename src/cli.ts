@@ -6,7 +6,12 @@ import { Command, CommanderError } from 'commander'
 
 import { loadConfig } from './engine/config.js'
 import { collectDocDiffs } from './engine/docs.js'
-import { explainPaths, renderExplanations } from './engine/explain.js'
+import {
+  explainPaths,
+  explainRules,
+  looksLikeRuleId,
+  renderExplanations,
+} from './engine/explain.js'
 import { rootRelativePattern } from './engine/git.js'
 import { err, out } from './engine/output.js'
 import { createRegistry } from './engine/registry.js'
@@ -37,6 +42,7 @@ const DOMAINS: Record<string, Domain> = {
 }
 
 interface CliOptions {
+  brief?: boolean
   config?: string
   scope: string
   paths?: string
@@ -94,6 +100,10 @@ export function createProgram(version: string = packageVersion()): Command {
     .option(
       '--explain <paths>',
       '讲清一批路径的契约（角色 / 能依赖谁 / 该放哪 / 适用规则），写代码之前用；逗号分隔，可绝对路径',
+    )
+    .option(
+      '--brief',
+      '附录只给一行摘要（自述 / 停用 / 例外各有几条，去掉 --brief 展开）—— 信息不删，只折叠',
     )
     .option('--coverage-report <path>', '覆盖率产物路径（覆盖 metrics 适配器里的配置）')
     .option(
@@ -249,6 +259,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   try {
     const result = await runGuard({
       cwd: process.cwd(),
+      brief: options.brief === true,
       /**
        * 规则集由框架包决定（配置里可写 `packs: [...]`）；CLI 只提供**兜底的包**。
        *
@@ -350,11 +361,21 @@ async function explain(
       fallbackPacks: [reactPack],
     })
     const registry = createRegistry(coreRules, loaded.config)
-    const paths = pathsInput
+    const args = pathsInput
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean)
+    // `--explain D29` 也要能展开（违规里印着 [D29]，新人却无从下手）
+    const ruleIds = args.filter((item) => looksLikeRuleId(item))
+    if (ruleIds.length > 0) {
+      out(
+        explainRules(ruleIds, { rules: coreRules, format: format === 'json' ? 'json' : 'pretty' }),
+      )
+      if (ruleIds.length === args.length) return 0
+    }
+    const paths = args
       // 绝对路径要归一成配置根相对（IDE / agent 按文件传参时给的就是绝对路径）
+      .filter((item) => !looksLikeRuleId(item))
       .map((item) => rootRelativePattern(item, cwd))
     const list = explainPaths({
       config: loaded.config,

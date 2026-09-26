@@ -31,6 +31,12 @@ export { scanProject } from './engine/scan.js'
 export { extractFacts, factInputOf, TS_EXTENSIONS } from './engine/facts.js'
 export { buildGraph, resolveSpecifier } from './engine/graph.js'
 export {
+  explainPaths,
+  explainRules,
+  looksLikeRuleId,
+  renderExplanations,
+} from './engine/explain.js'
+export {
   defineAdapter,
   defineFacet,
   facetOfCapabilityRoot,

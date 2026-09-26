@@ -137,6 +137,7 @@ test('cli：commander 注册了全部对外开关（防止重构时丢参数）'
     .options.map((option) => option.long)
     .sort()
   assert.deepEqual(options, [
+    '--brief',
     '--check-docs',
     '--config',
     '--coverage-report',

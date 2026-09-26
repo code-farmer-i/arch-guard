@@ -211,7 +211,8 @@ export async function loadConfig(options: {
   const path = options.configPath ? join(root, options.configPath) : join(root, 'arch.config.mjs')
   if (!exists(path)) {
     throw new Error(
-      `找不到配置文件：${path}\n（arch-guard 不会回退猜测；请用 --config 指定，或在项目根放 arch.config.mjs）`,
+      `找不到配置文件：${path}\n（arch-guard 不会回退猜测；请用 --config 指定，或在项目根放 arch.config.mjs ——
+没有的话跑 \`arch-guard init --ui <组件库> --data <取数> --i18n <文案>\` 生成一份）`,
     )
   }
   importCounter += 1

@@ -363,10 +363,11 @@ arch-guard [options]
 | `--min-level <level>`          | 只跑判定等级不低于下限的规则：`L1`（路径级）· `L2`（单文件 AST）· `L3`（依赖图）                                                                                        |
 | `--severity <s>`               | 只报告 `error` 或 `warn`                                                                                                                                                |
 | `--format <f>`                 | `pretty`（默认）· `json` · `github`（CI 注解）                                                                                                                          |
+| `--brief`                      | 附录只给一行摘要（自述 / 停用 / 例外各有几条，去掉 `--brief` 展开）                                                                                                     |
 | `--stats`                      | 每条规则的耗时与命中数（排查"为什么这么慢"/"这条规则该不该留"）                                                                                                         |
 | `--no-cache`                   | 不做 facts 持久缓存（每轮全量解析）                                                                                                                                     |
 | `--verify-deps`                | 只对账：适配表声明的包 vs `package.json` 实际依赖（不跑规则）                                                                                                           |
-| `--explain <paths>`            | **写代码之前**问契约（角色 / 能依赖谁 / 该放哪 / 适用规则）；退出码恒 0                                                                                                 |
+| `--explain <paths 或规则 id>`  | **写代码之前**问契约（角色 / 能依赖谁 / 该放哪 / 适用规则）；退出码恒 0                                                                                                 |
 | `--report-only`                | 只报告，不因 error 退出非零                                                                                                                                             |
 | `--local-only`                 | `scope` 非全量时允许跳过不可归属的全局违规（会打印跳过条数）                                                                                                            |
 | `--coverage-report <path>`     | 覆盖率产物路径（覆盖 metrics 适配器里的配置）                                                                                                                           |

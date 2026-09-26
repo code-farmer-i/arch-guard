@@ -40,6 +40,8 @@ import { exists, globToRegExp } from './util.js'
 export type ScopeMode = 'full' | 'changed' | 'staged' | `since:${string}`
 
 export interface RunOptions {
+  /** `--brief`：附录只给一行摘要（信息不删，只折叠） */
+  brief?: boolean
   cwd: string
   configPath?: string
   scope?: string
@@ -421,6 +423,7 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
         ? { requested: options.paths, matched: filtered.pathsMatched ?? 0 }
         : null,
     exceptions,
+    brief: options.brief === true,
     contractScope: config.include,
     outsideContract: scan.outside.length,
   }

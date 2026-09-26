@@ -518,6 +518,7 @@ ctx = {
 | `--min-level <L1\|L2\|L3>`        | 判定等级                                             | 规则集   | 快速档（只跑 L1）                                  |
 | `--severity <error\|warn>`        | 严重度                                               | 报告     | 只看硬红线                                         |
 | `--format <pretty\|json\|github>` | —                                                    | 输出     | agent 消费 / CI 注解                               |
+| `--brief`                         | false                                                | 输出     | 附录折叠成一行摘要（不删信息，只折叠）             |
 
 **（3）安全语义（决定门禁可不可信）**
 

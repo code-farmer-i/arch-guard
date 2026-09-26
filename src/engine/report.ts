@@ -34,6 +34,8 @@ export interface ReportInput {
   exceptions: ExceptionReport[]
   /** 契约扫描域（空 = 全树） */
   contractScope: string[]
+  /** `--brief`：附录折叠成一行摘要（信息不删：说清各有几条、怎么展开） */
+  brief?: boolean
   /** 扫描域之外、不参与目录契约判定的 ts/css 文件数 */
   outsideContract: number
 }
@@ -84,7 +86,8 @@ export function renderHeader(input: ReportInput): void {
   } else {
     out(color.green(`✔ 架构守卫通过${warnings > 0 ? `（${warnings} 个 warn）` : ''} · ${meta}`))
   }
-  out('')
+  // 空行只在"下面还有正文（违规）"时给，免得通过态出现两行空行
+  if (input.findings.length > 0) out('')
 }
 
 export function renderReport(input: ReportInput): void {
@@ -127,6 +130,20 @@ export function renderSummary(input: ReportInput): void {
       : null,
   ].filter(Boolean)
   out(color.dim(parts.join(' | ')))
+
+  if (input.brief === true) {
+    // 折叠**不删信息**：说清各有几条、怎么看全（静默是这套机制最该防的）
+    const counted = [
+      input.notices.length > 0 ? `自述 ${input.notices.length} 条` : null,
+      input.skipped.length > 0 ? `因能力停用 ${input.skipped.length} 条规则` : null,
+      input.exceptions.length > 0 ? `例外 ${input.exceptions.length} 条声明` : null,
+      input.unknownEnabled.length > 0 ? `未知规则 ${input.unknownEnabled.length} 条` : null,
+    ].filter(Boolean)
+    if (counted.length > 0) {
+      out(color.dim(`· ${counted.join(' · ')}（去掉 --brief 展开）`))
+    }
+    return
+  }
 
   if (input.exceptions.length > 0) {
     const hits = input.exceptions.reduce((sum, entry) => sum + entry.hits, 0)

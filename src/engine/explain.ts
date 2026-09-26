@@ -1,6 +1,7 @@
 import { buildRoleIndex, resolveRole, type RoleIndex, type RoleResolution } from './scan.js'
 import { DOMAIN_LABEL, type ReportFormat } from './report.js'
 import type { SkippedRule } from './codes.js'
+import { color } from './util.js'
 import type { Config, Rule } from './types.js'
 import { exists } from './util.js'
 
@@ -289,4 +290,58 @@ export function renderExplanations(list: PathExplanation[], format: ReportFormat
     return lines.join('\n')
   })
   return blocks.join('\n\n')
+}
+
+/** 规则 id 的形态：`S12` / `D29` / `M10`（域前缀 + 序号） */
+const RULE_ID = /^[SDCPHM]\d{1,3}$/i
+
+export const looksLikeRuleId = (value: string): boolean => RULE_ID.test(value.trim())
+
+/**
+ * **`--explain D29`**（UX）：`--explain` 以前只收路径 —— 违规里印着 `[D29]`，新人却无从展开。
+ * 规则对象上本来就有 title / hint / requires，这里只是把它们讲出来（不新增事实）。
+ */
+export function explainRules(
+  ids: string[],
+  input: { rules: Rule[]; format: ReportFormat },
+): string {
+  const found = ids.map((id) =>
+    input.rules.find((rule) => rule.id.toUpperCase() === id.trim().toUpperCase()),
+  )
+  const missing = ids.filter((_, index) => found[index] === undefined)
+  if (input.format === 'json') {
+    return JSON.stringify(
+      {
+        rules: found
+          .filter((rule): rule is Rule => rule !== undefined)
+          .map((rule) => ({
+            id: rule.id,
+            title: rule.title,
+            domain: rule.domain,
+            level: rule.level,
+            severity: rule.severity,
+            requires: rule.requires ?? [],
+            hint: rule.hint ?? null,
+          })),
+        unknown: missing,
+      },
+      null,
+      2,
+    )
+  }
+  const lines: string[] = []
+  for (const rule of found) {
+    if (!rule) continue
+    lines.push(`${color.bold(rule.id)} ${rule.title}`)
+    lines.push(color.dim(`  域 ${rule.domain} · 等级 ${rule.level} · 严重度 ${rule.severity}`))
+    if (rule.requires && rule.requires.length > 0) {
+      lines.push(color.dim(`  需要声明：${rule.requires.join(' / ')}（没声明这条不跑）`))
+    }
+    if (rule.hint) lines.push(color.dim(`  怎么改：${rule.hint}`))
+    lines.push(color.dim(`  只想跑它：arch-guard --only ${rule.id}`))
+  }
+  if (missing.length > 0) {
+    lines.push(color.yellow(`未知规则：${missing.join(' / ')}（规则全表见 docs/DESIGN.md §4）`))
+  }
+  return lines.join('\n')
 }
