@@ -1,4 +1,5 @@
 import { resolveCallSiteApis } from '../../../engine/call-site-sources.js'
+import { isTestPath } from '../../../engine/test-paths.js'
 import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 import { apiMatchOf } from '../../../engine/api-match.js'
@@ -33,8 +34,6 @@ import { finding } from './structure-util.js'
  * - `invalidateQueries` ↔ `queryClient.invalidateQueries`（方法后缀：接收者变量名由项目决定）
  */
 
-const isTestFile = (rel: string): boolean => /\.(test|spec)\./.test(rel)
-
 /**
  * 「这类调用只许出现在声明的落点」的公共骨架（S36 取数 / S38 副作用）：
  * 跳过测试文件（renderHook、mock storage 都是正常用法）、跳过落点内的文件，其余一律报。
@@ -52,7 +51,7 @@ function callSitesOutside(
   const patterns = globs.map((glob) => globToRegExp(glob))
   const out: Finding[] = []
   for (const record of ctx.records) {
-    if (record.role === 'test' || isTestFile(record.rel)) continue
+    if (record.role === 'test' || isTestPath(record.rel)) continue
     if (patterns.some((pattern) => pattern.test(record.rel))) continue
     const facts = ctx.facts.get(record.rel)
     if (!facts) continue
@@ -191,7 +190,7 @@ export const envReadsOnlyInDeclaredSites: Rule = {
     const patterns = globs.map((glob) => globToRegExp(glob))
     const out: Finding[] = []
     for (const record of ctx.records) {
-      if (record.role === 'test' || isTestFile(record.rel)) continue
+      if (record.role === 'test' || isTestPath(record.rel)) continue
       if (patterns.some((pattern) => pattern.test(record.rel))) continue
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue

@@ -1,4 +1,5 @@
 import type { Advice } from './advice-types.js'
+import { isTestPath } from './test-paths.js'
 import type { Graph } from './graph.js'
 import type { Config, Facts, FileRecord } from './types.js'
 
@@ -56,9 +57,6 @@ function commonDirectory(paths: string[]): string {
 /** "该配单测的逻辑"住在哪些片段里（canonical 的槽位与 FSD 的片段都在这份词汇里） */
 const LOGIC_SEGMENTS = ['lib', 'model', 'api', 'hooks', 'stores', 'store', 'selectors']
 
-const isTestFile = (rel: string): boolean =>
-  /\.(test|spec)\./.test(rel) || rel.includes('__tests__/')
-
 /** 组级三条信号（R-122 / R-123 / R-124） */
 export function groupLevelAdvice(input: GroupAdviceInput): Advice[] {
   const groups = groupIndexOf(input.records)
@@ -91,7 +89,7 @@ function untestedLogicGroupAdvice(input: GroupAdviceInput, groups: Map<string, G
       return own.exports.some((item) => item.declared && !item.typeOnly)
     })
     if (!logic) continue
-    const hasTest = input.files.some((rel) => rel.startsWith(`${group.base}/`) && isTestFile(rel))
+    const hasTest = input.files.some((rel) => rel.startsWith(`${group.base}/`) && isTestPath(rel))
     if (hasTest) continue
     out.push({
       signal: 'untested-logic-group',

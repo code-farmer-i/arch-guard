@@ -17,7 +17,7 @@ export interface Graph {
 
 const RESOLVE_EXTENSIONS = [...TS_EXTENSIONS, ...CSS_EXTENSIONS, '.json']
 
-function packageNameOf(spec: string): string {
+export function packageNameOf(spec: string): string {
   const parts = spec.split('/')
   return spec.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? spec)
 }

@@ -1,4 +1,6 @@
 import { fingerprintsOf } from '../../../data/kit-fingerprints.js'
+import { maskTs } from './mask.js'
+import { packageNameOf } from '../../../engine/graph.js'
 import type { Adapter } from '../../../engine/types.js'
 import { effectiveFingerprints } from './deps-fingerprints.js'
 import { createRule } from '../../../engine/rule.js'
@@ -18,11 +20,6 @@ import { finding } from './finding.js'
  */
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
-function packageOf(spec: string): string {
-  const parts = spec.split('/')
-  return spec.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? spec)
-}
-
 /**
  * 适配器声明的包名 = `packages` ∪ `from`（i18n 适配器把库名放在 `from` 里）。
  * 只读数据，不做判定。
@@ -109,7 +106,7 @@ export const iconSourceSingle: Rule = createRule({
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const item of facts.imports) {
-        const pkg = packageOf(item.spec)
+        const pkg = packageNameOf(item.spec)
         if (!knownIconPackages.includes(pkg) || allowedSet.has(pkg)) continue
         out.push(
           finding(
@@ -128,16 +125,6 @@ export const iconSourceSingle: Rule = createRule({
 })
 
 /** 把注释区间遮罩成空格（保留换行）：弱指纹只认代码，注释里写到的轮子不算 */
-function maskComments(text: string, facts: Facts): string {
-  if (facts.comments.length === 0) return text
-  const chars = [...text]
-  for (const comment of facts.comments) {
-    for (let index = comment.pos; index < comment.end; index += 1) {
-      if (chars[index] !== '\n') chars[index] = ' '
-    }
-  }
-  return chars.join('')
-}
 
 /** 命名指纹：导出名 / 函数名与库 API 名重合（default / * 不算） */
 function namingHit(facts: Facts, apiNames: string[]): { name: string; line: number } | null {
@@ -170,7 +157,7 @@ export const wheelSuspected: Rule = createRule({
       const facts = ctx.facts.get(record.rel)
       const source = ctx.sourceOf(record.rel)
       if (!facts || !source) continue
-      const lines = maskComments(source, facts).split('\n')
+      const lines = maskTs(source, facts).split('\n')
 
       for (const entry of effectiveFingerprints(ctx.policy)) {
         const softSyntax = entry.softSyntax ?? []
@@ -268,7 +255,7 @@ export const solutionAlternatives: Rule = createRule({
         const facts = ctx.facts.get(record.rel)
         if (!facts) continue
         for (const imported of facts.imports) {
-          const pkg = packageOf(imported.spec)
+          const pkg = packageNameOf(imported.spec)
           if (pkg === undefined || !rivals.has(pkg)) continue
           out.push(
             finding(

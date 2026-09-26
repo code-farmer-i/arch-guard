@@ -428,6 +428,21 @@ test('冻结：这些「同一事实」全仓只许有一处定义（曾经各�
       needle: /^(export )?const positionOf = /m,
       home: 'src/engine/facts-syntax.ts',
     },
+    {
+      label: 'packageNameOf（从 specifier 取包名）',
+      needle: /^(export )?function packageNameOf\(/m,
+      home: 'src/engine/graph.ts',
+    },
+    {
+      label: 'maskTs（按注释区间遮罩）',
+      needle: /^(export )?(async )?function maskTs\(/m,
+      home: 'src/packs/core/rules/mask.ts',
+    },
+    {
+      label: 'isTestPath（什么算测试文件）',
+      needle: /^(export )?const isTestPath = /m,
+      home: 'src/engine/test-paths.ts',
+    },
   ]
   for (const item of singles) {
     const found = files

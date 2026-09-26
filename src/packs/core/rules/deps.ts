@@ -1,7 +1,9 @@
 import type { WheelFingerprint } from '../../../data/wheel-fingerprints.js'
+import { maskTs } from './mask.js'
+import { packageNameOf } from '../../../engine/graph.js'
 
 import { effectiveFingerprints } from './deps-fingerprints.js'
-import type { Facts, Finding, Rule, RuleContext } from '../../../engine/types.js'
+import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 import { finding } from './finding.js'
 
 /**
@@ -104,7 +106,7 @@ export const depsPhantom: Rule = {
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const imported of facts.imports) {
-        const name = packageOf(imported.spec)
+        const name = packageNameOf(imported.spec)
         if (!phantom.has(name)) continue
         out.push(
           finding(
@@ -168,24 +170,7 @@ interface FingerprintHit {
 }
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
-function packageOf(spec: string): string {
-  const parts = spec.split('/')
-  return spec.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? spec)
-}
-
 /** 把注释区间替换成空格（保留换行）：只在真实代码上匹配指纹 */
-function maskComments(text: string, facts: Facts | undefined): string {
-  if (facts && facts.comments.length > 0) {
-    const chars = [...text]
-    for (const comment of facts.comments) {
-      for (let index = comment.pos; index < comment.end; index += 1) {
-        if (chars[index] !== '\n') chars[index] = ' '
-      }
-    }
-    return chars.join('')
-  }
-  return text.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '))
-}
 
 /** 全项目扫强指纹（数据来自 data/wheel-fingerprints.ts，规则本身不含任何库名） */
 function scanStrongFingerprints(
@@ -201,7 +186,7 @@ function scanStrongFingerprints(
     if (record.kind !== 'ts' && record.kind !== 'css') continue
     const raw = ctx.sourceOf(record.rel)
     if (!raw) continue
-    const lines = maskComments(raw, ctx.facts.get(record.rel)).split('\n')
+    const lines = maskTs(raw, ctx.facts.get(record.rel)).split('\n')
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] as string
       if (regexes.some((regex) => regex.test(line)))
@@ -248,7 +233,7 @@ export const capabilityPreferred: Rule = {
         // deep-equal / query-string 五个平台能力**从来没报过**，而没有任何夹具覆盖它们。
         if (entry.platform === true) return false
         const facts = ctx.facts.get(file)
-        return facts?.imports.some((item) => packageOf(item.spec) === preferred) === true
+        return facts?.imports.some((item) => packageNameOf(item.spec) === preferred) === true
       }
       // 每文件只报首个命中行，但把该文件其余命中数带上（否则会以为只有一处）
       const firstHitPerFile = new Map<string, FingerprintHit>()

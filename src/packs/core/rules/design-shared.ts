@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { parseCss } from '../../../engine/css.js'
-import type { Facts, RuleContext } from '../../../engine/types.js'
+import type { RuleContext } from '../../../engine/types.js'
 
 export interface ContrastPair {
   fg: string
@@ -71,14 +71,7 @@ export function designParams(ctx: RuleContext): DesignParams {
 export { finding, type FindingPosition } from './finding.js'
 
 /** 用事实模型里的注释区间把注释遮罩成空格（避免注释里的示例被误判） */
-export function maskTs(text: string, facts: Facts | undefined): string {
-  if (!facts || facts.comments.length === 0) return text
-  const chars = [...text]
-  for (const comment of facts.comments) {
-    for (let i = comment.pos; i < comment.end; i += 1) if (chars[i] !== '\n') chars[i] = ' '
-  }
-  return chars.join('')
-}
+export { maskTs } from './mask.js'
 
 export interface CssFile {
   rel: string

@@ -1,4 +1,5 @@
 import { createRule } from '../../../engine/rule.js'
+import { packageNameOf } from '../../../engine/graph.js'
 import type { DetachedApi, Finding, Rule } from '../../../engine/types.js'
 import { finding } from './finding.js'
 
@@ -8,11 +9,6 @@ import { finding } from './finding.js'
  */
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
-function packageOf(spec: string): string {
-  const parts = spec.split('/')
-  return spec.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? spec)
-}
-
 /* ---------------- H06 脱离上下文的全局 API ---------------- */
 
 /**
@@ -38,7 +34,7 @@ export const noDetachedApis: Rule = createRule({
     for (const record of ctx.records) {
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
-      const imported = new Set(facts.imports.map((item) => packageOf(item.spec)))
+      const imported = new Set(facts.imports.map((item) => packageNameOf(item.spec)))
 
       for (const group of groups) {
         if (!group.from.some((pkg) => imported.has(pkg))) continue
