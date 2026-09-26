@@ -85,7 +85,9 @@ export default {
       // 而入库的产物必然比它的提交旧 —— 本仓自己的 arch.config.mjs 也是因此不声明 coverage。
       // 真实项目里它由 `pnpm coverage` 生成，配法见 docs/USAGE.md §2.2。
       tests: {
-        requireTestsFor: ['src/shared/lib/**'],
+        // 只点名测试真的覆盖到的：`analytics/index.ts` 是 React hook（useTrackView），
+        // 示例不装依赖，`node --test` 引它会直接挂 —— 所以这里收窄到纯值文件
+        requireTestsFor: ['src/shared/lib/storage.ts', 'src/shared/lib/analytics/events.ts'],
         testGlobs: ['src/**/*.test.ts'],
         checkChain: { script: 'check', require: ['test', 'coverage'] },
       },

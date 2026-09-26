@@ -88,7 +88,7 @@ export default {
       tests: {
         // 只点名"必须有测试"的那两块：`shell` store 依赖 react（本示例不装依赖，node --test 跑不起来），
         // 真实项目里当然该给它配测试 —— 这里把要求收窄到能跑得动的地方。
-        requireTestsFor: ['src/shared/lib/storage.ts', 'src/shared/lib/analytics/**'],
+        requireTestsFor: ['src/shared/lib/storage.ts', 'src/shared/lib/analytics/events.ts'],
         testGlobs: ['src/**/*.test.ts'],
         checkChain: { script: 'check', require: ['test', 'coverage'] },
       },
