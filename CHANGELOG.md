@@ -472,6 +472,21 @@
 测试：三条信号各一正例 + 各自边界（非逻辑片段 / 2 个消费方 / 上层消费 / 单向依赖），
 加上"三套健康样板要么 0 条、要么只剩被豁免的自述"这条验收。
 
+### Fixed（发布：`publishConfig` 必须显式指向 npmjs —— 否则"发布成功"是假的）
+
+- **症状**：发布工具打印 `✅ Published package @arch-guard/core@0.5.0`，而
+  `https://registry.npmjs.org/@arch-guard%2Fcore/0.5.0` **404**（0.4.0 是 200）—— 版本根本不在权威源上。
+- **根因**：发布工具的 `publishPackage()`（`@pagoda-cli/core`）只在
+  `package.json.publishConfig.registry` 存在时才拼 `--registry`；本项目没有该字段 → 它用了**默认源**，
+  而默认源是 `~/.npmrc` 里的 **npmmirror 镜像**（只读）→ 镜像对 PUT 返回了"成功"，命令退出码 0，
+  工具于是打印成功。
+- **修复**：`package.json` 加
+  `"publishConfig": { "registry": "https://registry.npmjs.org", "access": "public" }`
+  —— 第一项让工具真的发到 npmjs，第二项是 **scoped 包必需**（否则默认 restricted）。
+- **流程补一条**（发布会后必须验证，10 秒）：
+  `curl -s -o /dev/null -w '%{http_code}\n' https://registry.npmjs.org/@arch-guard%2Fcore/<版本>` → 期望 `200`。
+  本轮就是没做这一步，才让假成功留了下来。
+
 ## [0.4.0] - 2026-09-25
 
 > **契约与迁移（这一版必读）**
