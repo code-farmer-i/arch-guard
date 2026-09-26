@@ -10,6 +10,7 @@ import { explainPaths, renderExplanations } from './engine/explain.js'
 import { rootRelativePattern } from './engine/git.js'
 import { err, out } from './engine/output.js'
 import { createRegistry } from './engine/registry.js'
+import { writeInitConfig } from './presets/init.js'
 import { checkPortability } from './engine/portability.js'
 import { runGuard } from './engine/run.js'
 import { runSelfTest } from './engine/self-test.js'
@@ -106,16 +107,30 @@ export function createProgram(version: string = packageVersion()): Command {
       '--self-check-portability',
       '检查本体自包含（P1 依赖 / P2 宿主字面量 / P3 引擎无布局假设 / P4 库名只在数据表与适配器面）',
     )
-    .addHelpText(
-      'after',
-      `
+  program
+    .command('init')
+    .description('生成一份填好落点的 arch.config.mjs（用户只回答"选什么"，不用想"怎么配"）')
+    .option('--paradigm <name>', '范式：canonical | fsd | library', 'canonical')
+    .option('--ui <kit>', '组件库适配器：antd | none', 'none')
+    .option('--data <kit>', '数据层适配器：react-query | none', 'none')
+    .option('--i18n <kit>', 'i18n 适配器：i18next | none', 'none')
+    .option('--langs <list>', '要支持的语言（逗号分隔）', 'zh-CN,en')
+    .option('--out <path>', '输出文件', 'arch.config.mjs')
+    .option('--force', '文件已存在时覆盖')
+  // 父命令必须有个 action：否则 commander 一看到有子命令就以为「没给命令」，直接打帮助，
+  // 后面那条分发分支就再也跑不到（--verify-deps 等选项全被吞掉）。
+  program.action(() => undefined)
+  program.addHelpText(
+    'after',
+    `
 示例：
   $ arch-guard                              # 全项目检查
+  $ arch-guard init --ui antd --data react-query --i18n i18next   # 起一份配置
   $ arch-guard --scope=changed              # 只报告 git 变更文件（含未跟踪）
   $ arch-guard --domain=D --format=json     # 只看设计系统，输出 JSON
   $ arch-guard --update-coverage            # 刷新覆盖率棘轮快照（不是豁免违规）
 `,
-    )
+  )
   return program
 }
 
@@ -142,6 +157,26 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   }
 
   const options = program.opts<CliOptions>()
+
+  // `arch-guard init`：生成起点配置（R-106）。子命令的参数在它自己的 Command 上。
+  if (argv[0] === 'init') {
+    const command = program.commands.find((item) => item.name() === 'init')
+    const { path, written } = writeInitConfig(
+      (command?.opts() ?? {}) as Parameters<typeof writeInitConfig>[0],
+      process.cwd(),
+    )
+    if (!written) {
+      err(color.yellow(`⚠ ${path} 已存在（要覆盖加 --force）`))
+      return 2
+    }
+    out(color.green(`✔ 已生成 ${path}`))
+    out(
+      color.dim(
+        '下一步：pnpm exec arch-guard  →  看报告的停用清单，它会给出"想要跑就写这一行"的片段（docs/USAGE.md §2）',
+      ),
+    )
+    return 0
+  }
 
   if (options.selfTest) {
     const result = await runSelfTest(packageRoot, coreRules)

@@ -219,6 +219,16 @@
 - 为什么不是"放开同层互引"：连接从**看不见的横向依赖**变成**显式声明**，重构时想忽略都难
   （官方原话："make the connection impossible to miss"）。文档：`PARADIGM.md` §6.10 · USAGE §2.7。
 
+### Added（R-106 后半：`arch-guard init` —— 用户只回答"选什么"）
+
+- 新子命令 `arch-guard init`：`--paradigm canonical|fsd|library` · `--ui antd|none` ·
+  `--data react-query|none` · `--i18n i18next|none` · `--langs` · `--out` · `--force`。
+  生成一份**填好落点、能直接加载**的 `arch.config.mjs`（`specVersion` / `packs` / 范式 / 域预设 /
+  选中的 kit / 依赖白名单都齐），并打印下一步（跑一次看停用清单）。
+- 生成物必须**通过 `loadConfig`** 是它的验收条件（测试里把真包软链进临时项目做端到端加载，
+  而不是把 import 换掉再看）：三种范式 × 选/不选 kit 都能加载；没选的面就不声明（不猜）。
+- 已存在时不覆盖（要覆盖得显式 `--force`）—— 起手工具不该悄悄改掉用户已经写过的配置。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）
