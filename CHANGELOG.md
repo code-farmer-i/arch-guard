@@ -37,13 +37,15 @@
 >      "文件 + 全部模式（每行 3 条）"。
 >   4. **非终端输出不再带颜色**（`NO_COLOR` 非空即无色 · `FORCE_COLOR` 非空即强制有色）——
 >      有脚本依赖管道里的 ANSI 请显式 `FORCE_COLOR=1`。
+>   5. **机读格式的 stdout 变干净了**：`--format=json --stats` 以前会在 JSON 后面追一张统计表
+>      （任何解析器都炸）；现在 `--stats` 在机读格式下走 **stderr** —— 解析 JSON 的接入方不受影响。
 > - **缓存**：`FACTS_CACHE_SPEC` 10 → **11**（事实多了列号）→ 旧 facts 缓存自动作废重算。
 > - **示例**：错误码 → 文案的**推荐形态**进两套示例（唯一映射表 + 取数层只暴露一次错误码 +
 >   每域一等的"加载/失败/有数据"分支）；**判据仍留待**（同 N-12：先要真实项目形态）。
 > - **规模**：规则 **107**（本版未新增规则）· 夹具 **93** · 需求 → 131（`已完成` 120 / `已委派` 4 / `不做` 7）。
 >
 > **发布前必做（已做）**：`engines: >= 22.18.0` 是对外承诺 —— 已在 **Node 22.18.0** 上跑完整门禁：
-> `pnpm check` **EXIT=0**（93/93 夹具，与 Node 24 同一套结果）。命令：`nvm exec 22.18.0 node <pnpm 的 pnpm.cjs 路径> check`。
+> `pnpm check` **EXIT=0**（93/93 夹具，与 Node 24 同一套结果），并在**这一版最终状态**上复跑过。命令：`nvm exec 22.18.0 node <pnpm 的 pnpm.cjs 路径> check`。
 > **版本号留给发布工具去 bump**（它自己会 `setPkgVersion` 并提交；手动 bump 会让它拿到空提交而报错）。
 
 ### Fixed（R-134：机读出口的 stdout 是干净的 —— `--stats` 走 stderr）
@@ -61,6 +63,13 @@
 - **`--brief` 现在也管 JSON**：以前只管 pretty，agent 每次仍要吞下几千字节文案。`--brief` 下 JSON 的
   `notices` **只给 `code`** —— `text` 本来就不是契约（按 `code` 判），所以省的是上下文不是信息
   （实测 3104 → 2114 字节）。
+
+### Fixed（R-132：缓存默认在 `node_modules`；退回项目根时才提示加 .gitignore）
+
+- 缓存放哪跟 Vite 同一策略：优先 `node_modules/.arch-guard-cache`（天然被 git 忽略、
+  `rm -rf node_modules` 顺手带走）；**没有** `node_modules` 的项目（PnP / monorepo 子包 / 无依赖项目）
+  才退回项目根 —— 那时自述多一句"记得加进 .gitignore"，正常项目零噪音。
+- 单测钉住位置选择逻辑（`cacheDirOf` 的两种情形）；文案是消息、不是契约，不锁死措辞。
 
 ### Fixed（R-131：JSON 的 `skipped` 带 `recipe` —— agent 读机读输出也能自服务）
 
