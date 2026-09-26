@@ -24,6 +24,21 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 **发布时**：把 CHANGELOG 的 `[Unreleased]` 切分成版本段落；契约变更（`apiVersion` / `NOTICE_CODES` /
 `SKIP_CODES` / 退出码语义）必须在版本段落里标注「破坏性」与迁移方式 —— 版本记录是契约变更唯一的审计落点。
 
+**发布这一步有三条硬规矩**（都是踩出来的，别省）：
+
+1. **别信"✅ Published"** —— 发布工具的消息不等于产物上线。**必须验权威源**（10 秒）：
+   `curl -s -o /dev/null -w '%{http_code}\n' https://registry.npmjs.org/@arch-guard%2Fcore/<版本>` → 期望 `200`；
+   再 `curl -s .../@arch-guard%2Fcore | grep dist-tags` 看 `latest` 是否已指向它。
+   实测过两种假成功：默认源是只读镜像（PUT 返回"成功"但**哪都没落**）、以及工具在发布没落地时照样提交 + 报告成功。
+   **但反过来也成立：404 不等于失败** —— npm 的 packument / CDN 有缓存，新版本可能**几分钟**才可见
+   （0.6.0 实测：先 404、几分钟后 200；镜像甚至可能比 npmjs 先可见）。所以先等几分钟、用
+   `?t=$(date +%s)` 破缓存再验；**仍 404** 才当失败，那时看 packument 的 `time.modified` ——
+   若它还停在上一版的发布时间，就是"从未写入"的决定性证据（别只看工具那句话，也别急着删标签）。
+2. **标签在验证拿到 200 之后才打**（`git tag v<x.y.z>` + `git push origin v<x.y.z>`）。
+   顺序反了就会出现"标签指向一个从没发布出去的版本"——`v0.6.0` 就这么发生过一次。
+3. **版本号留给发布工具升**（它自己 `setPkgVersion` 并提交）；手动先升会让它拿到空提交而报错
+   （0.5.0 那次）。**`publishConfig.registry` 必须显式指向 npmjs**（默认源是只读镜像）。
+
 本仓库**不使用托管 CI**：门禁就是 `pnpm check`，谁提交谁在本地跑。所以别跳过它。
 
 - **本地只跑 Node 24**（2026-09-25 定）：双 Node 的兼容性收益不抵那份时间。平时 `pnpm check` 一条就够。
