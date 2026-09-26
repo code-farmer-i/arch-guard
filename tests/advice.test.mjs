@@ -21,11 +21,11 @@ const fact = (over = {}) => ({
   ...over,
 })
 
-function advise({ records, facts, edges, adviceAllow = [], files }) {
+function advise({ records, facts, edges, adviceAllow = [], files, structure }) {
   const notices = []
   pushAdviceNotices(
     {
-      config: { roles: [], adviceAllow },
+      config: { roles: [], adviceAllow, ...(structure ? { structure } : {}) },
       records,
       facts: new Map(Object.entries(facts)),
       graph: { importers: edges.importers ?? new Map(), edges: edges.graph ?? new Map() },
@@ -320,4 +320,62 @@ test('R-124 组级依赖环：A ↔ B 互相依赖 → 建议；单向 → 不�
   }).filter((item) => item.text.includes('组级依赖环'))
   assert.equal(cycle.length, 1, '同一个环只报一次')
   assert.match(cycle[0].text, /slice a → slice b → slice a/)
+})
+
+test('R-135 组间依赖链过深：4 组链 → 建议；3 组链 → 不建议（正常纵深）', () => {
+  const chain = (names, extra = {}) => {
+    const records = names.map((name) => logicGroup(`src/features/${name}/model/x.ts`, name, 12))
+    const graph = new Map()
+    const facts = {}
+    names.forEach((name, index) => {
+      const rel = `src/features/${name}/model/x.ts`
+      facts[rel] = { hasJsx: false, exports: [], imports: [] }
+      if (index < names.length - 1)
+        graph.set(rel, new Set([`src/features/${names[index + 1]}/model/x.ts`]))
+    })
+    return { records, facts, files: records.map((r) => r.rel), edges: { graph }, ...extra }
+  }
+  const four = advise(chain(['a', 'b', 'c', 'd']))
+  const deep = four.filter((item) => item.text.includes('组间依赖链'))
+  assert.equal(deep.length, 1)
+  assert.match(deep[0].text, /slice a → slice b → slice c → slice d/)
+  // 3 组 = pages → features → entities 这种正常纵深，不劝
+  assert.equal(
+    advise(chain(['a', 'b', 'c'])).filter((i) => i.text.includes('组间依赖链')).length,
+    0,
+  )
+})
+
+test('R-135 边界：有环时不提深度（环自己更严重）；声明组隔离时不提跨组（S22 已报）', () => {
+  const records = ['a', 'b', 'c', 'd'].map((name) =>
+    logicGroup(`src/features/${name}/model/x.ts`, name),
+  )
+  const facts = Object.fromEntries(
+    records.map((r) => [r.rel, { hasJsx: false, exports: [], imports: [] }]),
+  )
+  const files = records.map((r) => r.rel)
+  // 环：d → a（链上成环）→ 深度那条不提，环那条提
+  const cyclic = new Map([
+    ['src/features/a/model/x.ts', new Set(['src/features/b/model/x.ts'])],
+    ['src/features/b/model/x.ts', new Set(['src/features/c/model/x.ts'])],
+    ['src/features/c/model/x.ts', new Set(['src/features/d/model/x.ts'])],
+    ['src/features/d/model/x.ts', new Set(['src/features/a/model/x.ts'])],
+  ])
+  const withCycle = advise({ records, facts, files, edges: { graph: cyclic } })
+  assert.equal(withCycle.filter((i) => i.text.includes('组间依赖链')).length, 0, '有环不提深度')
+  assert.equal(withCycle.filter((i) => i.text.includes('组级依赖环')).length, 1, '环由环那条报')
+  // 声明了 isolate：跨组依赖本来就由 S22 报 → 跨组类的两条建议都不提
+  const chain = new Map([
+    ['src/features/a/model/x.ts', new Set(['src/features/b/model/x.ts'])],
+    ['src/features/b/model/x.ts', new Set(['src/features/c/model/x.ts'])],
+    ['src/features/c/model/x.ts', new Set(['src/features/d/model/x.ts'])],
+  ])
+  const isolated = advise({
+    records,
+    facts,
+    files,
+    edges: { graph: chain },
+    structure: { isolate: ['slice'] },
+  })
+  assert.equal(isolated.filter((i) => i.text.includes('组间依赖链')).length, 0, '隔离项目不劝跨组')
 })

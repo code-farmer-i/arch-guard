@@ -3,6 +3,9 @@ import { isTestPath } from './test-paths.js'
 import type { Graph } from './graph.js'
 import type { Config, Facts, FileRecord } from './types.js'
 
+/** 依赖链多深才提：链上组数（保守；4 = 三个跳，pages→features→entities 这种正常纵深不会被劝） */
+const CHAIN_MIN_GROUPS = 4
+
 export interface GroupAdviceInput {
   config: Config
   records: FileRecord[]
@@ -57,7 +60,7 @@ function commonDirectory(paths: string[]): string {
 /** "该配单测的逻辑"住在哪些片段里（canonical 的槽位与 FSD 的片段都在这份词汇里） */
 const LOGIC_SEGMENTS = ['lib', 'model', 'api', 'hooks', 'stores', 'store', 'selectors']
 
-/** 组级三条信号（R-122 / R-123 / R-124） */
+/** 组级四条信号（R-122 / R-123 / R-124 / R-135） */
 export function groupLevelAdvice(input: GroupAdviceInput): Advice[] {
   const groups = groupIndexOf(input.records)
   if (groups.size === 0) return []
@@ -65,11 +68,27 @@ export function groupLevelAdvice(input: GroupAdviceInput): Advice[] {
   for (const group of groups.values()) {
     for (const record of group.files) groupOfRel.set(record.rel, group)
   }
+  /**
+   * **声明了组隔离的项目不必劝跨组**：`structure.isolate` 一开，跨组依赖本来就被 S22 报掉
+   * （这条以前只写在注释里、没落实 —— R-135 顺手补上）。组粒度与组级环不受影响：
+   * 前者看组的大小、后者在"声明了 isolate 却仍通过 `@x` 互指"时才有价值。
+   */
+  const isolated = isolateCoversGroups(input)
   return [
     ...untestedLogicGroupAdvice(input, groups),
-    ...peerReuseAdvice(input, groupOfRel),
+    ...(isolated ? [] : peerReuseAdvice(input, groupOfRel)),
     ...groupCycleAdvice(input, groups, groupOfRel),
+    ...(isolated ? [] : chainDepthAdvice(input, groupOfRel)),
   ]
+}
+
+/** `structure.isolate` 里是否声明了**组维度**（声明了 → 跨组依赖由 S22 报，不必再劝） */
+function isolateCoversGroups(input: GroupAdviceInput): boolean {
+  const isolated = input.config.structure?.isolate ?? []
+  if (isolated.length === 0) return false
+  return input.records.some(
+    (record) => typeof record.groupName === 'string' && isolated.includes(record.groupName),
+  )
 }
 
 /**
@@ -222,4 +241,72 @@ function groupCycleAdvice(
     })
   }
   return out
+}
+
+/**
+ * 信号六：**组间依赖链过深**（R-135）。
+ *
+ * **判据对照（为什么不与现有规则重复）**：
+ * - **环**：文件级归 S08，组级归信号五（R-124）；
+ * - **宽度**：文件级入/出度归 S34，组耦合上限归 S39（两者都只限"一个节点连多少个"）；
+ * - **深度**：A→B→C→D 每一跳都合法、也没有环，但"改 A 会波及 4 层" —— **以前没有任何规则管它**。
+ *
+ * **不报的边界**：① 有环就不提深度（环更严重，且"最长路径"在环上没有意义，交给 R-124/S08）；
+ * ② 声明了组隔离的项目不提（跨组依赖本来就由 S22 报 —— 见 `isolateCoversGroups`）；
+ * ③ 只算跨组边，测试与生成物不计；④ 阈值保守：链上**组数 ≥ 4** 才提。
+ */
+function chainDepthAdvice(input: GroupAdviceInput, groupOfRel: Map<string, Group>): Advice[] {
+  const edges = groupEdges(input, groupOfRel)
+  const nodes = new Set<Group>()
+  for (const [from, targets] of edges) {
+    nodes.add(from)
+    for (const target of targets) nodes.add(target)
+  }
+  if (nodes.size === 0) return []
+
+  /** 从 start 出发能回到 start → 有环（交给环那条信号，这里不掺和） */
+  const reaches = (start: Group, node: Group, seen: Set<Group>): boolean => {
+    for (const next of edges.get(node) ?? []) {
+      if (next === start) return true
+      if (seen.has(next)) continue
+      seen.add(next)
+      if (reaches(start, next, seen)) return true
+    }
+    return false
+  }
+  for (const node of nodes) {
+    if (reaches(node, node, new Set([node]))) return []
+  }
+
+  /** 最长简单路径（带还原）：小图直接 DFS；`seen` 防重复访问同一个组 */
+  const longestFrom = (node: Group, seen: Set<Group>): Group[] => {
+    let best: Group[] = [node]
+    for (const next of edges.get(node) ?? []) {
+      if (seen.has(next)) continue
+      seen.add(next)
+      const tail = longestFrom(next, seen)
+      seen.delete(next)
+      if (tail.length + 1 > best.length) best = [node, ...tail]
+    }
+    return best
+  }
+  let chain: Group[] = []
+  for (const node of nodes) {
+    const path = longestFrom(node, new Set([node]))
+    if (path.length > chain.length) chain = path
+  }
+  if (chain.length < CHAIN_MIN_GROUPS) return []
+  const labels = chain.map((group) => group.label)
+  return [
+    {
+      signal: 'group-chain-depth',
+      subject: labels.join(' → '),
+      text:
+        `组间依赖链 ${chain.length} 层：${labels.join(' → ')} —— 每一跳都合法、也没有环，` +
+        '但改最上面那个组会波及整条链（这层"波及面"没有任何规则在管）。\n' +
+        '  常见处置：① 把链中间那一组提升为共享层（让两端直接依赖公共件）' +
+        ' ② 若这条链确实是业务的纵深，用 `adviceAllow` 声明豁免（写理由）\n' +
+        '  （建议不阻断 —— 门禁这一轮照常通过）',
+    },
+  ]
 }

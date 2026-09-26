@@ -12,6 +12,7 @@ export const ADVICE_SIGNALS = [
   'untested-logic-group',
   'peer-reuse',
   'group-cycles',
+  'group-chain-depth',
 ] as const
 
 /** 一条候选建议：信号 id + 主体（文件 rel / 组名 / 环的成员）+ 给人看的文本 */
