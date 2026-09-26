@@ -21,15 +21,15 @@ const fact = (over = {}) => ({
   ...over,
 })
 
-function advise({ records, facts, edges, adviceAllow = [] }) {
+function advise({ records, facts, edges, adviceAllow = [], files }) {
   const notices = []
   pushAdviceNotices(
     {
       config: { roles: [], adviceAllow },
       records,
       facts: new Map(Object.entries(facts)),
-      graph: { importers: edges.importers ?? new Map(), edges: new Map() },
-      files: records.map((record) => record.rel),
+      graph: { importers: edges.importers ?? new Map(), edges: edges.graph ?? new Map() },
+      files: files ?? records.map((record) => record.rel),
     },
     notices,
   )
@@ -125,10 +125,17 @@ test('R-118 在真示例上：canonical 给出一条（client.ts 的取数函数
     })
     return result.notices.filter((notice) => notice.code === 'architecture-advice')
   }
-  // 两套示例都是"已知健康"的样板：取数跟域走（R-119）之后一条建议都不该有
-  assert.equal((await adviceOf('full')).length, 0, 'canonical 的取数已跟域走')
-  assert.equal((await adviceOf('full-fsd')).length, 0, 'FSD 的取数已按实体下沉')
-  assert.equal((await adviceOf('minimal')).length, 0)
+  // 三套样板要么没有建议，要么只剩"被声明豁免"的自述（那不是可执行建议）
+  const actionable = (list) => list.filter((notice) => notice.text.includes('常见处置'))
+  assert.equal(actionable(await adviceOf('full')).length, 0, 'canonical：没有可执行建议')
+  assert.equal(actionable(await adviceOf('minimal')).length, 0)
+  const fsd = await adviceOf('full-fsd')
+  assert.equal(actionable(fsd).length, 0, 'FSD：唯一的建议已按 adviceAllow 豁免')
+  assert.match(
+    fsd.map((notice) => notice.text).join(' '),
+    /1 条被 `adviceAllow` 声明豁免/,
+    '豁免必须在报告里可见（R-121）',
+  )
 })
 
 const grouped = (rel, group, layer = 10) => ({
@@ -199,4 +206,118 @@ test('R-121：豁免按（信号 × 主体）生效，而且**豁免本身要自
     2,
     '信号对不上时不豁免，并且要报"这条豁免没命中"',
   )
+})
+
+const logicGroup = (rel, group, layer = 12) => ({
+  rel,
+  domain: null,
+  captures: {},
+  groupName: 'slice',
+  group,
+  layer,
+  exports: [],
+})
+
+/** 造一个"组里有逻辑文件、有没有测试由调用方决定"的最小工程 */
+function groupsProject({ testUnder = [] } = {}) {
+  const records = [
+    logicGroup('src/features/a/model/logic.ts', 'a'),
+    logicGroup('src/features/b/model/logic.ts', 'b'),
+  ]
+  const exportFact = {
+    hasJsx: false,
+    exports: [{ name: 'run', declared: true, typeOnly: false, kind: 'function' }],
+    imports: [],
+  }
+  return {
+    records,
+    facts: {
+      'src/features/a/model/logic.ts': exportFact,
+      'src/features/b/model/logic.ts': exportFact,
+    },
+    files: ['src/features/a/model/logic.ts', 'src/features/b/model/logic.ts', ...testUnder],
+    edges: {},
+  }
+}
+
+test('R-122 未测试的逻辑组：有逻辑却没测试 → 建议；补了测试 / 非逻辑片段 → 不建议', () => {
+  const noTest = advise(groupsProject())
+  assert.equal(noTest.filter((item) => item.text.includes('整组 0 个测试')).length, 2)
+  const withTest = advise(groupsProject({ testUnder: ['src/features/a/model/logic.test.ts'] }))
+  assert.equal(
+    withTest.filter((item) => item.text.includes('整组 0 个测试')).length,
+    1,
+    'a 已有测试',
+  )
+
+  // 非逻辑片段（路由表 / 装配）不算"该配单测的逻辑"
+  const routes = {
+    records: [logicGroup('src/modules/crews/routes.tsx', 'crews')],
+    facts: {
+      'src/modules/crews/routes.tsx': {
+        hasJsx: false,
+        exports: [{ name: 'crewRoutes', declared: true, typeOnly: false, kind: 'const' }],
+        imports: [],
+      },
+    },
+    files: ['src/modules/crews/routes.tsx'],
+    edges: {},
+  }
+  assert.equal(advise(routes).filter((item) => item.text.includes('整组 0 个测试')).length, 0)
+})
+
+test('R-123 同层组复用：≥3 个同级组引用同一组 → 建议；2 个 / 更共享的层 → 不建议', () => {
+  const build = (consumers, consumerLayer = 12) => {
+    const records = [logicGroup('src/entities/a/model/x.ts', 'a', 12)]
+    const graph = new Map()
+    const facts = { 'src/entities/a/model/x.ts': { hasJsx: false, exports: [], imports: [] } }
+    consumers.forEach((name, index) => {
+      const rel = `src/features/f${index}/ui/y.ts`
+      records.push(logicGroup(rel, name, consumerLayer))
+      graph.set(rel, new Set(['src/entities/a/model/x.ts']))
+      facts[rel] = { hasJsx: false, exports: [], imports: [] }
+    })
+    return {
+      records,
+      facts,
+      files: records.map((record) => record.rel),
+      edges: { graph },
+    }
+  }
+  const three = advise(build(['f0', 'f1', 'f2']))
+  assert.equal(three.filter((item) => item.text.includes('同级或更内层**的组引用')).length, 1)
+  const two = advise(build(['f0', 'f1']))
+  assert.equal(two.filter((item) => item.text.includes('同级或更内层**的组引用')).length, 0)
+  const higherUp = advise(build(['f0', 'f1', 'f2'], 20)) // 消费者在**更上层**用它 = 设计如此
+  assert.equal(higherUp.filter((item) => item.text.includes('同级或更内层**的组引用')).length, 0)
+})
+
+test('R-124 组级依赖环：A ↔ B 互相依赖 → 建议；单向 → 不建议', () => {
+  const records = [
+    logicGroup('src/features/a/model/x.ts', 'a'),
+    logicGroup('src/features/b/model/x.ts', 'b'),
+  ]
+  const facts = {
+    'src/features/a/model/x.ts': { hasJsx: false, exports: [], imports: [] },
+    'src/features/b/model/x.ts': { hasJsx: false, exports: [], imports: [] },
+  }
+  const oneWay = new Map([['src/features/a/model/x.ts', new Set(['src/features/b/model/x.ts'])]])
+  assert.equal(
+    advise({ records, facts, files: records.map((r) => r.rel), edges: { graph: oneWay } }).filter(
+      (item) => item.text.includes('组级依赖环'),
+    ).length,
+    0,
+  )
+  const both = new Map([
+    ['src/features/a/model/x.ts', new Set(['src/features/b/model/x.ts'])],
+    ['src/features/b/model/x.ts', new Set(['src/features/a/model/x.ts'])],
+  ])
+  const cycle = advise({
+    records,
+    facts,
+    files: records.map((r) => r.rel),
+    edges: { graph: both },
+  }).filter((item) => item.text.includes('组级依赖环'))
+  assert.equal(cycle.length, 1, '同一个环只报一次')
+  assert.match(cycle[0].text, /slice a → slice b → slice a/)
 })

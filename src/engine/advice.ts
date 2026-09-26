@@ -1,17 +1,9 @@
 import { resolveSpecifier, type Graph } from './graph.js'
 import { globToRegExp } from './util.js'
+import { groupLevelAdvice } from './advice-groups.js'
+import type { Advice } from './advice-types.js'
 import type { Diagnostic } from './codes.js'
 import type { Config, Facts, FileRecord } from './types.js'
-
-/** 稳定的信号 id：写进配置的 `adviceAllow` 与报告自述都用它（不是文案） */
-export const ADVICE_SIGNALS = ['per-domain-exports', 'group-granularity'] as const
-
-/** 一条候选建议：信号 id + 主体（文件 rel 或组名）+ 给人看的文本 */
-interface Advice {
-  signal: (typeof ADVICE_SIGNALS)[number]
-  subject: string
-  text: string
-}
 
 /** 保守阈值：**≥3 个导出各自只被一个域用**才算信号（2 个可能是巧合） */
 const MIN_PER_DOMAIN_EXPORTS = 3
@@ -50,7 +42,11 @@ interface PerDomainExport {
 export function pushAdviceNotices(input: AdviceInput, notices: Diagnostic[]): void {
   const { config, records } = input
   if (records.length === 0) return
-  const candidates: Advice[] = [...perDomainExportAdvice(input), ...groupGranularityAdvice(records)]
+  const candidates: Advice[] = [
+    ...perDomainExportAdvice(input),
+    ...groupGranularityAdvice(records),
+    ...groupLevelAdvice(input),
+  ]
   const allow = config.adviceAllow ?? []
   const used = new Set<number>()
   let suppressed = 0

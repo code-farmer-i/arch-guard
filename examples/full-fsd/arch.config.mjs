@@ -101,6 +101,8 @@ export default {
           'src/shared/lib/analytics/events.ts',
           // A14：实体里的纯函数也要有行为测试
           'src/entities/*/model/mapper.ts',
+          // R-122 的建议产物：feature 里的纯逻辑也要有行为测试
+          'src/features/*/model/**',
         ],
         testGlobs: ['src/**/*.test.ts'],
         checkChain: { script: 'check', require: ['test', 'coverage'] },
@@ -146,6 +148,14 @@ export default {
   ],
 
   overrides: {
+    // R-121 演练：这条建议确实不适用 —— 该文件依赖 dayjs，示例没装依赖，测不了
+    adviceAllow: [
+      {
+        signal: 'untested-logic-group',
+        glob: 'slice crews',
+        reason: 'pages/crews/lib/format.ts 依赖 dayjs；示例不装依赖，行为测试留给真实项目',
+      },
+    ],
     include: ['src/**'],
     // `fsd()` 已经把切片维度那套声明给全了；这里只补它没声明的
     structure: {
