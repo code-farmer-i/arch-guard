@@ -221,7 +221,16 @@ test('冻结：skipped[].code 清单，且「没跑」的原因不是散文', as
     const json = await report(dir)
     assert.ok(json.skipped.length > 0, 'canonical + 无适配器 → 必然有因能力未声明的停用')
     for (const entry of json.skipped) {
-      assert.deepEqual(Object.keys(entry).sort(), ['code', 'missing', 'reason', 'rule'])
+      // `recipe`（R-131）是**可选**字段：只有存在"可以直接粘进配置的那一行"时才出现 ——
+      // 读 JSON 的编码 agent 靠它自服务，所以它进冻结清单是一次**有意识的契约决定**。
+      const keys = Object.keys(entry).sort()
+      assert.deepEqual(
+        keys,
+        keys.includes('recipe')
+          ? ['code', 'missing', 'reason', 'recipe', 'rule']
+          : ['code', 'missing', 'reason', 'rule'],
+      )
+      if ('recipe' in entry) assert.ok(entry.recipe.length > 0, 'recipe 不许是空串')
       assert.ok(SKIP_CODES.includes(entry.code), `未知 skip code：${entry.code}`)
       assert.ok(Array.isArray(entry.missing) && entry.missing.length > 0)
       assert.ok(entry.reason.length > 0)
