@@ -1,3 +1,4 @@
+import { recipeFor } from '../data/capability-recipes.js'
 import { out } from './output.js'
 import type { Diagnostic, SkippedRule } from './codes.js'
 import type { Config, Domain, Finding, Level, Rule, Severity } from './types.js'
@@ -106,6 +107,19 @@ export function renderReport(input: ReportInput): void {
         `\n因能力未声明而停用 ${input.skipped.length} 条规则：${input.skipped.map((entry) => entry.rule).join(' / ')}`,
       ),
     )
+    /**
+     * **补什么 + 可复制片段**（R-106）：以前只说"少了能力"，用户还得翻文档全表才知道写哪一行。
+     * 按"补法"归组，一行一条可以直接粘进配置的调用。
+     */
+    const byRecipe = new Map<string, string[]>()
+    for (const entry of input.skipped) {
+      const recipe = recipeFor(entry.missing)
+      if (!recipe) continue
+      byRecipe.set(recipe, [...(byRecipe.get(recipe) ?? []), entry.rule])
+    }
+    for (const [recipe, rules] of byRecipe) {
+      out(color.dim(`    · ${rules.join(' ')} 想要就跑 → `) + color.cyan(recipe))
+    }
   }
   if (input.unknownEnabled.length > 0) {
     out(color.yellow(`⚠ 配置里启用了不存在的规则：${input.unknownEnabled.join(', ')}`))

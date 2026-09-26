@@ -1,6 +1,7 @@
 import type { Diagnostic } from './codes.js'
 import type { ScanResult } from './scan.js'
 import { globToRegExp } from './util.js'
+import { recipeFor } from '../data/capability-recipes.js'
 import { resolveCallSiteApis } from './call-site-sources.js'
 import type { CallSiteGroupLike } from './call-site-sources.js'
 import type { Config, Facts } from './types.js'
@@ -84,6 +85,27 @@ export function pushAdapterNotice(config: Config, notices: Diagnostic[]): void {
  * `analytics` / `router.pathSource` / `dataLayer.queryKeyFrom` / `designSystem.numberHomes`）——
  * 后者原来没人管：名字多打一个字母，报告还写着"生效的适配器：analytics=declared"。
  */
+/**
+ * 报告里的 label（`data-layer.fetchApis` / `analytics.apis` / `design-system.paletteFile`）→
+ * 能力根（`dataLayer.fetchApis` / `analytics.apis` / `designSystem.paletteFile`）。
+ * 只是为了在报告末尾附上"怎么补"的片段 —— 认不出就返回空串（不多说废话）。
+ */
+const LABEL_TO_ROOT: Record<string, string> = {
+  'data-layer': 'dataLayer',
+  'design-system': 'designSystem',
+  'ui-kit': 'uiKit',
+  'env-reads': 'envReads',
+  'call-sites': 'callSites',
+}
+
+function capabilityOfLabel(label: string): string {
+  const dot = label.indexOf('.')
+  const facet = dot === -1 ? label : label.slice(0, dot)
+  const rest = dot === -1 ? '' : label.slice(dot + 1)
+  const root = LABEL_TO_ROOT[facet] ?? facet
+  return rest === '' ? root : `${root}.${rest}`
+}
+
 export function pushDeclarationNotices(
   config: Config,
   records: { rel: string; captures?: Record<string, string> }[],
@@ -131,12 +153,17 @@ export function pushDeclarationNotices(
 
   empty.push(...emptyFaceDeclarations(config, facts, hasFile))
 
-  if (empty.length === 0) return
+  // "正确形态参考"是**建议**不是"第 N 条 0 命中"，单独一句（R-106）
+  const recipe = empty.find((item) => item.startsWith('正确形态参考：'))
+  const items = recipe ? empty.filter((item) => item !== recipe) : empty
+  if (items.length === 0 && !recipe) return
   notices.push({
     code: 'declaration-no-match',
-    text: `有 ${empty.length} 条声明 0 命中（那条纪律这次什么都没看，建议删掉或修对）：${empty
-      .slice(0, 5)
-      .join(' · ')}${empty.length > 5 ? ` …（还有 ${empty.length - 5} 条）` : ''}`,
+    text:
+      `有 ${items.length} 条声明 0 命中（那条纪律这次什么都没看，建议删掉或修对）：${items
+        .slice(0, 5)
+        .join(' · ')}${items.length > 5 ? ` …（还有 ${items.length - 5} 条）` : ''}` +
+      (recipe ? `\n  ${recipe}` : ''),
   })
 }
 
@@ -156,11 +183,24 @@ function emptyFaceDeclarations(
    */
   const called = (api: string, pool: string[]): boolean =>
     pool.some((name) => name === api || name.startsWith(`${api}.`) || name.endsWith(`.${api}`))
+  /**
+   * 0 命中时顺便记下"这属于哪个能力根" —— 报告末尾据此附上**正确形态的片段**（R-106）：
+   * 用户不必去翻文档全表，报告自己给出可以粘进配置的那一行。
+   */
+  const receptors = new Set<string>()
   const checkFiles = (label: string, globs: readonly string[]): void => {
-    for (const glob of globs) if (!hasFile(glob)) empty.push(`${label} 的 ${glob}`)
+    for (const glob of globs) {
+      if (hasFile(glob)) continue
+      empty.push(`${label} 的 ${glob}`)
+      receptors.add(capabilityOfLabel(label))
+    }
   }
   const checkCalls = (label: string, apis: readonly string[]): void => {
-    for (const api of apis) if (!called(api, callees)) empty.push(`${label} 的调用名 ${api}`)
+    for (const api of apis) {
+      if (called(api, callees)) continue
+      empty.push(`${label} 的调用名 ${api}`)
+      receptors.add(capabilityOfLabel(label))
+    }
   }
 
   for (const adapter of Object.values(config.adapters ?? {})) {
@@ -226,12 +266,14 @@ function emptyFaceDeclarations(
     const dir = params[key]
     if (typeof dir === 'string' && dir !== '' && !hasFile(`${dir}/**`)) {
       empty.push(`designSystem.${key} 的 ${dir}`)
+      receptors.add(`designSystem.${key}`)
     }
   }
   for (const key of ['paletteFile', 'themeFile', 'storageFile'] as const) {
     const file = params[key]
     if (typeof file === 'string' && file !== '' && !hasFile(file)) {
       empty.push(`designSystem.${key} 的 ${file}`)
+      receptors.add(`designSystem.${key}`)
     }
   }
 
@@ -243,11 +285,25 @@ function emptyFaceDeclarations(
   )
   for (const home of homes ?? []) {
     checkFiles(`numberHomes[${home.name}].in`, home.in ?? [])
+    if ((home.in ?? []).some((glob) => !hasFile(glob))) receptors.add('designSystem.numberHomes')
     for (const name of home.names ?? []) {
       if (!numberNames.includes(name)) empty.push(`numberHomes[${home.name}] 的名字 ${name}`)
     }
   }
 
+  /**
+   * **附上正确形态**（R-106）：只说"配了却 0 命中"还不够，用户要的是"那该怎么写"。
+   */
+  if (empty.length > 0) {
+    const recipes = new Set<string>()
+    for (const root of receptors) {
+      const recipe = recipeFor([root])
+      if (recipe) recipes.add(recipe)
+    }
+    if (recipes.size > 0) {
+      empty.push(`正确形态参考：${[...recipes].join('  ·  ')}`)
+    }
+  }
   return empty
 }
 
