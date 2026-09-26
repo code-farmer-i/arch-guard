@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from './defaults.js'
 import { resolveSpecifier, type Graph } from './graph.js'
 import { globToRegExp } from './util.js'
 import { groupLevelAdvice } from './advice-groups.js'
@@ -162,7 +163,7 @@ function perDomainExportAdvice(input: AdviceInput): Advice[] {
 function groupGranularityAdvice(records: FileRecord[]): Advice[] {
   const groups = new Map<string, { label: string; files: string[] }>()
   for (const record of records) {
-    if (record.layer >= 90) continue
+    if (record.layer >= TEST_LAYER_MIN) continue
     if (!record.groupName || !record.group) continue
     const key = `${record.groupName}:${record.group}`
     const entry = groups.get(key) ?? { label: `${record.groupName} ${record.group}`, files: [] }

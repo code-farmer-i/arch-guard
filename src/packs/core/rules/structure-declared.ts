@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from '../../../engine/defaults.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { finding, unitDirOf } from './structure-util.js'
@@ -36,10 +37,10 @@ export const layerOrder: Rule = {
     const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
     const out: Finding[] = []
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       for (const target of ctx.graph.edges.get(record.rel) ?? []) {
         const to = byRel.get(target)
-        if (!to || to.layer >= 90) continue
+        if (!to || to.layer >= TEST_LAYER_MIN) continue
         if (to.layer > record.layer) {
           out.push(
             finding(
@@ -97,11 +98,11 @@ export const groupIsolation: Rule = {
     const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
     const out: Finding[] = []
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       if (!record.groupName || !dimensions.has(record.groupName)) continue
       for (const target of ctx.graph.edges.get(record.rel) ?? []) {
         const to = byRel.get(target)
-        if (!to || to.layer >= 90) continue
+        if (!to || to.layer >= TEST_LAYER_MIN) continue
         if (to.groupName !== record.groupName) continue
         if (to.layer !== record.layer) continue
         if (to.group === record.group) continue
@@ -156,7 +157,7 @@ export const declaredPublicApi: Rule = {
       { layer: number; group: string; anchor: string; entry: boolean }
     >()
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       if (!record.groupName || !dimensions.has(record.groupName) || !record.group) continue
       const key = `${record.layer}:${record.groupName}:${record.group}`
       const seen = groups.get(key) ?? {
@@ -183,10 +184,10 @@ export const declaredPublicApi: Rule = {
 
     // ② 组外不许绕过公开面
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       for (const target of ctx.graph.edges.get(record.rel) ?? []) {
         const to = byRel.get(target)
-        if (!to || to.layer >= 90) continue
+        if (!to || to.layer >= TEST_LAYER_MIN) continue
         if (!to.groupName || !dimensions.has(to.groupName) || !to.group) continue
         const sameGroup =
           record.groupName === to.groupName &&

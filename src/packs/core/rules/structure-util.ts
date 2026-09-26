@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from '../../../engine/defaults.js'
 import type { FileRecord } from '../../../engine/types.js'
 
 /**
@@ -96,7 +97,7 @@ export function bucketsOf(
     { layer: number; bucket: string; anchor: string; names: Set<string>; ancestors: string[] }
   >()
   for (const record of ctx.records) {
-    if (record.layer >= 90) continue
+    if (record.layer >= TEST_LAYER_MIN) continue
     if (record.groupName !== dimension || !record.group) continue
     if (layers !== null && !layers.has(record.layer)) continue
     const captures = record.captures ?? {}

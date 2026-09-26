@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from './defaults.js'
 import type { Advice } from './advice-types.js'
 import { isTestPath } from './test-paths.js'
 import type { Graph } from './graph.js'
@@ -25,7 +26,7 @@ interface Group {
 function groupIndexOf(records: FileRecord[]): Map<string, Group> {
   const groups = new Map<string, Group>()
   for (const record of records) {
-    if (record.layer >= 90) continue // 测试 / story 不算"组的文件"
+    if (record.layer >= TEST_LAYER_MIN) continue // 测试 / story 不算"组的文件"
     if (!record.groupName || !record.group) continue
     const key = `${record.groupName}:${record.group}`
     const entry = groups.get(key) ?? {
@@ -152,7 +153,7 @@ function groupEdges(
 function peerReuseAdvice(input: GroupAdviceInput, groupOfRel: Map<string, Group>): Advice[] {
   const layerOf = new Map<string, number>()
   for (const record of input.records) {
-    if (record.layer >= 90) continue
+    if (record.layer >= TEST_LAYER_MIN) continue
     layerOf.set(record.rel, record.layer)
   }
   /** 被消费的组 → 消费它的组集合（只算"消费者不在更共享的层"的边） */

@@ -1,4 +1,4 @@
-import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../engine/defaults.js'
+import { DEFAULT_IGNORE, DEFAULT_NAMING, DEFAULT_THRESHOLDS } from '../engine/defaults.js'
 import type { Preset, RoleDescriptor } from '../engine/types.js'
 
 export interface LibraryOptions {
@@ -75,7 +75,7 @@ export function library(options: LibraryOptions = {}): Preset {
     // 契约扫描域：只有 src 下的 ts/css 参与角色判定。构建产物、示例宿主、夹具、工具配置
     // 都在域外 —— 既不该参与角色判定，也不该被解析（见 .scratch/include-scope/spec.md）。
     include: [`${src}/**`],
-    ignore: ['arch.config.mjs', 'arch.config.js', '.agents/**'],
+    ignore: [...DEFAULT_IGNORE],
     // S21 是「分层单向」——它不是应用专属，库/自定义目录表靠它把层号变成可判定红线
     enable: [
       'S00',

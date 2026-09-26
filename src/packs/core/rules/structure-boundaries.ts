@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from '../../../engine/defaults.js'
 import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
@@ -22,7 +23,7 @@ function groupValuesOf(
   const groups = new Map<string, string>()
   for (const record of ctx.records) {
     // 测试角色（layer ≥ 90）天然引用各处，算进去只会让每个组都超限
-    if (record.layer >= 90) continue
+    if (record.layer >= TEST_LAYER_MIN) continue
     const value = record.captures[dimension]
     if (!value) continue
     groups.set(record.rel, value)

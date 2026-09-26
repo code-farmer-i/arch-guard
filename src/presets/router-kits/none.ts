@@ -1,9 +1,10 @@
+import { FACET_FIELDS } from '../../data/face-forms.js'
 import { DEFAULT_ROUTE_FILES } from '../../data/face-forms.js'
 import { defineAdapter, defineFacet } from '../../engine/adapters.js'
 import type { RouterAdapter } from '../../engine/types.js'
 
 defineFacet('router', {
-  fields: ['packages', 'routeFiles', 'pathSource', 'pathProps', 'navigateCalls', 'examples'],
+  fields: [...FACET_FIELDS.router],
   capabilityRoot: 'router',
 })
 

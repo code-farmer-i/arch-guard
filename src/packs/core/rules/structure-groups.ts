@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from '../../../engine/defaults.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { NEUTRAL_WORDS, classifyWord, toPlural, toSingular } from '../../../data/plural-forms.js'
@@ -40,7 +41,7 @@ export const segmentedGroups: Rule = {
       { layer: number; group: string; anchor: string; body: boolean }
     >()
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       if (!record.groupName || !dimensions.has(record.groupName) || !record.group) continue
       const key = `${record.layer}:${record.groupName}:${record.group}`
       const seen = groups.get(key) ?? {
@@ -95,7 +96,7 @@ export const reservedFolderNames: Rule = {
     const patternOf = new Map(ctx.config.roles.map((role) => [role.id, role.pattern]))
     const violations = new Map<string, string[]>()
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       const pattern = patternOf.get(record.role)
       if (pattern === undefined) continue
       const extra = extraDirsOf(record.rel, pattern)
@@ -248,7 +249,7 @@ export const groupInDegree: Rule = {
         { layer: number; group: string; anchor: string; bodyAnchor: string | null }
       >()
       for (const record of ctx.records) {
-        if (record.layer >= 90) continue
+        if (record.layer >= TEST_LAYER_MIN) continue
         if (record.groupName !== spec.dimension || !record.group) continue
         if (except.has(record.layer)) continue
         const key = `${record.layer}:${record.group}`
@@ -273,10 +274,10 @@ export const groupInDegree: Rule = {
       const referrers = new Map<string, Set<string>>()
       for (const [from, targets] of ctx.graph.edges) {
         const source = byRel.get(from)
-        if (source && source.layer >= 90) continue
+        if (source && source.layer >= TEST_LAYER_MIN) continue
         for (const target of targets) {
           const to = byRel.get(target)
-          if (!to || to.layer >= 90) continue
+          if (!to || to.layer >= TEST_LAYER_MIN) continue
           if (to.groupName !== spec.dimension || !to.group) continue
           if (except.has(to.layer)) continue
           if (source && source.layer === to.layer) continue

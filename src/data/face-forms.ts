@@ -46,3 +46,15 @@ export const DEFAULT_NAVIGATE_CALLS: string[] = [
   'history.push',
   'history.replace',
 ]
+
+/**
+ * **方案面的字段清单**（`fields`）—— 全仓唯一出处。
+ *
+ * 以前 `router` 与 `styles` 的字段各自被**两个 kit 声明了一遍**（`none` 与真实 kit 都要注册这个面），
+ * 于是"面有几个字段"有两处真相：一个 kit 加了字段、另一个仍按旧清单注册就会悄悄覆盖回去
+ * （`defineFacet` 后写者胜）。现在每个 kit 都从这里取清单，只有一处要改。
+ */
+export const FACET_FIELDS = {
+  router: ['packages', 'routeFiles', 'pathSource', 'pathProps', 'navigateCalls', 'examples'],
+  styles: ['packages', 'modulePatterns', 'examples'],
+} as const

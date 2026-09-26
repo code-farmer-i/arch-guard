@@ -1,9 +1,10 @@
+import { FACET_FIELDS } from '../../data/face-forms.js'
 import { DEFAULT_MODULE_PATTERNS } from '../../data/face-forms.js'
 import { AdapterError, defineAdapter, defineFacet } from '../../engine/adapters.js'
 import type { AdapterExamples, StylesAdapter } from '../../engine/types.js'
 
 defineFacet('styles', {
-  fields: ['packages', 'modulePatterns', 'examples'],
+  fields: [...FACET_FIELDS.styles],
   capabilityRoot: 'styles',
 })
 

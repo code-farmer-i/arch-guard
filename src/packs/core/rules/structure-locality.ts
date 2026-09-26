@@ -1,3 +1,4 @@
+import { TEST_LAYER_MIN } from '../../../engine/defaults.js'
 import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
@@ -30,7 +31,7 @@ export const importLocality: Rule = {
     const byRel = new Map(ctx.records.map((record) => [record.rel, record]))
     const out: Finding[] = []
     for (const record of ctx.records) {
-      if (record.layer >= 90) continue
+      if (record.layer >= TEST_LAYER_MIN) continue
       if (!record.groupName || !dimensions.has(record.groupName)) continue
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
@@ -38,7 +39,7 @@ export const importLocality: Rule = {
         const target = resolveSpecifier(imported.spec, record.rel, ctx.config, fileSet)
         if (target === null) continue
         const to = byRel.get(target)
-        if (!to || to.layer >= 90) continue
+        if (!to || to.layer >= TEST_LAYER_MIN) continue
         const sameGroup =
           record.groupName === to.groupName &&
           record.layer === to.layer &&

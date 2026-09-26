@@ -443,6 +443,21 @@ test('冻结：这些「同一事实」全仓只许有一处定义（曾经各�
       needle: /^(export )?const isTestPath = /m,
       home: 'src/engine/test-paths.ts',
     },
+    {
+      label: 'TEST_LAYER_MIN（测试/story 的层号阈值）',
+      needle: /^(export )?const TEST_LAYER_MIN = /m,
+      home: 'src/engine/defaults.ts',
+    },
+    {
+      label: 'DEFAULT_IGNORE（项目边界默认忽略）',
+      needle: /^(export )?const DEFAULT_IGNORE = /m,
+      home: 'src/engine/defaults.ts',
+    },
+    {
+      label: 'FACET_FIELDS（方案面的字段清单）',
+      needle: /^(export )?const FACET_FIELDS = /m,
+      home: 'src/data/face-forms.ts',
+    },
   ]
   for (const item of singles) {
     const found = files
