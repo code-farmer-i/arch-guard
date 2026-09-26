@@ -11,6 +11,16 @@ defineFacet('data-layer', {
     'singletons',
     'fetchIn',
     'examples',
+
+    'packages',
+    'queryKeyFrom',
+    'queryKeyProps',
+    'fetchApis',
+    'numberNames',
+    'singletons',
+    'fetchIn',
+    'examples',
+    'policyProps',
   ],
   capabilityRoot: 'dataLayer',
 })
@@ -72,6 +82,11 @@ export function reactQueryKit(options: ReactQueryKitOptions = {}): DataLayerAdap
     packages: ['@tanstack/react-query'],
     fetchApis: [...(options.fetchApis ?? REACT_QUERY_APIS)],
     numberNames: [...(options.numberNames ?? REACT_QUERY_NUMBER_NAMES)],
+    /**
+     * 失败处理策略的**属性名**（R-111 / D30）：库的事实，宿主一个字不用抄。
+     * 与 `numberNames` 的分工：数字型归 D20，函数型 / 字符串枚举型归 D30。
+     */
+    policyProps: ['retry', 'retryDelay', 'refetchInterval', 'shouldRetry', 'backoff'],
     singletons: [...(options.singletons ?? REACT_QUERY_SINGLETONS)],
     ...(options.queryKeyFrom ? { queryKeyFrom: options.queryKeyFrom } : {}),
     ...(options.queryKeyProps ? { queryKeyProps: [...options.queryKeyProps] } : {}),

@@ -1,5 +1,5 @@
 /**
- * **完整形态的宿主配置**（范式 + 4 个域 + 11 个生效适配器 + 结构声明）。
+ * **完整形态的宿主配置**（范式 + 4 个域 + 12 个生效适配器 + 结构声明）。
  *
  * 每个声明指向的文件都真的存在 —— 所以 `skipped` 里不该有东西：
  * 报告末尾那句"因能力未声明而停用 N 条规则"应该消失，声明写错也会被 `declaration-no-match` 点名。
@@ -17,6 +17,7 @@ import {
   deps,
   designSystem,
   endpoints,
+  errorPolicy,
   permissions,
   envReads,
   hygiene,
@@ -118,6 +119,11 @@ export default {
     endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
     // 权限点唯一出处（R-110）：`can('字面量')` 即报
     permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
+    // 失败处理策略的落点（R-111）：函数型 / 枚举型策略只许出现在这里
+    // 策略**名字**由 `reactQueryKit()` 的 `policyProps` 给 —— 库的事实不用抄
+    errorPolicy({
+      policyIn: ['src/shared/api/policy.ts', 'src/modules/*/model/query.ts'],
+    }),
     analytics({
       // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
       apis: ['useTrackView', 'sendEvent'],

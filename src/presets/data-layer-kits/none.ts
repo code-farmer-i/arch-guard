@@ -11,6 +11,16 @@ defineFacet('data-layer', {
     'singletons',
     'fetchIn',
     'examples',
+
+    'packages',
+    'queryKeyFrom',
+    'queryKeyProps',
+    'fetchApis',
+    'numberNames',
+    'singletons',
+    'fetchIn',
+    'examples',
+    'policyProps',
   ],
   capabilityRoot: 'dataLayer',
 })

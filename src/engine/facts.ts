@@ -426,6 +426,8 @@ export function extractFacts(input: FactInput): Facts {
           ? node.body
           : undefined
       facts.functions.push({
+        ...(inheritedOwnedProp ? { ownedProp: inheritedOwnedProp } : {}),
+        ...(inheritedCall ? { inCall: inheritedCall } : {}),
         name: functionInfo.name,
         line: lineOf(sf, functionInfo.start),
         lines: lineOf(sf, functionInfo.end) - lineOf(sf, functionInfo.start) + 1,

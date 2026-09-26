@@ -237,6 +237,39 @@ roles: [
 **边界**：只能表达规范里**可判定**的那部分（L1–L3）。"这个 feature 必须是一个用户动作"（FSD）、
 "这个组件是 molecule 还是 organism"（Atomic Design）是 L5，任何引擎都判不了 —— 这类留给 code review 和文档。
 
+## 6.11 权限点与租户上下文：各有一个落点（R-110）
+
+| 落点             | 声明                                                                                                                | 判据                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **权限点表**     | `permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' })`                                          | 调用点写 `can('crew:edit')` 字面量即报（D29）；传常量合规 |
+| **判断写在哪儿** | `callSites([{ name: '权限判断', apis: ['permissions.includes'], in: ['src/shared/auth/**'] }])`                     | 判断散在组件里即报（S38 / R-46）                          |
+| **租户从哪儿拿** | `callSites([{ name: '租户上下文', apis: ['searchParams.get'], args: ['tenantId'], in: ['src/shared/tenant/**'] }])` | 别处解析租户即报；`args` 让 `get('page')` 不误伤          |
+
+为什么 `args` 是必要的：`searchParams.get` / `cookies.get` 这类 API 名字**太泛** —— 只看调用名会把
+`?page=` / `?tab=` 全判红；只看实参名又认不出调用。两个条件一起才是"这一类调用"。
+
+项目自己的槽位（如 `shared/auth`、`shared/tenant`）用 `overrides.addRoles` 声明 —— 注意它在
+**overrides 层**（与 `structure` 平级），放进 `structure` 会静默不生效。
+
+## 6.12 失败处理的策略：形态也有落点（R-111）
+
+`retry: 3` 这类**数字**归 D20（`numberHomes`）；**形态**归 D30：
+
+| 写法                                                                                   | 谁管                                         |
+| -------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `retry: 3` · `staleTime: 60_000`                                                       | D20（数字型策略有家）                        |
+| `retry: (count, err) => count < 3` · `backoff: 'exponential'` · `retryDelay: (i) => …` | **D30**（函数型 / 枚举型策略只在声明的落点） |
+| `retry: RETRY_LIMIT`（引用）                                                           | 不管（没有字面量可判）                       |
+
+```js
+errorPolicy({ policyIn: ['src/shared/api/policy.ts', 'src/modules/<域>/model/query.ts'] }),
+```
+
+策略**名字**可以不写：装了 `dataLayer(reactQueryKit(...))` 就由它的 `policyProps` 给（库的事实不用抄）。
+
+**边界**：只判"策略对象**作为调用实参**"（`useQuery({ retry: … })`）。`retry` 这个名字会撞 ——
+UI 回调、i18n 的文案键都可能叫 `retry`，不收窄就会误报（这条边界是示例里的真实误报逼出来的）。
+
 ## 7. 例外：规则级，且必须指名
 
 - **违规没有存量豁免**：没有基线、没有"先记下来以后再说"。门禁的结论只有两种 —— **符合规范** 或 **不符合**。

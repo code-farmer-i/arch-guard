@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
+import { requestPolicy } from './policy'
 
 /**
  * 全局单例的唯一落点（S38 callSites）+ 全局兜底策略（D20 的家之一）。
@@ -7,5 +8,6 @@ import { QueryClient } from '@tanstack/react-query'
  * 那是每个域的数据知识，放共享层会变成横向 merge 队列。
  */
 export const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 300_000, retry: 2 } },
+  defaultOptions: { queries: {
+      ...requestPolicy, staleTime: 300_000, retry: 2 } },
 })

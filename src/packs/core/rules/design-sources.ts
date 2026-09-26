@@ -245,6 +245,74 @@ export const permissionPointSingleSource: Rule = {
   },
 }
 
+/* ---------------- D30 失败处理的策略只有一个出处 ---------------- */
+
+/**
+ * 判据：属性名命中**失败处理策略名单**、值又是**函数**（`retry: (n) => n < 3`）或**字符串枚举**
+ * （`backoff: 'exponential'`）时，它只许出现在声明的策略落点里。
+ *
+ * 与 D20 的分工（**同一处不会两条都报**）：数字型策略（`retry: 3` / `staleTime: 60_000`）归
+ * `numberHomes`；这条只吃 D20 看不见的那两半 —— **函数体里藏着的口径**（属性名透传进函数体就断，
+ * 数也就没了名字）与**根本不是数字的枚举**。一次后端抖动变成"N 个并发 × 各自的重试"，靠这条兜。
+ */
+export const failurePolicySingleSource: Rule = {
+  id: 'D30',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '失败处理的策略只有一个出处',
+  hint: '重试 / 退避 / 条件重试写成函数或枚举就只许出现在声明的策略落点（数字型归 numberHomes 管）',
+  requires: ['errorPolicy.policyIn'],
+  run: (ctx) => {
+    const face = ctx.config.adapters['error-policy'] as
+      { policyIn?: string[]; policyProps?: string[] } | undefined
+    const globs = face?.policyIn ?? []
+    if (globs.length === 0) return []
+    // 名字优先级：这条面自己给的 → 数据层 kit 给的（库的事实，宿主不必抄）
+    const kitProps = (ctx.config.adapters['data-layer'] as { policyProps?: string[] } | undefined)
+      ?.policyProps
+    const props = new Set(face?.policyProps ?? kitProps ?? [])
+    if (props.size === 0) return []
+    const patterns = globs.map((glob) => globToRegExp(glob))
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.role === 'test' || /\.(test|spec)\./.test(record.rel)) continue
+      if (patterns.some((pattern) => pattern.test(record.rel))) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const fn of facts.functions) {
+        if (!fn.ownedProp || !props.has(fn.ownedProp)) continue
+        // **必须收窄**：`retry` 这类名字会撞（UI 回调、i18n 的文案键都叫过 retry）——
+        // 只判"策略对象作为调用实参"（`useQuery({ retry: … })`）这一种形态，宁少报不误伤
+        if (fn.inCall === undefined) continue
+        out.push(
+          finding(
+            'D30',
+            record.rel,
+            fn.line,
+            `${fn.ownedProp} 写成了函数型策略，却在家外：函数体里的口径（次数 / 退避 / 条件）别人看不见`,
+            `把整段策略搬进声明的落点（${globs.join(' / ')}），这里只引用它`,
+          ),
+        )
+      }
+      for (const item of facts.strings) {
+        if (!item.prop || !props.has(item.prop)) continue
+        if (item.inCall === undefined) continue // 同上：只判调用实参里的策略对象
+        out.push(
+          finding(
+            'D30',
+            record.rel,
+            item.line,
+            `${item.prop} 写成了枚举型策略（${JSON.stringify(item.value)}），却在家外`,
+            `值进声明的落点（${globs.join(' / ')}），这里只引用常量`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 /* ---------------- D25 后端端点只有一个出处 ---------------- */
 
 /**
@@ -372,6 +440,7 @@ export const keyShapeConsistent: Rule = {
 export const designSourceRules: Rule[] = [
   cacheKeySingleSource,
   permissionPointSingleSource,
+  failurePolicySingleSource,
   keyShapeConsistent,
   endpointSingleSource,
   routePathSingleSource,

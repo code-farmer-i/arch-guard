@@ -254,6 +254,22 @@
   里没有装 `import/no-unresolved`（也没有 resolver）—— 所以**示例目录**里这类错仍然静默。
   要补上需要 2 个 devDep，其中 `unrs-resolver` 带 postinstall，放行与否是宿主的供应链决定，未替宿主做。
 
+### Added（R-111：失败处理的策略也有落点 —— D30）
+
+- **新面 `errorPolicy({ policyIn, policyProps? })` + 规则 D30**：函数型策略
+  （`retry: (count, err) => count < 3`）与枚举型策略（`backoff: 'exponential'`）只许出现在声明的落点。
+  策略**名字**可以不写 —— 装了 `dataLayer(reactQueryKit(...))` 就由 kit 的 `policyProps` 给（库的事实不抄）。
+- **与 D20 的分工写在文档里**：数字型策略（`retry: 3` / `staleTime: 60_000`）归 `numberHomes`；
+  函数体里藏着的口径与枚举归 D30 —— 同一处不会两条都报。
+- 事实模型扩 `functions[].ownedProp`（属性值函数的所属属性名，**不随函数体断开**）与 `functions[].inCall`
+  （最近外层调用名）；`FACTS_CACHE_SPEC` 8 → 10。
+- **被真实假阳性逼出来的收窄**（值得记）：第一版判据只看"属性名命中 + 值是函数/枚举"，立刻在示例里
+  误报两处 —— `queryState.ts` 的 UI 回调也叫 `retry`，i18n 的文案键 `retry: '重试'` 也是字符串。
+  于是收窄成"**只判策略对象作为调用实参**"（`useQuery({ retry: … })`），并在夹具里钉住这条边界。
+  这与 N-10 判不做 feature flag 的理由同因：**泛名字会撞，判据必须收窄**。
+- 夹具 `error-policy`（90 → 91）：函数型 / 枚举型必报；数字型、引用、测试文件、**同名但不在调用里的属性**都不报。
+- 两套示例都补了 `shared/api/policy.ts`（策略的家）并在 `queryClient` 里引用（不是抄字面量）。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

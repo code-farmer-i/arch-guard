@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "rule": "D30",
+      "file": "src/modules/crews/hooks/useCrews.ts"
+    },
+    {
+      "rule": "D30",
+      "file": "src/modules/crews/hooks/useCrews.ts"
+    }
+  ],
+  "exact": true
+}

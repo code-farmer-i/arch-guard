@@ -20,6 +20,7 @@ import {
   deps,
   designSystem,
   endpoints,
+  errorPolicy,
   permissions,
   envReads,
   fsd,
@@ -119,6 +120,8 @@ export default {
     endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
     // 权限点唯一出处（R-110）：`can('字面量')` 即报
     permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
+    // 失败处理策略的落点（R-111）：名字由 `reactQueryKit()` 的 `policyProps` 给
+    errorPolicy({ policyIn: ['src/shared/api/policy.ts', 'src/entities/*/model/query.ts'] }),
     analytics({
       // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
       apis: ['useTrackView', 'sendEvent'],

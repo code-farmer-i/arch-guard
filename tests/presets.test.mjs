@@ -94,6 +94,7 @@ test('能力提供者必须启用消费它的规则（防"适配器装了却静�
     coreRules,
     copy,
     designSystem,
+    errorPolicy,
     endpoints,
     permissions,
     metrics,
@@ -117,6 +118,7 @@ test('能力提供者必须启用消费它的规则（防"适配器装了却静�
     envReads: envReads({ apis: ['import.meta.env'], in: ['src/shared/config/**'] }),
     endpoints: endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
     permissions: permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
+    errorPolicy: errorPolicy({ policyIn: ['src/shared/api/policy.ts'] }),
     // `structure.slots` 是**范式事实**（参数型能力）：由带槽位语义的范式声明 —— canonical 是那个
     structure: canonical(),
   }

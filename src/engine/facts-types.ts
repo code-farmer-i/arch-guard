@@ -78,6 +78,16 @@ export interface NumberFact {
 
 export interface FunctionFact {
   name: string
+  /**
+   * 这个函数是**对象属性的值**时，那个属性名（`retry: (n) => …` → `retry`）—— 且**不随函数体断开**。
+   * D30 靠它判"函数型策略写在了家外"（D20 只看得到带名字的**数字**，函数体里的数看不见）。
+   */
+  ownedProp?: string
+  /**
+   * 这个函数所在的**最近外层调用名**（`useQuery({ retry: (n) => … })` → `useQuery`）。
+   * 用于收窄"撞名"：`retry` 既可能是查询策略，也可能是 UI 回调（D30 只判前者）。
+   */
+  inCall?: string
   line: number
   lines: number
   isComponent: boolean
