@@ -243,6 +243,17 @@
   （S32 要求跨组走别名）；把 consumer 名字改成 `orders` 立即报 S22 + S23 —— 示例真的在演这条通道，
   不再是"只有夹具里才有"。顺带：`OrderDto.crew` → `Order.crewId` 由 mapper 显式翻译。
 
+### Notes（R-109 判"不做（委派）"：这条早就判过了）
+
+- 探针发现"本地 import 路径解析不到时无人报"（把示例里 `entities/crew/@x/order.ts` 改名 → 守卫 0 finding），
+  于是先按新需求开了原型（S47）。**随后翻到仓库里的旧结论**：本体原有一条 **S33** 判这件事，
+  0.4.0 **主动移除**并委派给 eslint `import/no-unresolved`（DESIGN §4.9 · DELEGATION-REVIEW：
+  "射程与 tsc 重合，增量价值≈0，不值得一条规则"）。→ 原型**全部撤回**（规则 / 夹具 / 引擎改动都没留），
+  R-109 记为 `不做（委派）`。
+- 委派的现状（诚实记一笔）：`src/**` 由 tsc 兜（`pnpm check` 会跑，实测 TS2307）；但 `eslint.config.mjs`
+  里没有装 `import/no-unresolved`（也没有 resolver）—— 所以**示例目录**里这类错仍然静默。
+  要补上需要 2 个 devDep，其中 `unrs-resolver` 带 postinstall，放行与否是宿主的供应链决定，未替宿主做。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）
