@@ -14,6 +14,7 @@ import type { Diagnostic } from './codes.js'
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
 import type { Pack } from './pack.js'
 import { resolveStructure } from './structure.js'
+import type { StructureSpec } from './structure-spec.js'
 import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
 import { exists, mergePresets } from './util.js'
 
@@ -116,6 +117,85 @@ export function aliasesFromTsconfig(root: string): {
 /** 配置格式版本 */
 export const CONFIG_SPEC_VERSION = '1'
 
+/**
+ * **键白名单**（R-113）。为什么用 `Record<keyof X, true>` 写而不是散着的字符串数组：
+ * 类型加了字段这里就**编译不过** —— 白名单不会悄悄落后于契约（它自己就是被门禁管着的）。
+ *
+ * 为什么需要它：声明型配置最怕"写了、看着对、实际没生效"。真实踩过 —— 把 `addRoles` 放进
+ * `overrides.structure`（键名对、值是好的，只是放错一层），引擎静默忽略，S01 照旧报
+ * "域根散件"，人只会去怀疑自己的 glob 写错了。
+ */
+const KNOWN_TOP_KEYS: Record<keyof RawProjectConfig, true> = {
+  specVersion: true,
+  presets: true,
+  packs: true,
+  overrides: true,
+}
+
+/** `overrides` 的可用键 = `Config` 的键（逐键覆盖）+ `addRoles`（在角色表之上追加） */
+const KNOWN_OVERRIDE_KEYS: Record<keyof ConfigOverrides, true> = {
+  root: true,
+  srcRoot: true,
+  paradigm: true,
+  layout: true,
+  roles: true,
+  naming: true,
+  thresholds: true,
+  adapters: true,
+  enable: true,
+  disable: true,
+  structure: true,
+  params: true,
+  entries: true,
+  ignore: true,
+  include: true,
+  metaFramework: true,
+  exceptions: true,
+  aliases: true,
+  autoFix: true,
+  addRoles: true,
+}
+
+const KNOWN_STRUCTURE_KEYS: Record<keyof StructureSpec, true> = {
+  order: true,
+  isolate: true,
+  publicApi: true,
+  publicApiUnits: true,
+  segmentedGroups: true,
+  reservedNames: true,
+  groupCountLimits: true,
+  directoryItemLimits: true,
+  groupInDegree: true,
+  nameCollisions: true,
+  repetitiveNaming: true,
+  pluralConsistency: true,
+  degreeLimits: true,
+  importLocality: true,
+  couplingLimits: true,
+  migrating: true,
+  clientState: true,
+  authRedirects: true,
+  maxRelativeUp: true,
+  generated: true,
+}
+
+/** 不认识的键直接拒（fail-closed）：声明了却没人读，等于这条纪律根本没配 */
+function assertKnownKeys(
+  where: string,
+  value: Record<string, unknown>,
+  known: Record<string, true>,
+  hint = '',
+): void {
+  const unknown = Object.keys(value).filter((key) => !(key in known))
+  if (unknown.length === 0) return
+  throw new Error(
+    `${where} 里有不认识的键：${unknown.join(' / ')}\n` +
+      `可用：${Object.keys(known).join(' / ')}\n` +
+      (hint === '' ? '' : `${hint}\n`) +
+      '（不认识的键会被静默忽略 —— 与其让人去怀疑自己的 glob，不如现在就说）',
+  )
+}
+
 export async function loadConfig(options: {
   root: string
   configPath?: string
@@ -143,6 +223,25 @@ export async function loadConfig(options: {
       `配置 specVersion 不支持：${raw.specVersion}（本工具是 ${CONFIG_SPEC_VERSION}）\n` +
         '（版本不同意味着配置语义可能变了，不猜测、不降级）',
     )
+  }
+
+  assertKnownKeys('arch.config.mjs', raw as unknown as Record<string, unknown>, KNOWN_TOP_KEYS)
+  if (raw.overrides !== undefined) {
+    const values = raw.overrides as unknown as Record<string, unknown>
+    assertKnownKeys(
+      'overrides',
+      values,
+      KNOWN_OVERRIDE_KEYS,
+      '提示：`addRoles` / `include` / `entries` 都在 **overrides 层**（与 `structure` 平级）。',
+    )
+    if (values.structure !== undefined) {
+      assertKnownKeys(
+        'overrides.structure',
+        values.structure as Record<string, unknown>,
+        KNOWN_STRUCTURE_KEYS,
+        '提示：结构声明（层序 / 隔离 / 公开面…）写在 `structure` 里；`addRoles` 在它**外面**（overrides 层）。',
+      )
+    }
   }
 
   const notices: Diagnostic[] = []

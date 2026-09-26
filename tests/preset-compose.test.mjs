@@ -239,3 +239,35 @@ test('组合：addRoles 追加在范式角色表之上，roles 仍是整体替�
     /没有任何角色用它做组维度/,
   )
 })
+
+test('组合：不认识的配置键一律 fail-closed（R-113 —— 声明了却没人读 = 这条纪律没配）', async () => {
+  // 真实踩过的坑：`addRoles` 放进 `overrides.structure`（键名对、值是好的，只是放错一层）——
+  // 引擎静默忽略，S01 照旧报"域根散件"，人只会去怀疑自己的 glob。
+  await assert.rejects(
+    () =>
+      load(
+        'canonical()',
+        ", overrides: { structure: { addRoles: [{ id: 'x', pattern: 'src/x/**', layer: 1 }] } }",
+      ),
+    /overrides\.structure 里有不认识的键：addRoles[\s\S]*addRoles` 在它\*\*外面\*\*（overrides 层）/,
+  )
+  // 顶层放错（`include` 属于 overrides）
+  await assert.rejects(
+    () => loadConfig({ root: project('canonical()', ", include: ['src/**']") }),
+    /arch\.config\.mjs 里有不认识的键：include[\s\S]*可用：specVersion/,
+  )
+  // overrides 里拼错键名
+  await assert.rejects(
+    () => load('canonical()', ', overrides: { addRole: [] }'),
+    /overrides 里有不认识的键：addRole/,
+  )
+  // 合法写法照旧能加载：`addRoles` 在 overrides 层
+  const config = await load(
+    'canonical()',
+    ", overrides: { addRoles: [{ id: 'x', pattern: 'src/x/**', layer: 1 }] }",
+  )
+  assert.ok(
+    config.roles.some((role) => role.id === 'x'),
+    'addRoles 在 overrides 层照旧生效',
+  )
+})

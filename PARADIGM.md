@@ -293,6 +293,27 @@ metrics({
 2. 每层一个**角色**（`addRoles: [{ id: 'e2e', pattern: 'e2e/**', layer: 99 }]`）；
 3. 应用入口进 `entries`（`app:bootstrap` 只是 slot，没标 `entry`）。
 
+## 6.14 配置写错会在配置期报错（R-113）
+
+声明型配置最怕"写了、看着对、实际没生效"。所以：**不认识的键直接拒**，并列出可用键。
+
+真正踩过的形态：`addRoles` 放进 `overrides.structure`（键名对、值是好的，只是放错一层）——
+引擎静默忽略，S01 照旧报"域根散件"，排查时间全花在错的地方。现在会直接说：
+
+```
+overrides.structure 里有不认识的键：addRoles
+提示：结构声明写在 `structure` 里；`addRoles` 在它**外面**（overrides 层）。
+```
+
+| 层                    | 可用键从哪来                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------- |
+| 顶层                  | `specVersion` / `presets` / `packs` / `overrides`                                                   |
+| `overrides`           | `Config` 的键（`include` / `ignore` / `entries` / `structure` / `params` / `enable` …）+ `addRoles` |
+| `overrides.structure` | `StructureSpec` 的键（层序 / 隔离 / 公开面 / 各种阈值…）                                            |
+| 适配器字段            | 各 facet 的白名单（`defineAdapter` 拒未知字段）                                                     |
+
+白名单用 `Record<keyof X, true>` 写 —— **类型加了字段这里就编译不过**，不会悄悄落后于契约。
+
 ## 7. 例外：规则级，且必须指名
 
 - **违规没有存量豁免**：没有基线、没有"先记下来以后再说"。门禁的结论只有两种 —— **符合规范** 或 **不符合**。

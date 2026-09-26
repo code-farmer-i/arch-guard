@@ -599,6 +599,20 @@ arch-guard --check-docs     # 只校验：不一致即红
 
 ---
 
+## 9.1 配置写错会在**配置期**报错（不是静默忽略）
+
+如果键名拼错、或者**放错一层**（`addRoles` / `include` / `entries` 属于 `overrides`，不是 `overrides.structure`），
+加载时就会失败并列出可用键：
+
+```
+✖ 引擎异常：overrides.structure 里有不认识的键：addRoles
+可用：order / isolate / publicApi / … / generated
+提示：结构声明（层序 / 隔离 / 公开面…）写在 `structure` 里；`addRoles` 在它**外面**（overrides 层）。
+```
+
+同一类校验还有：适配器字段（`defineAdapter` 的白名单）、未知 facet、`specVersion` 不匹配。
+**边界**：`params` 里的键由范式 / kit 决定，不在此列。
+
 ## 10. 排查（症状 → 原因 → 怎么办）
 
 | 症状                                      | 多半是                                                                                          | 怎么办                                                                             |

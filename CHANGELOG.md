@@ -287,6 +287,19 @@
   `tests/contract/`（契约测试**真的在 `node --test` 里跑**），并在配置里演示三条配套：
   `include` 覆盖测试层 · 每层一个角色 · `entries` 补应用入口。
 
+### Added（R-113：配置写错在**配置期**报错，不再静默忽略）
+
+- **三层键白名单 fail-closed**：顶层（`specVersion` / `presets` / `packs` / `overrides`）·
+  `overrides`（`Config` 的键 + `addRoles`）· `overrides.structure`（`StructureSpec` 的键）。
+  不认识的键直接拒，并列出可用键 + **针对性的提示**。
+- 白名单用 `Record<keyof X, true>` 写：**类型加了字段这里就编译不过** —— 白名单不会悄悄落后于契约
+  （实现时 tsc 当场证明了三个清单都是完备的）。
+- 真实形态：`addRoles` 放进 `overrides.structure`（键名对、值是好的，只是放错一层）→ 以前静默忽略、
+  S01 照旧报"域根散件"，人只会去怀疑自己的 glob；现在直接说
+  "`addRoles` 在它**外面**（overrides 层）"。
+- 适配器字段本来就已经是 fail-closed（`defineAdapter` 拒未知字段）—— 这次补齐的是 `overrides` 那三层。
+- 边界：`params` 里的键由范式 / kit 决定，不在此列（它们各有自己的校验）。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）
