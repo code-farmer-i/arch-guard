@@ -20,6 +20,7 @@ import { json, out } from './output.js'
 import { createRegistry } from './registry.js'
 import {
   renderGithubAnnotations,
+  renderHeader,
   renderReport,
   renderStats,
   renderSummary,
@@ -431,8 +432,10 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       // 注解交给 CI 渲染；摘要仍走 stdout 便于人看
       const annotations = renderGithubAnnotations(reportInput)
       if (annotations) out(annotations)
+      renderHeader(reportInput)
       renderSummary(reportInput)
     } else {
+      renderHeader(reportInput)
       renderReport(reportInput)
       renderSummary(reportInput)
     }

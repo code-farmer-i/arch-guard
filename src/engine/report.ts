@@ -66,6 +66,27 @@ export function summarize(
   return { errors, warnings }
 }
 
+/**
+ * **结论前置**（UX）：人读输出时第一眼该看到"过没过"，而不是先翻十行元信息。
+ * 元信息（范围 / 自述 / 例外）全部归到末尾的附录（`renderSummary`），退出码语义不变。
+ */
+export function renderHeader(input: ReportInput): void {
+  const { errors, warnings } = summarize(input.findings, input.ruleIndex)
+  const meta = [
+    `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
+    input.scopeFiles > 0 ? `${input.scopeFiles} 个文件` : null,
+    `${input.durationMs}ms`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  if (errors > 0) {
+    out(color.red(`✖ 架构守卫失败：${errors} 个 error、${warnings} 个 warn · ${meta}`))
+  } else {
+    out(color.green(`✔ 架构守卫通过${warnings > 0 ? `（${warnings} 个 warn）` : ''} · ${meta}`))
+  }
+  out('')
+}
+
 export function renderReport(input: ReportInput): void {
   const { findings, ruleIndex } = input
   const byDomain = new Map<Domain, Finding[]>()
@@ -77,7 +98,7 @@ export function renderReport(input: ReportInput): void {
   }
 
   for (const [domain, list] of [...byDomain.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    out(color.bold(`\n${DOMAIN_LABEL[domain] ?? domain}（${list.length}）`))
+    out(color.bold(`${DOMAIN_LABEL[domain] ?? domain}（${list.length}）`))
     const ordered = [...list].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
     for (const finding of ordered) {
       const severity = severityOf(finding, ruleIndex)
@@ -89,6 +110,23 @@ export function renderReport(input: ReportInput): void {
       if (finding.hint) out(color.dim(`        → ${finding.hint}`))
     }
   }
+}
+
+export function renderSummary(input: ReportInput): void {
+  out('')
+  const parts = [
+    `范围 ${input.scope}`,
+    input.globalFindings > 0 ? `全局违规 ${input.globalFindings}` : null,
+    input.skippedGlobals > 0 ? `--local-only 跳过全局违规 ${input.skippedGlobals}` : null,
+    input.filteredBySeverity > 0 ? `--severity 过滤 ${input.filteredBySeverity} 条` : null,
+    input.exceptions.length > 0
+      ? `例外 ${input.exceptions.reduce((sum, entry) => sum + entry.hits, 0)} 处 / ${input.exceptions.length} 条声明`
+      : null,
+    input.contractScope.length > 0
+      ? `扫描域 ${input.contractScope.join(',')}（域外 ${input.outsideContract} 个文件不判契约）`
+      : null,
+  ].filter(Boolean)
+  out(color.dim(parts.join(' | ')))
 
   if (input.exceptions.length > 0) {
     const hits = input.exceptions.reduce((sum, entry) => sum + entry.hits, 0)
@@ -125,29 +163,6 @@ export function renderReport(input: ReportInput): void {
     out(color.yellow(`⚠ 配置里启用了不存在的规则：${input.unknownEnabled.join(', ')}`))
   }
   for (const notice of input.notices) out(color.dim(`· ${notice.text}`))
-}
-
-export function renderSummary(input: ReportInput): void {
-  const { errors, warnings } = summarize(input.findings, input.ruleIndex)
-  const parts = [
-    `scope=${input.scope}`,
-    input.scopeFiles > 0 ? `${input.scopeFiles} 个文件` : null,
-    '全量谓词在全项目快照上求值',
-    `全局违规 ${input.globalFindings}`,
-    input.skippedGlobals > 0 ? `--local-only 跳过全局违规 ${input.skippedGlobals}` : null,
-    input.filteredBySeverity > 0 ? `--severity 过滤 ${input.filteredBySeverity} 条` : null,
-    `规则 ${input.rulesEnabled}/${input.rulesTotal}`,
-    input.exceptions.length > 0
-      ? `例外 ${input.exceptions.reduce((sum, entry) => sum + entry.hits, 0)} 处 / ${input.exceptions.length} 条声明`
-      : null,
-    input.contractScope.length > 0
-      ? `扫描域 ${input.contractScope.join(',')}（域外 ${input.outsideContract} 个文件不判契约）`
-      : null,
-    `${input.durationMs}ms`,
-  ].filter(Boolean)
-  out(color.dim(parts.join(' | ')))
-  if (errors > 0) out(color.red(`✖ 架构守卫失败：${errors} 个 error、${warnings} 个 warn`))
-  else out(color.green(`✔ 架构守卫通过${warnings > 0 ? `（${warnings} 个 warn）` : ''}`))
 }
 
 /** 报告里的一条例外（规则级） */

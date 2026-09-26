@@ -111,7 +111,7 @@ test('方案面声明 0 命中：落点不存在 / 清单没有任何命中 → 
   assert.match(notice.text, /有 9 条声明 0 命中/)
   assert.match(notice.text, /call-sites\[flag\]\.apis 的调用名 isEnableX/)
   assert.match(notice.text, /env-reads\.apis 的读取根 import\.meta\.env/)
-  assert.match(notice.text, /还有 4 条/)
+  assert.match(notice.text, /还有 1 条/)
 })
 
 test('方案面声明命中时不自述：调用名 / 落点 / 环境读取根都算命中', () => {

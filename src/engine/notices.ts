@@ -52,9 +52,18 @@ export function pushScanNotices(config: Config, scan: ScanResult, notices: Diagn
     })
   }
   if (scan.ignored.length > 0) {
+    // 文件 + **全部模式**：用户要靠模式去改配置（以前数字是文件、后面列的却是模式，对不上）
+    const patterns = config.ignore
+    const patternLines: string[] = []
+    for (let index = 0; index < patterns.length; index += 3) {
+      patternLines.push(patterns.slice(index, index + 3).join(' · '))
+    }
     notices.push({
       code: 'ignore-skipped',
-      text: `ignore（项目边界）命中 ${scan.ignored.length} 个文件，未进文件集也不解析：${config.ignore.join(' , ')}`,
+      text:
+        `ignore（项目边界）命中 ${scan.ignored.length} 个文件（不进文件集也不解析）：` +
+        `${scan.ignored.slice(0, 3).join(' · ')}${scan.ignored.length > 3 ? ' …' : ''}\n` +
+        `    模式（${patterns.length} 条）：${patternLines.join('\n      ')}`,
     })
   }
 }
@@ -71,8 +80,15 @@ export function pushAdapterNotice(config: Config, notices: Diagnostic[]): void {
   const list = [...adapters]
     .sort((a, b) => a.facet.localeCompare(b.facet))
     .map((adapter) => `${adapter.facet}=${adapter.id}`)
-    .join(' · ')
-  notices.push({ code: 'adapters-in-use', text: `生效的适配器：${list}` })
+  // 每行 3 个：12 个挤成一行（250+ 字符）在窄终端里读不动
+  const lines: string[] = []
+  for (let index = 0; index < list.length; index += 3) {
+    lines.push(list.slice(index, index + 3).join(' · '))
+  }
+  notices.push({
+    code: 'adapters-in-use',
+    text: `生效的适配器（${list.length} 个）：\n${lines.map((line) => `    ${line}`).join('\n')}`,
+  })
 }
 
 /**
@@ -161,16 +177,20 @@ export function pushDeclarationNotices(
   empty.push(...emptyFaceDeclarations(config, facts, hasFile))
 
   // "正确形态参考"是**建议**不是"第 N 条 0 命中"，单独一句（R-106）
-  const recipe = empty.find((item) => item.startsWith('正确形态参考：'))
+  const recipe = empty.find((item) => item.startsWith('正确形态参考'))
   const items = recipe ? empty.filter((item) => item !== recipe) : empty
   if (items.length === 0 && !recipe) return
+  // 一条一行：以前 6 条挤成一条 400+ 字符的长行，80 列终端里整份报告被折成两倍长（UX）
+  const shown = items.slice(0, 8)
   notices.push({
     code: 'declaration-no-match',
     text:
-      `有 ${items.length} 条声明 0 命中（那条纪律这次什么都没看，建议删掉或修对）：${items
-        .slice(0, 5)
-        .join(' · ')}${items.length > 5 ? ` …（还有 ${items.length - 5} 条）` : ''}` +
-      (recipe ? `\n  ${recipe}` : ''),
+      `有 ${items.length} 条声明 0 命中（那条纪律这次什么都没看，建议删掉或修对）：\n` +
+      shown.map((item) => `    · ${item}`).join('\n') +
+      (items.length > shown.length
+        ? `\n    …还有 ${items.length - shown.length} 条（\`--format=json\` 拿全）`
+        : '') +
+      (recipe ? `\n    ${recipe}` : ''),
   })
 }
 
@@ -373,7 +393,9 @@ function emptyFaceDeclarations(
       if (recipe) recipes.add(recipe)
     }
     if (recipes.size > 0) {
-      empty.push(`正确形态参考：${[...recipes].join('  ·  ')}`)
+      empty.push(
+        `正确形态参考（可粘进配置）：\n${[...recipes].map((item) => `    ${item}`).join('\n')}`,
+      )
     }
   }
   return empty

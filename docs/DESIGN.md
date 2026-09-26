@@ -525,7 +525,10 @@ ctx = {
 2. **不许静默降级**：无 git → 明确降级 `full` 并打印；diff 为空 → 打印「无变更文件，仍执行全量谓词」。
 3. **untracked 与 rename 必须正确处理**：untracked 纳入（agent 最常写新文件：`git ls-files --others --exclude-standard`）；rename 按改名处理而非「删+增」（否则改名后的路径与图都对不上）。
 4. **pre-commit 跑 index 内容**：`--staged` 读 `git show :<path>` 的 blob 而非磁盘工作区文件 —— 否则会检查用户还没打算提交的改动，或漏掉已暂存的改动（hook 经典 bug）。
-5. **输出必须自述 scope**：`scope=staged(3 files) | 全量谓词在全项目快照上求值 | 全局违规 0 | 因能力停用 3 条`，防「以为全量在跑」。
+5. **输出必须自述 scope**：**第一行给结论**（`✖ 1 error · 规则 1/107 · 1 个文件 · 52ms`），
+   附录自述范围与元信息（`范围 staged | 全局违规 0 | …`），防「以为全量在跑」。
+   _（2026-09-25 UX 调整：结论从最后一行前置到第一行 —— 以前要先翻十行元信息才知道过没过；
+   "全量谓词在全项目快照上求值"这类内部术语从主输出移走，见 USAGE §10。）_
 6. **CI 必须 full**：`--changed` 是开发体验工具，不是门禁依据；CI 跑 `changed` = 假绿。写进文档与 CI 模板。
 7. **过滤器必须自述**：`--severity` / `--paths` 把范围缩小到零之后，**不许「绿而不说」** —— 条数进 notice、摘要行与 JSON
    （`filteredBySeverity` / `notices`）；`include` 非空却 0 个源码文件由 **S24 直接报错**（「0 个文件 → 通过」是假绿，见 PARADIGM §11）。

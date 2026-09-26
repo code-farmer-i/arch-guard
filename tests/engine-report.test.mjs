@@ -8,13 +8,14 @@ import { test } from 'node:test'
 import {
   canonical,
   copy,
+  coreRules,
   createRule,
   deps,
   designSystem,
   i18n,
   i18nextKit,
   loadConfig,
-  coreRules,
+  renderHeader,
   renderReport,
   renderSummary,
   runGuard,
@@ -99,7 +100,17 @@ test('report：按域分组、带修法、标注全局违规', () => {
 })
 
 test('report：摘要自述 scope / 例外 / 停用规则', () => {
-  const text = capture(() =>
+  const text = capture(() => {
+    // 结论在 header（前置）、元信息在 appendix —— 两段都取，断言信息没丢
+    renderHeader(
+      baseInput({
+        findings: [{ rule: 'H06', file: 'a.ts', line: 1, text: 'x' }],
+        scope: 'staged',
+        scopeFiles: 3,
+        globalFindings: 1,
+        skippedGlobals: 2,
+      }),
+    )
     renderSummary(
       baseInput({
         findings: [{ rule: 'H06', file: 'a.ts', line: 1, text: 'x' }],
@@ -127,9 +138,10 @@ test('report：摘要自述 scope / 例外 / 停用规则', () => {
         unknownEnabled: ['NOPE'],
         notices: [{ code: 'config-aliases', text: '别名取自 tsconfig' }],
       }),
-    ),
-  )
-  assert.match(text, /scope=staged \| 3 个文件/)
+    )
+  })
+  assert.match(text, /范围 staged/, '附录自述范围')
+  assert.match(text, /3 个文件/, '文件数在结论行里')
   assert.match(text, /例外 2 处 \/ 1 条声明/, '例外必须自述')
   assert.match(text, /--local-only 跳过全局违规 2/, '跳过的全局违规必须自述（不许静默丢弃）')
   assert.match(text, /✖ 架构守卫失败：1 个 error/)
@@ -145,7 +157,7 @@ test('report：通过时打印绿色结论，warn 不阻断', () => {
     run: () => [],
   })
   const text = capture(() =>
-    renderSummary(
+    renderHeader(
       baseInput({
         ruleIndex: new Map([[warnRule.id, warnRule]]),
         findings: [{ rule: 'H09', file: 'a.ts', line: 1, text: 'w' }],
@@ -157,7 +169,7 @@ test('report：通过时打印绿色结论，warn 不阻断', () => {
 
 test('report：停用规则与未知规则在 report 里明列（防「以为在跑」）', () => {
   const text = capture(() =>
-    renderReport(
+    renderSummary(
       baseInput({
         skipped: [
           {
