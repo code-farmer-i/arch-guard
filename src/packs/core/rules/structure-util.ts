@@ -1,4 +1,4 @@
-import type { FileRecord, Finding } from '../../../engine/types.js'
+import type { FileRecord } from '../../../engine/types.js'
 
 /**
  * 声明驱动结构规则的**共用零件**：报错构造、角色目录推导、分桶。
@@ -7,26 +7,7 @@ import type { FileRecord, Finding } from '../../../engine/types.js'
  * 各写一遍迟早会走偏（比如一个按 captures 排序、另一个不排）。
  */
 
-export const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-  global = false,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-    ...(global ? { global: true } : {}),
-  }
-}
+export { finding, type FindingPosition } from './finding.js'
 
 /**
  * 单元目录：优先从角色 pattern 的 `dir/**` 形态取；pattern 不是这个形态时，

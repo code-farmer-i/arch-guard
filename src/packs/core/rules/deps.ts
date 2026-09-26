@@ -2,27 +2,7 @@ import type { WheelFingerprint } from '../../../data/wheel-fingerprints.js'
 
 import { effectiveFingerprints } from './deps-fingerprints.js'
 import type { Facts, Finding, Rule, RuleContext } from '../../../engine/types.js'
-
-const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-  global = false,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-    ...(global ? { global: true } : {}),
-  }
-}
+import { finding } from './finding.js'
 
 /**
  * 依赖域（P）：管两件事

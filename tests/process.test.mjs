@@ -401,3 +401,18 @@ test('流程：示例配置里提到的落点路径必须存在', () => {
     }
   }
 })
+
+test('冻结：`finding()` 构造器全仓只有一处定义（曾经 9 份，加字段要改 9 个地方）', () => {
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory()
+        ? walk(join(dir, entry.name))
+        : entry.name.endsWith('.ts')
+          ? [join(dir, entry.name)]
+          : [],
+    )
+  const defining = walk(join(ROOT, 'src'))
+    .filter((path) => /^(export )?const finding = \(/m.test(readFileSync(path, 'utf8')))
+    .map((path) => path.slice(ROOT.length))
+  assert.deepEqual(defining, ['src/packs/core/rules/finding.ts'])
+})

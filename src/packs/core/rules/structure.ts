@@ -3,6 +3,7 @@ import type { Finding, Rule } from '../../../engine/types.js'
 
 import { placementHint } from './placement.js'
 import { domainRootOnlyRoutes, routesRequired } from './structure-routes.js'
+import { finding } from './finding.js'
 
 /** S00 解析失败必须报错：fail-closed —— 语法错误会让该文件失去全部检查，绝不能静默通过 */
 export const parseFailClosed: Rule = {
@@ -24,27 +25,6 @@ export const parseFailClosed: Rule = {
         global: true,
       }))
     }),
-}
-
-const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-  global = false,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-    ...(global ? { global: true } : {}),
-  }
 }
 
 /** S01 角色表互斥完备：每个文件必须恰好命中一个角色 */

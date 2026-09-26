@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { parseCss } from '../../../engine/css.js'
-import type { Facts, Finding, RuleContext } from '../../../engine/types.js'
+import type { Facts, RuleContext } from '../../../engine/types.js'
 
 export interface ContrastPair {
   fg: string
@@ -68,27 +68,7 @@ export function designParams(ctx: RuleContext): DesignParams {
   }
 }
 
-export const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-  /** 全局发现项（不挂在某个文件的具体行上，如"声明的落点不存在"） */
-  global = false,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-    ...(global ? { global: true } : {}),
-  }
-}
+export { finding, type FindingPosition } from './finding.js'
 
 /** 用事实模型里的注释区间把注释遮罩成空格（避免注释里的示例被误判） */
 export function maskTs(text: string, facts: Facts | undefined): string {

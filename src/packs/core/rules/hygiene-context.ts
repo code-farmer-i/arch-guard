@@ -1,29 +1,11 @@
 import { createRule } from '../../../engine/rule.js'
 import type { DetachedApi, Finding, Rule } from '../../../engine/types.js'
+import { finding } from './finding.js'
 
 /**
  * 反退化域（H）续：上下文纪律、假异步、硬编码地址、假数据、手搓时间格式化。
  * 全部基于单文件事实（calls / strings），判定等级 L2。
  */
-
-const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-  }
-}
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
 function packageOf(spec: string): string {

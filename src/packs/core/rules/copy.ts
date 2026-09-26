@@ -1,23 +1,5 @@
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
-
-const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-  }
-}
+import { finding } from './finding.js'
 
 /* ---------------- C03 多语言键一致 ---------------- */
 

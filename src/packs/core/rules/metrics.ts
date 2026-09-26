@@ -5,6 +5,7 @@ import type { Finding, Rule } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
 
 import { testHomeContract } from './metrics-test-homes.js'
+import { finding } from './finding.js'
 
 /**
  * 度量域（M）：只读数字产物 + 阈值。
@@ -44,21 +45,6 @@ interface MetricsConfig {
   checkChain?: { script?: string; require?: string[] }
   depsBudget?: { runtime?: number; dev?: number }
 }
-
-const finding = (
-  rule: string,
-  file: string,
-  line: number,
-  text: string,
-  hint?: string,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-  global: true,
-})
 
 /** 度量配置来自 metrics 适配器（数据，不是 params） */
 const metricsOf = (ctx: { config: { adapters: Record<string, unknown> } }): MetricsConfig =>

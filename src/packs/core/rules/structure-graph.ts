@@ -1,6 +1,7 @@
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
 import { presentFilesOf, routeEntriesOf, routeFilesOf } from './face-forms.js'
+import { finding } from './finding.js'
 
 /**
  * 依赖方向的图规则（S04–S09、S15、S17、S18）。
@@ -8,20 +9,6 @@ import { presentFilesOf, routeEntriesOf, routeFilesOf } from './face-forms.js'
  * 这一组全部落在 L3：判据是**依赖图**而不是单文件文本，所以能抓住「域间互引」「views 被外部
  * 直接引用」「shared 反向依赖」「孤儿文件」这些靠 grep 看不出来的问题。
  */
-
-const finding = (
-  rule: string,
-  file: string,
-  line: number,
-  text: string,
-  hint?: string,
-): Finding => ({
-  rule,
-  file,
-  line,
-  text,
-  ...(hint ? { hint } : {}),
-})
 
 const isModule = (rel: string, modulesRoot: string): boolean => rel.startsWith(`${modulesRoot}/`)
 const domainOf = (rel: string, modulesRoot: string): string | null => {

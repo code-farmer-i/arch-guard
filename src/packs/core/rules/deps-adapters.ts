@@ -6,6 +6,7 @@ import { cssFiles, usesVendorPatterns, vendorPatterns } from './design-shared.js
 import { knownIconPackages } from '../../../data/icon-packages.js'
 import { SOLUTION_ALTERNATIVES } from '../../../data/solution-alternatives.js'
 import type { Facts, Finding, Rule } from '../../../engine/types.js'
+import { finding } from './finding.js'
 
 /**
  * 依赖域（P）的「适配表纪律」：适配器是数据，但它必须与项目真实依赖一致。
@@ -15,27 +16,6 @@ import type { Facts, Finding, Rule } from '../../../engine/types.js'
  *
  * 判定等级：清单类 L1（package.json 是确定事实），形态类 L2（单文件事实 + 全项目 import 集合）。
  */
-
-const finding = (
-  rule: string,
-  file: string,
-  /** 位置：数字（只给行）或事实对象（带列号时渲染成 `file:line:col`） */
-  line: number | { line: number; column?: number },
-  text: string,
-  hint?: string,
-  global = false,
-): Finding => {
-  const position = typeof line === 'number' ? { line } : line
-  return {
-    rule,
-    file,
-    line: position.line,
-    ...(position.column !== undefined ? { column: position.column } : {}),
-    text,
-    ...(hint ? { hint } : {}),
-    ...(global ? { global: true } : {}),
-  }
-}
 
 /** import 语句里的包名（@scope/x、x/sub 归一化到包） */
 function packageOf(spec: string): string {
