@@ -28,7 +28,8 @@ export function analytics(options: AnalyticsOptions): Preset {
     )
   }
   return {
-    enable: ['D24'],
+    // S46（上报不许写在渲染体里）也用 `analytics.apis` 这个受体 —— 装了面就一并启用
+    enable: ['D24', 'S46'],
     adapters: {
       analytics: defineAdapter<GenericAdapter>('analytics', {
         id: 'declared',

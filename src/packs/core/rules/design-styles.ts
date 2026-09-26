@@ -241,7 +241,125 @@ const valueFamilyRules: Rule[] = cssValueFamilies.map((family) => ({
   },
 }))
 
+/* ---------------- D27 对比度组合必须声明过 ---------------- */
+
+/** 从声明值里取出令牌名：`var(--on-brand)` / `var(--on-brand, #fff)` → `--on-brand` */
+const tokenOfValue = (value: string): string | null => /var\(\s*(--[\w-]+)/.exec(value)?.[1] ?? null
+
+/**
+ * 判据：**组件样式**里同时出现 `color` 与 `background`（同为令牌引用）时，这一对必须出现在
+ * `designSystem({ contrastPairs })` 里。
+ *
+ * 为什么单列一条：D07 只算**声明过的那几对** —— 于是"语义令牌当反色用"
+ * （`color: var(--surface)` + `background: var(--brand)`）永远不会被算到：白字橙底只有 3.1:1，
+ * 而配置里声明的是 `--text-primary`/`--surface`（必然通过的那一对）。这条负责**发现漏声明**。
+ */
+export const contrastPairsDeclared: Rule = {
+  id: 'D27',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '对比度组合必须声明过',
+  hint: '组件里同时写 color 与 background 的令牌组合，要加进 `contrastPairs` —— 否则没人算它俩的对比度',
+  requires: ['designSystem.contrastPairs'],
+  run: (ctx) => {
+    const params = designParams(ctx)
+    if (params.contrastPairs.length === 0) return []
+    const declared = new Set(params.contrastPairs.map((pair) => `${pair.fg}|${pair.bg}`))
+    const globalDirs = [params.styleDir, params.tokenDir, params.vendorDir].filter(
+      (dir): dir is string => typeof dir === 'string' && dir.length > 0,
+    )
+    const out: Finding[] = []
+    for (const file of cssFiles(ctx)) {
+      if (globalDirs.some((dir) => file.rel.startsWith(`${dir}/`))) continue
+      for (const rule of file.rules) {
+        const fg = rule.declarations.find((item) => item.prop === 'color')
+        const bg = rule.declarations.find(
+          (item) => item.prop === 'background' || item.prop === 'background-color',
+        )
+        if (!fg || !bg) continue
+        const fgToken = tokenOfValue(fg.value)
+        const bgToken = tokenOfValue(bg.value)
+        // 字面量颜色是 D01 的活；这里只管"两个令牌的组合没人算对比度"
+        if (!fgToken || !bgToken) continue
+        if (declared.has(`${fgToken}|${bgToken}`)) continue
+        out.push(
+          finding(
+            'D27',
+            file.rel,
+            fg.line,
+            `${fgToken} 叠在 ${bgToken} 上，但这一对没在 contrastPairs 里声明：没人算它们的对比度`,
+            `加进 designSystem({ contrastPairs: [{ fg: '${fgToken}', bg: '${bgToken}', usage: '…', min: 4.5 }] })`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- D28 声明的样式落点必须有入口 ---------------- */
+
+/**
+ * 判据：声明了 `styleDir` / `tokenDir` / `vendorDir` 的目录里，至少要有**一个文件真的被引用**
+ * （被 TS/JS import，或被另一份 CSS `@import`）—— 否则那份 CSS 谁也没加载。
+ *
+ * 为什么单列一条：真实踩过 —— 四份全局 CSS（palette / theme / base / vendor）都在，
+ * 但**没有任何入口**：主题静默不生效，而门禁一路绿（各条规则各自都"合规"）。
+ */
+export const styleEntrypointExists: Rule = {
+  id: 'D28',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '声明的样式落点必须有入口',
+  hint: '这些 CSS 没有任何引用：谁也不会加载它们（主题不生效却没人报）—— 加一个入口文件并在应用入口 import',
+  requires: ['designSystem.styleDir'],
+  run: (ctx) => {
+    const params = designParams(ctx)
+    const dirs = [params.styleDir, params.tokenDir, params.vendorDir].filter(
+      (dir): dir is string => typeof dir === 'string' && dir.length > 0,
+    )
+    const cssFilesIn = cssFiles(ctx)
+    const out: Finding[] = []
+    for (const dir of dirs) {
+      const files = cssFilesIn.filter((file) => file.rel.startsWith(`${dir}/`))
+      if (files.length === 0) continue
+      /**
+       * 「有人从**应用侧**引它」：从目录里的文件沿 `importers` 上溯，直到遇到非 CSS 的引用者。
+       * 只看"有没有引用者"是不够的 —— 那几份 CSS 互相 `@import` 也算引用，
+       * 于是把应用入口里那一行删掉照样"有引用"（假阴性）。
+       */
+      const referenced = files.some((file) => {
+        const seen = new Set<string>([file.rel])
+        const queue = [...(ctx.graph.importers.get(file.rel) ?? [])]
+        while (queue.length > 0) {
+          const importer = queue.shift() as string
+          if (seen.has(importer)) continue
+          seen.add(importer)
+          if (!importer.endsWith('.css')) return true
+          queue.push(...(ctx.graph.importers.get(importer) ?? []))
+        }
+        return false
+      })
+      if (referenced) continue
+      out.push(
+        finding(
+          'D28',
+          files[0]?.rel ?? dir,
+          1,
+          `${dir} 下有 ${files.length} 份 CSS，但没有任何引用：不会被加载`,
+          '加一个入口（如 styles/index.css 汇总 @import）并在应用入口 import 它',
+        ),
+      )
+    }
+    return out
+  },
+}
+
 export const designStyleRules: Rule[] = [
+  contrastPairsDeclared,
+  styleEntrypointExists,
   // 数值三族（D12–D14）由数据表 + 项目声明的白名单驱动（0.4.0 收回本体）
   ...valueFamilyRules,
   stylesInModules,

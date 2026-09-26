@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "S46",
+      "file": "src/modules/crews/views/BadPage.tsx"
+    }
+  ],
+  "exact": true
+}

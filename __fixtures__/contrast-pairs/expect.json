@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D27",
+      "file": "src/shared/components/ui/BadButton.module.css"
+    }
+  ],
+  "exact": true
+}

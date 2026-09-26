@@ -210,8 +210,60 @@ export const envReadsOnlyInDeclaredSites: Rule = {
   },
 }
 
+/* ---------------- S46 埋点上报不许写在渲染体里 ---------------- */
+
+/**
+ * 判据：`analytics({ apis })` 声明的**上报调用**（非 hook，如 `sendEvent`）直接写在**组件渲染体**里 → 报。
+ *
+ * 为什么不许：渲染体每次重渲染都会执行（StrictMode 下还双调用）—— 埋点虚高、计费失真，
+ * 而"事件名是不是字面量"（D24）看不见调用位置。正确形态是包一层 hook（示例里的 `useTrackView`：
+ * 内部 `useEffect` 报一次）或在事件回调里报。
+ *
+ * 判据靠 `functions[]` 的 `isComponent`：取**最内层**包含这次调用的函数 —— 是组件就是渲染体；
+ * 是 effect / 回调（它们自己是函数）就不算。宁少报不误伤。
+ */
+export const analyticsCallsInEffects: Rule = {
+  id: 'S46',
+  domain: 'structure',
+  level: 'L2',
+  severity: 'error',
+  title: '埋点上报不许写在渲染体里',
+  hint: '包一层 hook（effect 内上报一次）或放进事件回调；写在渲染体里每次重渲染都会上报',
+  requires: ['analytics.apis'],
+  run: (ctx) => {
+    const adapter = ctx.config.adapters.analytics as { apis?: string[] } | undefined
+    const apis = (adapter?.apis ?? []).filter((api) => !api.startsWith('use'))
+    if (apis.length === 0) return []
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      const facts = ctx.facts.get(record.rel)
+      if (!facts || facts.functions.length === 0) continue
+      for (const call of facts.calls) {
+        const hit = apis.find((api) => call.callee === api || call.callee.endsWith(`.${api}`))
+        if (!hit) continue
+        // 最内层包含这次调用的函数：组件 → 渲染体；其它（effect / 回调 / 工具函数）→ 不判
+        const innermost = facts.functions
+          .filter((fn) => fn.line <= call.line && call.line <= fn.line + fn.lines)
+          .sort((a, b) => a.lines - b.lines)[0]
+        if (!innermost?.isComponent) continue
+        out.push(
+          finding(
+            'S46',
+            record.rel,
+            call.line,
+            `埋点上报 ${call.callee}() 写在组件 ${innermost.name} 的渲染体里：每次重渲染都会上报`,
+            '包一层 hook（内部 effect 上报一次），或放进事件回调',
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 export const structureCallSiteRules: Rule[] = [
   fetchOnlyInDeclaredSites,
+  analyticsCallsInEffects,
   viewsAreLazy,
   callsOnlyInDeclaredSites,
   envReadsOnlyInDeclaredSites,

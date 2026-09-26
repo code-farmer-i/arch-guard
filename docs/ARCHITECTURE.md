@@ -81,7 +81,7 @@ src/
   packs/        框架包 = **源码形态**的落地（一个项目一个）
     core/           共享规则实现（框架无关）
       index.ts        组装 coreRules（今天 tsPack / reactPack 共用同一份）
-      rules/          101 条规则的实现：structure / structure-graph / structure-imports / structure-declared /
+      rules/          104 条规则的实现：structure / structure-graph / structure-imports / structure-declared /
                       structure-groups / structure-locality / structure-routes / structure-scan /
                       structure-call-sites / structure-util / placement / face-forms /
                       design-tokens / design-vendor / design-styles / design-inline / design-numbers /
@@ -96,7 +96,7 @@ src/
                 solution-alternatives（同类方案）· framework-sources（源码形态扩展名）·
                 face-forms（方案面形态词汇）· css-value-families（CSS 数值三族）· retired-names（退路标记）· plural-forms（词形）·
                 icon-packages · build-output-dirs（产物目录兜底跳过名单）
-__fixtures__/   84 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
+__fixtures__/   87 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
 examples/minimal/  干净的宿主示例（可搬运性验证）
 arch.config.mjs    门禁自己的配置（库范式 + 依赖选型 + 度量）
 ```

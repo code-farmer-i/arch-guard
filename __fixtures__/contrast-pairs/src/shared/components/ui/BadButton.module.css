@@ -1,0 +1,4 @@
+.bad {
+  color: var(--surface);
+  background: var(--brand);
+}

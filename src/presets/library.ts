@@ -118,6 +118,8 @@ export function library(options: LibraryOptions = {}): Preset {
       // 端点唯一出处 / 缓存键形状（与范式无关：库也有 API 客户端与缓存键）
       'D25',
       'D26',
+      // 埋点上报不许写在渲染体里（有 analytics 面才判）
+      'S46',
       'P01',
       'P02',
       'P06',
