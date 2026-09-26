@@ -43,8 +43,13 @@ function packageOf(spec: string): string {
  * 只读数据，不做判定。
  */
 function adapterPackagesOf(adapter: Adapter): string[] {
-  const spec = adapter as { packages?: string[]; from?: string[] }
-  return [...(spec.packages ?? []), ...(spec.from ?? [])]
+  const spec = adapter as { packages?: string[]; from?: unknown }
+  // `from` 只在**真是字符串数组**时算包名：别的面可能用同名字段表达别的意思
+  // （踩过：端点面的 `from` 是"落点文件路径"，一个字符串被展开成了单个字符当包名）
+  const from = Array.isArray(spec.from)
+    ? spec.from.filter((item): item is string => typeof item === 'string')
+    : []
+  return [...(spec.packages ?? []), ...from]
 }
 
 /** P04 适配表与实际依赖一致：声明了要装，装了要登记（反向用 kit 指纹表判定） */

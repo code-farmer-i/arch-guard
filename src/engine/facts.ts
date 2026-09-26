@@ -1,10 +1,17 @@
 import ts from 'typescript'
 
 import { ENV_READ_ROOTS } from '../data/env-roots.js'
+import {
+  carriesProp,
+  collectComments,
+  containsJsx,
+  declaredPropOf,
+  stringContext,
+} from './facts-syntax.js'
 
 import { assertTypeScriptApi } from './ts-api.js'
 
-import type { CommentFact, Facts, FileRecord } from './types.js'
+import type { Facts, FileRecord } from './types.js'
 
 /**
  * 事实模型（facts）：引擎里**唯一**接触 TS AST 的地方。
@@ -40,40 +47,6 @@ function scriptKindOf(file: string): ts.ScriptKind {
 }
 
 /** 注释：走 TS 的 comment range API，避免正则把字符串里的 // 当注释 */
-/**
- * 注释采集：用 TS scanner 走**全部**注释 trivia。
- *
- * 不用 `getLeading/TrailingCommentRanges` 逐节点采集 —— 那会漏掉空块里的注释
- * （`catch { /* 忽略 *\/ }`），而「空 catch 是否写明理由」（H05）正好依赖它。
- * scanner 不认识 JSX 文本，所以 JSX 文本里出现 `//` 会被误当注释：这是已知边界。
- */
-function collectComments(
-  sf: ts.SourceFile,
-  text: string,
-  variant: ts.LanguageVariant,
-): CommentFact[] {
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, variant, text)
-  const out: CommentFact[] = []
-  let token = scanner.scan()
-  while (token !== ts.SyntaxKind.EndOfFileToken) {
-    if (
-      token === ts.SyntaxKind.SingleLineCommentTrivia ||
-      token === ts.SyntaxKind.MultiLineCommentTrivia
-    ) {
-      const pos = scanner.getTokenPos()
-      const end = scanner.getTextPos()
-      out.push({
-        pos,
-        end,
-        line: lineOf(sf, pos),
-        text: text.slice(pos, end),
-        kind: token === ts.SyntaxKind.SingleLineCommentTrivia ? 'line' : 'block',
-      })
-    }
-    token = scanner.scan()
-  }
-  return out
-}
 
 /**
  * 下面两个辅助函数**显式接收父节点**，而不是读 `node.parent`。
@@ -82,57 +55,6 @@ function collectComments(
  * 而解析是 facts 提取的绝对大头；真正需要父节点的只有这里的几处。显式传参后，
  * 解析就能按 DESIGN §6.1.1 写的那样用 `setParentNodes = false`。
  */
-/**
- * 「最近属性名」的**透传容器**：数组 / 对象 / 括号 / 断言 / 展开 / 三元不改变它。
- *
- * 为什么要穿透：`useQuery({ queryKey: ['crews', id] })` 里那个字面量的直接父节点是**数组**，
- * 名字在爷爷那一层 —— 只看直接父节点的话 `StringFact.prop` 永远是 null，
- * 「缓存键唯一出处」（D22）这类规则就没法判。函数体 / 语句 / 调用实参都会**断开**透传
- * （`getKey(['a'])` 里的 `['a']` 不是 `queryKey` 的值）。
- */
-function carriesProp(node: ts.Node): boolean {
-  return (
-    ts.isArrayLiteralExpression(node) ||
-    ts.isObjectLiteralExpression(node) ||
-    ts.isParenthesizedExpression(node) ||
-    ts.isAsExpression(node) ||
-    ts.isNonNullExpression(node) ||
-    ts.isSatisfiesExpression(node) ||
-    ts.isSpreadElement(node) ||
-    ts.isConditionalExpression(node)
-  )
-}
-
-/** 本级是属性 / JSX 属性时，它带给子树的属性名 */
-function declaredPropOf(node: ts.Node, sf: ts.SourceFile): string | null {
-  if (ts.isPropertyAssignment(node)) return node.name.getText(sf)
-  if (ts.isJsxAttribute(node)) return node.name.getText(sf)
-  return null
-}
-
-function stringContext(parent: ts.Node | undefined): string {
-  if (!parent) return 'other'
-  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return 'module'
-  if (ts.isCallExpression(parent)) return 'call-arg'
-  if (ts.isJsxAttribute(parent)) return 'jsx-attr'
-  if (ts.isPropertyAssignment(parent)) return 'property-value'
-  if (ts.isElementAccessExpression(parent)) return 'element-access'
-  return 'other'
-}
-
-function containsJsx(node: ts.Node): boolean {
-  let found = false
-  const visit = (n: ts.Node): void => {
-    if (found) return
-    if (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n)) {
-      found = true
-      return
-    }
-    ts.forEachChild(n, visit)
-  }
-  visit(node)
-  return found
-}
 
 export interface FactInput {
   file: string
@@ -153,6 +75,95 @@ export interface FactInput {
  * 以更小的形状（`styleProps`：只收 JSX `style` 里的**字面量**属性）加了回来；
  * 同一次还加了 `numbers`（D19 / D20 读它）。两组都改了事实形状 → `FACTS_CACHE_SPEC` 5 → 6。
  */
+/**
+ * import / re-export → 事实（S45 的名字对账、依赖图、C07 的语言对账都读它）。
+ *
+ * 从 `extractFacts` 的访问器里抽出来：那个函数本身也顶到了 300 行上限。
+ */
+function recordImports(node: ts.Node, facts: Facts, sf: ts.SourceFile): void {
+  /* ---- import / re-export ---- */
+  if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+    const clause = node.importClause
+    const bindings = clause?.namedBindings
+    facts.imports.push({
+      spec: node.moduleSpecifier.text,
+      line: lineOf(sf, node.getStart(sf)),
+      typeOnly: clause?.isTypeOnly === true,
+      dynamic: false,
+      ...(bindings && ts.isNamedImports(bindings)
+        ? { names: bindings.elements.map((el) => (el.propertyName ?? el.name).text) }
+        : {}),
+      ...(clause?.name ? { hasDefault: true } : {}),
+      ...(bindings && ts.isNamespaceImport(bindings) ? { star: true } : {}),
+    })
+  } else if (ts.isExportDeclaration(node)) {
+    if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      const clause = node.exportClause
+      facts.imports.push({
+        spec: node.moduleSpecifier.text,
+        line: lineOf(sf, node.getStart(sf)),
+        typeOnly: node.isTypeOnly,
+        dynamic: false,
+        ...(clause && ts.isNamedExports(clause)
+          ? { names: clause.elements.map((el) => (el.propertyName ?? el.name).text) }
+          : {}),
+        ...(clause ? {} : { star: true }),
+      })
+    }
+    const start = lineOf(sf, node.getStart(sf))
+    if (!node.exportClause) {
+      facts.exports.push({
+        name: '*',
+        kind: 're-export',
+        isStar: true,
+        isDefault: false,
+        typeOnly: node.isTypeOnly,
+        line: start,
+      })
+    } else if (ts.isNamespaceExport(node.exportClause)) {
+      facts.exports.push({
+        name: node.exportClause.name.text,
+        kind: 're-export',
+        isStar: false,
+        isDefault: false,
+        typeOnly: node.isTypeOnly,
+        line: start,
+      })
+    } else {
+      for (const element of node.exportClause.elements) {
+        facts.exports.push({
+          name: element.name.text,
+          kind: 're-export',
+          isStar: false,
+          isDefault: false,
+          typeOnly: node.isTypeOnly || element.isTypeOnly,
+          line: lineOf(sf, element.getStart(sf)),
+        })
+      }
+    }
+  } else if (ts.isExportAssignment(node)) {
+    facts.exports.push({
+      name: 'default',
+      kind: 'assignment',
+      isStar: false,
+      isDefault: true,
+      typeOnly: false,
+      line: lineOf(sf, node.getStart(sf)),
+      declared: true,
+    })
+  } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+    const argument = node.arguments[0]
+    if (argument && ts.isStringLiteral(argument)) {
+      facts.imports.push({
+        spec: argument.text,
+        line: lineOf(sf, node.getStart(sf)),
+        typeOnly: false,
+        dynamic: true,
+      })
+    }
+  }
+}
+
 export function extractFacts(input: FactInput): Facts {
   const { file, rel, role, text } = input
   const scriptKind = scriptKindOf(file)
@@ -206,6 +217,15 @@ export function extractFacts(input: FactInput): Facts {
     inheritedCall: string | null = null,
     /** 是否在 JSX `style={{}}` 的作用域里（D15 只判这里面的属性） */
     inheritedStyle = false,
+    /**
+     * 「键工厂」的两个坐标：变量名 + **不随函数体断开**的属性名。
+     *
+     * 为什么单独要一份：`inheritedProp` 进函数体就断开（那是给 C01/D22 用的语义），
+     * 而 `detail: (id) => ['crews', id]` 这种键恰恰写在箭头函数体里 —— D26 要按"每个 key 工厂"
+     * 分组比对前缀，缺了它就只剩 `list` 一个样本，形同不判（R-100）。
+     */
+    inheritedOwner: string | null = null,
+    inheritedOwnedProp: string | null = null,
   ): void => {
     // 传给子孙的"最近属性名"：本级是属性 → 用它；本级只是透传容器 → 继承；其它 → 断开
     const childProp = declaredPropOf(node, sf) ?? (carriesProp(node) ? inheritedProp : null)
@@ -214,93 +234,15 @@ export function extractFacts(input: FactInput): Facts {
       ts.isCallExpression(node) || ts.isNewExpression(node) ? node.expression.getText(sf) : null
     const childCall = callHere ?? (ts.isFunctionLike(node) ? null : inheritedCall)
     // 内联样式：`style={…}` 打开，进函数体断开（`style={{ … , onClick: () => {} }}` 里的回调不算样式）
+    const childOwnedProp = declaredPropOf(node, sf) ?? inheritedOwnedProp
+    const childOwner =
+      ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) ? node.name.text : inheritedOwner
     const childStyle = ts.isJsxAttribute(node)
       ? node.name.getText(sf) === 'style'
       : ts.isFunctionLike(node)
         ? false
         : inheritedStyle
-    /* ---- import / re-export ---- */
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      const clause = node.importClause
-      const bindings = clause?.namedBindings
-      facts.imports.push({
-        spec: node.moduleSpecifier.text,
-        line: lineOf(sf, node.getStart(sf)),
-        typeOnly: clause?.isTypeOnly === true,
-        dynamic: false,
-        ...(bindings && ts.isNamedImports(bindings)
-          ? { names: bindings.elements.map((el) => (el.propertyName ?? el.name).text) }
-          : {}),
-        ...(clause?.name ? { hasDefault: true } : {}),
-        ...(bindings && ts.isNamespaceImport(bindings) ? { star: true } : {}),
-      })
-    } else if (ts.isExportDeclaration(node)) {
-      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-        const clause = node.exportClause
-        facts.imports.push({
-          spec: node.moduleSpecifier.text,
-          line: lineOf(sf, node.getStart(sf)),
-          typeOnly: node.isTypeOnly,
-          dynamic: false,
-          ...(clause && ts.isNamedExports(clause)
-            ? { names: clause.elements.map((el) => (el.propertyName ?? el.name).text) }
-            : {}),
-          ...(clause ? {} : { star: true }),
-        })
-      }
-      const start = lineOf(sf, node.getStart(sf))
-      if (!node.exportClause) {
-        facts.exports.push({
-          name: '*',
-          kind: 're-export',
-          isStar: true,
-          isDefault: false,
-          typeOnly: node.isTypeOnly,
-          line: start,
-        })
-      } else if (ts.isNamespaceExport(node.exportClause)) {
-        facts.exports.push({
-          name: node.exportClause.name.text,
-          kind: 're-export',
-          isStar: false,
-          isDefault: false,
-          typeOnly: node.isTypeOnly,
-          line: start,
-        })
-      } else {
-        for (const element of node.exportClause.elements) {
-          facts.exports.push({
-            name: element.name.text,
-            kind: 're-export',
-            isStar: false,
-            isDefault: false,
-            typeOnly: node.isTypeOnly || element.isTypeOnly,
-            line: lineOf(sf, element.getStart(sf)),
-          })
-        }
-      }
-    } else if (ts.isExportAssignment(node)) {
-      facts.exports.push({
-        name: 'default',
-        kind: 'assignment',
-        isStar: false,
-        isDefault: true,
-        typeOnly: false,
-        line: lineOf(sf, node.getStart(sf)),
-        declared: true,
-      })
-    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-      const argument = node.arguments[0]
-      if (argument && ts.isStringLiteral(argument)) {
-        facts.imports.push({
-          spec: argument.text,
-          line: lineOf(sf, node.getStart(sf)),
-          typeOnly: false,
-          dynamic: true,
-        })
-      }
-    }
-
+    recordImports(node, facts, sf)
     /* ---- 声明型导出 ---- */
     const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined
     const isExported =
@@ -363,6 +305,15 @@ export function extractFacts(input: FactInput): Facts {
 
     /* ---- 字面量 ---- */
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      // 数组**首元素**属于哪个"键工厂"：`crewKeys.list = ['crews']` / `detail: (id) => ['crews', id]`
+      const arrayPath =
+        parent !== undefined &&
+        ts.isArrayLiteralExpression(parent) &&
+        parent.elements[0] === node &&
+        inheritedOwner !== null &&
+        inheritedOwnedProp !== null
+          ? `${inheritedOwner}.${inheritedOwnedProp}`
+          : undefined
       facts.strings.push({
         value: node.text,
         line: lineOf(sf, node.getStart(sf)),
@@ -370,6 +321,7 @@ export function extractFacts(input: FactInput): Facts {
         // 最近的那个属性名（不一定是直接父节点：`queryKey: ['a']` 的字面量在数组里）
         prop: inheritedProp,
         ...(inheritedCall ? { inCall: inheritedCall } : {}),
+        ...(arrayPath ? { arrayPath } : {}),
       })
     }
     /**
@@ -440,11 +392,16 @@ export function extractFacts(input: FactInput): Facts {
         if (!arg || !ts.isTemplateExpression(arg)) return undefined
         return arg.head.text || undefined
       }
+      const templateParts =
+        first && ts.isTemplateExpression(first)
+          ? [first.head.text, ...first.templateSpans.map((span) => span.literal.text)]
+          : undefined
       facts.calls.push({
         callee: node.expression.getText(sf),
         line: lineOf(sf, node.getStart(sf)),
         ...(first && ts.isStringLiteralLike(first) ? { stringArg: first.text } : {}),
         ...(prefixOf(first) ? { keyPrefix: prefixOf(first) as string } : {}),
+        ...(templateParts ? { templateParts } : {}),
       })
     }
     if (node.kind === ts.SyntaxKind.DebuggerStatement) {
@@ -479,10 +436,12 @@ export function extractFacts(input: FactInput): Facts {
       })
     }
 
-    ts.forEachChild(node, (child) => visit(child, node, childProp, childCall, childStyle))
+    ts.forEachChild(node, (child) =>
+      visit(child, node, childProp, childCall, childStyle, childOwner, childOwnedProp),
+    )
   }
 
-  visit(sf, undefined, null)
+  visit(sf, undefined, null, null, false, null, null)
   return facts
 }
 

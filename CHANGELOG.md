@@ -175,6 +175,24 @@
   `requireTestsFor` 相应扩到 `src/modules/*/lib/mapper.ts` / `src/entities/*/model/mapper.ts`。
 - 两套示例都加了 `common.loading` / `common.loadFailed` 文案与真实的分支渲染。
 
+### Added（R-99 + R-100：端点有唯一出处了 · 缓存键形状有判据了 —— 都要先扩事实模型）
+
+- **R-99 后端端点唯一出处**：端点以前是"事实模型里的隐形人"—— 它多写在模板串里
+  （``fetch(`${API_BASE_URL}/crews?limit=${n}`)``），模板串的静态前缀常为空、`strings` 只收纯字面量，
+  于是"改接口漏一处 = 404"任何规则都管不到。现在：
+  - 事实模型扩 `calls[].templateParts`（模板串的**全部静态段**：`['', '/crews?limit=', '']`）；
+  - 新面 **`endpoints({ apis, source })`** + 新规则 **D25**：打后端的调用实参里出现路径字面量即报；
+  - 示例两套改成端点表（`shared/api/endpoints.ts` + `ENDPOINTS.crews`），夹具 `endpoints`（84 个）。
+    实测：在别处手拼 ``fetch(`/orders?limit=1`)`` → D25 点名。
+- **R-100 缓存键形状一致**：D22 只管"字面量在不在家"，管不了形状 —— `list: ['crews']` 与
+  `detail: (id) => ['crew', id]`（单数）混用时 `invalidateQueries(['crews'])` **前缀匹配不上**，
+  缓存不失效、数据不刷新，而门禁一路绿。现在事实模型扩 `strings[].arrayPath`
+  （数组首元素所属的"键工厂 + 属性"坐标，`crewKeys.detail` 这种写在箭头函数体里的也认），
+  新规则 **D26** 按工厂分组比对前缀；夹具 `key-shape`。
+- 顺带修一处真实的契约踩坑：适配器里 `from` 已经被 i18n 用作"提供该面的包"，端点面一开始也叫 `from`，
+  被 P04 当成包名并**按字符展开**（`s`、`r`、`c`、`/` 被报成缺依赖）→ 字段改名 `source`，
+  并加固 `packagesOf`（字符串不再被当数组展开）。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

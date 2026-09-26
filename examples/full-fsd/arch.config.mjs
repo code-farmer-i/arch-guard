@@ -19,6 +19,7 @@ import {
   dataLayer,
   deps,
   designSystem,
+  endpoints,
   envReads,
   fsd,
   hygiene,
@@ -113,6 +114,8 @@ export default {
       }),
     ),
     styles(cssModulesKit()),
+    // 端点唯一出处（R-99）：`fetch` 的实参里不许出现路径字面量
+    endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
     analytics({
       // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
       apis: ['useTrackView', 'sendEvent'],

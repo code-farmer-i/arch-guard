@@ -46,6 +46,9 @@ function missingSource(
   )
 }
 
+/** "看起来像路径片段"：斜杠后面跟着词字符（`/crews` / `/api/orders`），避免把纯 `/` 或注释当端点 */
+const PATH_LIKE = /\/(?=[\w-])/
+
 /** D22 缓存键唯一出处 */
 export const cacheKeySingleSource: Rule = {
   id: 'D22',
@@ -194,8 +197,134 @@ export const analyticsEventSingleSource: Rule = {
   },
 }
 
+/* ---------------- D25 后端端点只有一个出处 ---------------- */
+
+/**
+ * 判据：**打后端的调用**（`endpoints({ apis })` 声明，如 `fetch`）的实参里出现**路径字面量**
+ * （`/crews`、`/api/orders/:id`）→ 只许出现在声明的出处文件里。
+ *
+ * 为什么单列一条：端点以前是"事实模型里的隐形人"—— 它多写在模板串里
+ * （`` fetch(`${API_BASE_URL}/crews?limit=${n}`) ``），而模板串的静态前缀常常为空、`strings` 只收纯字面量，
+ * 于是"改接口漏一处 = 404"这类问题一条规则都管不到（D22/D23/D24 管键、路由、事件名）。
+ * 事实模型为此扩了 `calls[].templateParts`（全部静态段）。
+ */
+export const endpointSingleSource: Rule = {
+  id: 'D25',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '后端端点只有一个出处',
+  hint: '端点只许来自声明的唯一出处（`endpoints({ source })`）；散着拼，改接口时漏一处就是 404',
+  requires: ['endpoints.source'],
+  run: (ctx) => {
+    const faces = ctx.config.adapters.endpoints as { apis?: string[]; source?: string } | undefined
+    const apis = faces?.apis ?? []
+    const source = faces?.source ?? ''
+    if (apis.length === 0 || source === '') return []
+    const missing = missingSource(ctx, 'D25', source, '端点')
+    if (missing) return [missing]
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.rel === source) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const call of facts.calls) {
+        const hit = apis.find((api) => call.callee === api || call.callee.endsWith(`.${api}`))
+        if (!hit) continue
+        const candidates = [
+          ...(call.stringArg !== undefined ? [{ text: call.stringArg, line: call.line }] : []),
+          ...(call.templateParts ?? []).map((part) => ({ text: part, line: call.line })),
+        ]
+        for (const candidate of candidates) {
+          if (!PATH_LIKE.test(candidate.text)) continue
+          out.push(
+            finding(
+              'D25',
+              record.rel,
+              candidate.line,
+              `端点路径字面量 ${JSON.stringify(candidate.text)} 出现在 ${hit}() 的实参里：只许来自 ${source}`,
+              `把端点写进 ${source}（例如导出一份 ENDPOINTS 表），这里改成拼常量：\`${'$'}{API_BASE_URL}${'$'}{ENDPOINTS.xxx}\``,
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+}
+
+/* ---------------- D26 缓存键形状一致 ---------------- */
+
+/** 键字面量必须以声明的前缀开头；同一个"键工厂"里的键**前缀必须一致**，否则 invalidate 失效 */
+
+/**
+ * 判据：同一个 key 工厂（`export const crewKeys = { … }`）里，各键数组的**首元素**必须相同。
+ *
+ * 为什么单列一条：D22 只管"字面量在不在家"，管不了形状 —— `list: ['crews']` 与
+ * `detail: (id) => ['crews', 'detail', id]` 混用时，`invalidateQueries({ queryKey: ['crews'] })`
+ * **前缀不匹配**，缓存不失效、数据不刷新，而门禁一路绿。
+ * 事实模型为此扩了 `strings[].arrayPath`（数组首元素的"键工厂 + 属性"坐标）。
+ */
+export const keyShapeConsistent: Rule = {
+  id: 'D26',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '缓存键形状一致',
+  hint: '同一个键工厂里的键要以同一前缀开头，否则 invalidate 前缀匹配不上（缓存不失效）',
+  requires: ['dataLayer.queryKeyFrom'],
+  run: (ctx) => {
+    const sources = queryKeyFromOf(ctx.config)
+    if (sources.length === 0) return []
+    const missing = sources
+      .map((source) => missingSource(ctx, 'D26', source, '缓存键'))
+      .filter((item): item is Finding => item !== null)
+    if (missing.length > 0) return missing
+    const homes = sources.map((source) => globToRegExp(source))
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (!homes.some((pattern) => pattern.test(record.rel))) continue
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      // 按"键工厂"分组：`crewKeys.list` / `crewKeys.detail` → 同一组
+      const byFactory = new Map<string, { head: string; line: number }[]>()
+      for (const item of facts.strings) {
+        if (!item.arrayPath) continue
+        const dot = item.arrayPath.indexOf('.')
+        const factory = dot === -1 ? item.arrayPath : item.arrayPath.slice(0, dot)
+        const list = byFactory.get(factory) ?? []
+        list.push({ head: item.value, line: item.line })
+        byFactory.set(factory, list)
+      }
+      for (const [factory, heads] of byFactory) {
+        const distinct = [...new Set(heads.map((item) => item.head))]
+        if (distinct.length <= 1) continue
+        // 多数派为准，指出少数派（读起来最省事）
+        const counts = new Map<string, number>()
+        for (const item of heads) counts.set(item.head, (counts.get(item.head) ?? 0) + 1)
+        const majority = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? distinct[0]
+        for (const item of heads) {
+          if (item.head === majority) continue
+          out.push(
+            finding(
+              'D26',
+              record.rel,
+              item.line,
+              `${factory} 里的键前缀不一致：这里是 ${JSON.stringify(item.head)}，同组多数是 ${JSON.stringify(majority)}`,
+              `同一键工厂用同一前缀（invalidate 按前缀匹配：不一致就会"改了不生效"）`,
+            ),
+          )
+        }
+      }
+    }
+    return out
+  },
+}
+
 export const designSourceRules: Rule[] = [
   cacheKeySingleSource,
+  keyShapeConsistent,
+  endpointSingleSource,
   routePathSingleSource,
   analyticsEventSingleSource,
 ]

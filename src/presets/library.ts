@@ -115,6 +115,9 @@ export function library(options: LibraryOptions = {}): Preset {
       'S41',
       'S42',
       'S43',
+      // 端点唯一出处 / 缓存键形状（与范式无关：库也有 API 客户端与缓存键）
+      'D25',
+      'D26',
       'P01',
       'P02',
       'P06',

@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D26",
+      "file": "src/modules/crews/model/query.ts"
+    }
+  ],
+  "exact": true
+}

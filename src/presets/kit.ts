@@ -45,7 +45,11 @@ export function router(adapter: RouterAdapter): Preset {
 
 /** 数据层适配器：`dataLayer(reactQueryKit({ queryKeyFrom: 'src/shared/api/queryKeys.ts' }))` */
 export function dataLayer(adapter: DataLayerAdapter): Preset {
-  return { enable: [...SOLUTION_RULES, 'D22', 'S36'], adapters: { [adapter.facet]: adapter } }
+  // D26（缓存键形状）也用 `dataLayer.queryKeyFrom` 这个受体 —— 装了适配器就一并启用
+  return {
+    enable: [...SOLUTION_RULES, 'D22', 'D26', 'S36'],
+    adapters: { [adapter.facet]: adapter },
+  }
 }
 
 /** 样式适配器：`styles(cssModulesKit())` */

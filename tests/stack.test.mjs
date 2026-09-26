@@ -78,10 +78,10 @@ test('stack()：组合出来的规则集 = 各域的并集；能力齐了就不�
   // i18n 与组件库的能力都声明了 → 不因能力缺失而停用
   assert.ok(hasCapability(config, 'i18n.resourceDir'))
   assert.ok(hasCapability(config, 'uiKit.vendorSelectors'))
-  // `stack()` 里没有 router / data-layer / 副作用面、也没声明 lazyViews → 那几组落点能力缺失，
-  // D02 / D18（静态令牌前缀）· D20（策略数字的家）· D22 / D23 / D24 / S36 / S37 / S38 **明列停用**（不是静默通过）；
-  // 另外两条需要更具体的项目声明
-  // （M08 tests.requireTestsFor / M09 checkChain）。
+  // `stack()` 里没有 router / data-layer / 端点面 / 副作用面、也没声明 lazyViews → 那几组落点能力缺失，
+  // D02 / D18（静态令牌前缀）· D20（策略数字的家）· D22 / D23 / D24 / D25 / D26
+  // （缓存键 · 路由 · 事件名 · 端点 · 键形状）· S36 / S37 / S38 **明列停用**（不是静默通过）；
+  // 另外两条需要更具体的项目声明（M08 tests.requireTestsFor / M09 checkChain）。
   assert.deepEqual(skippedIds(config).sort(), [
     'D02',
     'D18',
@@ -89,6 +89,8 @@ test('stack()：组合出来的规则集 = 各域的并集；能力齐了就不�
     'D22',
     'D23',
     'D24',
+    'D25',
+    'D26',
     'M08',
     'M09',
     'S36',

@@ -130,6 +130,7 @@ export default {
 | 调用落点 | `callSites([{ name, apis \| from, in }])`                   | S38（副作用 / 配置对象的落点）                                                 |
 | 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
 | 环境读取 | `envReads({ apis?, in })`（缺省用平台表）                   | S44（`import.meta.env` / `process.env` 的落点）                                |
+| 后端端点 | `endpoints({ apis, source })`                               | D25（端点路径的唯一出处）                                                      |
 
 `callSites` 的 `from` 用**导出的常量**（编辑器可补全、拼错立刻可见）：
 
@@ -164,6 +165,7 @@ kit 工厂与它们的参数：
 | `i18nextKit({…})` · `noneI18nKit()`         | `resourceDir` · `languages` · `fn`（默认 `t`）· `hook`（默认 `useTranslation`）        |
 | `reactRouterKit({…})` · `noneRouterKit()`   | `routeFiles` · `pathSource` · `pathProps` · `navigateCalls`                            |
 | `reactQueryKit({…})` · `noneDataLayerKit()` | `queryKeyFrom`（字符串或数组，每项可 glob）· `queryKeyProps` · `fetchIn` · `fetchApis` |
+| `endpoints({…})`                            | `apis`（哪些调用算打后端）· `source`（端点写在哪）                                     |
 | `cssModulesKit({…})` · `noneStylesKit()`    | `modulePatterns` · `examples`（自定义正则**必须**给样例）                              |
 
 ### 2.4 组合糖 `stack()`

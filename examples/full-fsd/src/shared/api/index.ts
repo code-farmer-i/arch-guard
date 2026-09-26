@@ -1,4 +1,5 @@
 export { fetchCrews, fetchOrders } from './client'
+export { ENDPOINTS } from './endpoints'
 export { queryClient } from './queryClient'
 export { queryStateOf, type QueryState } from './queryState'
 export type { CrewDto, OrderDto } from './types'
