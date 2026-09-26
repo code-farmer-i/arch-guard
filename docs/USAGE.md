@@ -364,6 +364,7 @@ arch-guard [options]
 | `--severity <s>`               | 只报告 `error` 或 `warn`                                                                                                                                                |
 | `--format <f>`                 | `pretty`（默认）· `json` · `github`（CI 注解）                                                                                                                          |
 | `--brief`                      | 附录只给一行摘要（自述 / 停用 / 例外各有几条，去掉 `--brief` 展开）                                                                                                     |
+| 颜色                           | 自动：`NO_COLOR` 非空即无色 · `FORCE_COLOR` 非空即强制有色 · 都没有时只在终端上色（管道 / CI 里无色）                                                                   |
 | `--stats`                      | 每条规则的耗时与命中数（排查"为什么这么慢"/"这条规则该不该留"）                                                                                                         |
 | `--no-cache`                   | 不做 facts 持久缓存（每轮全量解析）                                                                                                                                     |
 | `--verify-deps`                | 只对账：适配表声明的包 vs `package.json` 实际依赖（不跑规则）                                                                                                           |

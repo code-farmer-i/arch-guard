@@ -61,7 +61,7 @@ export { CONFIG_SPEC_VERSION } from './engine/config.js'
 export { runGuard, type RunOptions, type RunResult } from './engine/run.js'
 export { checkPortability } from './engine/portability.js'
 export { runSelfTest } from './engine/self-test.js'
-export { anchorOf, globToRegExp, mergePresets, sha1 } from './engine/util.js'
+export { anchorOf, colorsEnabled, globToRegExp, mergePresets, sha1 } from './engine/util.js'
 export {
   summarize,
   toJsonReport,

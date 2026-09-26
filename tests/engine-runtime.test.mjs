@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -190,4 +191,14 @@ test('manifest：运行时依赖清单是审查门（每加一个都要有人看
     '运行时依赖清单被改动过？',
   )
   assert.equal(pkg.peerDependencies.typescript, '>=5.4.0 <7', 'peer 范围必须排除 typescript@7')
+})
+
+test('R-130：`--help` 里给出退出码表与颜色开关（CI 作者不用翻文档）', () => {
+  // 用真跑一次 CLI 的方式断言 —— `helpInformation()` 不含 `addHelpText('after')` 的内容
+  const cli = fileURLToPath(new URL('../es/cli.js', import.meta.url))
+  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' }).stdout
+  assert.match(help, /退出码/)
+  assert.match(help, /0 {2}通过/)
+  assert.match(help, /NO_COLOR/)
+  assert.match(help, /--explain D29/, '示例里也给出"规则 id 可展开"')
 })

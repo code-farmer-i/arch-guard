@@ -380,3 +380,22 @@ test('R-128：发现项带列号时，报告印 `file:line:col`、GitHub 注解�
   )
   assert.match(without, /a\.ts:7 /)
 })
+
+test('R-130：颜色按 NO_COLOR / FORCE_COLOR / TTY 判定（管道与 CI 日志里不再混进 ANSI）', async () => {
+  const { color, colorsEnabled } = await import('../es/engine/util.js')
+  const saved = { ...process.env }
+  try {
+    process.env.NO_COLOR = '1'
+    delete process.env.FORCE_COLOR
+    assert.equal(colorsEnabled(), false, 'NO_COLOR 非空 → 无色')
+    assert.equal(color.red('x'), 'x', '无色时不带转义')
+    delete process.env.NO_COLOR
+    process.env.FORCE_COLOR = '1'
+    assert.equal(colorsEnabled(), true, 'FORCE_COLOR 非空 → 强制有色')
+    assert.ok(color.red('x').includes('\u001b[31m'), '强制有色时带转义')
+    process.env.FORCE_COLOR = '0'
+    assert.equal(colorsEnabled(), false, 'FORCE_COLOR=0 不算强制')
+  } finally {
+    process.env = saved
+  }
+})

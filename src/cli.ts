@@ -138,7 +138,17 @@ export function createProgram(version: string = packageVersion()): Command {
   $ arch-guard init --ui antd --data react-query --i18n i18next   # 起一份配置
   $ arch-guard --scope=changed              # 只报告 git 变更文件（含未跟踪）
   $ arch-guard --domain=D --format=json     # 只看设计系统，输出 JSON
+  $ arch-guard --explain src/modules/crews/views/CrewsPage.tsx    # 写代码前问：这个文件该放哪
+  $ arch-guard --explain D29                # 规则 id 也收：这条规则管什么、要我声明什么
+  $ arch-guard --brief                      # 附录只给一行摘要（自述/停用/例外各有几条）
   $ arch-guard --update-coverage            # 刷新覆盖率棘轮快照（不是豁免违规）
+
+退出码（CI 用它做判断）：
+  0  通过（只有 warn 也算通过）
+  1  有 error 级违规
+  2  用法 / 配置错（配置文件缺失、键拼错、--paths 零匹配…）
+
+颜色：NO_COLOR 非空即无色；FORCE_COLOR 非空即强制有色；都不给时只在终端上色（管道/CI 里无色）。
 `,
   )
   return program

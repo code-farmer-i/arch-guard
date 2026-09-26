@@ -216,11 +216,30 @@ export function mergePresets(presets: Preset[]): Preset {
   return out
 }
 
+/**
+ * **颜色开关**（UX）：以前无论哪里都硬拼 ANSI，于是管道 / CI 日志 / 读屏软件里全是转义序列。
+ *
+ * 按事实标准来：
+ * - `NO_COLOR` 只要**非空**就无色（<https://no-color.org>）；
+ * - `FORCE_COLOR` 非空且不为 `0` 则强制有色（CI 想留色时用）；
+ * - 两者都没给：**只在 stdout 是 TTY 时上色**。
+ */
+export function colorsEnabled(): boolean {
+  const env = process.env
+  if (env.NO_COLOR !== undefined && env.NO_COLOR !== '') return false
+  if (env.FORCE_COLOR !== undefined && env.FORCE_COLOR !== '' && env.FORCE_COLOR !== '0')
+    return true
+  return process.stdout.isTTY === true
+}
+
+const paint = (code: string, s: string): string =>
+  colorsEnabled() ? `\u001b[${code}m${s}\u001b[0m` : s
+
 export const color = {
-  dim: (s: string): string => `\u001b[2m${s}\u001b[0m`,
-  red: (s: string): string => `\u001b[31m${s}\u001b[0m`,
-  yellow: (s: string): string => `\u001b[33m${s}\u001b[0m`,
-  green: (s: string): string => `\u001b[32m${s}\u001b[0m`,
-  cyan: (s: string): string => `\u001b[36m${s}\u001b[0m`,
-  bold: (s: string): string => `\u001b[1m${s}\u001b[0m`,
+  dim: (s: string): string => paint('2', s),
+  red: (s: string): string => paint('31', s),
+  yellow: (s: string): string => paint('33', s),
+  green: (s: string): string => paint('32', s),
+  cyan: (s: string): string => paint('36', s),
+  bold: (s: string): string => paint('1', s),
 }
