@@ -270,6 +270,29 @@ errorPolicy({ policyIn: ['src/shared/api/policy.ts', 'src/modules/<域>/model/qu
 **边界**：只判"策略对象**作为调用实参**"（`useQuery({ retry: … })`）。`retry` 这个名字会撞 ——
 UI 回调、i18n 的文案键都可能叫 `retry`，不收窄就会误报（这条边界是示例里的真实误报逼出来的）。
 
+## 6.13 测试分层：每层一个落点（R-112）
+
+单测 / e2e / 契约测试**是三件事**，却常常混在同一个 glob 里 —— CI 分不清快反馈与慢验证，
+e2e 直接 import 源码内部（重构就红），契约漂移没人发现。
+
+```js
+metrics({
+  tests: {
+    homes: [
+      { name: 'unit', glob: 'src/**/*.test.ts' },                                   // 默认：不限制"从哪进"
+      { name: 'e2e', glob: 'e2e/**/*.spec.ts', imports: 'public' },                  // 只许经公开面 / 应用入口
+      { name: 'contract', glob: 'tests/contract/**', mustImport: ['src/shared/api/generated/**'] },
+    ],
+  },
+}),
+```
+
+配套三件事（少一件这条纪律就空转）：
+
+1. `include` 要覆盖测试层（`['src/**', 'e2e/**', 'tests/**']`）；
+2. 每层一个**角色**（`addRoles: [{ id: 'e2e', pattern: 'e2e/**', layer: 99 }]`）；
+3. 应用入口进 `entries`（`app:bootstrap` 只是 slot，没标 `entry`）。
+
 ## 7. 例外：规则级，且必须指名
 
 - **违规没有存量豁免**：没有基线、没有"先记下来以后再说"。门禁的结论只有两种 —— **符合规范** 或 **不符合**。

@@ -245,3 +245,83 @@ test('M09：check 链路没跑测试/覆盖率就报出来', () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('M08：同名配对必须在附近 —— 跨目录同名不再算"有测试"（真实漏洞回归）', () => {
+  // 真实形态：`examples/full` 四个域各有一份 `lib/mapper.ts` + `mapper.test.ts`，
+  // 用全局 basename 配对时"删掉其中一个域的测试照样绿"。
+  const source = (rel) => ({
+    rel,
+    abs: `/tmp/${rel}`,
+    role: 'shared:lib',
+    layer: 1,
+    domain: null,
+    slot: 'lib',
+    kind: 'ts',
+  })
+  const context = {
+    config: {
+      root: '/tmp/metrics',
+      params: {},
+      adapters: {
+        metrics: {
+          facet: 'metrics',
+          id: 'coverage',
+          tests: { requireTestsFor: ['src/**/lib/mapper.ts'] },
+        },
+      },
+    },
+    records: [source('src/a/lib/mapper.ts'), source('src/b/lib/mapper.ts')],
+    graph: { importers: new Map() },
+    files: ['src/a/lib/mapper.ts', 'src/b/lib/mapper.ts', 'src/b/lib/mapper.test.ts'],
+  }
+  assert.deepEqual(
+    ruleOf('M08')
+      .run(context)
+      .map((item) => item.file),
+    ['src/a/lib/mapper.ts'],
+    '只有 b 那份有同目录测试；a 那份不该被 b 的测试"顺带满足"',
+  )
+  // 顶层测试根里的同名文件仍然算配对（本仓布局：`src/engine/run.ts` ↔ `tests/run.test.mjs`）
+  context.files.push('tests/mapper.test.ts')
+  assert.deepEqual(ruleOf('M08').run(context), [], '顶层 tests/ 下的同名文件算配对')
+})
+
+test('M09：链路按脚本名解析 —— `self-test` 不再被当成跑过 `test`（真实漏洞回归）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-chain-'))
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({
+      scripts: {
+        // 曾经：`chain.includes('test')` 让 `self-test` 满足了"跑过 test"
+        check: 'pnpm self-test && pnpm guard',
+        'self-test': 'node es/cli.js --self-test',
+      },
+    }),
+  )
+  const context = {
+    config: {
+      root: dir,
+      params: {},
+      adapters: {
+        metrics: {
+          facet: 'metrics',
+          id: 'coverage',
+          // 运行时形状：`metrics()` 预设会把 `tests.checkChain` **摊平**到适配器顶层（读它的是 M09）
+          checkChain: { script: 'check', require: ['test'] },
+        },
+      },
+    },
+  }
+  assert.match(
+    ruleOf('M09').run(context)[0]?.text ?? '',
+    /缺少：test/,
+    'self-test 不是 test —— 子串匹配会把没跑过的测试当成跑过',
+  )
+  // 真的写 `pnpm test` 就该过（一跳闭包：check → test）
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ scripts: { check: 'pnpm test && pnpm guard', test: 'node --test' } }),
+  )
+  assert.deepEqual(ruleOf('M09').run(context), [])
+  rmSync(dir, { recursive: true, force: true })
+})

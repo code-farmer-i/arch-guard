@@ -1,0 +1,8 @@
+{
+  "findings": [
+    { "rule": "M10", "file": "e2e/bad.spec.ts" },
+    { "rule": "M10", "file": "tests/smoke/**" },
+    { "rule": "M10", "file": "tests/visual/**" }
+  ],
+  "exact": true
+}

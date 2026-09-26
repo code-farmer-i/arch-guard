@@ -270,6 +270,23 @@
 - 夹具 `error-policy`（90 → 91）：函数型 / 枚举型必报；数字型、引用、测试文件、**同名但不在调用里的属性**都不报。
 - 两套示例都补了 `shared/api/policy.ts`（策略的家）并在 `queryClient` 里引用（不是抄字面量）。
 
+### Added（R-112：测试分层有落点 —— `tests.homes` + M10，并修掉 M08/M09 三个既有裂缝）
+
+- **`metrics({ tests: { homes: [...] } })` + 规则 M10**：每层测试一个落点，三条判据 ——
+  ① `imports: 'public'` 的层（e2e）只许经公开面 / 应用入口 ② `mustImport` 的层必须真的引用声明的
+  契约产物（否则契约漂移没人发现）③ 声明的落点零命中即报（声明空转）。边界：同层内部 import、
+  `test` 角色、产物不存在时都放行。
+- **修掉三个既有裂缝**（都是"假绿/假红"）：
+  - M08 的同名配对用**全局 basename** → 多个域各有一份 `lib/mapper.ts` 时"删掉一个域的测试照样绿"；
+    现在要求**同目录**配对（或顶层 `tests/` 下的同名文件）。
+  - M08 的测试文件判定只认 `testGlobs` → 而 `canonical()` 给了 `**/__tests__/**` 测试**角色**，
+    Jest 形态的项目假红；现在**角色与 glob 都认**。
+  - M09 用 `chain.includes(cmd)` 子串匹配 → `self-test` 满足了"跑过 test"，`test:e2e` 从没跑也一声不吭；
+    现在按**脚本名解析 + 一跳闭包**（`check → test → …`），认不出的直接命令放过。
+- 夹具 `test-homes`（91 → 92，三条判据各一个违规样例 + 边界样例）；示例（canonical）加 `e2e/` 与
+  `tests/contract/`（契约测试**真的在 `node --test` 里跑**），并在配置里演示三条配套：
+  `include` 覆盖测试层 · 每层一个角色 · `entries` 补应用入口。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

@@ -83,7 +83,7 @@ test('stack()：组合出来的规则集 = 各域的并集；能力齐了就不�
   // （缓存键 · 路由 · 事件名 · 端点 · 键形状）· D27（对比度组合，没人声明 contrastPairs）· D29（没人声明 permissions 面）· D30（没人声明 errorPolicy 面）·
   // S36 / S37 / S38 / S46 **明列停用**（不是静默通过）；
   // 注意 D28（样式入口）**在跑**：`styleDir` 由范式给，只是这个 fixture 里没有 CSS 文件可判。
-  // 另外两条需要更具体的项目声明（M08 tests.requireTestsFor / M09 checkChain）。
+  // 另外两条需要更具体的项目声明（M08 tests.requireTestsFor / M09 checkChain / M10 tests.homes）。
   assert.deepEqual(skippedIds(config).sort(), [
     'D02',
     'D18',
@@ -98,6 +98,7 @@ test('stack()：组合出来的规则集 = 各域的并集；能力齐了就不�
     'D30',
     'M08',
     'M09',
+    'M10',
     'S36',
     'S37',
     'S38',

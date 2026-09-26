@@ -4,6 +4,8 @@ import { aggregate, type CoverageReport } from '../../../engine/coverage.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 import { globToRegExp } from '../../../engine/util.js'
 
+import { testHomeContract } from './metrics-test-homes.js'
+
 /**
  * 度量域（M）：只读数字产物 + 阈值。
  *
@@ -321,20 +323,38 @@ export const requireTests: Rule = {
     const spec = metricsOf(ctx).tests
     if (!spec?.requireTestsFor || spec.requireTestsFor.length === 0) return []
     const required = spec.requireTestsFor.map(globToRegExp)
-    const testGlobs = (spec.testGlobs ?? ['**/*.test.*', '**/*.spec.*', 'tests/**']).map(
-      globToRegExp,
-    )
-    const isTest = (rel: string): boolean => testGlobs.some((matcher) => matcher.test(rel))
+    const testGlobs = (
+      spec.testGlobs ?? ['**/*.test.*', '**/*.spec.*', '**/__tests__/**', 'tests/**']
+    ).map(globToRegExp)
+    /**
+     * "这是测试文件吗"问**两处**：角色表（`test` 角色是声明出来的）与 `testGlobs`。
+     * 只认 glob 会假红：`canonical()` 给了 `**\/__tests__/**` 测试角色，而默认 globs 里没有它 ——
+     * Jest 形态的项目里 `src/__tests__/x.ts` 明明有角色、却被当成"没有测试"。
+     */
+    const roleOf = new Map(ctx.records.map((record) => [record.rel, record.role]))
+    const isTest = (rel: string): boolean =>
+      roleOf.get(rel) === 'test' || testGlobs.some((matcher) => matcher.test(rel))
     // 测试文件从**完整文件集**里找，而不是 `records`：测试通常放在契约扫描域之外
     // （`tests/`、`e2e/`），它们没有角色、不进 records，但"是否有测试"必须看得见。
     const testFiles = new Set(ctx.files.filter((rel) => isTest(rel)))
-    // 同名配对：src/engine/run.ts ↔ tests/run.test.ts（按 stem 匹配）
-    const stems = new Set(
-      [...testFiles].map((rel) => {
-        const base = rel.split('/').pop() ?? ''
-        return base.replace(/\.(test|spec)\./, '.')
-      }),
-    )
+    const stemOf = (rel: string): string =>
+      (rel.split('/').pop() ?? '').replace(/\.(test|spec)\./, '.')
+    const dirOf = (rel: string): string => rel.split('/').slice(0, -1).join('/')
+    /** 顶层测试根里的同名文件也算配对（本仓布局：`src/engine/run.ts` ↔ `tests/run.test.mjs`） */
+    const ROOT_TEST_DIR = /^(tests|e2e|__tests__|test)\//
+    /**
+     * 同名配对**必须落在附近**：`mappers` 这种名字在多个域里都有（`modules/<域>/lib/mapper.ts`），
+     * 用全局 basename 配对的后果是"删掉其中一个域的测试照样绿" —— 这是 M08 原来的真实漏洞。
+     */
+    const paired = (target: string): boolean => {
+      const dir = dirOf(target)
+      const stem = stemOf(target)
+      for (const test of testFiles) {
+        if (stemOf(test) !== stem) continue
+        if (dirOf(test) === dir || ROOT_TEST_DIR.test(test)) return true
+      }
+      return false
+    }
     const out: Finding[] = []
     for (const record of ctx.records) {
       if (isTest(record.rel)) continue
@@ -342,8 +362,7 @@ export const requireTests: Rule = {
       const imported = [...(ctx.graph.importers.get(record.rel) ?? [])].some((importer) =>
         testFiles.has(importer),
       )
-      const base = record.rel.split('/').pop() ?? ''
-      if (imported || stems.has(base)) continue
+      if (imported || paired(record.rel)) continue
       out.push(
         finding(
           'M08',
@@ -386,7 +405,43 @@ export const checkChain: Rule = {
     if (chain === undefined) {
       return [finding('M09', 'package.json', 1, `没有 ${scriptName} 脚本，无法确认门禁链路`)]
     }
-    const missing = requiredCmds.filter((cmd) => !chain.includes(cmd))
+    /**
+     * **按脚本名解析，而不是子串匹配**：`"check": "pnpm test:coverage"` 以前同时满足 `test` 与
+     * `coverage`（`includes` 的锅），于是"e2e 从没跑过"这件事一声不吭。
+     * 现在取 `pnpm X` / `npm run X` / `run-s X Y` 这类引用，做**一跳传递闭包**（`check → test:e2e → …`）。
+     */
+    const referenced = (cmd: string): string[] => {
+      const names = new Set<string>()
+      for (const match of cmd.matchAll(/(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?([\w:@./-]+)/g)) {
+        if (match[1]) names.add(match[1])
+      }
+      for (const match of cmd.matchAll(/(?:run-s|run-p|npm-run-all)\s+([^&|;]+)/g)) {
+        for (const token of (match[1] ?? '').split(/\s+/)) {
+          if (token && !token.startsWith('-')) names.add(token)
+        }
+      }
+      return [...names]
+    }
+    const closure = new Set<string>()
+    const queue = [scriptName]
+    while (queue.length > 0) {
+      const name = queue.shift() as string
+      if (closure.has(name)) continue
+      closure.add(name)
+      for (const next of referenced(scripts[name] ?? '')) queue.push(next)
+    }
+    /** 直接写命令（不走脚本名）的等价物：认不出来就放过，宁少报不误伤 */
+    const DIRECT: Record<string, RegExp> = {
+      test: /node\s+--test|\bvitest\b|\bjest\b|\bplaywright\s+test\b/,
+      coverage: /\bc8\b|\bnyc\b|experimental-test-coverage/,
+      lint: /\beslint\b/,
+      typecheck: /\btsc\b/,
+      build: /\btsc\b|\bvite\s+build\b|\brollup\b/,
+    }
+    const chainText = [...closure].map((name) => scripts[name] ?? '').join(' && ')
+    const missing = requiredCmds.filter(
+      (cmd) => !closure.has(cmd) && !(DIRECT[cmd]?.test(chainText) ?? false),
+    )
     if (missing.length === 0) return []
     return [
       finding(
@@ -409,4 +464,5 @@ export const metricsRules: Rule[] = [
   depsBudget,
   requireTests,
   checkChain,
+  testHomeContract,
 ]

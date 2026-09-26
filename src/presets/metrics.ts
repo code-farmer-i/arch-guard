@@ -25,10 +25,30 @@ export interface CoverageOptions {
 }
 
 /** 测试治理：哪些文件必须有测试、门禁链路必须包含什么 */
+export interface TestHome {
+  /** 层名（出现在报告里）：`unit` / `e2e` / `contract` */
+  name: string
+  /** 这一层的落点（glob）：`e2e/**\/*.spec.ts` */
+  glob: string
+  /**
+   * 这一层**许从哪进**：`'public'` = 只许经公开面（`entry: true` 的角色 ∪ `config.entries`），
+   * 不写 = 不限制（单测通常就是 `internal`）。为什么要有它：e2e 直接 import 源码内部
+   * 会让"重构就红，而门禁不先说话"。
+   */
+  imports?: 'internal' | 'public'
+  /**
+   * 这一层必须真的引用到的东西（glob 列表）：契约测试用它钉"对账过生成的契约"。
+   * 声明的 glob **零命中时放过** —— 那是"还没生成"，不是"没对账"。
+   */
+  mustImport?: string[]
+}
+
 export interface TestGateOptions {
   requireTestsFor?: string[]
   testGlobs?: string[]
   checkChain?: { script?: string; require?: string[] }
+  /** 测试**分层**的落点（R-112）：每层一个 glob + "许从哪进" + "要对账什么" */
+  homes?: TestHome[]
 }
 
 export interface MetricsOptions {
@@ -59,16 +79,20 @@ export function metrics(options: MetricsOptions = {}): Preset {
                 tests: {
                   requireTestsFor: options.tests.requireTestsFor,
                   ...(options.tests.testGlobs ? { testGlobs: options.tests.testGlobs } : {}),
+                  ...(options.tests.homes ? { homes: options.tests.homes } : {}),
                 },
               }
             : {}),
           ...(options.tests.checkChain ? { checkChain: options.tests.checkChain } : {}),
+          ...(options.tests.homes && !options.tests.requireTestsFor
+            ? { tests: { requireTestsFor: [], homes: options.tests.homes } }
+            : {}),
         }
       : {}),
     ...(options.depsBudget ? { depsBudget: options.depsBudget } : {}),
   })
   return {
-    enable: ['M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09'],
+    enable: ['M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M08', 'M09', 'M10'],
     adapters: { metrics: adapter },
   }
 }

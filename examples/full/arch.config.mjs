@@ -97,6 +97,11 @@ export default {
           'src/modules/*/lib/mapper.ts',
         ],
         testGlobs: ['src/**/*.test.ts'],
+        // 测试**分层**的落点（R-112）：e2e 只许经公开面；契约层必须真的引用生成物
+        homes: [
+          { name: 'e2e', glob: 'e2e/**/*.spec.ts', imports: 'public' },
+          { name: 'contract', glob: 'tests/contract/**', mustImport: ['src/shared/api/generated/**'] },
+        ],
         checkChain: { script: 'check', require: ['test', 'coverage'] },
       },
       depsBudget: { runtime: 10 },
@@ -148,7 +153,8 @@ export default {
   ],
 
   overrides: {
-    include: ['src/**'],
+    // 测试层也要进契约扫描域：否则 `e2e/**` / `tests/**` 不在文件集里，M10 会把落点当成空的
+    include: ['src/**', 'e2e/**', 'tests/**'],
     ignore: ['dist/**', 'coverage/**'],
 
     // ④ 结构声明（只写这个项目真有、且真的能命中的形态）
@@ -176,8 +182,13 @@ export default {
     },
 
     // ⑤ 项目自己的目录 / dev-only 形态（`addRoles` 是**追加**，不是替换）
+    // 应用入口：M10 判"e2e 只许经公开面"时要认得它（`app:bootstrap` 只是 slot，没标 entry）
+    entries: ['src/app/main.tsx', 'src/app/router/index.tsx'],
     addRoles: [
       { id: 'test', pattern: '**/*.stories.{ts,tsx}', layer: 99, exclusive: true },
+      // 测试**分层**的落点（R-112）：e2e 与契约各自一层，layer 99 = 测试层
+      { id: 'e2e', pattern: 'e2e/**', layer: 99, slot: 'e2e' },
+      { id: 'contract', pattern: 'tests/contract/**', layer: 99, slot: 'contract' },
       // 项目自己的 shared 槽位（R-110 的两个落点）：范式给的是七个固定槽，
       // 项目要加槽位就在这里加一条 —— 与"骨架自带多少"无关，声明了才算数
       { id: 'shared:auth', pattern: 'src/shared/auth/**', layer: 1, slot: 'auth' },
