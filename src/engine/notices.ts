@@ -323,6 +323,17 @@ function emptyFaceDeclarations(
     ) {
       checkApis(`${label}.apis`, face.apis as string[], Object.values(CALL_SITE_SOURCES))
     }
+    /**
+     * **`from` 解析出来是空的**（R-138）：指向来源表 / kit 的清单一般不报（R-92：那类清单天然含
+     * "这次没用到"的项）—— 但**整份解析为空**是另一回事：它意味着那条纪律这轮什么都没看
+     * （典型情形：`endpoints({ from: 'http.apis' })` 却忘了 `http(axiosKit())`）。
+     * 不报的话报告显示 ✔、而端点字面量一个都没判 —— 与 R-114 同一类静默假绿。
+     */
+    if ((label === 'endpoints' || label === 'permissions') && typeof face.from === 'string') {
+      if (resolveCallSiteApis(config, { from: face.from }).length === 0) {
+        empty.push(`${label}.from 的 ${face.from} 解析出来是空的（少装了对应的适配器？）`)
+      }
+    }
     if (label === 'error-policy' && Array.isArray(face.policyProps)) {
       checkProps(
         `${label}.policyProps`,

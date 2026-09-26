@@ -231,6 +231,20 @@ export interface DataLayerAdapter {
 }
 
 /** 样式适配器（T1）：项目用哪个样式方案（CSS Module / CSS-in-JS / 原子类…） */
+export interface HttpAdapter {
+  facet: 'http'
+  id: string
+  specVersion?: string
+  packages: string[]
+  /**
+   * **哪些调用算"打后端"**（D25 的端点判据用它）：供 `endpoints({ from: 'http.apis' })` 解析。
+   *
+   * 只列**请求方法**（`axios.get` 等）—— 裸 `axios` 会连 `axios.create({ baseURL })` 一起认下来，
+   * 那是误报。可调用形态与 `axios.create()` 的实例名由项目自己补。
+   */
+  apis?: string[]
+}
+
 export interface StylesAdapter {
   facet: 'styles'
   id: string
@@ -258,7 +272,13 @@ export interface GenericAdapter {
 }
 
 export type Adapter =
-  UiKitAdapter | I18nAdapter | RouterAdapter | DataLayerAdapter | StylesAdapter | GenericAdapter
+  | UiKitAdapter
+  | I18nAdapter
+  | RouterAdapter
+  | DataLayerAdapter
+  | StylesAdapter
+  | HttpAdapter
+  | GenericAdapter
 
 export type {
   DegreeLimit,

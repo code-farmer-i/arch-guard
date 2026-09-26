@@ -8,6 +8,8 @@
  * 片段里出现的都是公开 API 的调用形态，不是"宿主字面量"——换范式/换库时这些名字也照旧。
  */
 export const CAPABILITY_RECIPES: Record<string, string> = {
+  // HTTP 客户端：用 axios 的项目不必手抄库的 API 名（库的事实进它自己的适配器）
+  'http.apis': 'axiosKit()',
   'analytics.apis':
     "analytics({ apis: ['sendEvent'], eventSource: 'src/shared/lib/analytics/events.ts' })",
   'analytics.eventSource':

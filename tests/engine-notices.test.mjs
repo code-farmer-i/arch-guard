@@ -320,3 +320,23 @@ test('R-114：用 `from` / kit 给的既有清单不点名（R-92 —— 报了�
   )
   assert.equal(notice, undefined, '用来源表的写法不该被点名')
 })
+
+test('R-138：`from` 整份解析为空要自述（忘了装适配器别装成"通过"）', () => {
+  const config = {
+    ...configFull({
+      adapters: {
+        endpoints: {
+          facet: 'endpoints',
+          id: 'declared',
+          from: 'http.apis', // 没有 http 适配器 → 解析为空
+          source: 'src/shared/api/endpoints.ts',
+        },
+      },
+    }),
+  }
+  const notices = []
+  pushDeclarationNotices(config, [], ['src/shared/api/endpoints.ts'], notices)
+  const notice = notices.find((item) => item.code === 'declaration-no-match')
+  assert.ok(notice, '应当自述')
+  assert.match(notice.text, /endpoints\.from 的 http\.apis 解析出来是空的/)
+})

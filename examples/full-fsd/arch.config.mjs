@@ -124,7 +124,9 @@ export default {
     ),
     styles(cssModulesKit()),
     // 端点唯一出处（R-99）：`fetch` 的实参里不许出现路径字面量
-    // `apis` 用来源表（平台事实），不手写：表里以后加 axios / 生成 SDK 时，这里自动跟上
+    // `apis` 用来源表（平台事实），不手写：平台表里加一项，这里自动跟上。
+    // **库**的调用不进平台表（那是分工）—— 用 axios 的项目写 `http(axiosKit())` +
+    // `from: callSiteSources.http.apis`，由库自己的适配器提供清单（R-138）
     endpoints({ from: callSiteSources.platform.network, source: 'src/shared/api/endpoints.ts' }),
     // 权限点唯一出处（R-110）：`can('字面量')` 即报
     permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),

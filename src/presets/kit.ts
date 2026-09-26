@@ -1,6 +1,7 @@
 import type {
   Adapter,
   DataLayerAdapter,
+  HttpAdapter,
   I18nAdapter,
   Preset,
   RouterAdapter,
@@ -50,6 +51,17 @@ export function dataLayer(adapter: DataLayerAdapter): Preset {
     enable: [...SOLUTION_RULES, 'D22', 'D26', 'S36'],
     adapters: { [adapter.facet]: adapter },
   }
+}
+
+/**
+ * HTTP 客户端适配器：`http(axiosKit())`。
+ *
+ * 装了它才有"**哪些调用算打后端**"这份库事实：`endpoints({ from: callSiteSources.http.apis })`
+ * 从它取（以前只有平台来源表里的 `fetch` / `XMLHttpRequest`，用 axios 的项目会静默不判）。
+ * 与 `router()` 同形：一并登记 D25，是否真的判仍由 `endpoints.source` 那份能力协商决定。
+ */
+export function http(adapter: HttpAdapter): Preset {
+  return { enable: [...SOLUTION_RULES, 'D25'], adapters: { [adapter.facet]: adapter } }
 }
 
 /** 样式适配器：`styles(cssModulesKit())` */

@@ -55,6 +55,8 @@ export const DEFAULT_NAVIGATE_CALLS: string[] = [
  * （`defineFacet` 后写者胜）。现在每个 kit 都从这里取清单，只有一处要改。
  */
 export const FACET_FIELDS = {
+  /** HTTP 客户端（`axiosKit()` 等）：库的事实进它自己的适配器，不进平台来源表 */
+  http: ['packages', 'apis', 'examples'],
   router: ['packages', 'routeFiles', 'pathSource', 'pathProps', 'navigateCalls', 'examples'],
   styles: ['packages', 'modulePatterns', 'examples'],
 } as const

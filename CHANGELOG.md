@@ -17,6 +17,32 @@
 
 ## [Unreleased]
 
+### Added（R-138：支持 axios —— `http` 面 + `axiosKit()`）
+
+- **症状**：用 axios（而不是裸 `fetch`）的项目，D25「后端端点只有一个出处」**静默不判** ——
+  来源表里只有平台事实（`platform.network` = `fetch` / `XMLHttpRequest`），库的调用得项目手写，
+  忘了写就是"报告 ✔、端点字面量一个没判"。
+- **按本仓分工落地**（**库的事实进它自己的适配器**，不进平台表）：
+
+  ```js
+  presets: [
+    canonical(),
+    http(axiosKit()),
+    endpoints({ from: callSiteSources.http.apis, source: 'src/shared/api/endpoints.ts' }),
+  ]
+  ```
+
+  新增面 `http` 与 kit `axiosKit()`（`packages: ['axios']` + 请求方法清单）；`callSiteSources.http.apis`
+  由来源表**自动派生**（加一项，常量命名空间自动有）。
+
+- **`apis` 只列请求方法，不列裸 `axios`**：裸的按"对象前缀"会把 `axios.create({ baseURL: '/api' })`
+  里的路径字面量也认成打后端 —— 那是误报。可调用形态 `axios('/x')` 与 `axios.create()` 的实例
+  （`api.get`）名字不可知，由项目自己补进 `apis`（宁少报不误伤）。
+- **顺带补一处静默假绿**：`from` 整份解析为空时以前什么都不说（忘了装适配器就表现为"通过"）→
+  现在自述 "`endpoints.from` 的 `http.apis` 解析出来是空的（少装了对应的适配器？）"
+  （与 call-sites 组的同类检查、R-114 同一族）。
+- 夹具 `endpoints-axios`（**93 → 94**）：违规必报 × 合规不报；`--brief` 与停用清单照旧。
+
 ## [0.7.0] - 2026-09-26
 
 > **契约与迁移（这一版必读）**

@@ -30,6 +30,8 @@ export const CALL_SITE_SOURCES: Record<string, string[]> = {
 /** 面适配器提供的来源（名字 → 从哪个面的哪个字段取） */
 export const CALL_SITE_FACET_SOURCES: Record<string, { facet: string; field: string }> = {
   'data-layer.singletons': { facet: 'data-layer', field: 'singletons' },
+  // 库自己的适配器：`axiosKit()` 声明"哪些调用算打后端"，`endpoints({ from: callSiteSources.http.apis })` 直接用
+  'http.apis': { facet: 'http', field: 'apis' },
 }
 
 /** 全部可用来源 id（配置期校验用：写错就报错，而不是安静地 0 个 API 名） */
