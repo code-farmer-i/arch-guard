@@ -1,16 +1,13 @@
 import { API_BASE_URL } from '@/shared/config'
-import { generatedCrewSchema } from './generated/crews.gen'
-import { ENDPOINTS } from './endpoints'
-import type { CrewDto, OrderDto } from './types'
 
-export async function fetchCrews(limit: number): Promise<CrewDto[]> {
-  const response = await fetch(`${API_BASE_URL}${ENDPOINTS.crews}?limit=${limit}`)
+/**
+ * **传输层**（S38 声明的落点）：基址 / 鉴权 / 错误处理只在这里做。
+ *
+ * 各域的**取数函数**在各自的 hooks 里 —— 只有那个域知道自己的端点、分页大小与映射（R-119）。
+ * 放在共享层的话，加 / 下线一个域都要改这个文件（判据见 PARADIGM §6.15）。
+ */
+export async function requestJson<T>(path: string): Promise<T[]> {
+  const response = await fetch(`${API_BASE_URL}${path}`)
   if (!response.ok) return []
-  return [{ id: generatedCrewSchema, name: 'crews' }]
-}
-
-export async function fetchOrders(limit: number): Promise<OrderDto[]> {
-  const response = await fetch(`${API_BASE_URL}${ENDPOINTS.orders}?limit=${limit}`)
-  if (!response.ok) return []
-  return [{ id: 'orders', total: limit, crew: generatedCrewSchema }]
+  return (await response.json()) as T[]
 }

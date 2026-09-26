@@ -155,6 +155,8 @@ export default {
 
       { name: '本地存储', from: callSiteSources.platform.storage, in: ['src/shared/lib/storage.ts'] },
       { name: '埋点上报', from: callSiteSources.analytics.gtag, in: ['src/shared/lib/analytics/**'] },
+      // 裸网络调用只许在传输层：各域的取数经它（R-119）
+      { name: '裸网络调用', from: callSiteSources.platform.network, in: ['src/shared/api/client.ts'] },
       { name: '全局单例', from: callSiteSources.dataLayer.singletons, in: ['src/shared/api/queryClient.ts'] },
     ]),
   ],

@@ -125,9 +125,8 @@ test('R-118 在真示例上：canonical 给出一条（client.ts 的取数函数
     })
     return result.notices.filter((notice) => notice.code === 'architecture-advice')
   }
-  const canon = await adviceOf('full')
-  assert.equal(canon.length, 1, 'canonical 的 shared/api/client.ts 里四个取数函数各归各域')
-  assert.match(canon[0].text, /shared\/api\/client\.ts/)
+  // 两套示例都是"已知健康"的样板：取数跟域走（R-119）之后一条建议都不该有
+  assert.equal((await adviceOf('full')).length, 0, 'canonical 的取数已跟域走')
   assert.equal((await adviceOf('full-fsd')).length, 0, 'FSD 的取数已按实体下沉')
   assert.equal((await adviceOf('minimal')).length, 0)
 })

@@ -372,6 +372,18 @@
   与刚搬走的分页常量（R-117）同一族；而 FSD 那边 A1 已经按实体下沉 → **两套样板不对称**（记为 R-119）。
   `minimal` / `full-fsd` 上 0 建议（阈值与边界都在工作）。
 
+### Changed（R-119：取数函数跟域走 —— 两套样板重新对称，架构建议归零）
+
+- `shared/api/client.ts` 以前装着四个域的取数函数（`fetchCrews` / `fetchOrders` / `fetchCustomers` /
+  `fetchInvoices`）—— 与刚搬走的分页常量（R-117）同一族，而 FSD 那边 A1 早已按实体下沉 →
+  **两套样板不对称**。现在它只留**传输层**（`requestJson`：基址 / 鉴权 / 错误处理），
+  各域/实体的取数在各自的取数落点里：端点来自唯一出处（D25）、分页来自本域查询契约（R-117）、
+  映射来自本域 mapper —— 加 / 下线一个域不必改共享文件。
+- 顺手把"**裸网络调用只许在传输层**"声明进 `callSites`（`from: callSiteSources.platform.network`，
+  `in: ['src/shared/api/client.ts']`）—— 以前没声明，等于裸 `fetch` 到哪都合法。
+- **验收**：R-118 那条架构建议在 canonical 上归零（两套示例都 0 条），测试里就按"已知健康的样板
+  必须 0 建议"断言。改的过程中 S45 立刻抓到 `shared/api` barrel 还导出着被删的函数（正是它该干的）。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

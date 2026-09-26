@@ -1,4 +1,4 @@
-export { fetchCrews, fetchOrders } from './client'
+export { requestJson } from './client'
 export { ENDPOINTS } from './endpoints'
 export { requestPolicy, RETRY_LIMIT } from './policy'
 export { queryClient } from './queryClient'
