@@ -402,7 +402,7 @@ test('流程：示例配置里提到的落点路径必须存在', () => {
   }
 })
 
-test('冻结：`finding()` 构造器全仓只有一处定义（曾经 9 份，加字段要改 9 个地方）', () => {
+test('冻结：这些「同一事实」全仓只许有一处定义（曾经各有多份）', () => {
   const walk = (dir) =>
     readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory()
@@ -411,8 +411,32 @@ test('冻结：`finding()` 构造器全仓只有一处定义（曾经 9 份，�
           ? [join(dir, entry.name)]
           : [],
     )
-  const defining = walk(join(ROOT, 'src'))
-    .filter((path) => /^(export )?const finding = \(/m.test(readFileSync(path, 'utf8')))
-    .map((path) => path.slice(ROOT.length))
-  assert.deepEqual(defining, ['src/packs/core/rules/finding.ts'])
+  const files = walk(join(ROOT, 'src'))
+  const singles = [
+    {
+      label: 'finding() 构造器',
+      needle: /^(export )?const finding = \(/m,
+      home: 'src/packs/core/rules/finding.ts',
+    },
+    {
+      label: 'lineOf（TS 位置 → 行）',
+      needle: /^(export )?const lineOf = /m,
+      home: 'src/engine/facts-syntax.ts',
+    },
+    {
+      label: 'positionOf（TS 位置 → 行 + 列）',
+      needle: /^(export )?const positionOf = /m,
+      home: 'src/engine/facts-syntax.ts',
+    },
+  ]
+  for (const item of singles) {
+    const found = files
+      .filter((path) => item.needle.test(readFileSync(path, 'utf8')))
+      .map((path) => path.slice(ROOT.length))
+    assert.deepEqual(
+      found,
+      [item.home],
+      `${item.label} 只许在 ${item.home} 定义（曾经多份；加字段要改 N 个地方）`,
+    )
+  }
 })

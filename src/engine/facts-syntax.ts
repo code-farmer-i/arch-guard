@@ -7,8 +7,14 @@ import ts from 'typescript'
 import type { CommentFact } from './types.js'
 
 /** 行列换算（提取与报告都用它） */
-const lineOf = (sf: ts.SourceFile, pos: number): number =>
+export const lineOf = (sf: ts.SourceFile, pos: number): number =>
   sf.getLineAndCharacterOfPosition(pos).line + 1
+
+/** 行 + 列（都从 1 起）：事实带上列号，报告与 CI 注解才能精确定位 */
+export const positionOf = (sf: ts.SourceFile, pos: number): { line: number; column: number } => {
+  const at = sf.getLineAndCharacterOfPosition(pos)
+  return { line: at.line + 1, column: at.character + 1 }
+}
 
 /**
  * 注释采集：用 TS scanner 走**全部**注释 trivia。

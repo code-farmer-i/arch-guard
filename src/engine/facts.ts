@@ -6,6 +6,8 @@ import {
   collectComments,
   containsJsx,
   declaredPropOf,
+  lineOf,
+  positionOf,
   stringContext,
 } from './facts-syntax.js'
 
@@ -37,15 +39,6 @@ const SCRIPT_KIND: Record<string, ts.ScriptKind> = {
 }
 
 export const TS_EXTENSIONS: string[] = Object.keys(SCRIPT_KIND)
-
-const lineOf = (sf: ts.SourceFile, pos: number): number =>
-  sf.getLineAndCharacterOfPosition(pos).line + 1
-
-/** 行 + 列（都从 1 起） */
-const positionOf = (sf: ts.SourceFile, pos: number): { line: number; column: number } => {
-  const at = sf.getLineAndCharacterOfPosition(pos)
-  return { line: at.line + 1, column: at.character + 1 }
-}
 
 function scriptKindOf(file: string): ts.ScriptKind {
   const dot = file.lastIndexOf('.')

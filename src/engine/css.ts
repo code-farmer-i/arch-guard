@@ -45,13 +45,13 @@ export interface CssModel {
   selectors: { selector: string; line: number }[]
 }
 
-const lineOf = (text: string, index: number): number => text.slice(0, index).split('\n').length
+const cssLineOf = (text: string, index: number): number => text.slice(0, index).split('\n').length
 
 /** 把注释替换成等长空格（保留行号），返回遮罩后的文本与注释清单 */
 export function maskCssComments(text: string): { masked: string; comments: CssComment[] } {
   const comments: CssComment[] = []
   const masked = text.replace(/\/\*[\s\S]*?\*\//g, (block, offset: number) => {
-    comments.push({ text: block, line: lineOf(text, offset) })
+    comments.push({ text: block, line: cssLineOf(text, offset) })
     return block.replace(/[^\n]/g, ' ')
   })
   return { masked, comments }
@@ -71,7 +71,7 @@ export function parseCss(rel: string, text: string): CssModel {
   /** startIndex 是声明缓冲的首字符位置；真正的行号要加上前导空白 */
   const flushDeclaration = (raw: string, startIndex: number): void => {
     const leading = raw.length - raw.trimStart().length
-    const line = lineOf(text, startIndex + leading)
+    const line = cssLineOf(text, startIndex + leading)
     const trimmed = raw.trim()
     if (!trimmed) return
     const colon = trimmed.indexOf(':')
@@ -95,7 +95,7 @@ export function parseCss(rel: string, text: string): CssModel {
     if (ch === '{') {
       const selector = buffer.trim()
       // 行号按**首个非空白字符**算：bufferStart 落在上一行结尾时，直接算会少一行
-      const line = lineOf(text, bufferStart + (buffer.length - buffer.trimStart().length))
+      const line = cssLineOf(text, bufferStart + (buffer.length - buffer.trimStart().length))
       buffer = ''
       current = { selector, line, declarations: [], vars: [] }
       if (selector) selectors.push({ selector, line })

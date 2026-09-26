@@ -1,5 +1,7 @@
 import ts from 'typescript'
 
+import { lineOf } from './facts-syntax.js'
+
 /**
  * i18n 资源索引：把 `<resourceDir>/<lang>/<namespace>.ts` 解析成「键路径 → 行号」。
  *
@@ -26,9 +28,6 @@ export interface I18nIndex {
   languages: string[]
   files: LocaleFileFacts[]
 }
-
-const lineOf = (sf: ts.SourceFile, pos: number): number =>
-  sf.getLineAndCharacterOfPosition(pos).line + 1
 
 const keyTextOf = (name: ts.PropertyName, sf: ts.SourceFile): string => {
   if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name))
