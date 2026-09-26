@@ -261,3 +261,62 @@ test('R-96：designSystem 的目录 / 文件落点不存在也要点名（否则
   assert.match(notice.text, /designSystem\.tokenDir 的 src\/shared\/ui\/styles\/tokens/)
   assert.match(notice.text, /designSystem\.paletteFile 的 src\/app\/styles\/tokens\/palette\.css/)
 })
+
+test('R-114：手写的名字清单拼错一个字 → 0 命中自述里要点名（不然规则静默不判）', () => {
+  const facts = new Map([
+    [
+      'src/a.ts',
+      {
+        calls: [{ callee: 'fetch', line: 3 }],
+        strings: [{ value: 'page', line: 4, prop: null, context: 'call-arg' }],
+        functions: [],
+        reads: [],
+        numbers: [],
+      },
+    ],
+  ])
+  const notice = noticeOfFull(
+    {
+      adapters: {
+        endpoints: {
+          facet: 'endpoints',
+          id: 'declared',
+          apis: ['fetchX'],
+          source: 'src/shared/api/endpoints.ts',
+        },
+        'call-sites': {
+          facet: 'call-sites',
+          id: 'declared',
+          groups: [
+            { name: '租户', apis: ['searchParams.get'], args: ['tenantld'], in: ['src/t/**'] },
+          ],
+        },
+      },
+    },
+    [],
+    ['src/shared/api/endpoints.ts', 'src/t/x.ts'],
+    facts,
+  )
+  assert.ok(notice, '应当有一条 declaration-no-match')
+  assert.match(notice.text, /endpoints\.apis 的调用名 fetchX/)
+  assert.match(notice.text, /call-sites\[租户\]\.args 的实参名 tenantld/)
+})
+
+test('R-114：用 `from` / kit 给的既有清单不点名（R-92 —— 报了只会逼宿主把表抄一遍）', () => {
+  const notice = noticeOfFull(
+    {
+      adapters: {
+        endpoints: {
+          facet: 'endpoints',
+          id: 'declared',
+          from: 'platform.network', // 来源表里有 fetch + XMLHttpRequest，项目只用了 fetch 也算既有清单
+          source: 'src/shared/api/endpoints.ts',
+        },
+      },
+    },
+    [],
+    ['src/shared/api/endpoints.ts'],
+    new Map(),
+  )
+  assert.equal(notice, undefined, '用来源表的写法不该被点名')
+})

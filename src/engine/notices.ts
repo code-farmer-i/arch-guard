@@ -2,6 +2,7 @@ import type { Diagnostic } from './codes.js'
 import type { ScanResult } from './scan.js'
 import { globToRegExp } from './util.js'
 import { recipeFor } from '../data/capability-recipes.js'
+import { CALL_SITE_SOURCES } from '../data/call-site-sources.js'
 import { resolveCallSiteApis } from './call-site-sources.js'
 import type { CallSiteGroupLike } from './call-site-sources.js'
 import type { Config, Facts } from './types.js'
@@ -106,6 +107,11 @@ function capabilityOfLabel(label: string): string {
   return rest === '' ? root : `${root}.${rest}`
 }
 
+/** 数据层 kit 给的策略属性名（R-111）：用它当 `policyProps` 的"既有清单"基准 */
+function dataLayerPolicyProps(config: Config): string[] | undefined {
+  return (config.adapters['data-layer'] as { policyProps?: string[] } | undefined)?.policyProps
+}
+
 export function pushDeclarationNotices(
   config: Config,
   records: { rel: string; captures?: Record<string, string> }[],
@@ -202,6 +208,53 @@ function emptyFaceDeclarations(
       receptors.add(capabilityOfLabel(label))
     }
   }
+  /**
+   * **出处代理**（R-114 / R-92）：一份清单如果**等于**数据表 / kit 给的那一份，就是"既有清单" ——
+   * 它天然包含"这次没用到"的项，报了只会逼宿主把清单收窄（把表抄一遍）。用表就照抄整份，必然相等。
+   */
+  const fromExisting = (list: readonly string[], known: readonly (readonly string[])[]): boolean =>
+    known.some(
+      (entry) =>
+        entry.length > 0 && entry.length === list.length && entry.every((n) => list.includes(n)),
+    )
+  const checkApis = (
+    label: string,
+    apis: readonly string[],
+    known: readonly (readonly string[])[] = [],
+  ): void => {
+    if (fromExisting(apis, known)) return
+    checkCalls(label, apis)
+  }
+  /** 实参名清单（`callSites[].args`）：比项目里出现过的字符串字面量 */
+  const literals = new Set(
+    [...facts.values()].flatMap((item) => (item.strings ?? []).map((entry) => entry.value)),
+  )
+  const checkArgs = (label: string, args: readonly string[]): void => {
+    for (const arg of args) {
+      if (literals.has(arg)) continue
+      empty.push(`${label} 的实参名 ${arg}`)
+      receptors.add(capabilityOfLabel(label))
+    }
+  }
+  /** 属性名清单（`errorPolicy.policyProps`）：比项目里出现过的属性名 */
+  const propertyNames = new Set(
+    [...facts.values()].flatMap((item) => [
+      ...(item.functions ?? []).map((entry) => entry.ownedProp),
+      ...(item.strings ?? []).map((entry) => entry.prop),
+    ]),
+  )
+  const checkProps = (
+    label: string,
+    props: readonly string[],
+    known: readonly (readonly string[])[] = [],
+  ): void => {
+    if (fromExisting(props, known)) return
+    for (const prop of props) {
+      if (prop !== null && propertyNames.has(prop)) continue
+      empty.push(`${label} 的属性名 ${prop}`)
+      receptors.add(capabilityOfLabel(label))
+    }
+  }
 
   for (const adapter of Object.values(config.adapters ?? {})) {
     const face = adapter as Record<string, unknown>
@@ -227,6 +280,7 @@ function emptyFaceDeclarations(
       for (const group of (face.groups ?? []) as CallSiteGroupLike[]) {
         const groupLabel = `${label}[${group.name ?? '?'}]`
         checkCalls(`${groupLabel}.apis`, group.apis ?? [])
+        checkArgs(`${groupLabel}.args`, group.args ?? [])
         checkFiles(`${groupLabel}.in`, group.in ?? [])
         // `from` 指向的清单解析不出来（面没声明 / 字段为空）→ 那一组什么都没判，必须自述
         if (group.from && resolveCallSiteApis(config, group).length === 0) {
@@ -237,6 +291,22 @@ function emptyFaceDeclarations(
     }
     if (label === 'analytics' && Array.isArray(face.apis)) {
       checkCalls(`${label}.apis`, face.apis as string[])
+    }
+    // R-114：这几个面的 `apis` 是**宿主自己写的调用名**，拼错一个字母 = 规则静默不判 —— 要报。
+    // 用 `from` 指向来源表 / kit 的既有清单时不报（R-92）：那类清单天然包含"这次没用到"的项。
+    if (
+      (label === 'endpoints' || label === 'permissions') &&
+      face.from === undefined &&
+      Array.isArray(face.apis)
+    ) {
+      checkApis(`${label}.apis`, face.apis as string[], Object.values(CALL_SITE_SOURCES))
+    }
+    if (label === 'error-policy' && Array.isArray(face.policyProps)) {
+      checkProps(
+        `${label}.policyProps`,
+        face.policyProps as string[],
+        [dataLayerPolicyProps(config)].filter((item): item is string[] => Array.isArray(item)),
+      )
     }
     if (label === 'env-reads') {
       // 读取根默认来自平台表（R-93）：只在宿主**显式给了** apis 时才校验它写得对不对（`in` 上面已查过）

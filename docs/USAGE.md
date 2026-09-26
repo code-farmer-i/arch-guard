@@ -96,7 +96,7 @@ export default {
 
 ## 2. 从 5 行开始（渐进接入）
 
-**别一上来就照着 `examples/full` 抄 200 行**。这条路径是有顺序的：
+**别一上来就照着 `examples/full` 抄 202 行**。这条路径是有顺序的：
 
 | 步  | 做什么                                                                                                                                     | 你会得到             |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
@@ -163,7 +163,7 @@ export default {
 | 调用落点 | `callSites([{ name, apis \| from, in }])`                   | S38（副作用 / 配置对象的落点）                                                 |
 | 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
 | 环境读取 | `envReads({ apis?, in })`（缺省用平台表）                   | S44（`import.meta.env` / `process.env` 的落点）                                |
-| 后端端点 | `endpoints({ apis, source })`                               | D25（端点路径的唯一出处）                                                      |
+| 后端端点 | `endpoints({ apis?, from?, source })`                       | D25（端点路径的唯一出处）                                                      |
 | 失败策略 | `errorPolicy({ policyIn, policyProps? })`                   | D30（重试 / 退避 / 条件重试的落点；数字型归 D20）                              |
 | 权限点   | `permissions({ apis, source })`                             | D29（权限点名的唯一出处）+ S38（判断只许在守卫落点）                           |
 
@@ -610,8 +610,13 @@ arch-guard --check-docs     # 只校验：不一致即红
 提示：结构声明（层序 / 隔离 / 公开面…）写在 `structure` 里；`addRoles` 在它**外面**（overrides 层）。
 ```
 
-同一类校验还有：适配器字段（`defineAdapter` 的白名单）、未知 facet、`specVersion` 不匹配。
-**边界**：`params` 里的键由范式 / kit 决定，不在此列。
+"声明 0 命中"覆盖的**名字清单**（拼错一个字母 = 那条规则静默不判）：`analytics.apis` ·
+`endpoints.apis` · `permissions.apis` · `callSites[].apis` · `callSites[].args` · `errorPolicy.policyProps`
+（以及各落点 glob）。**边界**：用 `from:` / kit 给的**既有清单**不报 —— 它们天然包含"这次没用到"的项，
+报了只会逼宿主把清单收窄（R-92）。
+
+同一类校验还有：适配器字段（`defineAdapter` 的白名单）、未知 facet / 未知配置键（R-113）、
+`specVersion` 不匹配。**边界**：`params` 里的键由范式 / kit 决定，不在此列。
 
 ## 10. 排查（症状 → 原因 → 怎么办）
 

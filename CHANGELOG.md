@@ -300,6 +300,20 @@
 - 适配器字段本来就已经是 fail-closed（`defineAdapter` 拒未知字段）—— 这次补齐的是 `overrides` 那三层。
 - 边界：`params` 里的键由范式 / kit 决定，不在此列（它们各有自己的校验）。
 
+### Fixed（R-114：名字清单拼错一个字母，规则静默不判 + `endpoints.from`）
+
+- **0 命中自述补全**：`endpoints.apis` · `permissions.apis` · `callSites[].args` · `errorPolicy.policyProps`
+  以前拼错一个字母 = 那条规则一条都不判，而报告里**没有它**（实测：`apis: ['fetchX']` / `['canX']`
+  一个字都没提）。现在都会点名，并带上"正确形态参考"。
+- **边界（R-92 的既有判据）**：用 `from:` 指向来源表 / kit 的**既有清单**时不报 —— 它们天然包含
+  "这次没用到"的项，报了只会逼宿主把清单收窄。
+- **`endpoints({ from })`**：可以像 `callSites` 一样用来源 id（`callSiteSources.platform.network`），
+  不必手写 `apis: ['fetch']`。两套示例改成这个形态（这也是"平台事实进表"这条原则在端点面上的落地）。
+- **这段自述在写完的几分钟内就抓到了我自己**：我先把示例改成 `apis: callSiteSources.platform.network`
+  —— 而那个常量**值是来源 id 字符串**（不是数组），`[...'platform.network']` 变成一串字符，
+  D25 在两套示例里**静默失效**、门禁全绿。是新加的 `endpoints.apis` 自述把 `p / l / a / t / f`
+  逐字点出来，才发现。修的正是缺的那半：`from:`。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

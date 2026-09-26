@@ -121,7 +121,8 @@ export default {
     ),
     styles(cssModulesKit()),
     // 端点唯一出处（R-99）：`fetch` 的实参里不许出现路径字面量
-    endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
+    // `apis` 用来源表（平台事实），不手写：表里以后加 axios / 生成 SDK 时，这里自动跟上
+    endpoints({ from: callSiteSources.platform.network, source: 'src/shared/api/endpoints.ts' }),
     // 权限点唯一出处（R-110）：`can('字面量')` 即报
     permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
     // 失败处理策略的落点（R-111）：函数型 / 枚举型策略只许出现在这里
@@ -142,7 +143,8 @@ export default {
         name: '租户上下文',
         // 只列真的在用的：声明了却 0 命中会被自述点名（`cookies.get` 一写就红）
         apis: ['searchParams.get'],
-        args: ['tenantId', 'tenant'],
+        // 只列真的在用的（自述会点名没命中的项 —— R-114）
+        args: ['tenantId'],
         in: ['src/shared/tenant/**'],
       },
 

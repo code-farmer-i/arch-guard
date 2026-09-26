@@ -1,3 +1,4 @@
+import { resolveCallSiteApis } from '../../../engine/call-site-sources.js'
 import { globToRegExp } from '../../../engine/util.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
 
@@ -333,8 +334,13 @@ export const endpointSingleSource: Rule = {
   hint: '端点只许来自声明的唯一出处（`endpoints({ source })`）；散着拼，改接口时漏一处就是 404',
   requires: ['endpoints.source'],
   run: (ctx) => {
-    const faces = ctx.config.adapters.endpoints as { apis?: string[]; source?: string } | undefined
-    const apis = faces?.apis ?? []
+    const faces = ctx.config.adapters.endpoints as
+      { apis?: string[]; from?: string; source?: string } | undefined
+    // `apis` 可以直接列，也可以 `from` 从来源表取（`callSiteSources.platform.network`）
+    const apis = resolveCallSiteApis(ctx.config, {
+      ...(faces?.apis ? { apis: faces.apis } : {}),
+      ...(faces?.from ? { from: faces.from } : {}),
+    })
     const source = faces?.source ?? ''
     if (apis.length === 0 || source === '') return []
     const missing = missingSource(ctx, 'D25', source, '端点')

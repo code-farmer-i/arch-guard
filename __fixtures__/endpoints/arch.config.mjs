@@ -7,6 +7,10 @@ import { canonical, endpoints } from '../../es/index.js'
  * - `useCrews.ts` 直接写 `/crews` → 违规（改接口时漏一处就是 404）
  */
 export default {
-  presets: [canonical(), endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' })],
+  // `from` 走来源表（`platform.network` = fetch + XMLHttpRequest）—— 与手写 `apis` 等价，且是平台事实
+  presets: [
+    canonical(),
+    endpoints({ from: 'platform.network', source: 'src/shared/api/endpoints.ts' }),
+  ],
   overrides: { enable: ['D25'], ignore: ['arch.config.mjs', 'expect.json'] },
 }

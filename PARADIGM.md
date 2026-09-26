@@ -314,6 +314,16 @@ overrides.structure 里有不认识的键：addRoles
 
 白名单用 `Record<keyof X, true>` 写 —— **类型加了字段这里就编译不过**，不会悄悄落后于契约。
 
+## 6.15 后端端点的唯一出处（R-99 / R-114）
+
+```js
+// 端点路径只许写在这里；"哪些调用算打后端"用来源表（平台事实），不手写
+endpoints({ from: callSiteSources.platform.network, source: 'src/shared/api/endpoints.ts' }),
+```
+
+- 打后端的调用（`fetch` / `XMLHttpRequest`，或 `apis: ['axios.get']` 自列）实参里出现**路径字面量** → 报（D25）；
+- `apis` 手写时，拼错一个字母会被"声明 0 命中"点名；用 `from` 走来源表则**不报**（既有清单天然含没用到项）。
+
 ## 7. 例外：规则级，且必须指名
 
 - **违规没有存量豁免**：没有基线、没有"先记下来以后再说"。门禁的结论只有两种 —— **符合规范** 或 **不符合**。

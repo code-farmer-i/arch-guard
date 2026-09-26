@@ -7,6 +7,8 @@ export interface CallSiteGroupLike {
   apis?: string[]
   from?: string
   in?: string[]
+  /** 收窄到第一个字符串字面量实参（R-110）：自述里也要检查它有没有命中（R-114） */
+  args?: string[]
 }
 
 /**
