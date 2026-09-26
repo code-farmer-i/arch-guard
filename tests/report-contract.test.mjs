@@ -132,6 +132,7 @@ test('冻结：notices 的稳定 code 清单（文案不是契约，code 才是�
     'paths-globals-filtered',
     'paths-no-match',
     'read-failed',
+    'rules-disabled',
     'scan-empty',
     'scan-scope-outside',
     'scope-changed-relocated',

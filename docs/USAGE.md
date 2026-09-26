@@ -69,20 +69,20 @@ export default {
 
 ### 1.1 `overrides` 常用字段
 
-| 字段                 | 类型                                 | 作用                                                                                                 |
-| -------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `include`            | `string[]`                           | **契约扫描域**（配置根相对 glob）。域外文件**不判目录契约，但仍会被解析、仍进依赖图**。空 = 全树参与 |
-| `ignore`             | `string[]`                           | **别碰**：不进文件集、不解析、不进依赖图（构建产物 / 示例 / 夹具 / 一次性 spike 用这个）             |
-| `addRoles`           | `RoleDescriptor[]`                   | 在范式角色表**之上追加**角色（项目自己的目录 / dev-only 形态靠它）                                   |
-| `roles`              | `RoleDescriptor[]`                   | **整体替换**范式角色表（自写范式才用；随手写会把自己范式的角色全删掉）                               |
-| `params`             | `Record<string, unknown>`            | 落点参数（`styleDir` / `i18nDir` / `paletteFile`…）。预设参数最终都并到这里                          |
-| `exceptions`         | `{ rule, glob, reason, expires? }[]` | **规则级例外**（唯一的宽松通道；见 §5）                                                              |
-| `aliases`            | `Record<string, string>`             | 别名映射（默认从 `tsconfig.json` 的 `paths` 读）                                                     |
-| `enable` · `disable` | `string[] \| 'all'`                  | 规则开关（`disable` 在 `enable` 求完之后再减）                                                       |
-| `thresholds`         | 对象                                 | 行数 / 导出数 / 组件数阈值（S16 / S19）                                                              |
-| `naming`             | 对象                                 | `hookPrefix` / `viewSuffix`（S12 / S13 的词汇）                                                      |
-| `structure`          | 对象                                 | 层序 / 组隔离 / 公开面声明（S21–S23、S32、S39–S43 的判据来源）                                       |
-| `entries`            | `string[]`                           | 额外入口（可达性分析用）                                                                             |
+| 字段                 | 类型                                 | 作用                                                                                                                                                         |
+| -------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `include`            | `string[]`                           | **契约扫描域**（配置根相对 glob）。域外文件**不判目录契约，但仍会被解析、仍进依赖图**。空 = 全树参与                                                         |
+| `ignore`             | `string[]`                           | **别碰**：不进文件集、不解析、不进依赖图（构建产物 / 示例 / 夹具 / 一次性 spike 用这个）                                                                     |
+| `addRoles`           | `RoleDescriptor[]`                   | 在范式角色表**之上追加**角色（项目自己的目录 / dev-only 形态靠它）                                                                                           |
+| `roles`              | `RoleDescriptor[]`                   | **整体替换**范式角色表（自写范式才用；随手写会把自己范式的角色全删掉）                                                                                       |
+| `params`             | `Record<string, unknown>`            | 落点参数（`styleDir` / `i18nDir` / `paletteFile`…）。预设参数最终都并到这里                                                                                  |
+| `exceptions`         | `{ rule, glob, reason, expires? }[]` | **规则级例外**（唯一的宽松通道；见 §5）                                                                                                                      |
+| `aliases`            | `Record<string, string>`             | 别名映射（默认从 `tsconfig.json` 的 `paths` 读）                                                                                                             |
+| `enable` · `disable` | `string[] \| 'all'`                  | 规则开关（`disable` 在 `enable` 求完之后再减）。**`disable` 是整条关掉** → 报告会自述停用了哪几条；只想对某类文件豁免，用 `exceptions`（要理由，可写到到期） |
+| `thresholds`         | 对象                                 | 行数 / 导出数 / 组件数阈值（S16 / S19）                                                                                                                      |
+| `naming`             | 对象                                 | `hookPrefix` / `viewSuffix`（S12 / S13 的词汇）                                                                                                              |
+| `structure`          | 对象                                 | 层序 / 组隔离 / 公开面声明（S21–S23、S32、S39–S43 的判据来源）                                                                                               |
+| `entries`            | `string[]`                           | 额外入口（可达性分析用）                                                                                                                                     |
 
 ### 1.2 三个通道别混（这是最容易配错的一处）
 
@@ -104,6 +104,9 @@ export default {
 | ②   | **看报告的停用清单**：它会说"因能力未声明而停用 N 条"，并**给出可以直接粘进配置的那一行**                                                  | 每补一行，覆盖多一层 |
 | ③   | 被某条规则拦到时，按 finding 的 `hint` 把调用收进声明的落点                                                                                | 纪律开始真的生效     |
 | ④   | 想要"配全长什么样"的终点形态，再看 [`examples/full`](../examples/full/)（canonical）或 [`examples/full-fsd`](../examples/full-fsd/)（FSD） | 102/107 与 91/107    |
+
+**两笔"没跑"的账要分清**：缺能力 → `因能力未声明而停用`（带"想要就跑"的配方，能补上）；
+显式关掉 → `显式停用 N 条规则`（门禁自己的账：`disable` 整条关、不会自己恢复，删掉条目才能恢复）。
 
 第 ② 步长这样（真实输出）：
 

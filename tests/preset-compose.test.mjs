@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { createRegistry, hasCapability, loadConfig, coreRules } from '../es/index.js'
+import { createRegistry, hasCapability, loadConfig, coreRules, runGuard } from '../es/index.js'
 
 /**
  * 预设**组合语义**：从"用户选一个目录规范，域预设自由叠加"这个用例出发，
@@ -303,4 +303,23 @@ test('R-121：adviceAllow 的配置期校验（信号必存在 / 理由必填 / 
     ", overrides: { adviceAllow: [{ signal: 'group-granularity', glob: 'domain tiny', reason: '已知的横切适配器', expires: '2099-01-01' }] }",
   )
   assert.equal(config.adviceAllow.length, 1)
+})
+
+test('R-125：显式 disable 掉的规则必须自述（门禁自己的账，不能静默缩水）', async () => {
+  const dir = project('canonical(), designSystem()', ", overrides: { disable: ['S21', 'M02'] }")
+  const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+  const notice = result.notices.find((item) => item.code === 'rules-disabled')
+  assert.ok(notice, '应当有一条 rules-disabled 自述')
+  assert.match(notice.text, /显式停用 2 条规则：S21 \/ M02/)
+  assert.match(notice.text, /exceptions/, '要指出"整条关掉"与"某类文件不适用"的区别')
+  // 没 disable 就不提（不然这条自述会变成噪音）
+  const clean = await runGuard({
+    cwd: project('canonical(), designSystem()'),
+    rules: coreRules,
+    quiet: true,
+  })
+  assert.equal(
+    clean.notices.find((item) => item.code === 'rules-disabled'),
+    undefined,
+  )
 })

@@ -415,3 +415,21 @@ export function pushCopyListNotice(
   }
   notices.push({ code: 'copy-list-source', text: `C01 的文案位名单：${source}` })
 }
+
+/**
+ * **显式停用的规则**（R-125）：`disable` 是**整条关掉、不会自己恢复** —— 门禁自己的账。
+ *
+ * 与「因能力未声明而停用」分开说：后者带"想要就跑"的配方（补一行就好），
+ * 而这条没有任何配方可跑，只能删掉条目。所以要自述，否则门禁在**静默缩水**。
+ */
+export function pushDisabledRulesNotice(config: Config, notices: Diagnostic[]): void {
+  const ids = config.disable
+  if (ids.length === 0) return
+  notices.push({
+    code: 'rules-disabled',
+    text:
+      `显式停用 ${ids.length} 条规则：${ids.slice(0, 8).join(' / ')}${ids.length > 8 ? ' …' : ''}` +
+      ' —— 这些纪律这一轮没跑。删掉 `disable` 里的条目即可恢复；' +
+      '若只是"某条规则对某类文件不适用"，用 `exceptions`（带理由与到期）而不是整条关掉',
+  })
+}

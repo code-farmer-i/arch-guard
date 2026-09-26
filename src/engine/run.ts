@@ -11,6 +11,7 @@ import {
   pushAdapterNotice,
   pushCopyListNotice,
   pushDeclarationNotices,
+  pushDisabledRulesNotice,
   pushScanNotices,
 } from './notices.js'
 import { pushAdviceNotices } from './advice.js'
@@ -125,6 +126,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
     ...(options.fallbackPacks ? { fallbackPacks: options.fallbackPacks } : {}),
   })
   notices.push(...configNotices)
+
+  pushDisabledRulesNotice(config, notices)
 
   // 规则集：显式给的优先；否则由框架包决定（换 pack = 换整套规则，见 PARADIGM §11）
   const rules = options.rules ?? packs.flatMap((pack) => pack.rules)
