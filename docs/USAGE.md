@@ -481,6 +481,12 @@ overrides: {
 | `json`      | 机读契约：给 CI / PR bot / IDE 插件 / agent                          |
 | `github`    | GitHub Actions 注解（纯文本，**没有 code**；要判状态请用 `json`）    |
 
+**给编码 agent 的三条**：① 断言 `apiVersion`；② 结论看 `ok` + `errors`，**不要**只匹配文案；
+③ `skipped[].recipe` 是"可以直接粘进配置的那一行"（agent 补能力时不必再跑一次 pretty）—— 但**按
+`rule` / `missing` 判**，别匹配 `recipe` 的措辞（它是内部细节）。定位用 `findings[].file/line/column`
+
+- `hint`（怎么改），退出码 0/1/2 分别代表通过 / 有 error / 用法或配置错。
+
 ### 7.2 JSON 顶层字段（19 个，被 `tests/report-contract.test.mjs` 冻结）
 
 `apiVersion` · `ok` · `scope` · `scopeFiles` · `contractScope` · `rulesEnabled` · `rulesTotal` ·

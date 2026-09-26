@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -322,4 +324,16 @@ test('R-125：显式 disable 掉的规则必须自述（门禁自己的账，不
     clean.notices.find((item) => item.code === 'rules-disabled'),
     undefined,
   )
+})
+
+test('R-131：JSON 的 `skipped` 带 `recipe` —— 读 JSON 的 agent 才知道要写哪一行', () => {
+  // 直接在本仓根跑（本仓自己的配置就有一批"因能力未声明而停用"；deps.test.mjs 已有同样先例）
+  const es = fileURLToPath(new URL('../es/cli.js', import.meta.url))
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const result = spawnSync(process.execPath, [es, '--format=json'], { cwd: root, encoding: 'utf8' })
+  const json = JSON.parse(result.stdout)
+  assert.ok(json.skipped.length > 0, '本仓配置应当有停用条目')
+  const withRecipe = json.skipped.filter((entry) => typeof entry.recipe === 'string')
+  assert.ok(withRecipe.length > 0, '至少要有一条带"可以直接粘进配置"的片段')
+  assert.match(withRecipe[0].recipe, /\(/, 'recipe 是一次可粘进配置的调用')
 })

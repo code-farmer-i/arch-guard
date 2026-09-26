@@ -11,7 +11,14 @@ export interface ReportInput {
   config: Config
   ruleIndex: Map<string, Rule>
   findings: Finding[]
-  skipped: SkippedRule[]
+  /**
+   * 因能力未声明而停用的规则。**每条尽可能带 `recipe`**：可以直接粘进配置的那一行
+   * （与 pretty 输出用的是同一份 `capability-recipes`，单一出处）。
+   *
+   * 为什么必须有：读 JSON 的编码 agent 以前只知道"缺 `structure.slots`"，
+   * **不知道要写什么** —— 只能再跑一次 pretty 或去翻文档，闭环断在最后一步。
+   */
+  skipped: (SkippedRule & { recipe?: string })[]
   unknownEnabled: string[]
   /** 机读自述（带稳定 code）—— 人读与机读看到的是同一份 */
   notices: Diagnostic[]
@@ -280,7 +287,10 @@ export function toJsonReport(input: ReportInput): JsonReport {
         severity: severityOf(finding, input.ruleIndex),
       }
     }),
-    skipped: input.skipped,
+    skipped: input.skipped.map((entry) => {
+      const recipe = recipeFor(entry.missing)
+      return recipe ? { ...entry, recipe } : entry
+    }),
     exceptions: input.exceptions,
     skippedGlobals: input.skippedGlobals,
     filteredBySeverity: input.filteredBySeverity,
