@@ -130,3 +130,45 @@ test('R-118 在真示例上：canonical 给出一条（client.ts 的取数函数
   assert.equal((await adviceOf('full-fsd')).length, 0, 'FSD 的取数已按实体下沉')
   assert.equal((await adviceOf('minimal')).length, 0)
 })
+
+const grouped = (rel, group, layer = 10) => ({
+  rel,
+  domain: null,
+  captures: {},
+  groupName: 'domain',
+  group,
+  layer,
+  exports: [],
+})
+
+test('R-120 域粒度：组只有 1 个源文件 / 组超过 20 个源文件 → 各给一条建议', () => {
+  const oneFile = advise({
+    records: [grouped('src/modules/tiny/index.ts', 'tiny')],
+    facts: {},
+    edges: {},
+  })
+  assert.equal(oneFile.length, 1)
+  assert.match(oneFile[0].text, /domain tiny 只有 1 个源文件/)
+
+  const big = advise({
+    records: Array.from({ length: 21 }, (_, index) =>
+      grouped(`src/modules/big/f${index}.ts`, 'big'),
+    ),
+    facts: {},
+    edges: {},
+  })
+  assert.equal(big.length, 1)
+  assert.match(big[0].text, /domain big 有 21 个源文件/)
+
+  // 2 个文件刚好不报（阈值是"少于 2"）；测试层不计入组
+  const ok = advise({
+    records: [
+      grouped('src/modules/ok/index.ts', 'ok'),
+      grouped('src/modules/ok/model/types.ts', 'ok'),
+      grouped('src/modules/stub/index.ts', 'stub', 99),
+    ],
+    facts: {},
+    edges: {},
+  })
+  assert.equal(ok.length, 0, '2 个文件不报；layer ≥ 90 的文件不算组的文件')
+})

@@ -34,9 +34,59 @@ interface PerDomainExport {
  * - 只看**具名导入**；`export *` 中转、默认导入、动态导入不参与；
  * - 已经声明为公开面入口（`entry: true`）的文件不判 —— 那个的用途就是给外面引。
  */
+/** 组粒度的保守阈值：1 个文件太细、20 个文件太粗（先写死，后续可声明化） */
+const MIN_GROUP_FILES = 2
+const MAX_GROUP_FILES = 20
+
+/**
+ * 第二条信号：**组粒度**（R-120）。
+ *
+ * 两种"门禁全绿但结构在变坏"的形态：
+ * - **组只有 1 个源文件**：多半是 stub 或误分类 —— "域"这个词失去意义
+ *   （50 个组里 30 个各一个文件，边界图看着整齐，其实没切）；
+ * - **组 ≥20 个源文件**：多半是两个业务挤在一起 —— 改起来仍是全组搜。
+ *
+ * 组取的是**仓库自己的概念**（`record.groupName` + `record.group`，即结构声明里的组维度），
+ * 所以范式无关：canonical 的 `{domain}` 与 FSD 的 `{slice}` 都吃。测试文件（layer ≥ 90）不计。
+ */
+function pushGroupGranularityAdvice(notices: Diagnostic[], records: FileRecord[]): void {
+  const groups = new Map<string, { label: string; files: string[] }>()
+  for (const record of records) {
+    if (record.layer >= 90) continue
+    if (!record.groupName || !record.group) continue
+    const key = `${record.groupName}:${record.group}`
+    const entry = groups.get(key) ?? { label: `${record.groupName} ${record.group}`, files: [] }
+    entry.files.push(record.rel)
+    groups.set(key, entry)
+  }
+  for (const { label, files } of groups.values()) {
+    if (files.length < MIN_GROUP_FILES) {
+      notices.push({
+        code: 'architecture-advice',
+        text:
+          `${label} 只有 1 个源文件（${files[0]}）：这一层"组"其实是一个文件。\n` +
+          `  常见处置：① 并进相邻组 ② 如果它确实横切、被多个组用，提升为共享层` +
+          ` ③ 确认它只是 stub，那就先别单独成组\n` +
+          `  （建议不阻断 —— 门禁这一轮照常通过）`,
+      })
+      continue
+    }
+    if (files.length > MAX_GROUP_FILES) {
+      notices.push({
+        code: 'architecture-advice',
+        text:
+          `${label} 有 ${files.length} 个源文件：这个组可能装了两个业务（改一处仍要全组搜）。\n` +
+          `  常见处置：① 按子域拆成两个组 ② 若它确实是一个域，把这条阈值显式调高（声明出来）\n` +
+          `  （建议不阻断 —— 门禁这一轮照常通过）`,
+      })
+    }
+  }
+}
+
 export function pushAdviceNotices(input: AdviceInput, notices: Diagnostic[]): void {
   const { config, records, facts, graph, files } = input
   if (records.length === 0) return
+  pushGroupGranularityAdvice(notices, records)
   const fileSet = new Set(files)
   const byRel = new Map(records.map((record) => [record.rel, record]))
   const domainOf = (rel: string): string => {
