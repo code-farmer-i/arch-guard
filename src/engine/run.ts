@@ -13,6 +13,7 @@ import {
   pushDeclarationNotices,
   pushScanNotices,
 } from './notices.js'
+import { pushAdviceNotices } from './advice.js'
 import { collectI18n } from './i18n.js'
 import { json, out } from './output.js'
 import { createRegistry } from './registry.js'
@@ -176,6 +177,8 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   pushDeclarationNotices(config, scan.records, scan.files, notices, facts)
 
   const graph = buildGraph({ config, files: scan.files, facts, cssTexts })
+  // 架构建议（R-118）：从已有事实算信号 + 处方，永不阻断
+  pushAdviceNotices({ config, records: scan.records, facts, graph, files: scan.files }, notices)
   const sourceOf = (rel: string): string | undefined => texts.get(rel)
 
   // 依赖策略：自相矛盾必须报错（不许默默按某一侧生效）

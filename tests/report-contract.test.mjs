@@ -114,6 +114,7 @@ test('契约版本带着走，且消费方能拒绝不认识的版本', async ()
 test('冻结：notices 的稳定 code 清单（文案不是契约，code 才是）', () => {
   assert.deepEqual([...NOTICE_CODES].sort(), [
     'adapters-in-use',
+    'architecture-advice',
     'config-aliases',
     'config-no-manifest',
     'copy-list-source',
