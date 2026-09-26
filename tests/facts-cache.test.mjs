@@ -1,3 +1,4 @@
+import { runGuard } from '../es/index.js'
 import { cacheDirOf } from '../es/engine/facts-cache.js'
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
