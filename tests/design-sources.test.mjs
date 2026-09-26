@@ -278,3 +278,39 @@ test('R-97：数组里的某个落点命中 0 个文件 → 逐个点名（不�
     'glob 命中了文件（不报），指名的那个不存在（报）',
   )
 })
+test('R-115：D29 的 `apis` 匹配三形态（整名 / 对象前缀 / 方法后缀），不是子串', () => {
+  const cfg = config({
+    permissions: {
+      facet: 'permissions',
+      id: 'declared',
+      apis: ['can'],
+      source: 'src/shared/auth/permissions.ts',
+    },
+  })
+  const PAGE = 'src/modules/crews/views/Page.tsx'
+  const SOURCE = 'src/shared/auth/permissions.ts'
+  const run = (callees) =>
+    rule('D29').run(
+      context({
+        cfg,
+        records: [{ rel: PAGE }, { rel: SOURCE }],
+        files: [SOURCE, PAGE],
+        facts: {
+          [SOURCE]: { calls: [], strings: [] },
+          [PAGE]: {
+            strings: [],
+            calls: callees.map((callee, index) => ({
+              callee,
+              line: index + 1,
+              stringArg: 'crew:edit',
+            })),
+          },
+        },
+      }),
+    )
+  assert.equal(run(['can']).length, 1, '整名命中')
+  assert.equal(run(['can.has']).length, 1, '对象前缀命中（以前漏判的就是它）')
+  assert.equal(run(['auth.can']).length, 1, '方法后缀命中')
+  assert.equal(run(['cancel']).length, 0, '子串不算命中：`can` 不该吃掉 `cancel`')
+  assert.equal(run(['can.permissions']).length, 1, '前缀形态在嵌套属性上也认')
+})

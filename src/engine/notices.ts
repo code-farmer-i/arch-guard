@@ -1,5 +1,6 @@
 import type { Diagnostic } from './codes.js'
 import type { ScanResult } from './scan.js'
+import { matchesApi } from './api-match.js'
 import { globToRegExp } from './util.js'
 import { recipeFor } from '../data/capability-recipes.js'
 import { CALL_SITE_SOURCES } from '../data/call-site-sources.js'
@@ -187,8 +188,9 @@ function emptyFaceDeclarations(
    * 刻意不去复用规则里那两套匹配（S38 认前缀、D24 不认）：这里宁少报不误报，而且要跨层复用就得
    * 把匹配语义搬到引擎侧，那是给一个提示功能加的真实耦合。
    */
+  // 池里的每个名字当 callee，看它能不能匹配这个 api（`can.has` 命中 `can`）
   const called = (api: string, pool: string[]): boolean =>
-    pool.some((name) => name === api || name.startsWith(`${api}.`) || name.endsWith(`.${api}`))
+    pool.some((name) => matchesApi(name, [api]))
   /**
    * 0 命中时顺便记下"这属于哪个能力根" —— 报告末尾据此附上**正确形态的片段**（R-106）：
    * 用户不必去翻文档全表，报告自己给出可以粘进配置的那一行。

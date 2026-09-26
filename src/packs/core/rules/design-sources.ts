@@ -1,3 +1,4 @@
+import { apiMatchOf } from '../../../engine/api-match.js'
 import { resolveCallSiteApis } from '../../../engine/call-site-sources.js'
 import { globToRegExp } from '../../../engine/util.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
@@ -149,9 +150,6 @@ export const routePathSingleSource: Rule = {
 
 /* ---------------- D24 埋点事件名只有一个出处 ---------------- */
 
-const calledApi = (callee: string, apis: string[]): string | null =>
-  apis.find((api) => callee === api || callee.endsWith(`.${api}`)) ?? null
-
 /**
  * 判据：把**事件名字符串直接传给埋点调用**（`track('crews_view')`）即报 ——
  * 事件名只许出现在声明的事件表里（`export const EVENTS = { crewsView: 'crews_view' }`），
@@ -181,7 +179,7 @@ export const analyticsEventSingleSource: Rule = {
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const call of facts.calls) {
-        const api = calledApi(call.callee, apis)
+        const api = apiMatchOf(call.callee, apis)
         if (!api || call.stringArg === undefined) continue
         out.push(
           finding(
@@ -229,7 +227,7 @@ export const permissionPointSingleSource: Rule = {
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const call of facts.calls) {
-        const api = calledApi(call.callee, apis)
+        const api = apiMatchOf(call.callee, apis)
         if (!api || call.stringArg === undefined) continue
         out.push(
           finding(
@@ -351,7 +349,7 @@ export const endpointSingleSource: Rule = {
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const call of facts.calls) {
-        const hit = apis.find((api) => call.callee === api || call.callee.endsWith(`.${api}`))
+        const hit = apiMatchOf(call.callee, apis)
         if (!hit) continue
         const candidates = [
           ...(call.stringArg !== undefined ? [{ text: call.stringArg, line: call.line }] : []),

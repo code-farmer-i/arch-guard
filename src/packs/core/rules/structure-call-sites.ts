@@ -1,6 +1,7 @@
 import { resolveCallSiteApis } from '../../../engine/call-site-sources.js'
 import { resolveSpecifier } from '../../../engine/graph.js'
 import type { Finding, Rule, RuleContext } from '../../../engine/types.js'
+import { apiMatchOf } from '../../../engine/api-match.js'
 import { globToRegExp } from '../../../engine/util.js'
 
 import {
@@ -31,10 +32,6 @@ import { finding } from './structure-util.js'
  * - `localStorage` ↔ `localStorage.getItem`（对象前缀：内置对象的方法名不必逐个声明）
  * - `invalidateQueries` ↔ `queryClient.invalidateQueries`（方法后缀：接收者变量名由项目决定）
  */
-const calledApiOf = (callee: string, apis: string[]): string | null =>
-  apis.find(
-    (api) => callee === api || callee.startsWith(`${api}.`) || callee.endsWith(`.${api}`),
-  ) ?? null
 
 const isTestFile = (rel: string): boolean => /\.(test|spec)\./.test(rel)
 
@@ -60,7 +57,7 @@ function callSitesOutside(
     const facts = ctx.facts.get(record.rel)
     if (!facts) continue
     for (const call of facts.calls) {
-      const api = calledApiOf(call.callee, apis)
+      const api = apiMatchOf(call.callee, apis)
       if (!api) continue
       if (args.length > 0 && (call.stringArg === undefined || !args.includes(call.stringArg))) {
         continue

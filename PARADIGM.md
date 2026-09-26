@@ -324,6 +324,26 @@ endpoints({ from: callSiteSources.platform.network, source: 'src/shared/api/endp
 - 打后端的调用（`fetch` / `XMLHttpRequest`，或 `apis: ['axios.get']` 自列）实参里出现**路径字面量** → 报（D25）；
 - `apis` 手写时，拼错一个字母会被"声明 0 命中"点名；用 `from` 走来源表则**不报**（既有清单天然含没用到项）。
 
+## 6.16 `apis` 怎么匹配调用名（R-115）
+
+`callSites` / `endpoints` / `permissions` / `analytics` / `errorPolicy` 里的"名字清单"按同一套形态匹配
+（**全仓唯一实现** `src/engine/api-match.ts`，规则与"声明 0 命中"自述共用）：
+
+| 声明                | 命中的调用                           | 为什么                                       |
+| ------------------- | ------------------------------------ | -------------------------------------------- |
+| `fetch`             | `fetch(...)`                         | 整名                                         |
+| `localStorage`      | `localStorage.getItem(...)`          | **对象前缀**（内置对象的方法名不必逐个声明） |
+| `invalidateQueries` | `queryClient.invalidateQueries(...)` | **方法后缀**（接收者变量名由项目决定）       |
+
+三条边界：
+
+1. **不是子串**：`can` 不会匹配 `cancel` / `candidate`（都带 `.` 或整名边界）；
+   `fetch` 不会匹配 `fetchX`。
+2. **同一调用命中多个声明时取声明顺序里的第一个**（可预期，不随机）。
+3. **泛名字的"同名不同义"用 `args` 收窄**，不要指望匹配形态替你分辨 ——
+   `searchParams.get` 会匹配 `?page=` 也会匹配 `?tenantId=`，所以声明
+   `args: ['tenantId']`（R-110）。这条与 N-10 判不做 feature flag 的结论一致。
+
 ## 7. 例外：规则级，且必须指名
 
 - **违规没有存量豁免**：没有基线、没有"先记下来以后再说"。门禁的结论只有两种 —— **符合规范** 或 **不符合**。

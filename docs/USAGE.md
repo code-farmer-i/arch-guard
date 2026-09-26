@@ -618,6 +618,18 @@ arch-guard --check-docs     # 只校验：不一致即红
 同一类校验还有：适配器字段（`defineAdapter` 的白名单）、未知 facet / 未知配置键（R-113）、
 `specVersion` 不匹配。**边界**：`params` 里的键由范式 / kit 决定，不在此列。
 
+## 9.2 `apis` 的匹配形态（同名不同义时怎么收窄）
+
+| 声明                | 命中                                             |
+| ------------------- | ------------------------------------------------ |
+| `fetch`             | `fetch(...)`                                     |
+| `localStorage`      | `localStorage.getItem(...)`（对象前缀）          |
+| `invalidateQueries` | `queryClient.invalidateQueries(...)`（方法后缀） |
+
+**不是子串**（`can` 不吃 `cancel`）；一个调用命中多个声明时取**声明顺序里的第一个**。
+名字太泛（`get` / `can` / `track`）时不要靠匹配形态分辨，声明 `args: ['tenantId']` 把这一类收窄
+（`callSites` 组支持 `args`；`endpoints` 用 `from` 拿来源表）。
+
 ## 10. 排查（症状 → 原因 → 怎么办）
 
 | 症状                                      | 多半是                                                                                          | 怎么办                                                                             |
