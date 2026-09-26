@@ -20,6 +20,7 @@ import {
   deps,
   designSystem,
   endpoints,
+  permissions,
   envReads,
   fsd,
   hygiene,
@@ -116,6 +117,8 @@ export default {
     styles(cssModulesKit()),
     // 端点唯一出处（R-99）：`fetch` 的实参里不许出现路径字面量
     endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
+    // 权限点唯一出处（R-110）：`can('字面量')` 即报
+    permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
     analytics({
       // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
       apis: ['useTrackView', 'sendEvent'],
@@ -143,5 +146,9 @@ export default {
       maxRelativeUp: { max: 2 },
       generated: ['src/shared/api/generated/**'],
     },
+
+    // 项目自己的 shared 槽位（R-110 的落点）：`fsd()` 的片段是封闭枚举，加槽位就在这里加一条。
+    // 注意 `addRoles` 在 **overrides 层**（与 `structure` 平级）—— 放进 `structure` 会静默不生效。
+    addRoles: [{ id: 'shared:auth', pattern: 'src/shared/auth/**', layer: 1, slot: 'auth' }],
   },
 }

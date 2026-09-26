@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useCrews } from '@/entities/crew'
 import { crewOf, OrderCard, useOrders } from '@/entities/order'
+import { can, PERMISSIONS } from '@/shared/auth/permissions'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
 
 export function OrdersPage() {
@@ -11,6 +12,7 @@ export function OrdersPage() {
   return (
     <section>
       <h2>{t('orders.title')}</h2>
+      {can(PERMISSIONS.orderExport) ? <p>{t('orders.exportHint')}</p> : null}
       <p>{isPending ? t('common.loading') : t('orders.count', { count: orders.length })}</p>
       {orders.map((order) => (
         // 跨实体组合发生在**页面**：两个实体各取各的数据，靠 `crewOf` 配对

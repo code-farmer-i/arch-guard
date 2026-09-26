@@ -96,14 +96,14 @@ export default {
 
 ## 2. 从 5 行开始（渐进接入）
 
-**别一上来就照着 `examples/full` 抄 166 行**。这条路径是有顺序的：
+**别一上来就照着 `examples/full` 抄 183 行**。这条路径是有顺序的：
 
 | 步  | 做什么                                                                                                                                     | 你会得到             |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
-| ①   | 抄 [`examples/minimal`](../examples/minimal/) 的 **5 行**（范式 + 反退化 + 声明空 kit）                                                    | 71/104 规则在跑，绿  |
+| ①   | 抄 [`examples/minimal`](../examples/minimal/) 的 **5 行**（范式 + 反退化 + 声明空 kit）                                                    | 71/105 规则在跑，绿  |
 | ②   | **看报告的停用清单**：它会说"因能力未声明而停用 N 条"，并**给出可以直接粘进配置的那一行**                                                  | 每补一行，覆盖多一层 |
 | ③   | 被某条规则拦到时，按 finding 的 `hint` 把调用收进声明的落点                                                                                | 纪律开始真的生效     |
-| ④   | 想要"配全长什么样"的终点形态，再看 [`examples/full`](../examples/full/)（canonical）或 [`examples/full-fsd`](../examples/full-fsd/)（FSD） | 99/104 与 88/104     |
+| ④   | 想要"配全长什么样"的终点形态，再看 [`examples/full`](../examples/full/)（canonical）或 [`examples/full-fsd`](../examples/full-fsd/)（FSD） | 100/105 与 89/105    |
 
 第 ② 步长这样（真实输出）：
 
@@ -164,6 +164,7 @@ export default {
 | 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
 | 环境读取 | `envReads({ apis?, in })`（缺省用平台表）                   | S44（`import.meta.env` / `process.env` 的落点）                                |
 | 后端端点 | `endpoints({ apis, source })`                               | D25（端点路径的唯一出处）                                                      |
+| 权限点   | `permissions({ apis, source })`                             | D29（权限点名的唯一出处）+ S38（判断只许在守卫落点）                           |
 
 `callSites` 的 `from` 用**导出的常量**（编辑器可补全、拼错立刻可见）：
 
@@ -283,6 +284,24 @@ export default { count_other: '共 {{count}} 个订单' }
 
 同层切片默认不许互引；官方留的唯一出口是 `<provider>/@x/<consumer>.ts`（只放行被指名的那一侧；引用走别名：`@/entities/<provider>/@x/<consumer>`）。
 详见 [`PARADIGM.md`](../PARADIGM.md) §6.10 —— 规则侧是 S22 / S23 的同一条例外。
+
+### 2.8 权限点与租户上下文（R-110）
+
+这两件事企业里最常出事故，各有**一个落点**：
+
+```js
+permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),  // 权限点名的唯一出处（D29）
+callSites([
+  { name: '权限判断', apis: ['permissions.includes'], in: ['src/shared/auth/**'] },   // 判断写在哪儿（S38）
+  { name: '租户上下文', apis: ['searchParams.get'],
+    args: ['tenantId', 'tenant'], in: ['src/shared/tenant/**'] },                     // 租户从哪儿拿（S38 + args）
+]),
+```
+
+- `can('crew:edit')` 写字面量 → D29 报；`can(PERMISSIONS.crewEdit)` 合规。
+- 页面里 `searchParams.get('tenantId')` → S38 报；`get('page')` **不报**（`args` 把泛 API 收窄了）。
+- **不判的**（判据不稳）：`user.role === 'admin'` 这类**比较**形态（事实模型看不见，且展示与决策不可区分）、
+  请求有没有带租户维度（租户可能在 header / cookie / token 里、由服务端定）—— 那两半交给 review 与 E2E。
 
 ## 3. 命令参考
 
@@ -525,17 +544,17 @@ arch-guard --check-docs     # 只校验：不一致即红
 
 ## 9. 常见任务
 
-| 任务                             | 怎么做                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档                                                                                                                                                                                                                              |
-| **想看「配全」长什么样**         | 两份对称的活样板：[`examples/full/`](../examples/full/)（`canonical()` 三根拓扑，**99/104 在跑**）与 [`examples/full-fsd/`](../examples/full-fsd/)（`fsd()` 六层切片，**88/104**）。两者都是 0 finding；差的那几条：M02–M06 覆盖率五条要一份比 HEAD 新的产物（入库的必然过期，本仓自己也不声明 `coverage`），FSD 另有 S13 / S37 明列停用 + 9 条应用专属规则不适用。最短可用看 [`examples/minimal/`](../examples/minimal/)（71/104） |
-| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                                                                                                                                                                                                                                                          |
-| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                                                                                                                                                                                                                                                         |
-| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                                                                                                                                                                                                                                                     |
-| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                                                                                                                                                                                                                                              |
-| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                                                                                                                                                                                                                                                 |
-| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)                                                                                                                                                                                                                                             |
-| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                                                                                                                                                                                                                                                  |
+| 任务                             | 怎么做                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档                                                                                                                                                                                                                               |
+| **想看「配全」长什么样**         | 两份对称的活样板：[`examples/full/`](../examples/full/)（`canonical()` 三根拓扑，**100/105 在跑**）与 [`examples/full-fsd/`](../examples/full-fsd/)（`fsd()` 六层切片，**89/105**）。两者都是 0 finding；差的那几条：M02–M06 覆盖率五条要一份比 HEAD 新的产物（入库的必然过期，本仓自己也不声明 `coverage`），FSD 另有 S13 / S37 明列停用 + 9 条应用专属规则不适用。最短可用看 [`examples/minimal/`](../examples/minimal/)（71/105） |
+| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                                                                                                                                                                                                                                                           |
+| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                                                                                                                                                                                                                                                          |
+| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                                                                                                                                                                                                                                                      |
+| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                                                                                                                                                                                                                                               |
+| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                                                                                                                                                                                                                                                  |
+| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)                                                                                                                                                                                                                                              |
+| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 

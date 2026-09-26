@@ -91,6 +91,7 @@ export {
   analytics,
   callSites,
   endpoints,
+  permissions,
   envReads,
 } from './presets/index.js'
 

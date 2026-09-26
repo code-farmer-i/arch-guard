@@ -48,6 +48,8 @@ function callSitesOutside(
   apis: string[],
   globs: string[],
   texts: (info: { callee: string; api: string }) => { text: string; hint: string },
+  /** 收窄到"第一个字符串字面量实参"（R-110）：空 = 只看调用名；无字面量实参的调用**跳过**（不猜） */
+  args: readonly string[] = [],
 ): Finding[] {
   if (apis.length === 0 || globs.length === 0) return []
   const patterns = globs.map((glob) => globToRegExp(glob))
@@ -60,6 +62,9 @@ function callSitesOutside(
     for (const call of facts.calls) {
       const api = calledApiOf(call.callee, apis)
       if (!api) continue
+      if (args.length > 0 && (call.stringArg === undefined || !args.includes(call.stringArg))) {
+        continue
+      }
       const { text, hint } = texts({ callee: call.callee, api })
       out.push(finding(rule, record.rel, call.line, text, hint))
     }
@@ -158,6 +163,7 @@ export const callsOnlyInDeclaredSites: Rule = {
             text: `在这里调用${group.name} API（${callee}）：它只许出现在声明的落点`,
             hint: `把这次调用收进项目里的封装（${group.in.join(' / ')}），别处只调封装`,
           }),
+          group.args ?? [],
         ),
       )
     }

@@ -90,8 +90,17 @@ test('presets：只传部分参数时其余走范式默认（src 推导 app/modu
 })
 
 test('能力提供者必须启用消费它的规则（防"适配器装了却静默失效"）', async () => {
-  const { coreRules, copy, designSystem, endpoints, metrics, uiKit, antdKit, canonical } =
-    await import('../es/index.js')
+  const {
+    coreRules,
+    copy,
+    designSystem,
+    endpoints,
+    permissions,
+    metrics,
+    uiKit,
+    antdKit,
+    canonical,
+  } = await import('../es/index.js')
   // 能力前缀 → **负责启用**该能力对应规则的预设。
   // 注意：能力（适配器）与规则集是两件事 —— i18n 的能力由 `i18n(i18nextKit())` 给，
   // 但"启用 C 域规则"永远是 `copy()`；所以这张表查的是"谁启用"，不是"谁提供适配器"。
@@ -107,6 +116,7 @@ test('能力提供者必须启用消费它的规则（防"适配器装了却静�
     analytics: analytics({ apis: ['track'], eventSource: 'src/shared/lib/analytics/events.ts' }),
     envReads: envReads({ apis: ['import.meta.env'], in: ['src/shared/config/**'] }),
     endpoints: endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
+    permissions: permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
     // `structure.slots` 是**范式事实**（参数型能力）：由带槽位语义的范式声明 —— canonical 是那个
     structure: canonical(),
   }

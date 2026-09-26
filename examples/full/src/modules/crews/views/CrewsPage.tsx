@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
+import { can, PERMISSIONS } from '@/shared/auth/permissions'
 import { CrewsTable } from '../components/CrewsTable'
 import { useCrews } from '../hooks/useCrews'
 
@@ -20,6 +21,7 @@ export default function CrewsPage() {
           </button>
         </p>
       ) : null}
+      {can(PERMISSIONS.crewEdit) ? <p>{t('crews.editHint')}</p> : null}
       <CrewsTable rows={crews} />
     </section>
   )

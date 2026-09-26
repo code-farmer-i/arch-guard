@@ -125,6 +125,7 @@ export function designSystem(options: DesignSystemOptions = {}): Preset {
       'D26',
       'D27',
       'D28',
+      'D29',
       'D02',
       'D18',
       'D15',

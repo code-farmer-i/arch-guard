@@ -27,6 +27,7 @@ export const tsPack = definePack({
     'styles',
     'call-sites',
     'endpoints',
+    'permissions',
     'analytics',
     'env-reads',
   ],

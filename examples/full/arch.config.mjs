@@ -1,5 +1,5 @@
 /**
- * **完整形态的宿主配置**（范式 + 4 个域 + 10 个生效适配器 + 结构声明）。
+ * **完整形态的宿主配置**（范式 + 4 个域 + 11 个生效适配器 + 结构声明）。
  *
  * 每个声明指向的文件都真的存在 —— 所以 `skipped` 里不该有东西：
  * 报告末尾那句"因能力未声明而停用 N 条规则"应该消失，声明写错也会被 `declaration-no-match` 点名。
@@ -17,6 +17,7 @@ import {
   deps,
   designSystem,
   endpoints,
+  permissions,
   envReads,
   hygiene,
   metrics,
@@ -115,6 +116,8 @@ export default {
     styles(cssModulesKit()),
     // 端点唯一出处（R-99）：`fetch` 的实参里不许出现路径字面量
     endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' }),
+    // 权限点唯一出处（R-110）：`can('字面量')` 即报
+    permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' }),
     analytics({
       // 受体是「接收事件名的调用」：页面用的 useTrackView + 内部真正上报的 sendEvent
       apis: ['useTrackView', 'sendEvent'],
@@ -123,7 +126,15 @@ export default {
     // 读取根（import.meta.env / process.env）是平台表给的，项目只说"只许在哪读"
     envReads({ in: ['src/shared/config/**'] }),
     // 组名 + 家在哪就够了：localStorage 是平台的事实、gtag 是 analytics 面已声明的、QueryClient 是 kit 的
-    callSites([
+    callSites([      {
+        // 租户上下文的唯一解析处（R-110）：`args` 把 searchParams.get 这类泛 API 收窄
+        name: '租户上下文',
+        // 只列真的在用的：声明了却 0 命中会被自述点名（`cookies.get` 一写就红）
+        apis: ['searchParams.get'],
+        args: ['tenantId', 'tenant'],
+        in: ['src/shared/tenant/**'],
+      },
+
       { name: '本地存储', from: callSiteSources.platform.storage, in: ['src/shared/lib/storage.ts'] },
       { name: '埋点上报', from: callSiteSources.analytics.gtag, in: ['src/shared/lib/analytics/**'] },
       { name: '全局单例', from: callSiteSources.dataLayer.singletons, in: ['src/shared/api/queryClient.ts'] },
@@ -159,7 +170,13 @@ export default {
     },
 
     // ⑤ 项目自己的目录 / dev-only 形态（`addRoles` 是**追加**，不是替换）
-    addRoles: [{ id: 'test', pattern: '**/*.stories.{ts,tsx}', layer: 99, exclusive: true }],
+    addRoles: [
+      { id: 'test', pattern: '**/*.stories.{ts,tsx}', layer: 99, exclusive: true },
+      // 项目自己的 shared 槽位（R-110 的两个落点）：范式给的是七个固定槽，
+      // 项目要加槽位就在这里加一条 —— 与"骨架自带多少"无关，声明了才算数
+      { id: 'shared:auth', pattern: 'src/shared/auth/**', layer: 1, slot: 'auth' },
+      { id: 'shared:tenant', pattern: 'src/shared/tenant/**', layer: 1, slot: 'tenant' },
+    ],
 
     exceptions: [],
   },

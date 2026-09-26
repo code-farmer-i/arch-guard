@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useCrews } from '@/entities/crew'
 import { applyFilter, CrewFilter, emptyFilter } from '@/features/crew-filter'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
+import { can, PERMISSIONS } from '@/shared/auth/permissions'
 import { CrewList } from '@/widgets/crew-list'
 
 export function CrewsPage() {
@@ -23,6 +24,7 @@ export function CrewsPage() {
           </button>
         </p>
       ) : null}
+      {can(PERMISSIONS.crewEdit) ? <p>{t('crews.editHint')}</p> : null}
       <CrewFilter value={keywords} onChange={setKeywords} />
       <CrewList crews={applyFilter(crews, keywords)} />
     </section>

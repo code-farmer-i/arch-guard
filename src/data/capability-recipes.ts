@@ -30,6 +30,7 @@ export const CAPABILITY_RECIPES: Record<string, string> = {
   'designSystem.styleDir': "designSystem({ styleDir: 'src/shared/styles' })  // 范式通常自带",
   'designSystem.staticPrefix': "designSystem({ staticPrefix: '--sh-static-' })",
   'designSystem.storageFile': "designSystem({ storageFile: 'src/shared/lib/storage.ts' })",
+  'permissions.source': "permissions({ apis: ['can'], source: 'src/shared/auth/permissions.ts' })",
   'endpoints.source': "endpoints({ apis: ['fetch'], source: 'src/shared/api/endpoints.ts' })",
   'envReads.apis': "envReads({ in: ['src/shared/config/**'] })  // 读取根默认取平台表",
   'envReads.in': "envReads({ in: ['src/shared/config/**'] })",

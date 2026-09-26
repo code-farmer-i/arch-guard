@@ -197,6 +197,54 @@ export const analyticsEventSingleSource: Rule = {
   },
 }
 
+/* ---------------- D29 权限点只有一个出处 ---------------- */
+
+/**
+ * 判据：**判权限点的调用**（`permissions({ apis })` 声明，如 `can`）里出现**字面量权限点**即报 ——
+ * 权限点名字只许写进声明的表里。
+ *
+ * 与 R-46（S38 `callSites`）的分工：那条管"权限**判断**写在哪儿"（只许出现在守卫里），
+ * 这条管"权限**点叫什么、在哪儿定义**"。两件事，各一条 —— 合成一条报告说不清哪半在跑。
+ */
+export const permissionPointSingleSource: Rule = {
+  id: 'D29',
+  domain: 'design',
+  level: 'L2',
+  severity: 'error',
+  title: '权限点只有一个出处',
+  hint: '权限点写进声明的表，调用点传常量：加一个点 / 改一次命名漏一处就是越权或功能消失',
+  requires: ['permissions.apis', 'permissions.source'],
+  run: (ctx) => {
+    const face = ctx.config.adapters.permissions as { apis?: string[]; source?: string } | undefined
+    const apis = face?.apis ?? []
+    const source = face?.source ?? ''
+    if (apis.length === 0 || source === '') return []
+    // 与 D22–D24 同形：落点写错时只报"落点不存在"，不要拿整个项目的权限点去刷屏
+    const missing = missingSource(ctx, 'D29', source, '权限点')
+    if (missing) return [missing]
+    const out: Finding[] = []
+    for (const record of ctx.records) {
+      if (record.rel === source) continue // 表本身放的就是这些字面量
+      const facts = ctx.facts.get(record.rel)
+      if (!facts) continue
+      for (const call of facts.calls) {
+        const api = calledApi(call.callee, apis)
+        if (!api || call.stringArg === undefined) continue
+        out.push(
+          finding(
+            'D29',
+            record.rel,
+            call.line,
+            `权限点直接写字面量：${call.callee}(${JSON.stringify(call.stringArg)})`,
+            `从 ${source} 的常量表里取（改名时才只有一处要改）`,
+          ),
+        )
+      }
+    }
+    return out
+  },
+}
+
 /* ---------------- D25 后端端点只有一个出处 ---------------- */
 
 /**
@@ -323,6 +371,7 @@ export const keyShapeConsistent: Rule = {
 
 export const designSourceRules: Rule[] = [
   cacheKeySingleSource,
+  permissionPointSingleSource,
   keyShapeConsistent,
   endpointSingleSource,
   routePathSingleSource,

@@ -38,6 +38,17 @@ export interface CallSiteGroup {
   from?: string
   /** 只许出现在哪些落点（glob 列表）：`['src/shared/lib/storage.ts','src/app/**']` */
   in: string[]
+  /**
+   * **收窄到"实参名"**（可选）：只有第一个字符串字面量实参命中这份名单才算这一类调用。
+   *
+   * 为什么需要它（R-110）：`searchParams.get` / `cookies.get` / `getItem` 这类 API 名字**太泛** ——
+   * 声明 `apis: ['searchParams.get']` 会把 `?page=` / `?tab=` 全判红；不声明则租户 id 从哪来没人管。
+   * 声明 `args: ['tenantId','tenant']` 之后：`get('tenantId')` 判、`get('page')` 不判。
+   *
+   * **边界**：只比**第一个字符串字面量实参** —— `const { tenantId } = useParams()`、`props.tenantId`、
+   * header/cookie 形态都看不见、不报（宁少报不误伤）。
+   */
+  args?: string[]
 }
 
 export function callSites(groups: CallSiteGroup[]): Preset {
@@ -70,6 +81,12 @@ export function callSites(groups: CallSiteGroup[]): Preset {
     if (!Array.isArray(group.in) || group.in.length === 0) {
       throw new AdapterError(`callSites() ${where} 的 in 不能为空：写清"只许出现在哪些落点"`)
     }
+    if (group.args !== undefined && (!Array.isArray(group.args) || group.args.length === 0)) {
+      throw new AdapterError(
+        `callSites() ${where} 的 args 不能是空数组：空名单会让"这一类调用"一组都不判
+` + `（不要收窄就整条别写 args）`,
+      )
+    }
   }
   const names = new Set(list.map((group) => group.name))
   if (names.size !== list.length) {
@@ -86,6 +103,7 @@ export function callSites(groups: CallSiteGroup[]): Preset {
           // 项目显式给了就带上；否则由 `from` 在判定时解析（引擎侧单一出处）
           ...(group.apis ? { apis: [...group.apis] } : {}),
           ...(group.from ? { from: group.from } : {}),
+          ...(group.args ? { args: [...group.args] } : {}),
           in: [...group.in],
         })),
       }),

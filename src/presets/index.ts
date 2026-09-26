@@ -23,3 +23,4 @@ export { antdKit } from './ui-kits/antd.js'
 export { noneKit } from './ui-kits/none.js'
 
 /** 把一个适配器包成预设：`uiKit(antdKit())` */
+export { permissions, type PermissionsOptions } from './permissions.js'

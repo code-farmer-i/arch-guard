@@ -51,6 +51,8 @@ export interface CallSiteGroup {
   name: string
   apis: string[]
   in: string[]
+  /** 收窄到第一个字符串字面量实参（R-110 的租户解析）：未声明 = 只看调用名 */
+  args?: string[]
 }
 interface CallSitesAdapter {
   facet: string

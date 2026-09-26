@@ -26,6 +26,7 @@ export const reactPack = definePack({
     'styles',
     'call-sites',
     'endpoints',
+    'permissions',
     'analytics',
     'env-reads',
   ],
