@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D25",
+      "file": "src/modules/orders/hooks/useOrders.ts"
+    }
+  ],
+  "exact": true
+}

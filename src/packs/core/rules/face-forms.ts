@@ -46,6 +46,29 @@ export function eventSourceOf(config: Config): string {
   return adapterOf<AnalyticsAdapter>(config, 'analytics')?.eventSource ?? ''
 }
 
+/**
+ * **端点表的落点**（R-116）：一个文件或一组文件（支持 glob）——与 `queryKeyFromOf` 对称。
+ * 放在这里而不是规则里：规则的判据与报告的自述都要这份归一化，两处各写一遍必漂。
+ */
+export function endpointSourcesOf(config: Config): string[] {
+  const value = adapterOf<{ facet: string; source?: string | string[] }>(
+    config,
+    'endpoints',
+  )?.source
+  const list = typeof value === 'string' ? [value] : Array.isArray(value) ? value : []
+  return list.filter((item) => typeof item === 'string' && item !== '')
+}
+
+/** `permissions()` 的权限点表落点（同样是"一处或一组"） */
+export function permissionSourcesOf(config: Config): string[] {
+  const value = adapterOf<{ facet: string; source?: string | string[] }>(
+    config,
+    'permissions',
+  )?.source
+  const list = typeof value === 'string' ? [value] : Array.isArray(value) ? value : []
+  return list.filter((item) => typeof item === 'string' && item !== '')
+}
+
 /** 调用落点面（由 `callSites()` 预设登记）：一组组"哪些调用 + 只许出现在哪" */
 export interface CallSiteGroup {
   name: string

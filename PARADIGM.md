@@ -317,9 +317,19 @@ overrides.structure 里有不认识的键：addRoles
 ## 6.15 后端端点的唯一出处（R-99 / R-114）
 
 ```js
-// 端点路径只许写在这里；"哪些调用算打后端"用来源表（平台事实），不手写
+// 形态一（集中）：一个后端、接口变更要整体审阅
 endpoints({ from: callSiteSources.platform.network, source: 'src/shared/api/endpoints.ts' }),
+
+// 形态二（跟域走，R-116）：多团队各管一块后端 —— 每加/下线一个域都不必动共享文件
+endpoints({ from: callSiteSources.platform.network, source: ['src/modules/<域>/model/endpoints.ts'] }),
 ```
+
+**端点跟域走还是集中？** 端点本身是**外部契约**（后端定的，前端改不了），所以集中在一处有正当理由；
+但"集中"不该等于"一个文件"：一个 `shared/api/endpoints.ts` 装 50 个域就是一条横向 merge 队列。
+判据是**团队结构**：按域分治 → 跟域走；一个后端整体审阅 → 集中。`source` 两种都收（数组 + glob）。
+
+对照：**缓存键 / 请求策略**是**前端自己的约定** → 一律跟域走（R-97/A3，见 §6.9 旁注），
+**埋点事件名**是外部数据契约 → 集中（`shared/lib/analytics/events.ts`）。
 
 - 打后端的调用（`fetch` / `XMLHttpRequest`，或 `apis: ['axios.get']` 自列）实参里出现**路径字面量** → 报（D25）；
 - `apis` 手写时，拼错一个字母会被"声明 0 命中"点名；用 `from` 走来源表则**不报**（既有清单天然含没用到项）。

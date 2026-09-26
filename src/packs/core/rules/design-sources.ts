@@ -1,3 +1,4 @@
+import { endpointSourcesOf } from './face-forms.js'
 import { apiMatchOf } from '../../../engine/api-match.js'
 import { resolveCallSiteApis } from '../../../engine/call-site-sources.js'
 import { globToRegExp } from '../../../engine/util.js'
@@ -339,13 +340,17 @@ export const endpointSingleSource: Rule = {
       ...(faces?.apis ? { apis: faces.apis } : {}),
       ...(faces?.from ? { from: faces.from } : {}),
     })
-    const source = faces?.source ?? ''
-    if (apis.length === 0 || source === '') return []
-    const missing = missingSource(ctx, 'D25', source, '端点')
-    if (missing) return [missing]
+    const sources = endpointSourcesOf(ctx.config)
+    if (apis.length === 0 || sources.length === 0) return []
+    // 与 D22 同形：某个落点写错时只报"那个落点不存在"，不要拿整个项目的路径字面量去刷屏
+    const missing = sources
+      .map((source) => missingSource(ctx, 'D25', source, '端点'))
+      .filter((item): item is Finding => item !== null)
+    if (missing.length > 0) return missing
+    const homes = sources.map((source) => globToRegExp(source))
     const out: Finding[] = []
     for (const record of ctx.records) {
-      if (record.rel === source) continue
+      if (homes.some((pattern) => pattern.test(record.rel))) continue
       const facts = ctx.facts.get(record.rel)
       if (!facts) continue
       for (const call of facts.calls) {
@@ -362,8 +367,8 @@ export const endpointSingleSource: Rule = {
               'D25',
               record.rel,
               candidate.line,
-              `端点路径字面量 ${JSON.stringify(candidate.text)} 出现在 ${hit}() 的实参里：只许来自 ${source}`,
-              `把端点写进 ${source}（例如导出一份 ENDPOINTS 表），这里改成拼常量：\`${'$'}{API_BASE_URL}${'$'}{ENDPOINTS.xxx}\``,
+              `端点路径字面量 ${JSON.stringify(candidate.text)} 出现在 ${hit}() 的实参里：只许来自声明的落点`,
+              `把端点写进声明的落点（${sources.join(' / ')}，例如导出一份 ENDPOINTS 表），这里改成拼常量：\`${'$'}{API_BASE_URL}${'$'}{ENDPOINTS.xxx}\``,
             ),
           )
         }

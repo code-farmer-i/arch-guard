@@ -163,7 +163,7 @@ export default {
 | 调用落点 | `callSites([{ name, apis \| from, in }])`                   | S38（副作用 / 配置对象的落点）                                                 |
 | 埋点     | `analytics({ apis, eventSource })`                          | D24（事件名唯一出处）                                                          |
 | 环境读取 | `envReads({ apis?, in })`（缺省用平台表）                   | S44（`import.meta.env` / `process.env` 的落点）                                |
-| 后端端点 | `endpoints({ apis?, from?, source })`                       | D25（端点路径的唯一出处）                                                      |
+| 后端端点 | `endpoints({ apis?, from?, source: 文件或 glob 数组 })`     | D25（端点路径的唯一出处）                                                      |
 | 失败策略 | `errorPolicy({ policyIn, policyProps? })`                   | D30（重试 / 退避 / 条件重试的落点；数字型归 D20）                              |
 | 权限点   | `permissions({ apis, source })`                             | D29（权限点名的唯一出处）+ S38（判断只许在守卫落点）                           |
 
@@ -626,7 +626,12 @@ arch-guard --check-docs     # 只校验：不一致即红
 | `localStorage`      | `localStorage.getItem(...)`（对象前缀）          |
 | `invalidateQueries` | `queryClient.invalidateQueries(...)`（方法后缀） |
 
-**不是子串**（`can` 不吃 `cancel`）；一个调用命中多个声明时取**声明顺序里的第一个**。
+**不是子串**（`can` 不吃 `cancel`）；一个调用声明命中多个时取**声明顺序里的第一个**。
+
+**端点表跟域走还是集中？** 端点表支持**一个文件或一组文件（glob）**：
+`source: 'src/shared/api/endpoints.ts'`（集中）或 `source: ['src/modules/<域>/model/endpoints.ts']`（跟域走）。
+判据是团队结构 —— 按域分治就跟着域走（每加/下线一个域都不必动共享文件），一个后端整体审阅就集中。
+对照：缓存键/请求策略是前端自己的约定，一律跟域走（R-97）。
 名字太泛（`get` / `can` / `track`）时不要靠匹配形态分辨，声明 `args: ['tenantId']` 把这一类收窄
 （`callSites` 组支持 `args`；`endpoints` 用 `from` 拿来源表）。
 

@@ -24,8 +24,14 @@ export interface EndpointsOptions {
    * 与 `apis` 二选一（都给时 `apis` 优先）。
    */
   from?: string
-  /** 端点路径的唯一出处（文件路径）：`src/shared/api/endpoints.ts` */
-  source: string
+  /**
+   * 端点路径的唯一出处：**一个文件或一组文件（支持 glob）**。
+   *
+   * 为什么支持多落点（R-116，与 `queryKeyFrom` 对称）：端点确实是外部契约、集中可审，
+   * 但"集中"不该等于"一个文件" —— 多团队各管一块后端时，一个文件就是横向 merge 队列。
+   * 想跟域走就写 `['src/modules/<域>/model/endpoints.ts']`。
+   */
+  source: string | string[]
 }
 
 export function endpoints(options: EndpointsOptions): Preset {
@@ -42,8 +48,11 @@ export function endpoints(options: EndpointsOptions): Preset {
       `endpoints() 的来源 ${options.from} 不认识\n（可用：${CALL_SITE_SOURCE_IDS.join(' / ')}）`,
     )
   }
-  if (!options.source) {
-    throw new AdapterError('endpoints() 需要给 source：端点写在哪（文件路径）')
+  const sources = typeof options.source === 'string' ? [options.source] : (options.source ?? [])
+  if (sources.length === 0 || sources.some((item) => typeof item !== 'string' || item === '')) {
+    throw new AdapterError(
+      'endpoints() 需要给 source：端点写在哪（一个文件或一组文件/glob，且不能有空项）',
+    )
   }
   return {
     enable: ['D25'],
@@ -53,7 +62,7 @@ export function endpoints(options: EndpointsOptions): Preset {
         specVersion: '1',
         ...(apis.length > 0 ? { apis: [...apis] } : {}),
         ...(options.from ? { from: options.from } : {}),
-        source: options.source,
+        source: sources.length === 1 ? (sources[0] as string) : [...sources],
       }),
     },
   }
