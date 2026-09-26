@@ -487,6 +487,9 @@ overrides: {
 
 - `hint`（怎么改），退出码 0/1/2 分别代表通过 / 有 error / 用法或配置错。
 
+**机读出口的 stdout 是干净的**：`--format=json` 产出一个完整 JSON 文档、`--format=github` 产出注解，
+两者都不会被别的东西污染 —— `--stats` 在机读格式下走 **stderr**（人仍看得见，解析器不受影响）。
+
 ### 7.2 JSON 顶层字段（19 个，被 `tests/report-contract.test.mjs` 冻结）
 
 `apiVersion` · `ok` · `scope` · `scopeFiles` · `contractScope` · `rulesEnabled` · `rulesTotal` ·

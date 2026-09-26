@@ -340,3 +340,16 @@ test('R-133：`--brief` 下 JSON 的 notices 只给 `code`（`text` 不是契约
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('R-134：机读格式的 stdout 只放机读内容（`--stats` 走 stderr，不许污染 JSON）', async () => {
+  const dir = makeProject()
+  try {
+    // 以前 JSON 后面会追一张统计表 —— 任何解析器都炸（实测 `Extra data: line 65`）
+    const plain = await runCli(['--format=json', '--stats'], dir)
+    const parsed = JSON.parse(plain.out)
+    assert.equal(typeof parsed.ok, 'boolean', 'stdout 是一个完整 JSON 文档')
+    assert.ok(!plain.out.includes('合计'), '统计表不在 stdout 里')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

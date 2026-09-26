@@ -89,7 +89,10 @@ export function createProgram(version: string = packageVersion()): Command {
     .option('--min-level <level>', '只跑判定等级不低于下限的规则：L1 | L2 | L3')
     .option('--severity <severity>', '只报告指定严重度：error | warn')
     .option('--format <format>', '输出格式：pretty | json | github（CI 注解）', 'pretty')
-    .option('--stats', '打印每条规则的耗时与命中数（排查「为什么这么慢」）')
+    .option(
+      '--stats',
+      '打印每条规则的耗时与命中数（排查「为什么这么慢」）；机读格式下走 stderr，保证 stdout 可解析',
+    )
     .option('--no-cache', '不做 facts 持久缓存（每轮全量解析；排查缓存相关问题时用）')
     .option('--verify-deps', '只对账：适配表声明的包 vs package.json 实际依赖（不跑规则）')
     .option(

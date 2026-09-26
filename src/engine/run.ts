@@ -16,7 +16,7 @@ import {
 } from './notices.js'
 import { pushAdviceNotices } from './advice.js'
 import { collectI18n } from './i18n.js'
-import { json, out } from './output.js'
+import { err, json, out } from './output.js'
 import { createRegistry } from './registry.js'
 import {
   renderGithubAnnotations,
@@ -442,7 +442,16 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
       renderReport(reportInput)
       renderSummary(reportInput)
     }
-    if (options.stats) out(renderStats(reportInput, stats))
+    if (options.stats) {
+      /**
+       * **机读出口的 stdout 必须干净**：`--format=json` 产出的是一个完整 JSON 文档，
+       * 后面再追一张表会让**任何**解析器炸（实测 `Extra data: line 65`）——
+       * 编码 agent / CI bot 正是这么读的。所以机读格式下把统计表送去 stderr（人还看得见 ✓）。
+       */
+      const statsText = renderStats(reportInput, stats)
+      if (options.format === 'json' || options.format === 'github') err(statsText)
+      else out(statsText)
+    }
   }
 
   const errors = active.filter((finding) => severityOf(finding, ruleIndex) !== 'warn').length
