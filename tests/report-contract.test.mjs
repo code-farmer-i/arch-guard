@@ -316,3 +316,27 @@ test('ok 的语义：结论是否通过（≠ 要不要拦）；"什么都没判
     rmSync(empty, { recursive: true, force: true })
   }
 })
+
+test('R-133：`--brief` 下 JSON 的 notices 只给 `code`（`text` 不是契约，省下的是上下文）', async () => {
+  const dir = makeProject()
+  try {
+    const full = await report(dir)
+    assert.ok(full.notices.length > 0)
+    assert.ok(
+      full.notices.every((notice) => typeof notice.text === 'string'),
+      '默认带文案',
+    )
+    const brief = JSON.parse((await runCli(['--format=json', '--brief'], dir)).out)
+    assert.deepEqual(
+      brief.notices.map((notice) => notice.code),
+      full.notices.map((notice) => notice.code),
+      'code 一个不少（契约不丢）',
+    )
+    assert.ok(
+      brief.notices.every((notice) => notice.text === undefined),
+      '文案省掉',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

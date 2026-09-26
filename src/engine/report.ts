@@ -235,7 +235,7 @@ export interface JsonReport {
    * 消费方按 `code` 判（`paths-no-match` / `severity-filtered` / `facts-cache`…），**不要匹配文案**：
    * 文案是本仓随时可以改的内部细节，把它当契约就是第二处真相。
    */
-  notices: Diagnostic[]
+  notices: { code: Diagnostic['code']; text?: string }[]
   /** 本次判定了多少个文件（人读摘要里一直有，机读侧以前**没有** → 「机读 ⊂ 人读」是同一类假绿） */
   scopeFiles: number
   /** 不可归属的全局（架构级）违规条数 */
@@ -294,7 +294,13 @@ export function toJsonReport(input: ReportInput): JsonReport {
     exceptions: input.exceptions,
     skippedGlobals: input.skippedGlobals,
     filteredBySeverity: input.filteredBySeverity,
-    notices: input.notices,
+    /**
+     * `--brief` 下**只给 `code`**（省掉 `text`）——这不是丢信息：按本仓的契约，
+     * 消费方就该**按 `code` 判**、文案是随时可改的内部细节（见 docs/DESIGN.md §6.9）。
+     * 编码 agent 每次编辑后跑的那一轮，省下的是这几千字节的上下文。
+     */
+    notices:
+      input.brief === true ? input.notices.map((notice) => ({ code: notice.code })) : input.notices,
     scopeFiles: input.scopeFiles,
     globalFindings: input.globalFindings,
     rulesEnabled: input.rulesEnabled,

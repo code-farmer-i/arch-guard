@@ -522,6 +522,68 @@ overrides: {
 
 ---
 
+## 7.3 给编码 agent / 编辑器 hook 的接入
+
+这个工具的主要用法是**编码 agent 触发自动诊断**（非 TTY、读 stdout、token 敏感）。所以分**两层**：
+**编辑时单文件快查**（快、反馈落在刚写的代码上）+ **收尾/提交前全量**（跨文件规则只有全量才看得见）。
+
+### 编辑 hook（每个文件写入后触发）
+
+```bash
+# $FILE = 被改文件的**绝对路径**（--paths 收绝对路径）
+pnpm exec arch-guard --paths "$FILE" --brief --format=json
+```
+
+- 实测：热缓存 **约 0.65s**（含 node 启动）；非 TTY 自动无色 ✓；输出**确定**（除 `durationMs` 外逐字节一致，可 diff）
+- 退出码：`0` 通过（只有 warn 也算）· `1` 有 error 级违规 · `2` 用法/配置错（**不是代码问题**）
+- **为什么 hook 只查单文件**：快，且反馈正好落在刚写的那段。但**声明类**违规（如"shared 只被一个域用"
+  → 报在**那个 shared 文件**上）单文件查不到 → 所以**收尾必须跑全量**。
+
+### 收尾 / 提交前（全量）
+
+```bash
+pnpm exec arch-guard                 # 全量；项目若接进 check，直接 pnpm check
+pnpm exec arch-guard --scope=staged  # pre-commit：读 **index** 内容，不是工作区（hook 经典坑）
+```
+
+### agent 该读什么
+
+| 字段                                           | 用途                                                                  |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `ok` + `errors` / `warnings`                   | 结论。**别匹配文案**（文案随时可改）                                  |
+| `findings[].file` / `line` / `column` + `hint` | 哪里、怎么改（`hint` 是可直接执行的那句话）                           |
+| `skipped[].recipe`                             | 缺能力时**可以直接粘进配置的那一行**（agent 自服务，不必再跑 pretty） |
+| `notices[].code`                               | 自述按 **code** 判；`--brief` 下只给 code（`text` 不是契约）          |
+| `apiVersion`                                   | 启动时断言；不认识就明说"不认识这版报告"，别少读几个字段装绿          |
+
+### 写代码**之前**先问（比事后修便宜）
+
+```bash
+pnpm exec arch-guard --explain src/modules/crews/views/CrewsPage.tsx  # 这个文件该放哪、能依赖谁
+pnpm exec arch-guard --explain D29                                    # 这条规则管什么、要我声明什么
+```
+
+### 可直接粘的 hook 脚本
+
+```bash
+#!/usr/bin/env bash
+# 编辑/写入 hook：给一个被改文件的绝对路径。永远 exit 0 —— hook 不该阻断编辑器，
+# 把 JSON 交给 agent 让它自己决定改不改。
+set -u
+file="${1:?用法: guard-hook.sh <被改文件的绝对路径>}"
+out="$(pnpm exec arch-guard --paths "$file" --brief --format=json 2>&1)"
+code=$?
+printf '%s\n' "$out"
+if [ "$code" = "2" ]; then
+  echo "⚠ arch-guard 用法/配置有问题（不是刚改的代码的问题）" >&2
+fi
+exit 0
+```
+
+> 首次跑一次 `pnpm exec arch-guard` 让缓存热起来（之后每个文件的解析结果都有缓存）；
+> 缓存位置跟 Vite 同一策略：优先 `node_modules/.arch-guard-cache`，没有 `node_modules` 时退回项目根
+> （那种情况记得加进 `.gitignore`）。
+
 ## 8. 接进项目（宿主侧清单）
 
 ### 8.1 该装哪些工具（委派出去的覆盖责任）

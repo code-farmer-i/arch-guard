@@ -26,7 +26,8 @@
 >   `REPORT_API_VERSION` **不变** · JSON 顶层字段集未变 · `SKIP_CODES` 未变 · **退出码语义未变**。
 > - **兼容性新增（不是破坏性）**：发现项多了**可选**字段 `column`（报告印 `file:line:col`、
 >   `--format=github` 注解带 `col=`；合成事实不给也照常）· `--explain` 现在也收**规则 id** ·
->   JSON 的 `skipped[]` 多了可选 `recipe`（可以直接粘进配置的那一行）。
+>   JSON 的 `skipped[]` 多了可选 `recipe`（可以直接粘进配置的那一行）· `--brief` 下 JSON 的
+>   `notices[].text` 被省掉（只留 `code` —— 契约本来就是 code）。
 > - **行为变化（要留意）**：
 >   1. **pretty 报告的版式变了**（**结论前置**到第一行，元信息归末尾附录，超长行拆成多条）——
 >      只影响人读的输出；`--format=json` / `github` 与退出码不变。若有脚本在 `grep` pretty 输出，
@@ -39,11 +40,21 @@
 > - **缓存**：`FACTS_CACHE_SPEC` 10 → **11**（事实多了列号）→ 旧 facts 缓存自动作废重算。
 > - **示例**：错误码 → 文案的**推荐形态**进两套示例（唯一映射表 + 取数层只暴露一次错误码 +
 >   每域一等的"加载/失败/有数据"分支）；**判据仍留待**（同 N-12：先要真实项目形态）。
-> - **规模**：规则 **107**（本版未新增规则）· 夹具 **93** · 需求 → 128（`已完成` 117 / `已委派` 4 / `不做` 7）。
+> - **规模**：规则 **107**（本版未新增规则）· 夹具 **93** · 需求 → 130（`已完成` 119 / `已委派` 4 / `不做` 7）。
 >
 > **发布前必做（已做）**：`engines: >= 22.18.0` 是对外承诺 —— 已在 **Node 22.18.0** 上跑完整门禁：
 > `pnpm check` **EXIT=0**（93/93 夹具，与 Node 24 同一套结果）。命令：`nvm exec 22.18.0 node <pnpm 的 pnpm.cjs 路径> check`。
 > **版本号留给发布工具去 bump**（它自己会 `setPkgVersion` 并提交；手动 bump 会让它拿到空提交而报错）。
+
+### Added（R-133：USAGE §7.3 —— 给编码 agent / 编辑器 hook 的接入配方）
+
+- 主用法是**编码 agent 触发自动诊断**，但仓库里没有"hook 该跑哪条命令"的出处。新增 USAGE §7.3：
+  **两层**（编辑时 `--paths "$FILE" --brief --format=json` 单文件快查，约 0.65s；收尾/提交前全量或
+  `--scope=staged`）+ agent 该读的字段表（`ok` / `findings[].hint` / `skipped[].recipe` / `notices[].code`）
+  - 写代码前先 `--explain` + 一段**可直接粘**的 hook 脚本（永远 `exit 0`，hook 不该阻断编辑器）。
+- **`--brief` 现在也管 JSON**：以前只管 pretty，agent 每次仍要吞下几千字节文案。`--brief` 下 JSON 的
+  `notices` **只给 `code`** —— `text` 本来就不是契约（按 `code` 判），所以省的是上下文不是信息
+  （实测 3104 → 2114 字节）。
 
 ### Fixed（R-131：JSON 的 `skipped` 带 `recipe` —— agent 读机读输出也能自服务）
 
