@@ -1,4 +1,4 @@
 export default {
   title: '账务',
-  count: '共 {{count}} 张发票',
+  count_other: '共 {{count}} 张发票',
 }

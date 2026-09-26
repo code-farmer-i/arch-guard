@@ -1,4 +1,5 @@
 export default {
   title: 'Customers',
-  count: '{{count}} customers',
+  count_one: '{{count}} customer',
+  count_other: '{{count}} customers',
 }

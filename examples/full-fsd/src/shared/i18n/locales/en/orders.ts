@@ -1,4 +1,5 @@
 export default {
   title: 'Orders',
-  count: '{{count}} orders',
+  count_one: '{{count}} order',
+  count_other: '{{count}} orders',
 }

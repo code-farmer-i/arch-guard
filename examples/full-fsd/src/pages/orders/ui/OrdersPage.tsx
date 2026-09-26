@@ -1,16 +1,18 @@
 import { useTranslation } from 'react-i18next'
-import { OrderCard } from '@/entities/order'
+import { OrderCard, useOrders } from '@/entities/order'
 import { ANALYTICS_EVENTS, useTrackView } from '@/shared/lib/analytics'
-import { useOrders } from '../api/useOrders'
 
 export function OrdersPage() {
   const { t } = useTranslation()
-  const totals = useOrders()
+  const { data: orders, isPending } = useOrders()
   useTrackView(ANALYTICS_EVENTS.ordersView)
   return (
     <section>
       <h2>{t('orders.title')}</h2>
-      <OrderCard total={totals.length} />
+      <p>{isPending ? t('common.loading') : t('orders.count', { count: orders.length })}</p>
+      {orders.map((order) => (
+        <OrderCard key={order.id} order={order} />
+      ))}
     </section>
   )
 }

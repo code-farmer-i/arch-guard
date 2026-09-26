@@ -1,5 +1,6 @@
 import { AppTag } from '@/shared/ui/app-tag'
+import type { Crew } from '../model/types'
 
-export function CrewCard({ name }: { name: string }) {
-  return <AppTag>{name}</AppTag>
+export function CrewCard({ crew }: { crew: Crew }) {
+  return <AppTag>{crew.name}</AppTag>
 }

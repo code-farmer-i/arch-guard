@@ -88,7 +88,12 @@ export default {
       tests: {
         // 只点名"必须有测试"的那两块：`shell` store 依赖 react（本示例不装依赖，node --test 跑不起来），
         // 真实项目里当然该给它配测试 —— 这里把要求收窄到能跑得动的地方。
-        requireTestsFor: ['src/shared/lib/storage.ts', 'src/shared/lib/analytics/events.ts'],
+        requireTestsFor: [
+          'src/shared/lib/storage.ts',
+          'src/shared/lib/analytics/events.ts',
+          // A14：实体里的纯函数也要有行为测试
+          'src/entities/*/model/mapper.ts',
+        ],
         testGlobs: ['src/**/*.test.ts'],
         checkChain: { script: 'check', require: ['test', 'coverage'] },
       },
@@ -103,7 +108,8 @@ export default {
         // 键跟着实体走（R-97）：一行 glob 覆盖所有实体
         queryKeyFrom: ['src/entities/*/model/query.ts'],
         // fetchApis 不用写：reactQueryKit 自带全套钩子（R-92 后不再因"这次没用到"被点名）
-        fetchIn: ['src/pages/*/api/**', 'src/shared/api/**'],
+        // 取数归实体（A1）：页面不再自己打后端
+        fetchIn: ['src/entities/*/api/**', 'src/shared/api/**'],
       }),
     ),
     styles(cssModulesKit()),

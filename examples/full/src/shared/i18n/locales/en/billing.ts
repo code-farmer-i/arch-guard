@@ -1,4 +1,5 @@
 export default {
   title: 'Billing',
-  count: '{{count}} invoices',
+  count_one: '{{count}} invoice',
+  count_other: '{{count}} invoices',
 }

@@ -87,7 +87,12 @@ export default {
       tests: {
         // 只点名测试真的覆盖到的：`analytics/index.ts` 是 React hook（useTrackView），
         // 示例不装依赖，`node --test` 引它会直接挂 —— 所以这里收窄到纯值文件
-        requireTestsFor: ['src/shared/lib/storage.ts', 'src/shared/lib/analytics/events.ts'],
+        requireTestsFor: [
+          'src/shared/lib/storage.ts',
+          'src/shared/lib/analytics/events.ts',
+          // A14：域内的纯函数也要有行为测试（mapper 是最好测的那种）
+          'src/modules/*/lib/mapper.ts',
+        ],
         testGlobs: ['src/**/*.test.ts'],
         checkChain: { script: 'check', require: ['test', 'coverage'] },
       },

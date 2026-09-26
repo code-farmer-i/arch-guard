@@ -226,6 +226,24 @@ presets: [
 
 ---
 
+### 2.6 文案的复数形态（i18next）
+
+`t('orders.count', { count })` 取的是 `count_one` / `count_other` 这类键；**各语言的复数分类本来就不同**
+（英文 `_one` + `_other`，中文只有 `_other`），所以：
+
+| 规则              | 复数口径                                                                       |
+| ----------------- | ------------------------------------------------------------------------------ |
+| C02（键必须存在） | `t('orders.count')` 认 `orders.count_one` / `_other` —— 不会因为"基键没写"报错 |
+| C03（两语言同构） | 按**基键**对账：两边都有 `orders.count` 就算齐（不要求逐键全等）               |
+| C06（死键）       | 复数变体由基键的使用点亮，不会被当成死键                                       |
+
+```ts
+// locales/en/orders.ts
+export default { count_one: '{{count}} order', count_other: '{{count}} orders' }
+// locales/zh-CN/orders.ts（CLDR：中文只有 other）
+export default { count_other: '共 {{count}} 个订单' }
+```
+
 ## 3. 命令参考
 
 ```bash

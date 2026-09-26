@@ -27,13 +27,16 @@ export const languageParity: Rule = {
   run: (ctx) => {
     const index = ctx.i18n
     if (!index || index.languages.length < 2) return []
-    const union = new Set(index.files.flatMap((file) => file.keys.map((key) => key.path)))
+    // 按**基键**对账：`count_one` / `count_other` 是同一件事的两门语言形态
+    const union = new Set(
+      index.files.flatMap((file) => file.keys.map((key) => baseKeyOf(key.path))),
+    )
     const out: Finding[] = []
     for (const language of index.languages) {
       const keys = new Set(
         index.files
           .filter((file) => file.language === language)
-          .flatMap((file) => file.keys.map((key) => key.path)),
+          .flatMap((file) => file.keys.map((key) => baseKeyOf(key.path))),
       )
       const entry = index.files.find((file) => file.language === language && file.isEntry)?.rel
       const anchor = entry ?? `${index.resourceDir}/${language}/index.ts`
@@ -169,6 +172,28 @@ function keyCandidates(raw: string, namespaceHint: string | undefined): string[]
   return out
 }
 
+/**
+ * i18next 的**复数后缀**（v21 的 CLDR 分类 + v3 的 `_plural`）。
+ *
+ * 为什么三条规则都要认它：i18next 查的是 `count_one` / `count_other` 这类键，而代码里写的是
+ * **基键** `t('orders.count', { count })`。不认的话：C02 会说"键不存在"，C03 会说"两门语言键不一致"
+ * （英文有 `_one`、中文只有 `_other` —— 这**本来就该**不一样），C06 会把每个复数变体都当死键。
+ * 于是"写不出复数"成了这套规则逼出来的结果（R-104）。
+ */
+const PLURAL_SUFFIXES = ['_zero', '_one', '_two', '_few', '_many', '_other', '_plural'] as const
+
+/** 去掉复数后缀得到**基键**：`orders.count_one` → `orders.count` */
+const baseKeyOf = (key: string): string => {
+  for (const suffix of PLURAL_SUFFIXES) {
+    if (key.endsWith(suffix)) return key.slice(0, -suffix.length)
+  }
+  return key
+}
+
+/** 键"存在"的复数感知判定：本身在，或它的某个复数变体在（C02 用） */
+const knownWithPlurals = (known: Set<string>, key: string): boolean =>
+  known.has(key) || PLURAL_SUFFIXES.some((suffix) => known.has(`${key}${suffix}`))
+
 /* ---------------- C02 每个 t() 的键必须存在 ---------------- */
 
 export const keysExist: Rule = {
@@ -198,7 +223,7 @@ export const keysExist: Rule = {
         // 动态键（`t(`ns.${x}`)`）不做求值，只按前缀放行；没有字面量参数的调用无法判定
         if (!call.stringArg) continue
         const hit = keyCandidates(call.stringArg, hints.get(record.rel)).some((key) =>
-          known.has(key),
+          knownWithPlurals(known, key),
         )
         if (hit) continue
         out.push(finding('C02', record.rel, call.line, `文案键不存在：${call.stringArg}`))
@@ -246,7 +271,8 @@ export const noDeadKeys: Rule = {
     for (const file of index.files) {
       if (file.isEntry) continue // 聚合入口自己的键没有意义（见 i18n.ts 的说明）
       for (const key of file.keys) {
-        if (used.has(key.path)) continue
+        // 复数变体由**基键**的使用点亮：`t('orders.count')` 用到了 `count_one` / `count_other`
+        if (used.has(key.path) || used.has(baseKeyOf(key.path))) continue
         if (prefixes.some((prefix) => key.path.startsWith(prefix))) continue
         out.push(finding('C06', file.rel, key.line, `死键：${key.path}`))
       }

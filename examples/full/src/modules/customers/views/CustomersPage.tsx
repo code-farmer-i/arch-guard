@@ -7,12 +7,12 @@ import { useCustomers } from '../hooks/useCustomers'
 export default function CustomersPage() {
   const { t } = useTranslation()
   const keywords = useDebounce('')
-  const customers = useCustomers(keywords)
+  const { data: customers, isPending } = useCustomers(keywords)
   useTrackView(ANALYTICS_EVENTS.customersView)
   return (
     <section>
       <PageHeader title={t('customers.title')} />
-      <p>{t('customers.count', { count: customers.length })}</p>
+      <p>{isPending ? t('common.loading') : t('customers.count', { count: customers.length })}</p>
     </section>
   )
 }

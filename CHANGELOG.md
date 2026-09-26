@@ -157,6 +157,24 @@
   示例的声明从 `isolate` 改成 `publicApi`（保留 S23 兜底："直播捣内部照报"）。
 - 夹具 `domain-public-api`（82 个）：经公开面合规 · 直捣内部被 S04 + S05 报。
 
+### Added（R-104 + A1/A2/A8/A11/A14：复数能写了 · 取数归实体 · 状态是一等公民）
+
+- **R-104 复数文案**：`t('orders.count', { count })` 取的是 `count_one` / `count_other`，而三条规则以前都不认它 ——
+  C02 会说"键不存在"、C03 会说"两门语言键不一致"（可英文有 `_one`、中文只有 `_other` **本来就该不一样**）、
+  C06 把每个变体当死键。于是"写不出复数"是规则逼出来的。现在：C02 复数感知、C03 **按基键对账**、
+  C06 由基键点亮变体。示例两套都改成真的复数（en `_one`+`_other`，zh `_other`）。
+- **A1 取数归实体（FSD）**：`pages/*/api` 整体下沉到 `entities/<实体>/api`（连同 mapper / keys / policy），
+  实体公开面暴露 hook；页面不再自己打后端。`fetchIn` 改成 `src/entities/*/api/**`。
+- **A2 显式映射 + 状态是一等公民**：每域一个 `mapper.ts`（DTO → 领域实体；后端字段改名时**这里会报类型错**，
+  而不是静默丢字段）；hook 统一返回 `QueryState<T>`（`shared/api/queryState.ts`：`data` / `isPending` /
+  `isError` / `retry`）—— `data ?? []` 会把"失败"与"没有数据"压成同一个空数组；页面演示 loading / error 分支。
+  组件收**实体**不收裸值（`CrewCard` / `OrderCard` / `CrewsTable`）。
+- **A11 分层归位（FSD）**：`crew-filter` 收窄成**受控筛选**（交互归 features），列表渲染提到
+  `widgets/crew-list`（展示复合块归 widgets）；筛选行为是纯函数 `applyFilter`。
+- **A14 行为测试**：域/实体的 mapper 各有行为测试（替代原来那条"常量等于字面量"的自证），
+  `requireTestsFor` 相应扩到 `src/modules/*/lib/mapper.ts` / `src/entities/*/model/mapper.ts`。
+- 两套示例都加了 `common.loading` / `common.loadFailed` 文案与真实的分支渲染。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

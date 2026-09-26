@@ -4,12 +4,12 @@ import { useOrders } from '../hooks/useOrders'
 
 export default function OrdersPage() {
   const { t } = useTranslation()
-  const orders = useOrders()
+  const { data: orders, isPending } = useOrders()
   useTrackView(ANALYTICS_EVENTS.ordersView)
   return (
     <section>
       <h2>{t('orders.title')}</h2>
-      <p>{t('orders.count', { count: orders.length })}</p>
+      <p>{isPending ? t('common.loading') : t('orders.count', { count: orders.length })}</p>
     </section>
   )
 }
