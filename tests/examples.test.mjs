@@ -563,8 +563,8 @@ const FSD_MUTATIONS = [
       patch(
         dir,
         'src/pages/orders/ui/OrdersPage.tsx',
-        "import { OrderCard, useOrders } from '@/entities/order'",
-        "import { OrderCard, useOrders } from '@/entities/order'\nimport { CrewsPage } from '@/pages/crews/ui/CrewsPage'",
+        "import { crewOf, OrderCard, useOrders } from '@/entities/order'",
+        "import { crewOf, OrderCard, useOrders } from '@/entities/order'\nimport { CrewsPage } from '@/pages/crews/ui/CrewsPage'",
       ),
   },
   {

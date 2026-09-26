@@ -229,6 +229,20 @@
   而不是把 import 换掉再看）：三种范式 × 选/不选 kit 都能加载；没选的面就不声明（不猜）。
 - 已存在时不覆盖（要覆盖得显式 `--force`）—— 起手工具不该悄悄改掉用户已经写过的配置。
 
+### Fixed（示例的"散文数字"烂了两轮 —— 这次连门禁一起补）
+
+- **示例度量过期**：`AGENTS.md` / `docs/USAGE.md` 里还写着 `93/98`·`82/98`·`69/98`（实测 **99/104 · 88/104 · 71/104**）、
+  "5 个域"（实际 4）、"23 个角色"（canonical 实际 27）、"抄 139 行"（实际 166）。
+  根因不是手滑：DESIGN / README / ARCHITECTURE 的计数都有门禁，**示例这一项漏了**。
+  → `tests/process.test.mjs` 新增两道流程门禁：
+  ① 文档里凡在讲示例度量的那一行，比率必须是当前值（分子是某个示例的实测数、分母是规则总数），
+  抄旧数字或把两个示例写反都会红；② 示例配置里提到的**字面**落点路径必须存在
+  （`examples/full-fsd` 的配置头一度还指向 R-97 已搬走的 `src/shared/api/queryKeys.ts`）。
+- **FSD 示例补上 `@x` 演示**：`entities/crew/@x/order.ts` + `entities/order/model/selectors.ts`
+  （`crewOf(order, crews)`）+ 页面里两个实体各取各的数据再组合。引用走别名
+  （S32 要求跨组走别名）；把 consumer 名字改成 `orders` 立即报 S22 + S23 —— 示例真的在演这条通道，
+  不再是"只有夹具里才有"。顺带：`OrderDto.crew` → `Order.crewId` 由 mapper 显式翻译。
+
 ## [Unreleased]
 
 ### Added（`examples/full/`：把「配全」变成可跑的样板）

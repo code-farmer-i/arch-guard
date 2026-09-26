@@ -302,3 +302,102 @@ function requirementIdsFrom(text, status) {
     .filter((match) => match[2].trim() === status)
     .map((match) => match[1])
 }
+
+/**
+ * **示例的度量必须与实测一致**（2026-09-25 补）：`examples/full` 的 `93/98` 在加了 7 条规则以后
+ * 还能在 `AGENTS.md` / `docs/USAGE.md` 里躺着 —— 因为 DESIGN / README / ARCHITECTURE 的计数都有门禁，
+ * **示例这一项漏了**。同理还有示例配置头里的「N 个域 / N 个角色 / N 个生效适配器」与「抄 N 行」。
+ *
+ * 规则：文档里凡提到某个示例的那一行，出现的每个 `N/M` 都必须是**当前的**比率（分子是某个示例的实测值、
+ * 分母是规则总数）—— 抄旧数字、把两个示例的数字写反，都会被抓住。
+ */
+test('流程：示例的度量（跑几条 / 共几条 · 域数 · 角色数 · 适配器数）与实测一致', async () => {
+  const { canonical, createRegistry, loadConfig } = await import('../es/index.js')
+  const total = coreRules.length
+  const measured = new Map()
+  const configs = new Map()
+  for (const name of ['minimal', 'full', 'full-fsd']) {
+    const { config } = await loadConfig({ root: join(ROOT, 'examples', name) })
+    configs.set(name, config)
+    measured.set(name, createRegistry(coreRules, config).enabled.length)
+  }
+
+  for (const doc of ['AGENTS.md', 'docs/USAGE.md']) {
+    for (const [index, line] of read(doc).split('\n').entries()) {
+      const mentioned = [...measured.keys()].filter((name) =>
+        new RegExp(`(?:examples/)?${name}(?![\\w-])`).test(line),
+      )
+      if (mentioned.length === 0) continue
+      // 只在"这一行本来就在讲度量"时要求齐全：提到示例但没给数字的行（如"抄 166 行"）不算
+      if (!/\d+\/\d+/.test(line)) continue
+      const where = `${doc}:${index + 1}`
+      for (const ratio of line.matchAll(/(\d+)\/(\d+)/g)) {
+        assert.equal(
+          Number(ratio[2]),
+          total,
+          `${where} 的比率 ${ratio[0]} 分母不是当前规则总数 —— 示例度量过期了`,
+        )
+        assert.ok(
+          [...measured.values()].includes(Number(ratio[1])),
+          `${where} 的比率 ${ratio[0]} 与任何示例的实测值都对不上`,
+        )
+      }
+      for (const name of mentioned) {
+        assert.ok(
+          line.includes(`${measured.get(name)}/${total}`),
+          `${where} 提到 ${name}，但没写它当前的 ${measured.get(name)}/${total}`,
+        )
+      }
+    }
+  }
+
+  // 示例配置头里的数字同样要可判定（它们是"照抄时最先看到的一句话"）
+  const header = read('examples/full/arch.config.mjs')
+  const domains = readdirSync(join(ROOT, 'examples/full/src/modules'), {
+    withFileTypes: true,
+  }).filter((entry) => entry.isDirectory()).length
+  assert.equal(
+    Number(/(\d+) 个域/.exec(header)?.[1]),
+    domains,
+    '示例头里的域数与 src/modules 实际目录数不一致',
+  )
+  assert.equal(
+    Number(/(\d+) 个角色/.exec(header)?.[1]),
+    canonical().roles.length,
+    '示例头里的角色数与 canonical() 实际角色数不一致',
+  )
+  assert.equal(
+    Number(/(\d+) 个生效适配器/.exec(header)?.[1]),
+    Object.keys(configs.get('full').adapters).length,
+    '示例头里的生效适配器数与实际不一致',
+  )
+  // 行数与 `wc -l` 对齐（末尾换行不算一行）
+  const configText = readFileSync(join(ROOT, 'examples/full/arch.config.mjs'), 'utf8')
+  const lines = configText.split('\n').length - (configText.endsWith('\n') ? 1 : 0)
+  assert.ok(
+    read('docs/USAGE.md').includes(`抄 ${lines} 行`),
+    `USAGE 里"抄 N 行"与实际配置行数（${lines}）不一致`,
+  )
+})
+
+/**
+ * **示例配置里提到的落点路径必须存在**（2026-09-25 补）：`examples/full-fsd` 的配置头一度还写着
+ * "缓存键进 `src/shared/api/queryKeys.ts`"，而那个文件在 R-97 就搬去 `entities/<实体>/model/query.ts` 了 ——
+ * 照抄的人会照着一段不存在的路径去建目录。与"示例度量"同一类：散文没门禁就会烂。
+ *
+ * 只查**字面**路径（含通配 / 占位符的跳过：它们指的是约定，不是某个文件）。
+ */
+test('流程：示例配置里提到的落点路径必须存在', () => {
+  for (const name of ['minimal', 'full', 'full-fsd']) {
+    const text = read(`examples/${name}/arch.config.mjs`)
+    const literals = [...text.matchAll(/[`'"](src\/[^`'"]+)[`'"]/g)]
+      .map((match) => match[1])
+      .filter((token) => !/[*<>{}$]/.test(token))
+    for (const token of new Set(literals)) {
+      assert.ok(
+        existsSync(join(ROOT, 'examples', name, token)),
+        `${name}/arch.config.mjs 提到的 ${token} 不存在 —— 照抄的人会照着建一个错的目录`,
+      )
+    }
+  }
+})

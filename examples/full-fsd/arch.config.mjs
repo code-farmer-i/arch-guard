@@ -6,7 +6,7 @@
  *   组维度 slice 的阈值…），这里只补它没声明的几条（导入局部性 / 出入度 / 耦合 / 状态与守卫落点…）；
  * - 落点参数：`styleDir=src/app/styles`、`tokenDir=src/app/styles/tokens`、
  *   `i18nDir=src/shared/i18n/locales`、`storageFile=src/shared/config/storage.ts` —— 都由 `fsd()` 声明；
- * - 唯一出处：路径进 `src/shared/routes/paths.ts`、缓存键进 `src/shared/api/queryKeys.ts`、
+ * - 唯一出处：路径进 `src/shared/routes/paths.ts`、缓存键进 `src/entities/<实体>/model/query.ts`、
  *   事件名进 `src/shared/lib/analytics/events.ts`。
  */
 import {

@@ -12,5 +12,5 @@ export async function fetchCrews(limit: number): Promise<CrewDto[]> {
 export async function fetchOrders(limit: number): Promise<OrderDto[]> {
   const response = await fetch(`${API_BASE_URL}${ENDPOINTS.orders}?limit=${limit}`)
   if (!response.ok) return []
-  return [{ id: 'orders', total: limit }]
+  return [{ id: 'orders', total: limit, crew: generatedCrewSchema }]
 }

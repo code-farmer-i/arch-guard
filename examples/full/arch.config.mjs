@@ -1,5 +1,5 @@
 /**
- * **完整形态的宿主配置**（范式 + 5 个域 + 8 个方案面 + 结构声明）。
+ * **完整形态的宿主配置**（范式 + 4 个域 + 10 个生效适配器 + 结构声明）。
  *
  * 每个声明指向的文件都真的存在 —— 所以 `skipped` 里不该有东西：
  * 报告末尾那句"因能力未声明而停用 N 条规则"应该消失，声明写错也会被 `declaration-no-match` 点名。
@@ -35,10 +35,10 @@ export default {
   packs: [reactPack],
 
   presets: [
-    // ① 范式：三根拓扑 + 23 个角色 + 落点参数（styleDir / tokenDir / paletteFile / i18nDir… 都由它给）
+    // ① 范式：三根拓扑 + 27 个角色 + 落点参数（styleDir / tokenDir / paletteFile / i18nDir… 都由它给）
     canonical({ lazyViews: true }),
 
-    // ② 五个域
+    // ② 四个域
     designSystem({
       staticPrefix: '--sh-static-',
       storageFile: 'src/shared/lib/storage.ts',
