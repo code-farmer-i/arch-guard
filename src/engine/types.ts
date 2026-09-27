@@ -283,12 +283,14 @@ export type Adapter =
 export type {
   DegreeLimit,
   DirectoryItemLimit,
+  FaceSpec,
   GroupCountLimit,
   GroupInDegree,
   NameCollisionSpec,
   PluralConsistencySpec,
   PublicApiUnit,
   ResolvedStructure,
+  RuntimeSpec,
   StructureSpec,
 } from './structure-spec.js'
 

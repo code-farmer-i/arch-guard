@@ -173,3 +173,71 @@ test('--explain：一次可以问多条路径（逗号分隔）', async () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+/**
+ * R-141：`--explain` / `--list-rules` 的规则集要跟**配置给的包**走，不是硬编码 `coreRules`。
+ *
+ * 真实踩过：宿主用自定义规则（报告里印着 `[S61]`），而 `--explain S61` 回一句
+ * 「未知规则：S61（规则全表见 docs/DESIGN.md §4）」—— 解释不了自己刚报出来的规则。
+ */
+function makePackProject() {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-explain-pack-'))
+  mkdirSync(join(dir, 'src/app'), { recursive: true })
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ name: 'explain-pack', private: true, type: 'module' }),
+  )
+  writeFileSync(
+    join(dir, 'arch.config.mjs'),
+    `import { canonical, createRule, definePack, tsPack } from '${INDEX_URL}'\n` +
+      `const own = createRule({ id: 'S99', domain: 'structure', level: 'L2',\n` +
+      `  title: '自有规则：外壳只碰公开面', hint: '走 @/modules/<域> 的公开面', run: () => [] })\n` +
+      `export default { packs: [definePack({ id: 'own', framework: 'typescript', rules: [...tsPack.rules, own] })],\n` +
+      `  presets: [canonical()] }\n`,
+  )
+  writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
+  return dir
+}
+
+test('R-141：配置里的自定义 pack 规则也能被 --explain 展开', async () => {
+  const dir = makePackProject()
+  try {
+    const result = await runCli(['--explain', 'S99'], dir)
+    assert.equal(result.code, 0, '这是查询，不是判决')
+    assert.match(result.out, /S99/)
+    assert.match(result.out, /自有规则：外壳只碰公开面/, '自定义规则要能展开它的 title')
+    assert.match(result.out, /只想跑它：arch-guard --only S99/)
+    assert.doesNotMatch(result.out, /未知规则/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('R-141：--list-rules 给出当前规则集的目录（含自定义规则），json 可机读', async () => {
+  const dir = makePackProject()
+  try {
+    const pretty = await runCli(['--list-rules'], dir)
+    assert.equal(pretty.code, 0, '这是查询，不是判决')
+    assert.match(pretty.out, /规则目录：\d+ 条/)
+    assert.match(pretty.out, /S99\s+L2 error\s+自有规则：外壳只碰公开面/)
+    assert.match(pretty.out, /结构（\d+ 条）/, '按域分组')
+
+    const json = await runCli(['--list-rules', '--format=json'], dir)
+    const parsed = JSON.parse(json.out)
+    assert.ok(parsed.total > 100, '目录要含框架包的全部规则，不只是自定义那条')
+    assert.deepEqual(
+      parsed.rules.find((rule) => rule.id === 'S99'),
+      {
+        id: 'S99',
+        title: '自有规则：外壳只碰公开面',
+        domain: 'structure',
+        level: 'L2',
+        severity: 'error',
+        requires: [],
+      },
+      '机读目录要带全元数据（agent 靠它自服务）',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

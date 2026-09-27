@@ -11,6 +11,7 @@ import {
   explainRules,
   looksLikeRuleId,
   renderExplanations,
+  renderRuleCatalog,
 } from './engine/explain.js'
 import { rootRelativePattern } from './engine/git.js'
 import { err, out } from './engine/output.js'
@@ -55,6 +56,7 @@ interface CliOptions {
   cache?: boolean
   verifyDeps?: boolean
   explain?: string
+  listRules?: boolean
   renderDocs?: boolean
   checkDocs?: boolean
   coverageReport?: string
@@ -105,6 +107,10 @@ export function createProgram(version: string = packageVersion()): Command {
       '讲清一批路径的契约（角色 / 能依赖谁 / 该放哪 / 适用规则），写代码之前用；逗号分隔，可绝对路径',
     )
     .option(
+      '--list-rules',
+      '列出当前规则集的目录（id / 等级 / 严重度 / 标题 / 需要什么声明）；配合 --format=json 给 agent 读',
+    )
+    .option(
       '--brief',
       '附录只给一行摘要（自述 / 停用 / 例外各有几条，去掉 --brief 展开）—— 信息不删，只折叠',
     )
@@ -143,6 +149,7 @@ export function createProgram(version: string = packageVersion()): Command {
   $ arch-guard --domain=D --format=json     # 只看设计系统，输出 JSON
   $ arch-guard --explain src/modules/crews/views/CrewsPage.tsx    # 写代码前问：这个文件该放哪
   $ arch-guard --explain D29                # 规则 id 也收：这条规则管什么、要我声明什么
+  $ arch-guard --list-rules                 # 规则目录：当前规则集里有哪些（含配置里自定义 pack 的）
   $ arch-guard --brief                      # 附录只给一行摘要（自述/停用/例外各有几条）
   $ arch-guard --update-coverage            # 刷新覆盖率棘轮快照（不是豁免违规）
 
@@ -261,8 +268,8 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
     return verifyDeps(options.config)
   }
 
-  if (options.explain) {
-    return explain(options.explain, options.config, options.format)
+  if (options.explain !== undefined || options.listRules === true) {
+    return query(options)
   }
 
   if (options.renderDocs === true || options.checkDocs === true) {
@@ -355,35 +362,43 @@ async function syncDocs(configPath: string | undefined, checkOnly: boolean): Pro
 }
 
 /**
- * `--explain <路径>`：**写之前**把契约讲清楚。
- *
- * 与判定路径的分工：判定说"你错了"，解释说"该怎么做"。它一条规则都不跑，
- * 数据全部来自角色表 + 布局 + 结构声明 + `params` —— 所以零误报，也永远不需要维护第二份规范。
- * 退出码恒为 0（这是查询，不是判决）。
+ * **当前规则集**（R-141）：以**配置给的包**为准 —— `--explain` 与 `--list-rules` 共用；
+ * 此前 `--explain` 硬编码 `coreRules`，自定义 pack 的规则 id 一律被判成"未知规则"。
+ * 没有包时退回 `coreRules`。`--self-test` 不走这里（那是引擎自己夹具的回归）。
  */
-async function explain(
-  pathsInput: string,
-  configPath: string | undefined,
-  format: string,
-): Promise<number> {
+async function loadRuleSet(configPath: string | undefined) {
+  const loaded = await loadConfig({
+    root: process.cwd(),
+    ...(configPath ? { configPath } : {}),
+    fallbackPacks: [reactPack],
+  })
+  const packRules = loaded.packs.flatMap((pack) => pack.rules)
+  return { config: loaded.config, rules: packRules.length > 0 ? packRules : coreRules }
+}
+
+/**
+ * **两个查询**：`--explain <路径/规则 id>`（这一条要什么）与 `--list-rules`（当前规则集有哪些）。
+ * 与判定路径的分工：判定说"你错了"，查询说"该怎么做 / 有哪些"。查询一条规则都不跑，
+ * 数据全部来自角色表 + 布局 + 结构声明 + `params` + 规则对象 —— 零误报，退出码恒为 0。
+ */
+async function query(options: CliOptions): Promise<number> {
   try {
     const cwd = process.cwd()
-    const loaded = await loadConfig({
-      root: cwd,
-      ...(configPath ? { configPath } : {}),
-      fallbackPacks: [reactPack],
-    })
-    const registry = createRegistry(coreRules, loaded.config)
-    const args = pathsInput
+    const format = options.format === 'json' ? 'json' : 'pretty'
+    const { config, rules } = await loadRuleSet(options.config)
+    if (options.listRules === true) {
+      out(renderRuleCatalog(rules, { format }))
+      return 0
+    }
+    const registry = createRegistry(rules, config)
+    const args = (options.explain ?? '')
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean)
     // `--explain D29` 也要能展开（违规里印着 [D29]，新人却无从下手）
     const ruleIds = args.filter((item) => looksLikeRuleId(item))
     if (ruleIds.length > 0) {
-      out(
-        explainRules(ruleIds, { rules: coreRules, format: format === 'json' ? 'json' : 'pretty' }),
-      )
+      out(explainRules(ruleIds, { rules, format }))
       if (ruleIds.length === args.length) return 0
     }
     const paths = args
@@ -391,13 +406,13 @@ async function explain(
       .filter((item) => !looksLikeRuleId(item))
       .map((item) => rootRelativePattern(item, cwd))
     const list = explainPaths({
-      config: loaded.config,
+      config,
       paths,
       enabled: registry.enabled,
       skipped: registry.skipped,
       placement: placementHint,
     })
-    out(renderExplanations(list, format === 'json' ? 'json' : 'pretty'))
+    out(renderExplanations(list, format))
     return 0
   } catch (error) {
     err(color.red(`✖ 引擎异常：${(error as Error).message}`))

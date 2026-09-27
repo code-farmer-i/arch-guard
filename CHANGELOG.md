@@ -17,6 +17,31 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-27
+
+> **契约与迁移（这一版必读）**
+>
+> - **契约变更：无。** `REPORT_API_VERSION` / JSON 顶层字段 / `NOTICE_CODES` / `SKIP_CODES` /
+>   **退出码语义**均不变（冻结测试照旧通过）—— 这一版加的是**可选声明**与**新旗标**，
+>   旧配置、旧 CI 脚本原样可用（新 `structure` 键不写就完全不走那两档）。
+> - **新增能力（都要显式声明才生效）**：
+>   1. **运行时面与面值**（R-139 / R-140，[ADR-0008](docs/adr/0008-runtime-faces-and-face-values.md)）：
+>      `structure.runtimes` 给「运行时 → 入口」、`structure.faces` 给「面文件模式 → 运行时 → 面值名模式」；
+>      S23 增第 ④⑤ 档 —— 跨运行时走错面、面文件导出面值之外的东西（**类型豁免**）即报。
+>      **只判兼容性、不判完备性**；消费者属于哪个运行时按**可达性推导**（同构模块可用任意面，孤儿不判）。
+>      `faces[].runtime` 指向未声明的运行时会**在配置期报错**，不是静默不生效。
+>   2. **规则目录**（R-141）：`arch-guard --list-rules`（按域分组，**含配置里自定义 pack 的规则**；
+>      `--format=json` 给 agent 读）；`renderRuleCatalog()` 进公共 API（程序化规则集自己调）。
+> - **行为变化（要留意）**：`--explain` 的规则集改为**跟配置走**（此前硬编码内置规则表）——
+>   自定义 pack 的规则 id 现在能展开，`--explain <路径>` 的「适用 / 停用」清单也带上它们；
+>   **没写 `packs` 的项目行为不变**。`--self-test` 仍用内置规则集（宿主的规则不可能在包里带夹具）。
+> - **规模**：规则 **107**（本版**未新增规则**，S23 增两档）· 夹具 **95** · 需求 → **138**
+>   （`已完成` 127 / `已委派` 4 / `不做` 7）。
+>
+> **发布前必做（本版已做）**：Node **24.13.0** 与 **22.18.0** 上各跑一次完整 `pnpm check`，都 **EXIT=0**
+> —— 夹具 95/95 · 本体自包含 P1–P4（120 文件）· 文档块同步（5 文件）· 示例 71/102/91 全绿 · 狗粮 39/107。
+> **版本号留给发布工具 bump**（`pnpm release` 会问 patch/minor/major → 本版选 **minor** → `0.8.0`）。
+
 ### Added（R-138：支持 axios —— `http` 面 + `axiosKit()`）
 
 - **症状**：用 axios（而不是裸 `fetch`）的项目，D25「后端端点只有一个出处」**静默不判** ——
@@ -42,6 +67,66 @@
   现在自述 "`endpoints.from` 的 `http.apis` 解析出来是空的（少装了对应的适配器？）"
   （与 call-sites 组的同类检查、R-114 同一族）。
 - 夹具 `endpoints-axios`（**93 → 94**）：违规必报 × 合规不报；`--brief` 与停用清单照旧。
+
+### Added（R-139 / R-140：运行时面与面值 —— 公开面的第 ④⑤ 档）
+
+- **症状**：双运行时工程（宿主半侧 + 浏览器半侧）里一个域有**两个面**（宿主面 `index.ts` / 浏览器面
+  `client.ts`），而"宿主侧只能走宿主面"是**配对**约束：层号是全序（S21 只能表达"向下依赖"），
+  S22 只判"同维度、同层、不同组 → 禁"（把两个面当两组，会让**该放行的**"宿主侧 import 宿主面"
+  变成跨组被报）。S23 的 `entry` 是**无差别通行证**；从公开面里 import 实现细节，它同样一声不响。
+  **实测**（`dsh-workbench`）：只能自造构建图闸门 + 五条自定义规则，而其中"面解析"那段
+  **一轮重构内漂移两次**（漏报与误报各一次）—— 引擎里本来就有 `resolveSpecifier`。
+- **新增两条声明**（`name` 是不透明字符串；两条都**空声明即不判**）：
+
+  ```js
+  structure: {
+    runtimes: [{ name: 'host',   entries: ['src/app/host.ts'] },
+               { name: 'client', entries: ['src/app/client.tsx'] }],
+    faces: [{ pattern: 'src/modules/*/index.ts',  runtime: 'host',   value: '*Host' },
+            { pattern: 'src/modules/*/client.ts', runtime: 'client', value: '*Client' }],
+  }
+  ```
+
+  - **④ 运行时兼容**：消费者的运行时按**可达性**推导（文件从哪个入口可达就属于哪个运行时）
+    → 同构模块天然可以用任意面；跨运行时走错面即报；孤儿不判（那是 S15 的事）。
+  - **⑤ 面值**：面文件只许导出匹配 `value` 的值（**类型导出豁免**）—— 于是"面外拿到内部实现"
+    在**提供侧**就不可能发生，不必逐 import 对账。
+
+- **判据进 S23（不新开规则号）**：同一题目的第 ④⑤ 档。**不判完备性** —— 实测的面是参差不齐的
+  （有域只有宿主面、有域只有被两端共用的业务公开面），判完备性会直接误报。
+- **配置期 fail-closed**：`faces[].runtime` 指向没声明过的运行时、或 `runtimes` 没给入口 → 直接报错
+  （否则那一档静默不生效）。
+- **零事实模型改动**：面值模式是**数据**（`ImportFact.names` 已在事实里），`FACTS_CACHE_SPEC` 不变。
+- 决策与取舍见 [`docs/adr/0008`](docs/adr/0008-runtime-faces-and-face-values.md)；
+  夹具 `runtime-faces`（95/95，含同构模块 / 孤儿 / 面值类型豁免四类不报）。
+
+### Added（R-141：`--list-rules` —— 规则目录）
+
+- **症状**：`--explain <id>` 是"按 id 问一条"，可**自定义规则的 id 从哪来**？项目的规则表里没有它们
+  （那是项目自己写的），于是"我这条规则到底注册上没有、它要求什么"只能翻项目源码 —— 自定义规则的
+  "为什么"只活在自己的注释里。
+- **新增**：`arch-guard --list-rules` —— 按域分组列出**当前规则集**的目录
+  （`id` / 等级 / 严重度 / 标题 / **需要什么声明**）；`--format=json` 给出
+  `{ total, rules: [{ id, title, domain, level, severity, requires }] }` 给 agent 读。
+  **规则集跟配置走**：`packs` 里自定义的规则同样在目录里。退出码恒 0（查询，不是判决）。
+- **程序化入口**：`renderRuleCatalog(rules, { format })` 已进公共 API —— 用 `runGuard({ rules })` 注入
+  规则集的项目（CLI 看不到那些规则）自己调它就能得到同一份目录。
+
+### Fixed（R-141：`--explain` 只认 `coreRules`，自定义规则一律被判"未知"）
+
+- **症状**：宿主按本体给的位置登记了自己的规则（`arch.config.mjs` 的 `packs`，或程序化入口
+  `runGuard({ rules })`），报告里明明印着 `[S61]`，而 `--explain S61` 回一句
+  「未知规则：S61（规则全表见 docs/DESIGN.md §4）」—— 解释不了自己刚报出来的规则；
+  `--explain <路径>` 的"适用 / 停用"清单同样漏掉它们。**实测**（`dsh-workbench`：
+  S60–S64 五条自定义规则）一次命中。
+- **根因**：`src/cli.ts` 里 explain 那一支把 `coreRules` 硬编码给了 `explainRules` 与 `createRegistry`，
+  而规则集的权威来源是**配置给的包**（`loadConfig` 早就把 `packs` 返回了）。
+- **修法**：`--explain` 改用 `loaded.packs.flatMap((pack) => pack.rules)`；一个包都没给时退回
+  `coreRules`（查询不该因为配置没写 `packs` 就失效）。`--self-test` **不动** —— 那是引擎自己夹具的
+  回归，宿主的规则不可能在包里带夹具。
+- **兜底文案**：未知规则不再只说"见 DESIGN §4"，而是说清**两种来源**（`packs` / `runGuard({ rules })`），
+  否则项目自定义规则的 id 被指去一份根本没有它的表。
+- **兼容性**：纯查询路径的行为修正，报告契约（`apiVersion` / code 常量 / 退出码）零变化。
 
 ## [0.7.0] - 2026-09-26
 

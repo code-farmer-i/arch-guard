@@ -482,7 +482,7 @@
 
 ## 七、后补的需求（按疼度排序）
 
-> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 124 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
+> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 127 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
 > **已撤**：R-30 复杂度 · R-70 抑制注释 · **R-94（analytics 面 kit 化）** —— 编号登记在第八节，不复用（见 N-06 / N-07 / N-13）。
 > 本节是**后补的一批**（含已完成与判不做的），按疼度排序；更早的按主题分散在一~六节。
 
@@ -762,6 +762,59 @@
   **深度**（A→B→C→D 每跳合法、无环，但改 A 波及 4 层）**以前没有任何规则管** ✓
 - **顺手补的边界**：`peer-reuse` 的注释一直写着"声明 isolate 就不必劝"，**代码里没落实** —— 现在
   `isolateCoversGroups` 一开，跨组类的两条建议都不提（跨组依赖本来就由 S22 报）；组粒度与组级环不受影响
+
+**R-139 双运行时：一个域多个公开面，谁能进哪一面取决于运行时** · 已完成 · 本体（`structure.runtimes` / `faces` + S23 ④）
+
+- **长这样**（dsh-workbench，实测）：域有两个面 —— `src/modules/issues/index.ts`（**宿主面**，交出面值
+  `issuesHost`）与 `src/modules/issues/client.ts`（**浏览器面**，`issuesClient`）；而 `panels` 只有宿主面、
+  `sessions` 只有业务公开面 —— **面是参差不齐的，不是"每域每面都有"**。它的层序表里 `modules/*` 与
+  `app/layouts` **同为第 10 层**，所以"外壳 import 了套件的内部"在层号上完全合法
+- **会怎样**：层号是**全序**，只能表达"向下依赖"，表达不了"两个运行时互相隔离"这种**配对**约束；
+  S22 只判"同层不同组 → 禁"，把 host / client 当两个组会让**该放行的**"宿主侧 import 宿主面"变成跨组被报（方向正好反了）。
+  于是每个双运行时项目都得自己重造这套概念：workbench 写了 `scripts/check-runtimes.mjs`（跑真实 Vite 构建收集模块图）
+- **期望**：能声明「运行时 → 入口」与「面文件 → 运行时」，S23 按"**消费者运行时 × 提供者面**"判兼容性；
+  **只判兼容性、不判完备性**（panels 只有宿主面、sessions 只有业务公开面 —— 那种形状必须能表达）
+- **落地时的改口**：原设想做成**角色字段**（`role.runtime`），实测发现 `library()` 范式的域目录
+  **没有 group / slot**（`lib:modules/issues` 只是一个目录角色），挂不上 → 改成 `structure` 上的两条声明
+  （`runtimes` / `faces`），三种范式下都成立（见 ADR-0008）；消费者在哪一侧改为按**可达性**推导
+  （同构模块天然可用任意面 —— workbench 第一版按目录划，把纯函数域模型误判了）
+- **手搓版的实测代价**（同一轮重构里漂移两次，漏报与误报各一次）：`arch/rules/units.mjs` 的 `resolveSpec`
+  把 `@/x` 只 `slice(2)` → 得 `modules/x`、后面却按 `src/modules/…` 匹配 → **规则在跑但永不报**；
+  补上 `src/` 前缀之后，裸面路径 `@/modules/issues` 解析出的 depth 是 `''`、而 `isFace` 只认 `index`/`client`
+  → **把"从面进"误报成"走了内部"**（2 条 error，把正确写法判红）。引擎里本来就有 `resolveSpecifier` 干这件事
+- **验收**：夹具 `runtime-faces`（宿主面 / 浏览器面 / 只有宿主面的域 / 同构模块 / 孤儿）违规必报 × 合规不报；
+  `tests/runtime-faces.test.mjs` 另钉「可达性推导」与「空声明即不判」
+
+**R-140 公开面内部的再分：面值 / 内部** · 已完成 · 本体（面值声明 + S23 扩档）
+
+- **长这样**（dsh-workbench 实测）：装配层过去从 `@/modules/issues`（公开面路径 ✓ **合规**）里 import
+  `createIssuesService` / `issueRoutes` / `registerIssueTools` / `ISSUES_SERVICE` —— 外壳因此**认识套件内脏**：
+  加一个套件要改外壳，改套件的装配方式也要改外壳（他们自己的 `unit-face.ts` 注释逐字记着这次踩坑）
+- **会怎样**：S23 只保证"跨域必须走公开面"，**不管从公开面里拿了什么** → 面文件把内脏摊在外面时门禁一声不响。
+  重构后仍然如此：`issues/index.ts` 还导出 8 个内部名、`issues/client.ts` 还导出 7 个，而**全项目零消费者** ——
+  加了门，没清走廊
+- **期望**：面值判据用**声明式名字模式**（如 `*Host` / `*Client`）。**最终只做提供侧**（「面文件只许导出
+  面值 + 类型」）：提供侧成立时消费侧自动成立，只判一趟、误伤面更小；实测 workbench 手搓的 S61 用的就是
+  命名约定 `/Host$|Client$/`，所以**零事实模型改动**（`ImportFact.names` 已在事实里），不必动 `FACTS_CACHE_SPEC`
+- **边界**：`import type` 不受限（workbench 的 S61 同样放行）；面文件自己声明的类型不算内部实现
+- **验收**：夹具 `runtime-faces` 两头钉住（面文件导出内部名 → 报；导出面值 / `export type` / 组内直引内部文件 → 不报）
+
+**R-141 自定义规则进不了 `--explain`、也没有规则目录** · 已完成 · 本体（CLI 的规则集来源 + 兜底文案）
+
+- **长这样**（dsh-workbench，实测）：自定义规则 S60–S64 在 `arch/rules/units.mjs`，经 `scripts/arch.mjs` 的
+  `runGuard({ rules: [...reactPack.rules, ...unitRules] })` 注入；跑 `arch-guard --explain S61` →
+  `未知规则：S61（规则全表见 docs/DESIGN.md §4）`
+- **会怎样**：报告里印着 `[S61]`，但 `--explain` 展开不了、`--explain <路径>` 的"适用 / 停用"清单也漏掉它们；
+  兜底文案还把自定义规则的 id 指去 DESIGN §4（那里根本没有它们）—— 自定义规则的"为什么"只活在项目自己的注释里，
+  接进来的 agent 也拿不到机读的规则说明
+- **期望**：① `--explain` 用**配置给的规则集**（`loadConfig` 已经返回 `packs`），不再硬编码 `coreRules`；
+  "未知规则"的兜底先查 coreRules、再说明它可能来自调用方注入的规则集；USAGE 写清两种来源各自的展开方式。
+  ② **规则目录**：`--list-rules` 按域列出当前规则集（id / 等级 / 严重度 / 标题 / 需要什么声明），
+  `--format=json` 给 agent 读；程序化规则集（`runGuard({ rules })`）由公共 API `renderRuleCatalog()` 覆盖
+- **边界**：`--self-test` 保持 `coreRules`（那是引擎自己夹具的回归，宿主的规则不可能在包里带夹具）；
+  CLI 看不到程序化入口注入的规则集（那部分靠 `renderRuleCatalog`）
+- **验收**：单测钉住"pack 里的规则 id 能被 `--explain` 展开 + 未知 id 给对兜底文案"，以及
+  "`--list-rules` 的目录含自定义规则、json 带全元数据"
 
 **R-138 用 axios 的项目，端点唯一出处那条纪律会静默失效** · 已完成 · 本体（`http` 面 + `axiosKit()`）
 

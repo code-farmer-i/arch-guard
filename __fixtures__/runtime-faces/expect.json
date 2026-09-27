@@ -1,0 +1,7 @@
+{
+  "findings": [
+    { "rule": "S23", "file": "src/app/layouts/Rightbar.tsx" },
+    { "rule": "S23", "file": "src/modules/issues/index.ts" }
+  ],
+  "exact": true
+}

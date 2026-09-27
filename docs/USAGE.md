@@ -370,6 +370,7 @@ arch-guard [options]
 | `--no-cache`                   | 不做 facts 持久缓存（每轮全量解析）                                                                                                                                     |
 | `--verify-deps`                | 只对账：适配表声明的包 vs `package.json` 实际依赖（不跑规则）                                                                                                           |
 | `--explain <paths 或规则 id>`  | **写代码之前**问契约（角色 / 能依赖谁 / 该放哪 / 适用规则）；退出码恒 0                                                                                                 |
+| `--list-rules`                 | **规则目录**：当前规则集里有哪些规则（`id` / 等级 / 严重度 / 标题 / 需要什么声明），按域分组；配 `--format=json` 给 agent 读；退出码恒 0                                |
 | `--report-only`                | 只报告，不因 error 退出非零                                                                                                                                             |
 | `--local-only`                 | `scope` 非全量时允许跳过不可归属的全局违规（会打印跳过条数）                                                                                                            |
 | `--coverage-report <path>`     | 覆盖率产物路径（覆盖 metrics 适配器里的配置）                                                                                                                           |
@@ -394,6 +395,7 @@ arch-guard --scope=changed                  # agent 迭代：只报告变更（�
 arch-guard --scope=staged                   # pre-commit：读 index 内容，不读工作区
 arch-guard --domain=D --min-level=L2        # 只看设计系统，跳过纯路径规则
 arch-guard --explain src/modules/crews/views/CrewsList.tsx   # ★ 写之前先问
+arch-guard --list-rules                     # 当前规则集有哪些（含配置里自定义 pack 的规则）
 
 # 排查
 arch-guard --stats                          # 哪条规则最贵 / 命中最多
@@ -662,17 +664,17 @@ arch-guard --check-docs     # 只校验：不一致即红
 
 ## 9. 常见任务
 
-| 任务                             | 怎么做                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档                                                                                                                                                                                                                               |
-| **想看「配全」长什么样**         | 两份对称的活样板：[`examples/full/`](../examples/full/)（`canonical()` 三根拓扑，**102/107 在跑**）与 [`examples/full-fsd/`](../examples/full-fsd/)（`fsd()` 六层切片，**91/107**）。两者都是 0 finding；差的那几条：M02–M06 覆盖率五条要一份比 HEAD 新的产物（入库的必然过期，本仓自己也不声明 `coverage`），FSD 另有 S13 / S37 明列停用 + 9 条应用专属规则不适用。最短可用看 [`examples/minimal/`](../examples/minimal/)（71/107） |
-| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                                                                                                                                                                                                                                                           |
-| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                                                                                                                                                                                                                                                          |
-| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                                                                                                                                                                                                                                                      |
-| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                                                                                                                                                                                                                                               |
-| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                                                                                                                                                                                                                                                  |
-| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)                                                                                                                                                                                                                                              |
-| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                                                                                                                                                                                                                                                   |
+| 任务                             | 怎么做                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档                                                                                                                                                                                                                                                                           |
+| **想看「配全」长什么样**         | 两份对称的活样板：[`examples/full/`](../examples/full/)（`canonical()` 三根拓扑，**102/107 在跑**）与 [`examples/full-fsd/`](../examples/full-fsd/)（`fsd()` 六层切片，**91/107**）。两者都是 0 finding；差的那几条：M02–M06 覆盖率五条要一份比 HEAD 新的产物（入库的必然过期，本仓自己也不声明 `coverage`），FSD 另有 S13 / S37 明列停用 + 9 条应用专属规则不适用。最短可用看 [`examples/minimal/`](../examples/minimal/)（71/107）                                             |
+| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                                                                                                                                                                                                                                                                                                       |
+| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                                                                                                                                                                                                                                                                                                      |
+| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                                                                                                                                                                                                                                                                                           |
+| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)。**自定义规则要能被 `--explain <id>` / `--list-rules` 看到**，就得让规则进当前规则集：`arch.config.mjs` 的 `packs`（用 `definePack({ rules: [...tsPack.rules, 自己的] })`），或程序化入口 `runGuard({ rules })` —— 后者 CLI 看不到，自己调 `explainRules()` / `renderRuleCatalog()` 展开 |
+| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ---
 
@@ -694,6 +696,33 @@ arch-guard --check-docs     # 只校验：不一致即红
 
 同一类校验还有：适配器字段（`defineAdapter` 的白名单）、未知 facet / 未知配置键（R-113）、
 `specVersion` 不匹配。**边界**：`params` 里的键由范式 / kit 决定，不在此列。
+
+### 9.1.1 双运行时：面在哪、谁能进（`runtimes` / `faces`）
+
+宿主半侧（Node）+ 浏览器半侧的项目，一个域往往有**两个面**：宿主面 `index.ts`、浏览器面 `client.ts`。
+层号只能表达"向下依赖"，表达不了"两个运行时互相隔离"（R-139 / R-140，见 [`adr/0008`](./adr/0008-runtime-faces-and-face-values.md)）：
+
+```js
+structure: {
+  runtimes: [
+    { name: 'host',   entries: ['src/app/host.ts'] },
+    { name: 'client', entries: ['src/app/client.tsx'] },
+  ],
+  faces: [
+    { pattern: 'src/modules/*/index.ts',  runtime: 'host',   value: '*Host' },
+    { pattern: 'src/modules/*/client.ts', runtime: 'client', value: '*Client' },
+  ],
+}
+```
+
+- **消费者的运行时按可达性推导**：文件从哪个入口可达就属于哪个运行时 —— 于是**同构模块**
+  （两个入口都可达）可以用任意面；孤儿不判（那是 S15 的事）。
+- **面文件只许导出匹配 `value` 的值**（类型导出豁免）：内部实现从面里去掉，组内直接引内部文件 ——
+  于是"面外拿到内部实现"在**提供侧**就不可能发生，不必逐 import 对账。
+- **不判完备性**：只有宿主面的域、只有业务公开面的域都合法 —— 所以别把"业务公开面"
+  （被两个运行时共用的域模型）列进 `faces`。
+- 两条都是**空声明即不判**；`faces[].runtime` 指向没声明过的运行时会**在配置期报错**
+  （否则那一档静默不生效）。
 
 ## 9.2 `apis` 的匹配形态（同名不同义时怎么收窄）
 

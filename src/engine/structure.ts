@@ -1,4 +1,10 @@
-import type { ResolvedStructure, RoleDescriptor, StructureSpec } from './types.js'
+import type {
+  FaceSpec,
+  ResolvedStructure,
+  RoleDescriptor,
+  RuntimeSpec,
+  StructureSpec,
+} from './types.js'
 
 /**
  * 结构声明的解析与校验（`structure` 字段 → `ResolvedStructure`）。
@@ -156,6 +162,20 @@ export function resolveStructure(input: {
       overrides?.couplingLimits ?? [],
     ),
     migrating: union(preset?.migrating, overrides?.migrating),
+    // 运行时面（R-139 / R-140）：`runtimes` 按 name 合并、`faces` 按 pattern 合并 ——
+    // 与其它"对象列表"字段同口径（同一处真相只能有一份，要改就改预设或显式覆盖）
+    runtimes: mergeKeyed(
+      'runtimes',
+      (item: RuntimeSpec) => item.name,
+      preset?.runtimes ?? [],
+      overrides?.runtimes ?? [],
+    ),
+    faces: mergeKeyed(
+      'faces',
+      (item: FaceSpec) => item.pattern,
+      preset?.faces ?? [],
+      overrides?.faces ?? [],
+    ),
     clientState: [...(preset?.clientState ?? []), ...(overrides?.clientState ?? [])],
     // 单值声明：overrides 给了就用 overrides（与 thresholds 一个语义）
     authRedirects: overrides?.authRedirects ?? preset?.authRedirects,
@@ -320,6 +340,38 @@ function validate(structure: ResolvedStructure, roles: RoleDescriptor[]): void {
     if (item.maxIn === undefined && item.maxOut === undefined) {
       throw new StructureDeclarationError(
         `structure.degreeLimits 对角色「${item.role}」既没给 maxIn 也没给 maxOut —— 这条声明什么都没说`,
+      )
+    }
+  }
+  /**
+   * 运行时面（R-139 / R-140，ADR-0008）：声明必须**自洽**。
+   * 面指向一个没声明的运行时 = S23 ④ 那档**静默不生效**（最该防的一类），所以在配置期就拦。
+   */
+  const runtimeNames = new Set<string>()
+  for (const runtime of structure.runtimes) {
+    if (runtime.name.trim() === '') {
+      throw new StructureDeclarationError('structure.runtimes 的每一项都必须有非空 name')
+    }
+    if (runtime.entries.length === 0) {
+      throw new StructureDeclarationError(
+        `structure.runtimes 的「${runtime.name}」没给入口（entries）—— 没有入口就推不出谁属于这个运行时`,
+      )
+    }
+    runtimeNames.add(runtime.name)
+  }
+  for (const face of structure.faces) {
+    if (face.pattern.trim() === '') {
+      throw new StructureDeclarationError('structure.faces 的每一项都必须有非空 pattern')
+    }
+    if (!runtimeNames.has(face.runtime)) {
+      throw new StructureDeclarationError(
+        `structure.faces 的「${face.pattern}」指向未声明的运行时「${face.runtime}」\n` +
+          '（先在 structure.runtimes 里声明它，否则这条面判据静默不生效）',
+      )
+    }
+    if (face.value !== undefined && face.value.trim() === '') {
+      throw new StructureDeclarationError(
+        `structure.faces 的「${face.pattern}」给了空的 value —— 空模式什么都不放行，可疑`,
       )
     }
   }

@@ -25,6 +25,39 @@ export interface PublicApiUnit {
   children?: boolean
 }
 
+/**
+ * **运行时**（S23 ④，R-139 / ADR-0008）：一个执行环境 + 它的入口。
+ *
+ * 消费者属于哪个运行时**不逐文件标注**，而是按**可达性**推导：文件 A 属于运行时 r
+ * ⇔ A 从 r 的某个入口可达。于是同构模块天然同时属于两个运行时（可用任意面），
+ * 而"只有浏览器能到"的文件进不了宿主面。
+ *
+ * `name` 是**不透明字符串**（host / client / worker / edge…）—— 引擎不认识任何具体运行时。
+ */
+export interface RuntimeSpec {
+  name: string
+  /** 这个运行时的入口（glob，相对项目根） */
+  entries: string[]
+}
+
+/**
+ * **运行时面**（S23 ④⑤，R-139 / R-140）：某个模式的文件是"某个运行时的门"。
+ *
+ * 为什么不做成角色字段：`library()` 范式的域目录**没有 group / slot**
+ * （`lib:modules/issues` 只是一个目录角色），挂不上；模式声明在三种范式下都成立。
+ */
+export interface FaceSpec {
+  /** 面文件的路径模式（glob，如 `src/modules/<域>/index.ts` —— 其中的域名段写成 `*`）；只收 glob，不收捕获 */
+  pattern: string
+  /** 这个面属于哪个运行时（必须先在 `runtimes` 里声明过） */
+  runtime: string
+  /**
+   * 面文件对外**只许**导出的名字模式（glob，如 `*Host`）；不给 = 不判面值。
+   * 类型导出不受限（类型是跨运行时的公共词汇，不是实现）。
+   */
+  value?: string
+}
+
 /** 组数量上限：按「层 + 父组桶」分桶后，桶内组数 > `max` 即报（S26） */
 export interface GroupCountLimit {
   /** 组维度名（角色表里 `group` 用的捕获名） */
@@ -145,6 +178,10 @@ export interface StructureSpec {
   publicApi?: string[]
   /** 无捕获单元的公开面（S23 扩展） */
   publicApiUnits?: PublicApiUnit[]
+  /** 运行时（S23 ④）：运行时名 → 入口 glob。消费者的运行时按可达性推导（R-139） */
+  runtimes?: RuntimeSpec[]
+  /** 运行时面（S23 ④⑤）：面文件模式 → 所属性运行时 →（可选）面值名模式（R-139 / R-140） */
+  faces?: FaceSpec[]
   /** 这些组维度的每个组必须含 ≥1 个**非入口**文件（S24） */
   segmentedGroups?: string[]
   /** 保留名表：角色目录**内部**的任何嵌套子目录，基名命中即报（S25） */
@@ -185,6 +222,8 @@ export interface ResolvedStructure {
   isolate: string[]
   publicApi: string[]
   publicApiUnits: PublicApiUnit[]
+  runtimes: RuntimeSpec[]
+  faces: FaceSpec[]
   segmentedGroups: string[]
   reservedNames: string[]
   groupCountLimits: GroupCountLimit[]

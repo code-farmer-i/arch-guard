@@ -341,7 +341,68 @@ export function explainRules(
     lines.push(color.dim(`  只想跑它：arch-guard --only ${rule.id}`))
   }
   if (missing.length > 0) {
-    lines.push(color.yellow(`未知规则：${missing.join(' / ')}（规则全表见 docs/DESIGN.md §4）`))
+    lines.push(
+      color.yellow(
+        `未知规则：${missing.join(' / ')}（不在当前规则集里：本仓规则全表见 docs/DESIGN.md §4；` +
+          '项目自定义规则要先进规则集 —— arch.config.mjs 的 `packs`，或程序化入口 `runGuard({ rules })`）',
+      ),
+    )
+  }
+  return lines.join('\n')
+}
+
+/**
+ * **规则目录**（R-141 的另一半）：把**当前规则集**整表讲出来。
+ *
+ * 为什么需要它：`--explain <id>` 是"按 id 问一条"，可自定义规则的 id 从哪来？
+ * 项目的规则表里没有它们 —— 于是"我这条规则注册上没有、它要求什么"只能翻项目源码。
+ * 这里把规则集变成可打印的目录：**规则集里有哪些，就列哪些**（配置给的包里的规则同样在内）。
+ *
+ * 与 `--explain` 的分工：目录答"有哪些"，explain 答"这一条要什么"；两者读同一份元数据（规则对象）。
+ * 程序化入口注入的规则集（`runGuard({ rules })`）CLI 看不到 —— 那种情况直接调这个函数。
+ */
+export function renderRuleCatalog(
+  rules: Rule[],
+  input: { format: ReportFormat } = { format: 'pretty' },
+): string {
+  const sorted = [...rules].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  if (input.format === 'json') {
+    return JSON.stringify(
+      {
+        total: sorted.length,
+        rules: sorted.map((rule) => ({
+          id: rule.id,
+          title: rule.title,
+          domain: rule.domain,
+          level: rule.level,
+          severity: rule.severity,
+          requires: rule.requires ?? [],
+        })),
+      },
+      null,
+      2,
+    )
+  }
+  const byDomain = new Map<string, Rule[]>()
+  for (const rule of sorted) {
+    const list = byDomain.get(rule.domain) ?? []
+    list.push(rule)
+    byDomain.set(rule.domain, list)
+  }
+  const lines: string[] = [`规则目录：${sorted.length} 条`]
+  for (const domain of [...byDomain.keys()].sort()) {
+    const list = byDomain.get(domain) ?? []
+    lines.push('')
+    lines.push(
+      `${color.bold(DOMAIN_LABEL[domain as keyof typeof DOMAIN_LABEL] ?? domain)}（${list.length} 条）`,
+    )
+    for (const rule of list) {
+      const needs =
+        rule.requires && rule.requires.length > 0 ? ` · 需要 ${rule.requires.join('/')}` : ''
+      lines.push(
+        `  ${color.bold(rule.id)}  ${rule.level} ${rule.severity}  ${rule.title}${color.dim(needs)}`,
+      )
+    }
   }
   return lines.join('\n')
 }

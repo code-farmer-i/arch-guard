@@ -35,6 +35,7 @@ export {
   explainRules,
   looksLikeRuleId,
   renderExplanations,
+  renderRuleCatalog,
 } from './engine/explain.js'
 export {
   defineAdapter,

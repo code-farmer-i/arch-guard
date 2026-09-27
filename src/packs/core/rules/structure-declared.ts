@@ -1,5 +1,6 @@
 import { TEST_LAYER_MIN } from '../../../engine/defaults.js'
-import type { Finding, Rule } from '../../../engine/types.js'
+import type { FaceSpec, Finding, Rule, RuleContext } from '../../../engine/types.js'
+import { globToRegExp } from '../../../engine/util.js'
 
 import { finding, unitDirOf } from './structure-util.js'
 
@@ -122,6 +123,98 @@ export const groupIsolation: Rule = {
   },
 }
 
+/* ---------------- S23 ④⑤ 运行时面与面值（R-139 / R-140，ADR-0008） ---------------- */
+
+/**
+ * 从一组入口出发，收集**可达**的文件（沿 import 边正向走）。
+ *
+ * 与 `graph.reachable` 的区别：那一份是"从所有入口一起"算（判孤儿），这里是**逐运行时**算 ——
+ * 于是「同构模块」自然同时落进两个运行时的集合里（它从两个入口都可达），可以用任意面。
+ * **测试文件不当根**：测试引了宿主面，不该让宿主面变成浏览器侧的。
+ */
+function reachableFrom(entries: string[], ctx: RuleContext, files: string[]): Set<string> {
+  const roots = new Set<string>()
+  for (const glob of entries) {
+    const matcher = globToRegExp(glob)
+    for (const rel of files) if (matcher.test(rel)) roots.add(rel)
+  }
+  const seen = new Set<string>()
+  const queue = [...roots]
+  while (queue.length > 0) {
+    const rel = queue.pop() as string
+    if (seen.has(rel)) continue
+    seen.add(rel)
+    for (const next of ctx.graph.edges.get(rel) ?? []) if (!seen.has(next)) queue.push(next)
+  }
+  return seen
+}
+
+/**
+ * ④ 运行时面：**跨运行时不许走别的面**。消费者在哪一侧按可达性推导（不逐文件标注）；
+ * 可达集为空 = 孤儿 → 不判（S15 已经报孤儿，两条规则不许对同一件事各报一句）。
+ * ⑤ 面值：声明了 `value` 的面文件**只许导出**匹配该模式的值（类型豁免）——
+ * 于是"面外拿到内部实现"在**提供侧**就不可能发生，消费侧不必逐 import 对账。
+ */
+function runtimeFaceFindings(ctx: RuleContext): Finding[] {
+  // 默认值不是防御性编程：测试与程序化调用方会手搓 `Config`（不走 `loadConfig`），
+  // 少了这两个字段时规则必须安静通过 —— 见 `tests/rules-robustness.test.mjs`
+  const runtimes = ctx.config.structure.runtimes ?? []
+  const faces = ctx.config.structure.faces ?? []
+  if (runtimes.length === 0 && faces.length === 0) return []
+  const files = ctx.records.map((record) => record.rel)
+  const faceOf = new Map<string, FaceSpec>()
+  for (const face of faces) {
+    const matcher = globToRegExp(face.pattern)
+    for (const rel of files) if (matcher.test(rel)) faceOf.set(rel, face)
+  }
+  const out: Finding[] = []
+
+  if (faceOf.size > 0 && runtimes.length > 0) {
+    const reach = new Map<string, Set<string>>()
+    for (const runtime of runtimes)
+      reach.set(runtime.name, reachableFrom(runtime.entries, ctx, files))
+    for (const record of ctx.records) {
+      const owners = runtimes
+        .map((runtime) => runtime.name)
+        .filter((name) => reach.get(name)?.has(record.rel) === true)
+      if (owners.length === 0) continue
+      for (const target of ctx.graph.edges.get(record.rel) ?? []) {
+        const face = faceOf.get(target)
+        if (face === undefined || owners.includes(face.runtime)) continue
+        out.push(
+          finding(
+            'S23',
+            record.rel,
+            1,
+            `跨运行时走了「${face.runtime}」面：${target}（本文件在 ${owners.join(' / ')} 侧）`,
+            '换成本运行时那一面；两个运行时都要用的部分提到都可达的位置',
+          ),
+        )
+      }
+    }
+  }
+
+  for (const [rel, face] of faceOf) {
+    if (face.value === undefined) continue
+    const facts = ctx.facts.get(rel)
+    if (facts === undefined) continue
+    const matcher = globToRegExp(face.value)
+    for (const item of facts.exports) {
+      if (item.isStar || item.typeOnly || matcher.test(item.name)) continue
+      out.push(
+        finding(
+          'S23',
+          rel,
+          item,
+          `面文件导出了面值之外的东西：${item.name}（「${face.runtime}」面只对外给 ${face.value}）`,
+          `内部实现从面里去掉 —— 组内直接引内部文件，面只留 ${face.value}`,
+        ),
+      )
+    }
+  }
+  return out
+}
+
 /* ---------------- S23 公开面（组必须有入口，且组外不许绕过它） ---------------- */
 
 /**
@@ -142,9 +235,11 @@ export const declaredPublicApi: Rule = {
   title: '公开面',
   hint: '组必须有公开面入口（三根是 routes.tsx、FSD 是 index.ts），且组外只能从入口进',
   run: (ctx) => {
+    // ④⑤ 与组维度无关（`library()` 范式根本没有组）：先算出来，再与 ①②③ 合并成一条规则的输出
+    const faceFindings = runtimeFaceFindings(ctx)
     const dimensions = new Set(ctx.config.structure.publicApi)
     const units = ctx.config.structure.publicApiUnits ?? []
-    if (dimensions.size === 0 && units.length === 0) return []
+    if (dimensions.size === 0 && units.length === 0) return faceFindings
     const entryRoles = new Set(
       ctx.config.roles.filter((role) => role.entry === true).map((role) => role.id),
     )
@@ -266,7 +361,7 @@ export const declaredPublicApi: Rule = {
         ),
       )
     }
-    return out
+    return [...faceFindings, ...out]
   },
 }
 

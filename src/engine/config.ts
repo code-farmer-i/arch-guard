@@ -179,6 +179,9 @@ const KNOWN_STRUCTURE_KEYS: Record<keyof StructureSpec, true> = {
   authRedirects: true,
   maxRelativeUp: true,
   generated: true,
+  // 运行时面（R-139 / R-140，ADR-0008）：`runtimes` 给运行时与入口，`faces` 给面文件与面值模式
+  runtimes: true,
+  faces: true,
 }
 
 /** 不认识的键直接拒（fail-closed）：声明了却没人读，等于这条纪律根本没配 */
