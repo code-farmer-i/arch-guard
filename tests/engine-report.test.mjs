@@ -346,7 +346,8 @@ test('R-126：`--brief` 只折叠、不删信息（说清各有几条 + 怎么�
     ),
   )
   assert.match(text, /自述 2 条/)
-  assert.match(text, /因能力停用 1 条规则/)
+  // R-142：折叠行按**原因**给条数（能力 / 未启用 / 收窄），不再一律写成"因能力停用"
+  assert.match(text, /没跑 1 条（能力 1）/)
   assert.match(text, /去掉 --brief 展开/, '折叠必须说清怎么看全（不许静默）')
   assert.doesNotMatch(text, /别名取自 tsconfig/, '折叠时不再逐条展开')
 })

@@ -665,6 +665,22 @@ JSON 里的枚举值（`notices[].code` · `skipped[].code`；将来若加 `seve
 `--paths` 匹配到 0 个文件 = **你要求判的东西一件都没判**。它现在三处同时说：
 `paths: { requested, matched: 0 }` · `notices[].code === 'paths-no-match'` · **退出码 2**。
 「没问」（`paths: null`）与「问了没命中」（`matched: 0`）**必须可区分** —— 前者是没事，后者是出事。
+
+**（5）规则账目必须闭合**（R-142）
+
+`rulesEnabled + skipped.length + 被 disable 的 == rulesTotal` —— 每条**注册**的规则都必须有下落。
+三类"没跑"各有稳定 code：
+
+| `skipped[].code`     | 含义                                                                               | 修法                                                     |
+| -------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `capability-missing` | 能力未声明（**只有这一种的 `missing` 非空**）                                      | 按报告给的 `recipe` 补声明                               |
+| `not-enabled`        | 在规则集里，但不在 `config.enable` 名单里（预设没给 / 被 `overrides.enable` 排除） | 加进 `enable`，或换范式预设（`--explain <id>` 会给理由） |
+| `filtered`           | 在名单里，但被本次运行的 `--only` / `--domain` / `--min-level` 收窄                | 去掉过滤器（这次没让它跑，不是它没跑）                   |
+
+为什么要有这一条：以前只有 `capability-missing` 进 `skipped`，另外两类落在**所有桶之外** ——
+报告只印 `规则 70/112`，读者算不出那 42 条去哪了（实测 `dsh-workbench`：把一条规则移出名单，
+**唯一的信号是分子 −1**）。`disable` 不进 `skipped`（它已经有 `rules-disabled` 自述，同一件事不许两处报）。
+`--explain <id>` 与 `--list-rules` 读**同一份账目**（都带 `state`），所以「这条跑不跑、为什么」三处答案一致。
 （`--report-only` 仍然恒 0：它是显式的"只看不拦"。）
 
 ---

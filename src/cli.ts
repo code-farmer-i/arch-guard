@@ -386,11 +386,13 @@ async function query(options: CliOptions): Promise<number> {
     const cwd = process.cwd()
     const format = options.format === 'json' ? 'json' : 'pretty'
     const { config, rules } = await loadRuleSet(options.config)
+    // 这次运行的"跑不跑"账目（R-142）：两个查询都读它，而不是各自猜
+    const registry = createRegistry(rules, config)
+    const state = { skipped: registry.skipped, disabled: config.disable ?? [] }
     if (options.listRules === true) {
-      out(renderRuleCatalog(rules, { format }))
+      out(renderRuleCatalog(rules, { format, ...state }))
       return 0
     }
-    const registry = createRegistry(rules, config)
     const args = (options.explain ?? '')
       .split(',')
       .map((item) => item.trim())
@@ -398,7 +400,7 @@ async function query(options: CliOptions): Promise<number> {
     // `--explain D29` 也要能展开（违规里印着 [D29]，新人却无从下手）
     const ruleIds = args.filter((item) => looksLikeRuleId(item))
     if (ruleIds.length > 0) {
-      out(explainRules(ruleIds, { rules, format }))
+      out(explainRules(ruleIds, { rules, format, ...state }))
       if (ruleIds.length === args.length) return 0
     }
     const paths = args

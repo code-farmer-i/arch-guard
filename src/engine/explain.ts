@@ -282,9 +282,17 @@ export function renderExplanations(list: PathExplanation[], format: ReportFormat
       }
     }
     if (item.rules.skipped.length > 0) {
-      lines.push(
-        `  因能力停用 ${item.rules.skipped.map((entry) => entry.rule).join(' / ')}（缺能力，不是通过）`,
-      )
+      // R-142：三类"没跑"分开说 —— 以前一律写成"因能力停用"，把"预设没启用"也说成缺能力
+      const why: Record<string, string> = {
+        'capability-missing': '缺能力，不是通过',
+        'not-enabled': '不在配置的 enable 名单里，不是通过',
+        filtered: '被 --only / --domain / --min-level 收窄（这次没让它跑）',
+      }
+      for (const code of ['capability-missing', 'not-enabled', 'filtered'] as const) {
+        const group = item.rules.skipped.filter((entry) => entry.code === code)
+        if (group.length === 0) continue
+        lines.push(`  没跑 ${group.map((entry) => entry.rule).join(' / ')}（${why[code]}）`)
+      }
     }
     for (const note of item.notes) lines.push(`  提示       ${note}`)
     return lines.join('\n')
@@ -300,15 +308,29 @@ export const looksLikeRuleId = (value: string): boolean => RULE_ID.test(value.tr
 /**
  * **`--explain D29`**（UX）：`--explain` 以前只收路径 —— 违规里印着 `[D29]`，新人却无从展开。
  * 规则对象上本来就有 title / hint / requires，这里只是把它们讲出来（不新增事实）。
+ *
+ * `skipped` / `disabled` 来自 registry（**可选**）：给了就多讲一行「这条在当前配置下跑不跑、为什么」——
+ * 只讲规则本身而不管它在本次运行里跑没跑，正是 R-142 要补的那个洞。
  */
 export function explainRules(
   ids: string[],
-  input: { rules: Rule[]; format: ReportFormat },
+  input: { rules: Rule[]; format: ReportFormat; skipped?: SkippedRule[]; disabled?: string[] },
 ): string {
   const found = ids.map((id) =>
     input.rules.find((rule) => rule.id.toUpperCase() === id.trim().toUpperCase()),
   )
   const missing = ids.filter((_, index) => found[index] === undefined)
+  /**
+   * **这条在当前配置下跑不跑、为什么**（R-142）：`--explain` 以前只讲规则本身，
+   * 于是"这条已经在跑了 / 它其实没跑"这个最要紧的事实要读者自己去报告里对账。
+   */
+  const stateOf = (rule: Rule): { state: string; reason: string | null } => {
+    const skip = input.skipped?.find((entry) => entry.rule === rule.id)
+    if (skip) return { state: skip.code, reason: skip.reason }
+    if (input.disabled?.includes(rule.id))
+      return { state: 'disabled', reason: '被配置显式 disable' }
+    return { state: 'enabled', reason: null }
+  }
   if (input.format === 'json') {
     return JSON.stringify(
       {
@@ -322,6 +344,8 @@ export function explainRules(
             severity: rule.severity,
             requires: rule.requires ?? [],
             hint: rule.hint ?? null,
+            state: stateOf(rule).state,
+            stateReason: stateOf(rule).reason,
           })),
         unknown: missing,
       },
@@ -332,8 +356,14 @@ export function explainRules(
   const lines: string[] = []
   for (const rule of found) {
     if (!rule) continue
+    const { state, reason } = stateOf(rule)
     lines.push(`${color.bold(rule.id)} ${rule.title}`)
     lines.push(color.dim(`  域 ${rule.domain} · 等级 ${rule.level} · 严重度 ${rule.severity}`))
+    lines.push(
+      state === 'enabled'
+        ? color.dim('  当前配置下：会跑')
+        : color.yellow(`  当前配置下：没跑 —— ${reason ?? state}`),
+    )
     if (rule.requires && rule.requires.length > 0) {
       lines.push(color.dim(`  需要声明：${rule.requires.join(' / ')}（没声明这条不跑）`))
     }
@@ -363,9 +393,34 @@ export function explainRules(
  */
 export function renderRuleCatalog(
   rules: Rule[],
-  input: { format: ReportFormat } = { format: 'pretty' },
+  input: { format: ReportFormat; skipped?: SkippedRule[]; disabled?: string[] } = {
+    format: 'pretty',
+  },
 ): string {
   const sorted = [...rules].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  /**
+   * 每条规则的**本次状态**（R-142）：只列"有哪些"却不标"跑不跑"，读者仍要自己跟报告对账 ——
+   * 而"移出名单就不跑"正是这条需求要消灭的那个静默。
+   */
+  const stateOf = (rule: Rule): { state: string; mark: string } => {
+    const skip = input.skipped?.find((entry) => entry.rule === rule.id)
+    if (skip) {
+      const mark =
+        skip.code === 'capability-missing'
+          ? '缺能力'
+          : skip.code === 'not-enabled'
+            ? '未启用'
+            : '收窄'
+      return { state: skip.code, mark }
+    }
+    if (input.disabled?.includes(rule.id)) return { state: 'disabled', mark: '停用' }
+    return { state: 'enabled', mark: '跑' }
+  }
+  const counts = new Map<string, number>()
+  for (const rule of sorted) {
+    const { mark } = stateOf(rule)
+    counts.set(mark, (counts.get(mark) ?? 0) + 1)
+  }
   if (input.format === 'json') {
     return JSON.stringify(
       {
@@ -377,6 +432,7 @@ export function renderRuleCatalog(
           level: rule.level,
           severity: rule.severity,
           requires: rule.requires ?? [],
+          state: stateOf(rule).state,
         })),
       },
       null,
@@ -389,7 +445,11 @@ export function renderRuleCatalog(
     list.push(rule)
     byDomain.set(rule.domain, list)
   }
-  const lines: string[] = [`规则目录：${sorted.length} 条`]
+  const summary = ['跑', '未启用', '缺能力', '收窄', '停用']
+    .filter((mark) => (counts.get(mark) ?? 0) > 0)
+    .map((mark) => `${mark} ${counts.get(mark)}`)
+    .join(' · ')
+  const lines: string[] = [`规则目录：${sorted.length} 条（${summary}）`]
   for (const domain of [...byDomain.keys()].sort()) {
     const list = byDomain.get(domain) ?? []
     lines.push('')
@@ -399,8 +459,10 @@ export function renderRuleCatalog(
     for (const rule of list) {
       const needs =
         rule.requires && rule.requires.length > 0 ? ` · 需要 ${rule.requires.join('/')}` : ''
+      const { mark } = stateOf(rule)
+      const tag = mark === '跑' ? color.dim(`[${mark}]`) : color.yellow(`[${mark}]`)
       lines.push(
-        `  ${color.bold(rule.id)}  ${rule.level} ${rule.severity}  ${rule.title}${color.dim(needs)}`,
+        `  ${color.bold(rule.id)}  ${rule.level} ${rule.severity}  ${tag} ${rule.title}${color.dim(needs)}`,
       )
     }
   }

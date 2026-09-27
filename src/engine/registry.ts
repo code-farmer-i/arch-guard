@@ -55,17 +55,27 @@ export function createRegistry(
   const disabled = new Set(config.disable ?? [])
   const requested = (enable === 'all' ? [...all.keys()] : enable).filter((id) => !disabled.has(id))
   const unknownEnabled = requested.filter((id) => !all.has(id))
+  const requestedSet = new Set(requested)
 
   const enabled: Rule[] = []
   const skipped: SkippedRule[] = []
+  const filtered: string[] = []
 
   for (const id of requested) {
     const rule = all.get(id)
     if (!rule) continue
-    if (filters.only && filters.only.length > 0 && !filters.only.includes(rule.id)) continue
-    if (filters.domain && filters.domain.length > 0 && !filters.domain.includes(rule.domain))
+    if (filters.only && filters.only.length > 0 && !filters.only.includes(rule.id)) {
+      filtered.push(rule.id)
       continue
-    if (filters.minLevel && LEVEL_ORDER[rule.level] > LEVEL_ORDER[filters.minLevel]) continue
+    }
+    if (filters.domain && filters.domain.length > 0 && !filters.domain.includes(rule.domain)) {
+      filtered.push(rule.id)
+      continue
+    }
+    if (filters.minLevel && LEVEL_ORDER[rule.level] > LEVEL_ORDER[filters.minLevel]) {
+      filtered.push(rule.id)
+      continue
+    }
     const missing = (rule.requires ?? []).filter((capability) => !hasCapability(config, capability))
     if (missing.length > 0) {
       skipped.push({
@@ -79,5 +89,38 @@ export function createRegistry(
     enabled.push(rule)
   }
 
+  /**
+   * **账目闭合**（R-142）。上面那一轮只走"被请求的"规则 —— 于是"注册了却没被请求"的规则
+   * （预设的 `enable` 名单里没有它）以前落在**所有桶之外**：报告只印 `规则 70/112`，
+   * 既不说哪 42 条、也不说为什么。现在它们进 `skipped`，与"能力停用"同一本账。
+   *
+   * `disable` 掉的**不在这里** —— 显式停用已经有自己的自述（`rules-disabled`），同一件事不许两处报。
+   */
+  const listOwner =
+    config.paradigm === undefined
+      ? '`enable` 名单'
+      : `预设 \`${config.paradigm}()\` 或 \`overrides.enable\` 给的名单`
+  for (const id of all.keys()) {
+    if (requestedSet.has(id) || disabled.has(id)) continue
+    skipped.push({
+      rule: id,
+      code: 'not-enabled',
+      missing: [],
+      reason: `不在启用名单里（${listOwner}）`,
+    })
+  }
+  for (const id of filtered) {
+    skipped.push({
+      rule: id,
+      code: 'filtered',
+      missing: [],
+      reason: '被本次运行的过滤器（--only / --domain / --min-level）收窄掉了',
+    })
+  }
+
+  // 报告里按 code 分组，顺序稳定：能力 → 未启用 → 收窄（同一 code 内按 id 排）
+  skipped.sort((a, b) =>
+    a.code === b.code ? (a.rule < b.rule ? -1 : 1) : a.code < b.code ? -1 : 1,
+  )
   return { enabled, skipped, unknownEnabled, filters }
 }

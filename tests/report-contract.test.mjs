@@ -215,7 +215,8 @@ test('没给 --paths 时 paths 是 null（"没问"与"问了没命中"必须可�
 })
 
 test('冻结：skipped[].code 清单，且「没跑」的原因不是散文', async () => {
-  assert.deepEqual([...SKIP_CODES], ['capability-missing'])
+  // R-142 加了两种"没跑"：不在启用名单里、被本次过滤器收窄 —— 以前它们落在所有桶之外
+  assert.deepEqual([...SKIP_CODES], ['capability-missing', 'not-enabled', 'filtered'])
   const dir = makeProject()
   try {
     const json = await report(dir)
@@ -232,9 +233,34 @@ test('冻结：skipped[].code 清单，且「没跑」的原因不是散文', as
       )
       if ('recipe' in entry) assert.ok(entry.recipe.length > 0, 'recipe 不许是空串')
       assert.ok(SKIP_CODES.includes(entry.code), `未知 skip code：${entry.code}`)
-      assert.ok(Array.isArray(entry.missing) && entry.missing.length > 0)
+      // `missing` **当且仅当** capability-missing 时非空（另两种没有"缺什么能力"可言）
+      if (entry.code === 'capability-missing') assert.ok(entry.missing.length > 0)
+      else assert.deepEqual(entry.missing, [], `${entry.code} 不该带 missing`)
       assert.ok(entry.reason.length > 0)
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('R-142：账目闭合 —— 注册的规则 ∈ enabled ∪ skipped（含被过滤器收窄的那一次）', async () => {
+  const dir = makeProject()
+  try {
+    const plain = await report(dir)
+    assert.equal(plain.rulesEnabled + plain.skipped.length, plain.rulesTotal)
+
+    // 收窄也要进账：`--only S01` 之后，其余规则以 `filtered` 出现在 skipped 里，而不是"消失"
+    const narrowed = await report(dir, ['--only', 'S01'])
+    assert.equal(narrowed.rulesEnabled, 1)
+    assert.equal(
+      narrowed.rulesEnabled + narrowed.skipped.length,
+      narrowed.rulesTotal,
+      '收窄掉的规则不许"消失"—— 它们是 filtered，不是不存在',
+    )
+    assert.equal(
+      narrowed.skipped.filter((entry) => entry.code === 'filtered').length,
+      narrowed.rulesTotal - 1,
+    )
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

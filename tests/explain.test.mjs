@@ -218,8 +218,9 @@ test('R-141：--list-rules 给出当前规则集的目录（含自定义规则�
   try {
     const pretty = await runCli(['--list-rules'], dir)
     assert.equal(pretty.code, 0, '这是查询，不是判决')
-    assert.match(pretty.out, /规则目录：\d+ 条/)
-    assert.match(pretty.out, /S99\s+L2 error\s+自有规则：外壳只碰公开面/)
+    assert.match(pretty.out, /规则目录：\d+ 条（跑 \d+/)
+    // R-142：每条都要标"本次跑不跑"
+    assert.match(pretty.out, /S99\s+L2 error\s+\[跑\]\s+自有规则：外壳只碰公开面/)
     assert.match(pretty.out, /结构（\d+ 条）/, '按域分组')
 
     const json = await runCli(['--list-rules', '--format=json'], dir)
@@ -234,6 +235,7 @@ test('R-141：--list-rules 给出当前规则集的目录（含自定义规则�
         level: 'L2',
         severity: 'error',
         requires: [],
+        state: 'enabled',
       },
       '机读目录要带全元数据（agent 靠它自服务）',
     )

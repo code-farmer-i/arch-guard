@@ -17,6 +17,49 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-27
+
+> **契约与迁移（这一版必读）**
+>
+> - **契约变更（兼容性新增，`apiVersion` 不动）**：`SKIP_CODES` 加两项 —— `not-enabled`（注册了，
+>   但不在 `enable` 名单里）与 `filtered`（被 `--only` / `--domain` / `--min-level` 收窄）。
+>   **对 `skipped[].code` 做穷举映射的 TS 消费方会编译期红**（这是设计，见 DESIGN §6.9）；
+>   `.mjs` / CI 脚本请用 `isSkipCode()` fail-closed，别去解析中文 `reason`。
+>   同时 `SkippedRule.missing` 收紧为「**当且仅当** `code === 'capability-missing'` 时非空」。
+> - **行为变化（输出文案变了，有断言输出的消费方要留意）**：
+>   1. 报告多两段自述：`未启用 N 条规则（不在配置的 enable 名单里）：…` 与
+>      `被本次运行的过滤器收窄 N 条规则（--only / --domain / --min-level）`。
+>   2. `--brief` 的折叠行从「因能力停用 N 条规则」改成按原因给条数：
+>      `没跑 N 条（能力 X · 未启用 Y · 收窄 Z）`。
+>   3. `--explain <规则 id>` 多一行「当前配置下：会跑 / 没跑 —— 为什么」；
+>      `--list-rules` 每条多一个状态标注（`[跑] / [未启用] / [缺能力] / [收窄] / [停用]`），
+>      机读多一个 `state` 字段（兼容性新增）。
+> - **规模**：规则 **107**（本版**未新增规则**）· 夹具 **95** · 需求 → **139**
+>   （`已完成` 128 / `已委派` 4 / `不做` 7）。
+>
+> **发布前必做（本版已做）**：Node **24.13.0** 与 **22.18.0** 上各跑一次完整 `pnpm check`，都 **EXIT=0**。
+> **版本号留给发布工具 bump**（`pnpm release` 会问 patch/minor/major → 本版选 **minor** → `0.9.0`）。
+
+### Added（R-142：规则账目闭合 —— 「注册≠执行」不再静默）
+
+- **症状**：把一条规则从启用名单里移出去（改预设的 `enable`、或自定义规则没列进去），
+  **唯一的信号是报告头 `规则 70/112` 的分子 −1** —— 不点名、不给理由、也不问"这是有意的吗"。
+  实测 `dsh-workbench`：`70/112` 且只解释了 24 条（`因能力未声明而停用`），
+  **另 18 条既不在 `enabled` 也不在 `skipped`，报告一个字都不提**；本仓自己是 `39/107` + 停用 14 →
+  **54 条无人提及**；`examples/full-fsd` 是 **9 条**（R-87 明确允许缺席的应用专属规则 ——
+  有意的缺席，但报告同样说不出"这是有意的"）。
+- **根因**：`registry` 只有三个桶（`enabled` / `skipped`（只收 `capability-missing`）/ `unknownEnabled`），
+  「不在启用名单里」的规则落在**所有桶之外**。`codes.ts` 的注释早就把 `skipped[].code` 定为扩展点。
+- **修法**：**不加桶**，往 `skipped` 里补两种 code（`not-enabled` / `filtered`）→ **账目闭合**：
+  `rulesEnabled + skipped.length + disable == rulesTotal`。三处读**同一份**账目：
+  报告分三段自述（点名 + 可执行处方）· `--explain <id>` 直接回答「这条跑不跑、为什么」·
+  `--list-rules` 每条标状态（机读 `state`）。`disable` **不进** `skipped`（它已有 `rules-disabled` 自述，
+  同一件事不许两处报）。
+- **顺带把 R-87 的守卫升级**：`paradigm-coverage` 以前靠"算差集"来**记录** FSD 那 9 条的静默缺席；
+  现在要求**账目闭合**（注册的规则一条都不许没下落）+ 那 9 条必须**明列** `not-enabled` ——
+  同一份名单，更强的判据。
+- 决策与取舍见 [`.scratch/rule-accounting/spec.md`](.scratch/rule-accounting/spec.md)。
+
 ## [0.8.0] - 2026-09-27
 
 > **契约与迁移（这一版必读）**

@@ -138,11 +138,27 @@ export function renderSummary(input: ReportInput): void {
   ].filter(Boolean)
   out(color.dim(parts.join(' | ')))
 
+  /**
+   * **三类"没跑"分开说**（R-142）：能力未声明 / 不在启用名单 / 被过滤器收窄。
+   * 以前只有第一类有自述，后两类落在所有桶之外 —— 报告只印 `规则 70/112`，读者算不出那 42 条去哪了。
+   */
+  const capabilityMissing = input.skipped.filter((entry) => entry.code === 'capability-missing')
+  const notEnabled = input.skipped.filter((entry) => entry.code === 'not-enabled')
+  const filteredOut = input.skipped.filter((entry) => entry.code === 'filtered')
+
   if (input.brief === true) {
     // 折叠**不删信息**：说清各有几条、怎么看全（静默是这套机制最该防的）
     const counted = [
       input.notices.length > 0 ? `自述 ${input.notices.length} 条` : null,
-      input.skipped.length > 0 ? `因能力停用 ${input.skipped.length} 条规则` : null,
+      input.skipped.length > 0
+        ? `没跑 ${input.skipped.length} 条（${[
+            capabilityMissing.length > 0 ? `能力 ${capabilityMissing.length}` : null,
+            notEnabled.length > 0 ? `未启用 ${notEnabled.length}` : null,
+            filteredOut.length > 0 ? `收窄 ${filteredOut.length}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}）`
+        : null,
       input.exceptions.length > 0 ? `例外 ${input.exceptions.length} 条声明` : null,
       input.unknownEnabled.length > 0 ? `未知规则 ${input.unknownEnabled.length} 条` : null,
     ].filter(Boolean)
@@ -163,10 +179,14 @@ export function renderSummary(input: ReportInput): void {
       )
     }
   }
-  if (input.skipped.length > 0) {
+  /**
+   * **三类"没跑"分开说**（R-142）：能力未声明 / 不在启用名单 / 被过滤器收窄。
+   * 以前只有第一类有自述，后两类落在所有桶之外 —— 报告只印 `规则 70/112`，读者算不出那 42 条去哪了。
+   */
+  if (capabilityMissing.length > 0) {
     out(
       color.dim(
-        `\n因能力未声明而停用 ${input.skipped.length} 条规则：${input.skipped.map((entry) => entry.rule).join(' / ')}`,
+        `\n因能力未声明而停用 ${capabilityMissing.length} 条规则：${capabilityMissing.map((entry) => entry.rule).join(' / ')}`,
       ),
     )
     /**
@@ -174,7 +194,7 @@ export function renderSummary(input: ReportInput): void {
      * 按"补法"归组，一行一条可以直接粘进配置的调用。
      */
     const byRecipe = new Map<string, string[]>()
-    for (const entry of input.skipped) {
+    for (const entry of capabilityMissing) {
       const recipe = recipeFor(entry.missing)
       if (!recipe) continue
       byRecipe.set(recipe, [...(byRecipe.get(recipe) ?? []), entry.rule])
@@ -182,6 +202,27 @@ export function renderSummary(input: ReportInput): void {
     for (const [recipe, rules] of byRecipe) {
       out(color.dim(`    · ${rules.join(' ')} 想要就跑 → `) + color.cyan(recipe))
     }
+  }
+  if (notEnabled.length > 0) {
+    out(
+      color.dim(
+        `\n未启用 ${notEnabled.length} 条规则（不在配置的 \`enable\` 名单里）：${notEnabled.map((entry) => entry.rule).join(' / ')}`,
+      ),
+    )
+    out(
+      color.dim(
+        '    · 不配 = 不跑，不是通过：要跑就把它们加进 `arch.config.mjs` 的 `enable`，或换一个范式预设' +
+          '（`--explain <规则 id>` 讲它要什么、`--list-rules` 列全表）',
+      ),
+    )
+  }
+  if (filteredOut.length > 0) {
+    // 收窄是**用户自己敲的**，所以只报条数、不刷 id（106 个 id 对 `--only S45` 毫无信息量）
+    out(
+      color.dim(
+        `\n被本次运行的过滤器收窄 ${filteredOut.length} 条规则（--only / --domain / --min-level）—— 不是它们没跑，是这次没让它们跑`,
+      ),
+    )
   }
   if (input.unknownEnabled.length > 0) {
     out(color.yellow(`⚠ 配置里启用了不存在的规则：${input.unknownEnabled.join(', ')}`))

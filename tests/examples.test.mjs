@@ -13,6 +13,7 @@ import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { coreRules, createRegistry, reactPack, runGuard } from '../es/index.js'
+import { APP_ONLY } from './paradigm-app-only.mjs'
 
 /**
  * **示例是"活样板"，也是"规则还有效"的回归**。
@@ -80,10 +81,13 @@ const run = (dir) =>
     quiet: true,
   })
 const rulesOf = (result) => new Set(result.all.map((item) => item.rule))
-const skippedOf = (result) =>
+/** 本次"没跑"的规则 id，按原因筛（R-142 起 `skipped` 里不止"能力未声明"一种） */
+const skipCodesOf = (result, code) =>
   createRegistry(coreRules, result.config)
-    .skipped.map((item) => item.rule)
+    .skipped.filter((item) => item.code === code)
+    .map((item) => item.rule)
     .sort()
+const skippedOf = (result) => skipCodesOf(result, 'capability-missing')
 
 test('示例基线：examples/full 除覆盖率 5 条外全在跑、0 finding、没有"声明 0 命中"自述', async () => {
   const result = await run(EXAMPLE)
@@ -553,6 +557,11 @@ test('示例基线（FSD）：除明列停用外全在跑、0 finding、没有"�
     false,
   )
   assert.deepEqual(skippedOf(result), ['M02', 'M03', 'M04', 'M05', 'M06', 'S13', 'S37'])
+  assert.deepEqual(
+    skipCodesOf(result, 'not-enabled'),
+    [...APP_ONLY].sort(),
+    'FSD 的 9 条应用专属规则必须**明列未启用**（R-142）—— 以前它们跑不跑都没人说',
+  )
 })
 
 const FSD_MUTATIONS = [

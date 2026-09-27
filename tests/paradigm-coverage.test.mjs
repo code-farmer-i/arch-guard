@@ -3,6 +3,8 @@ import { test } from 'node:test'
 
 import { canonical, fsd, library } from '../es/index.js'
 
+import { APP_ONLY } from './paradigm-app-only.mjs'
+
 /**
  * **元门禁：范式预设的结构词汇必须完整**（R-74）。
  *
@@ -81,56 +83,51 @@ test('范式预设：有入口语义的范式必须有 entry 角色（否则 S23
   }
 })
 
-/**
- * **元门禁：范式无关的规则，不许在某个范式下"静默消失"**（R-87，R-74 的姊妹条）。
- *
- * R-74 管的是"规则注册了却在某个范式下永远不命中"；这条管**更靠前的一步**：
- * 规则**根本没被任何预设启用** —— 它既不跑、也不在报告的 `skipped` 停用清单里，
- * 于是宿主配了声明（`clientState` / `authRedirects` / `couplingLimits`…）也毫无作用，
- * 而报告一个字都不提。实测：`fsd()` 复用 `library()` 的启用清单，那清单里少了 9 条与范式无关的规则。
- *
- * 判据用**两份真实示例**（canonical 与 FSD，声明都给全）的差集，而不是手写规则名：
- * 差集必须**正好**是下面这批"应用专属"的规则，多一条就红。
- */
-const APP_ONLY = [
-  'S03', // 域根只许公开面入口
-  'S04', // 域内 / 域外引用形态（别名约定）
-  'S05', // 域外只许引 routes
-  'S06', // views 对域外私有
-  'S09', // app/layouts 不得 import modules
-  'S14', // 域有 views 就必须有 routes
-  'S15', // 可达性（域 routes 必被 app/router 聚合）
-  'S18', // shared 只被一个域使用 → 下沉
-  'S19', // 单文件导出值上限（应用侧的体积卫生；库的模块就是 API 面）
-]
-
-test('范式覆盖：除明列的应用专属规则，canonical 与 fsd 的注册集必须一致（不许静默消失）', async () => {
+test('范式覆盖：每个范式的账目都必须闭合，且 fsd 未启用的正好是那批应用专属规则', async () => {
   const { coreRules, createRegistry, loadConfig } = await import('../es/index.js')
   const { join } = await import('node:path')
   const { fileURLToPath } = await import('node:url')
   const root = fileURLToPath(new URL('..', import.meta.url))
 
-  const registered = async (example) => {
+  /**
+   * R-142 之后这条守卫更强了：以前它靠"算差集"来**记录**那 9 条静默缺席的规则
+   * （既不跑、也不在停用清单里）—— 现在它们进了 `skipped`，于是可以要求**账目闭合**：
+   * 每条注册的规则都必须落在 enabled / skipped / disable 三者之一里，一条都不许"没下落"。
+   */
+  const accounting = async (example) => {
     const { config } = await loadConfig({ root: join(root, 'examples', example) })
     const registry = createRegistry(coreRules, config)
-    return new Set([
+    const accounted = new Set([
       ...registry.enabled.map((rule) => rule.id),
       ...registry.skipped.map((item) => item.rule),
+      ...(config.disable ?? []),
     ])
+    return {
+      missing: coreRules.map((rule) => rule.id).filter((id) => !accounted.has(id)),
+      notEnabled: registry.skipped
+        .filter((item) => item.code === 'not-enabled')
+        .map((item) => item.rule)
+        .sort(),
+    }
   }
 
-  const canonicalSet = await registered('full')
-  const fsdSet = await registered('full-fsd')
-  const all = coreRules.map((rule) => rule.id)
+  const canonicalExample = await accounting('full')
+  const fsdExample = await accounting('full-fsd')
 
+  assert.deepEqual(canonicalExample.missing, [], 'canonical：账目必须闭合（R-142）')
   assert.deepEqual(
-    all.filter((id) => !canonicalSet.has(id)),
+    fsdExample.missing,
     [],
-    'canonical 示例里不许有"根本不注册"的规则（声明都给全了）',
+    'fsd：账目必须闭合 —— 那 9 条不再"静默消失"，而是明列 `not-enabled`',
   )
   assert.deepEqual(
-    all.filter((id) => canonicalSet.has(id) && !fsdSet.has(id)).sort(),
+    fsdExample.notEnabled,
     [...APP_ONLY].sort(),
-    'fsd 少注册的规则必须**正好**是这批应用专属的；多一条 = 又有一条规则在某个范式下静默消失',
+    'fsd 未启用的必须**正好**是这批应用专属规则；多一条 = 又有一条规则被静默放下了',
+  )
+  assert.deepEqual(
+    canonicalExample.notEnabled,
+    [],
+    'canonical 的启用清单必须是满的（声明都给全了）',
   )
 })

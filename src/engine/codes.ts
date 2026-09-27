@@ -83,16 +83,20 @@ export type NoticeCode = (typeof NOTICE_CODES)[number]
 
 /**
  * 规则**没跑**的原因（`skipped[].code`）—— 同样是契约，消费方不许匹配中文 `reason`。
- * 目前只有一种（能力未声明）；加新的就在这里加，并同步冻结测试。
+ * 三种（R-142：**账目必须闭合** —— 注册的规则 ∈ `enabled` ∪ `skipped` ∪ 被 `disable` 的）：
+ *   - `capability-missing`：能力未声明（只有这一种的 `missing` 非空）
+ *   - `not-enabled`：注册了，但不在当前 `enable` 名单里（以前它落在所有桶之外，报告一个字都不提）
+ *   - `filtered`：在名单里，但被 `--only` / `--domain` / `--min-level` 收窄掉了
+ * 加新的就在这里加，并同步冻结测试。
  */
-export const SKIP_CODES = ['capability-missing'] as const
+export const SKIP_CODES = ['capability-missing', 'not-enabled', 'filtered'] as const
 export type SkipCode = (typeof SKIP_CODES)[number]
 
 /** 一条「这条规则本次没跑」的记录：`code` 稳定可判，`reason` 只给人看 */
 export interface SkippedRule {
   rule: string
   code: SkipCode
-  /** 缺哪些能力（`code === 'capability-missing'` 时非空）—— 机读侧不必去解析 reason */
+  /** 缺哪些能力 —— **当且仅当** `code === 'capability-missing'` 时非空（机读侧不必解析 `reason`） */
   missing: string[]
   reason: string
 }
