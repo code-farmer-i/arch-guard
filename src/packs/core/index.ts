@@ -26,10 +26,10 @@ import { structureRules } from './rules/structure.js'
 
 /**
  * **共享规则集** —— 本体当前所有规则的实现都在这里（`packs/core/rules/`），
- * 由各个 pack 引用（`tsPack` / `reactPack` 今天引用的就是同一份）。
+ * 由源码形态的绑定引用（`packs/registry.ts` 里两个形态今天引用的就是同一份）。
  *
  * 为什么要有这一层：pack 的名字必须表示**源码形态**（`.ts` 家族 / `.tsx` / SFC），
- * 而不是"某个具体框架" —— 否则一个纯 TS 库会被 `reactPack` 量，配置里就写出了一句错话。
+ * 而不是"某个具体框架" —— 否则一个纯 TS 库会被 react 形态量，配置里就写出了一句错话。
  * 现在 `packs/typescript` 与 `packs/react` 只是两份 pack 声明（id / framework / 适配面），
  * 规则实现只有一个家。
  *

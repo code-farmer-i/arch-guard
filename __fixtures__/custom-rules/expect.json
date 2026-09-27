@@ -1,0 +1,4 @@
+{
+  "findings": [{ "rule": "S97", "file": "src/shared/api/index.ts" }],
+  "exact": true
+}

@@ -84,9 +84,9 @@ const union = (left, right) => {
 }
 
 const configOf = (paradigm, subset) =>
-  `import { ${[...PARADIGM_NAMES, ...DOMAIN_NAMES, 'reactPack'].join(', ')} } from '${INDEX_URL}'
+  `import { ${[...PARADIGM_NAMES, ...DOMAIN_NAMES, 'builtinSourceForms'].join(', ')} } from '${INDEX_URL}'
 export default {
-  packs: [reactPack],
+  sourceForm: 'react',
   presets: [${PARADIGMS[paradigm].source}, ${subset.map((name) => DOMAINS[name].source).join(', ')}],
 }
 `
@@ -224,12 +224,12 @@ test('组合矩阵：同一预设写两遍幂等（并集 + 加法天然幂等�
     const once = await loadCombo(
       dir,
       'once',
-      `import { library, designSystem, reactPack } from '${INDEX_URL}'\nexport default { packs: [reactPack], presets: [library({ modules: { core: 1 } }), designSystem()] }\n`,
+      `import { library, designSystem, builtinSourceForms } from '${INDEX_URL}'\nexport default { sourceForm: 'react', presets: [library({ modules: { core: 1 } }), designSystem()] }\n`,
     )
     const twice = await loadCombo(
       dir,
       'twice',
-      `import { library, designSystem, reactPack } from '${INDEX_URL}'\nexport default { packs: [reactPack], presets: [library({ modules: { core: 1 } }), designSystem(), designSystem()] }\n`,
+      `import { library, designSystem, builtinSourceForms } from '${INDEX_URL}'\nexport default { sourceForm: 'react', presets: [library({ modules: { core: 1 } }), designSystem(), designSystem()] }\n`,
     )
     assert.deepEqual([...twice.config.enable].sort(), [...once.config.enable].sort())
     assert.deepEqual(twice.config.structure, once.config.structure)
@@ -245,7 +245,7 @@ test('组合矩阵：域预设只写显式给的落点 —— 显式压过范式
     const explicit = await loadCombo(
       dir,
       'explicit',
-      `import { canonical, designSystem, reactPack } from '${INDEX_URL}'\nexport default { packs: [reactPack], presets: [canonical(), designSystem({ styleDir: 'src/design' })] }\n`,
+      `import { canonical, designSystem, builtinSourceForms } from '${INDEX_URL}'\nexport default { sourceForm: 'react', presets: [canonical(), designSystem({ styleDir: 'src/design' })] }\n`,
     )
     assert.equal(explicit.config.params.styleDir, 'src/design', '显式给的落点必须压过范式')
     assert.equal(
@@ -257,7 +257,7 @@ test('组合矩阵：域预设只写显式给的落点 —— 显式压过范式
     const silent = await loadCombo(
       dir,
       'silent',
-      `import { canonical, designSystem, reactPack } from '${INDEX_URL}'\nexport default { packs: [reactPack], presets: [canonical(), designSystem()] }\n`,
+      `import { canonical, designSystem, builtinSourceForms } from '${INDEX_URL}'\nexport default { sourceForm: 'react', presets: [canonical(), designSystem()] }\n`,
     )
     assert.equal(
       silent.config.params.styleDir,
@@ -272,9 +272,11 @@ test('组合矩阵：域预设只写显式给的落点 —— 显式压过范式
 test('组合矩阵：disable 是减法 —— 与 enable 求完并集后再减，且只减那一条', async () => {
   const dir = makeProject()
   try {
-    const body = (extra) => `import { library, designSystem, reactPack } from '${INDEX_URL}'
+    const body = (
+      extra,
+    ) => `import { library, designSystem, builtinSourceForms } from '${INDEX_URL}'
 export default {
-  packs: [reactPack],
+  sourceForm: 'react',
   presets: [library({ modules: { core: 1 } }), designSystem()],
   ${extra}
 }

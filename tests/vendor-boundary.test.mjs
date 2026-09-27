@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { runGuard } from '../es/index.js'
+import { builtinSourceForms, runGuard } from '../es/index.js'
 
 /**
  * vendor 边界的两条回归（都是「用 FSD + antd 配置」时才暴露的缺陷）：
@@ -40,8 +40,8 @@ function makeProject({ vendorCss = VENDOR_CSS, cardCss }) {
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, designSystem, uiKit, antdKit, reactPack } from '${INDEX_URL}'\n` +
-      `export default { packs: [reactPack], presets: [canonical(), designSystem(), uiKit(antdKit())], ` +
+    `import { canonical, designSystem, uiKit, antdKit, builtinSourceForms } from '${INDEX_URL}'\n` +
+      `export default { sourceForm: 'react', presets: [canonical(), designSystem(), uiKit(antdKit())], ` +
       `overrides: { enable: ['D10', 'D10b', 'P11'], ignore: ['arch.config.mjs'] } }\n`,
   )
   if (vendorCss !== null)
@@ -53,7 +53,7 @@ function makeProject({ vendorCss = VENDOR_CSS, cardCss }) {
   return dir
 }
 
-const run = (dir) => runGuard({ cwd: dir, quiet: true })
+const run = (dir) => runGuard({ sourceForms: builtinSourceForms, cwd: dir, quiet: true })
 
 test('D10：组件库变量出现在 vendor 之外 —— 定义与引用都要报', async () => {
   const dir = makeProject({

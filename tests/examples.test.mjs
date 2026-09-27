@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { after, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { coreRules, createRegistry, reactPack, runGuard } from '../es/index.js'
+import { builtinSourceForms, coreRules, createRegistry, runGuard } from '../es/index.js'
 import { APP_ONLY } from './paradigm-app-only.mjs'
 
 /**
@@ -76,7 +76,7 @@ const run = (dir) =>
   runGuard({
     cwd: dir,
     configPath: 'arch.config.mjs',
-    fallbackPacks: [reactPack],
+    sourceForms: builtinSourceForms,
     cache: false,
     quiet: true,
   })

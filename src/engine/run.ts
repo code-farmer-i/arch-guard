@@ -30,8 +30,8 @@ import {
   type ReportInput,
 } from './report.js'
 import { scanProject } from './scan.js'
-import type { Pack } from './pack.js'
 import type { Diagnostic } from './codes.js'
+import type { SourceFormBinding } from './source-form.js'
 import type { Config, Domain, Finding, Level, Rule, RuleContext, Severity } from './types.js'
 import { applyReportFilters } from './filters.js'
 import { gitChangedFiles, gitHeadTimeMs, gitIgnoredPaths, stagedContentsOf } from './git.js'
@@ -60,12 +60,12 @@ export interface RunOptions {
   /** 覆盖率产物路径（覆盖 metrics 适配器里的配置；门禁只读它，不跑测试） */
   coverageReport?: string
   /**
-   * 规则集。给了就直接用（程序化调用 / 单测）；不给就从配置的框架包取。
-   * CLI 走的是后者：规则集由 `packs` 决定，不再是硬编码数组。
+   * **完整规则集**（R-143 起叫 `ruleSet`）：给了就**替代**配置里那份（程序化调用 / 单测用）。
+   * 要**追加**规则请在配置里写 `overrides.customRules` —— 两者语义不同，名字也不同。
    */
-  rules?: Rule[]
-  /** 调用方（CLI）能提供的框架包：配置里没写 `packs` 时用它兜底 */
-  fallbackPacks?: Pack[]
+  ruleSet?: Rule[]
+  /** 调用方（CLI）注入的源码形态实现（`rules` + `adapters`）；宿主不写这个 */
+  sourceForms?: SourceFormBinding[]
   /** facts 持久缓存（默认开）；`false` = 每轮全量解析 */
   cache?: boolean
   quiet?: boolean
@@ -119,25 +119,27 @@ export async function runGuard(options: RunOptions): Promise<RunResult> {
   const quiet = options.quiet === true
   const notices: Diagnostic[] = []
 
-  const {
-    config,
-    notices: configNotices,
-    packs,
-  } = await loadConfig({
+  const { config, notices: configNotices } = await loadConfig({
     root: options.cwd,
     ...(options.configPath ? { configPath: options.configPath } : {}),
-    ...(options.fallbackPacks ? { fallbackPacks: options.fallbackPacks } : {}),
+    ...(options.sourceForms ? { sourceForms: options.sourceForms } : {}),
+    // 调用方给的完整规则集要**在解析期**就参与合并（`overrides.customRules` 仍会追加）
+    ...(options.ruleSet ? { ruleSet: options.ruleSet } : {}),
   })
   notices.push(...configNotices)
 
   pushDisabledRulesNotice(config, notices)
 
-  // 规则集：显式给的优先；否则由框架包决定（换 pack = 换整套规则，见 PARADIGM §11）
-  const rules = options.rules ?? packs.flatMap((pack) => pack.rules)
+  /**
+   * 规则集：**配置解析期已算定**（内置集 + `overrides.customRules`），这里只处理"调用方整体替换"。
+   * 见 ADR-0009 —— 以前 `run.ts` 与 CLI 各推一遍，现在读同一份 `config.rules`。
+   */
+  const rules = config.rules
   if (rules.length === 0) {
     throw new Error(
-      '没有任何可跑的规则：配置里没有框架包，调用方也没给 rules\n' +
-        '（在 arch.config.mjs 里写 packs: [tsPack] 或 [reactPack]，或让调用方传 fallbackPacks）',
+      '没有任何可跑的规则：调用方既没注入源码形态实现（sourceForms），也没给 ruleSet\n' +
+        '（CLI 会自动注入内置实现；程序化调用请传 sourceForms 或 ruleSet；' +
+        '给项目加规则写在 arch.config.mjs 的 overrides.customRules 里）',
     )
   }
 

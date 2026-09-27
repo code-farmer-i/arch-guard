@@ -349,7 +349,7 @@ export const widthLimits: Rule = {
  * S20 框架包必须覆盖项目的源码形态：扫到当前 pack 量不了的源码文件就报错。
  *
  * 为什么是红线而不是提示：那些文件会被 walk 直接丢掉，于是「量不了」表现为
- * 「0 个文件 → ✔ 通过」—— 假绿比报错危险。要么换 pack，要么把 `metaFramework` 配对。
+ * 「0 个文件 → ✔ 通过」—— 假绿比报错危险。要么换 `sourceForm`，要么把量不了的源码移出去。
  */
 export const frameworkCoverage: Rule = {
   id: 'S20',
@@ -374,7 +374,7 @@ export const frameworkCoverage: Rule = {
         'S20',
         ctx.scan.foreign[0] as string,
         1,
-        `发现 ${ctx.scan.foreign.length} 个当前框架包（${resolveFramework(ctx.config.metaFramework)}）量不了的源码文件：${detail}`,
+        `发现 ${ctx.scan.foreign.length} 个当前源码形态（${resolveFramework(ctx.config.sourceForm)}）量不了的源码文件：${detail}`,
         '本工具目前只有 react pack；要么换 pack，要么把这段源码移出扫描范围（ignore）',
         true,
       ),

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { MERGE_SPEC, mergeByKind } from './merge-spec.js'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import type { Dirent } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -172,12 +173,21 @@ export function mergePresets(presets: Preset[]): Preset {
   /** 适配器按面收敛（局部变量：`Preset.adapters` 是可选的，逐个读要处理 undefined） */
   const adapters: Record<string, Adapter> = {}
   for (const preset of presets) {
-    if (preset.roles) out.roles = preset.roles
-    if (preset.addRoles) out.addRoles = [...(out.addRoles ?? []), ...preset.addRoles]
-    if (preset.layout) out.layout = { ...out.layout, ...preset.layout }
-    if (preset.srcRoot) out.srcRoot = preset.srcRoot
-    if (preset.naming) out.naming = { ...out.naming, ...preset.naming }
-    if (preset.thresholds) out.thresholds = { ...out.thresholds, ...preset.thresholds }
+    /**
+     * **非 `special` 的键一律读表合并**（R-144）：语义声明在 `MERGE_SPEC`，这里只执行 ——
+     * `single` 后者赢 / `fields` 逐键 / `union` 并集 / `concat` 拼接。
+     * 新键不会顺手获得某种"碰巧"的语义（不加表就没人合它）。
+     */
+    for (const [key, spec] of Object.entries(MERGE_SPEC)) {
+      if (spec.presets === 'n/a' || spec.presets === 'special') continue
+      const next = (preset as Record<string, unknown>)[key]
+      if (next === undefined) continue
+      ;(out as Record<string, unknown>)[key] = mergeByKind(
+        spec.presets,
+        (out as Record<string, unknown>)[key],
+        next,
+      )
+    }
     if (preset.adapters) {
       /**
        * 一个面**只能有一个方案**：两份 kit 声明同一个面时，浅合并会静默取后者 ——
@@ -198,19 +208,12 @@ export function mergePresets(presets: Preset[]): Preset {
         adapters[facet] = adapter
       }
     }
-    if (preset.params) out.params = { ...out.params, ...preset.params }
     // enable 是**并集**：预设各自声明"我贡献哪几条"。任一预设说 'all' → 结果就是 'all'。
     // （旧实现是后者覆盖前者，于是 `library() + designSystem()` 会把 D 域整块静默关掉。）
     if (preset.enable === 'all' || out.enable === 'all') out.enable = 'all'
     else if (preset.enable) out.enable = [...new Set([...(out.enable ?? []), ...preset.enable])]
-    if (preset.disable) out.disable = [...new Set([...(out.disable ?? []), ...preset.disable])]
     // 结构声明是**加法**：布尔取或、数组取并集、带键数组拼接（见 mergeStructureSpec）
     if (preset.structure) out.structure = mergeStructureSpec(out.structure, preset.structure)
-    if (preset.entries) out.entries = [...(out.entries ?? []), ...preset.entries]
-    if (preset.ignore) out.ignore = [...(out.ignore ?? []), ...preset.ignore]
-    if (preset.include) out.include = [...(out.include ?? []), ...preset.include]
-    if (preset.metaFramework) out.metaFramework = preset.metaFramework
-    if (preset.exceptions) out.exceptions = [...(out.exceptions ?? []), ...preset.exceptions]
   }
   out.adapters = adapters
   return out

@@ -58,7 +58,7 @@ function makeRepo(gitignore, extraFiles = {}) {
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()] }\n`,
+    `import { canonical } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [canonical()] }\n`,
   )
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
   writeFileSync(join(dir, 'src/shared/lib/a.ts'), 'export const a = 1\n')
@@ -124,7 +124,7 @@ test('契约域内不受 .gitignore 影响：被 gitignore 的 src 文件照常�
   try {
     const ignored = gitIgnoredPaths(dir)
     assert.ok(ignored?.files.has('src/shared/lib/new.ts'), '前提：git 确实忽略了它（未跟踪）')
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.ok(
       result.all.some(
         (finding) => finding.rule === 'S11' && finding.file === 'src/shared/lib/new.ts',
@@ -144,7 +144,7 @@ test('与宿主 ignore 是叠加关系：.gitignore 是基础，ignore 继续追
   try {
     writeFileSync(
       join(dir, 'arch.config.mjs'),
-      `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()], overrides: { ignore: ['legacy/**'] } }\n`,
+      `import { canonical } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [canonical()], overrides: { ignore: ['legacy/**'] } }\n`,
     )
     const scan = scanProject((await loadConfig({ root: dir })).config, {
       vcsIgnored: gitIgnoredPaths(dir) ?? undefined,
@@ -176,7 +176,7 @@ test('没有 git 时整层关闭：行为与从前一致（不报 .gitignore 提
     )
     writeFileSync(
       join(dir, 'arch.config.mjs'),
-      `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()] }\n`,
+      `import { canonical } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [canonical()] }\n`,
     )
     writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
     writeFileSync(join(dir, '.gitignore'), 'gen/\n')

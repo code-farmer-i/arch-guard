@@ -29,7 +29,7 @@ function makeProject(files) {
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { fsd, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [fsd()] }\n`,
+    `import { fsd } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [fsd()] }\n`,
   )
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(join(dir, rel.split('/').slice(0, -1).join('/')), { recursive: true })
@@ -38,7 +38,7 @@ function makeProject(files) {
   return dir
 }
 
-const run = (dir) => runGuard({ cwd: dir, rules: coreRules, quiet: true })
+const run = (dir) => runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
 const pairs = (result) => result.all.map((finding) => `${finding.rule} ${finding.file}`).sort()
 
 test('官方典型段名全部认（shared/routes · app/routes · app/store · app/entrypoint）', async () => {

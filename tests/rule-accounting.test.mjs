@@ -41,8 +41,8 @@ function makeLibraryProject(extra = '') {
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { library, reactPack } from '${INDEX_URL}'\n` +
-      `export default { packs: [reactPack], presets: [library({ src: 'src', entry: ['index.ts'] })]${extra} }\n`,
+    `import { library, builtinSourceForms } from '${INDEX_URL}'\n` +
+      `export default { sourceForm: 'react', presets: [library({ src: 'src', entry: ['index.ts'] })]${extra} }\n`,
   )
   mkdirSync(join(dir, 'src'), { recursive: true })
   writeFileSync(join(dir, 'src/index.ts'), 'export const lib = 1\n')

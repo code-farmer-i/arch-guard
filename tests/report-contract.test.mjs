@@ -55,7 +55,7 @@ function makeProject() {
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()] }\n`,
+    `import { canonical } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [canonical()] }\n`,
   )
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
   writeFileSync(join(dir, 'src/shared/lib/a.ts'), "export * from './b'\n")
@@ -138,6 +138,7 @@ test('冻结：notices 的稳定 code 清单（文案不是契约，code 才是�
     'scope-changed-relocated',
     'scope-degraded-no-git',
     'severity-filtered',
+    'source-form-missing',
     'staged-fallback',
     'vcs-ignored-skipped',
     'viewlines-no-page-role',
@@ -329,8 +330,8 @@ test('ok 的语义：结论是否通过（≠ 要不要拦）；"什么都没判
     )
     writeFileSync(
       join(empty, 'arch.config.mjs'),
-      `import { canonical, tsPack } from '${INDEX_URL}'\n` +
-        `export default { packs: [tsPack], presets: [canonical()], overrides: { include: [] } }\n`,
+      `import { canonical } from '${INDEX_URL}'\n` +
+        `export default { sourceForm: 'typescript', presets: [canonical()], overrides: { include: [] } }\n`,
     )
     const nothing = JSON.parse((await runCli(['--format=json'], empty)).out)
     assert.equal(nothing.errors, 0, '这一格没有任何 error —— `ok: false` 只能来自"什么都没判"')

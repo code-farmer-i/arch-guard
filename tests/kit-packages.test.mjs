@@ -33,8 +33,8 @@ function makeProject(dependencies, presets) {
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, deps, uiKit, antdKit, tsPack } from '${INDEX_URL}'\n` +
-      `export default { packs: [tsPack], presets: [canonical(), uiKit(antdKit())${presets}], ` +
+    `import { canonical, deps, uiKit, antdKit } from '${INDEX_URL}'\n` +
+      `export default { sourceForm: 'typescript', presets: [canonical(), uiKit(antdKit())${presets}], ` +
       `overrides: { ignore: ['arch.config.mjs'] } }\n`,
   )
   return dir
@@ -57,7 +57,7 @@ test('装了同套的可选扩展：P04 不报（按套判，不按包判）', a
     '',
   )
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.deepEqual(findingsOf(result, 'P04'), [], '@ant-design/x 不是"别的组件库"')
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -67,7 +67,7 @@ test('装了同套的可选扩展：P04 不报（按套判，不按包判）', a
 test('没装可选扩展：不再被 P04 要求安装', async () => {
   const dir = makeProject({ antd: '^5.0.0', '@ant-design/icons': '^6.0.0' }, '')
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.deepEqual(findingsOf(result, 'P04'), [], '不装 @ant-design/x 不再是违规')
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -80,7 +80,7 @@ test('allow 已开启时：同套的可选扩展要自己登记（P01 报）', a
     `, deps({ allow: ['antd', '@ant-design/icons'] })`,
   )
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     const hits = findingsOf(result, 'P01')
     assert.equal(hits.length, 1, JSON.stringify(hits))
     assert.match(hits[0]?.text ?? '', /@ant-design\/x/)
@@ -95,7 +95,7 @@ test('反向没被削弱：装了**别套**的组件库照样报 P04', async () 
     '',
   )
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     const hits = findingsOf(result, 'P04')
     assert.equal(hits.length, 1, JSON.stringify(hits))
     assert.match(hits[0]?.text ?? '', /element-plus/)

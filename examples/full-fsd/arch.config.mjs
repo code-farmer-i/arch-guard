@@ -28,7 +28,6 @@ import {
   i18n,
   i18nextKit,
   metrics,
-  reactPack,
   reactQueryKit,
   reactRouterKit,
   router,
@@ -37,8 +36,8 @@ import {
 } from '../../es/index.js'
 
 export default {
-  specVersion: '1',
-  packs: [reactPack],
+  specVersion: '2',
+  sourceForm: 'react',
 
   presets: [
     fsd(),

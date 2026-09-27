@@ -60,7 +60,7 @@ async function runCli(args, cwd) {
 test('S24：include 非空却 0 个文件 → error，且标为全局（scope 过滤时默认仍然失败）', async () => {
   const dir = makeProject({ include: ['app-src/**'] })
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     const s24 = result.active.find((finding) => finding.rule === 'S24')
     assert.ok(s24, 'S24 必须报出来（否则"0 个文件 → 通过"就是假绿）')
     assert.equal(s24.global, true, '不可归属到某个文件 → 必须标全局，不能在 --changed 下被静默丢弃')
@@ -79,7 +79,7 @@ test('S24：include 非空却 0 个文件 → error，且标为全局（scope �
 test('S24：域内有文件就不报（正常项目零噪音）', async () => {
   const dir = makeProject()
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.equal(
       result.all.some((finding) => finding.rule === 'S24'),
       false,
@@ -92,7 +92,7 @@ test('S24：域内有文件就不报（正常项目零噪音）', async () => {
 test('include 未限制 + 空仓库：不报 error，但必须自述"没有任何东西被判定"（人读 + 机读）', async () => {
   const dir = makeProject({ include: [], files: {} })
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.equal(
       result.active.some((finding) => finding.rule === 'S24'),
       false,
@@ -117,11 +117,11 @@ test('include 未限制 + 空仓库：不报 error，但必须自述"没有任�
 test('--severity：过滤掉 error 时必须自述，且 API / notice / JSON 三处都有条数', async () => {
   const dir = makeProject()
   try {
-    const strict = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const strict = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.ok(strict.active.length > 0, '前提：项目本身有 error')
     assert.equal(strict.filteredBySeverity, 0)
 
-    const warned = await runGuard({ cwd: dir, rules: coreRules, severity: 'warn', quiet: true })
+    const warned = await runGuard({ cwd: dir, ruleSet: coreRules, severity: 'warn', quiet: true })
     const severityOf = new Map(coreRules.map((rule) => [rule.id, rule.severity]))
     const warnCount = strict.active.filter((f) => severityOf.get(f.rule) === 'warn').length
     assert.equal(warned.active.length, warnCount, '过滤后只剩 warn')
@@ -180,7 +180,7 @@ test('项目边界：通用产物目录默认不进文件集（data 表兜底，
       mkdirSync(join(dir, name, 'deep'), { recursive: true })
       writeFileSync(join(dir, name, 'deep', 'generated.ts'), "export * from './x'\n")
     }
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.equal(
       result.all.some(
         (finding) => finding.file.includes('.next/') || finding.file.includes('dist/'),

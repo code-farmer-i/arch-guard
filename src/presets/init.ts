@@ -65,8 +65,8 @@ export function initConfig(options: InitOptions = {}): string {
 import { ${imports} } from '${snippets.packageName}'
 
 export default {
-  specVersion: '1',
-  packs: [reactPack],
+  specVersion: '2',
+  sourceForm: 'react',
   presets: [
 ${presets.map((line) => '    ' + line).join('\n')}
   ],

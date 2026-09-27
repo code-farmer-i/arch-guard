@@ -24,7 +24,6 @@ import {
   metrics,
   i18n,
   i18nextKit,
-  reactPack,
   reactQueryKit,
   reactRouterKit,
   router,
@@ -33,8 +32,8 @@ import {
 } from '../../es/index.js'
 
 export default {
-  specVersion: '1',
-  packs: [reactPack],
+  specVersion: '2',
+  sourceForm: 'react',
 
   presets: [
     // ① 范式：三根拓扑 + 27 个角色 + 落点参数（styleDir / tokenDir / paletteFile / i18nDir… 都由它给）

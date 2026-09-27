@@ -63,7 +63,7 @@ src/
     graph.ts          import 图 + 令牌引用图（含 resolveSpecifier）
     registry.ts       能力协商（requires ↔ 适配器声明）→ enabled / skipped
     adapters.ts       defineFacet / defineAdapter：白名单、类型、正则、键与 facet 一致、冻结
-    pack.ts           definePack：框架包声明（源码形态 + 支持的适配面）
+    source-form.ts    defineSourceForm / mergeRules：源码形态绑定（规则集 + 支持的面）与规则合并
     run.ts            编排；notices 由 notices.ts 统一生成
     notices.ts        自述（扫描域 / 边界 / 阈值不生效 / 生效的适配器…）
     filters.ts        scope / --paths / --severity
@@ -78,7 +78,7 @@ src/
     portability.ts   P1–P4 自包含自检    self-test.ts  夹具回归
     structure.ts / structure-spec.ts     结构声明（structure as data）的解析与校验
     output.ts / util.ts / ts-api.ts      输出、工具、TS Compiler API 薄封装
-  packs/        框架包 = **源码形态**的落地（一个项目一个）
+  packs/        源码形态的实现绑定（registry.ts：形态 → 规则集 + 支持的面）+ 共享规则
     core/           共享规则实现（框架无关）
       index.ts        组装 coreRules（今天 tsPack / reactPack 共用同一份）
       rules/          107 条规则的实现：structure / structure-graph / structure-imports / structure-declared /
@@ -96,7 +96,7 @@ src/
                 solution-alternatives（同类方案）· framework-sources（源码形态扩展名）·
                 face-forms（方案面形态词汇）· css-value-families（CSS 数值三族）· retired-names（退路标记）· plural-forms（词形）·
                 icon-packages · build-output-dirs（产物目录兜底跳过名单）
-__fixtures__/   95 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
+__fixtures__/   96 个夹具项目：每条规则一对「违规必报 × 合规不报」，全部 exact
 examples/minimal/  干净的宿主示例（可搬运性验证）
 arch.config.mjs    门禁自己的配置（库范式 + 依赖选型 + 度量）
 ```
@@ -152,11 +152,11 @@ arch.config.mjs    门禁自己的配置（库范式 + 依赖选型 + 度量）
 
 ## 6. 扩展点（三条路径，以及最少要动的文件）
 
-| 加什么         | 最少要动                                                                             | 别忘了                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| **一条规则**   | `packs/core/rules/<域>.ts`（`createRule`，id 前缀 = 域，error 只落 L1–L3）           | `__fixtures__/` 一对夹具 · 谁来 `enable` 它 · 需要哪些 `requires` · DESIGN §5 · README 规则数 |
-| **一个方案面** | `presets/<面>-kits/*.ts`（`defineFacet` + `defineAdapter`）· `presets/kit.ts` 的预设 | 两个 pack 的 `adapters` 白名单 · 消费者的规则 · `--verify-deps` 的形态字段                    |
-| **一个框架包** | `packs/<lang>/index.ts`（`definePack`）+ parser 与角色表变体 + 语言专属规则替换      | 自带夹具 · `framework-sources` 数据表 · 量级 ≈ 半个引擎                                       |
+| 加什么           | 最少要动                                                                                                       | 别忘了                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **一条规则**     | `packs/core/rules/<域>.ts`（`createRule`，id 前缀 = 域，error 只落 L1–L3）                                     | `__fixtures__/` 一对夹具 · 谁来 `enable` 它 · 需要哪些 `requires` · DESIGN §5 · README 规则数 |
+| **一个方案面**   | `presets/<面>-kits/*.ts`（`defineFacet` + `defineAdapter`）· `presets/kit.ts` 的预设                           | `packs/registry.ts` 的适配面白名单 · 消费者的规则 · `--verify-deps` 的形态字段                |
+| **一个源码形态** | `data/framework-sources.ts` 加一行扩展名 + `packs/registry.ts` 加一份绑定 + parser 与角色表变体 + 语言专属规则 | 自带夹具 · `implemented` 是派生量（别手写）· 量级 ≈ 半个引擎                                  |
 
 ## 7. 元门禁（管门禁自己的门禁）
 

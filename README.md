@@ -40,7 +40,7 @@ pnpm add -D @arch-guard/core        # 包名；命令名是 arch-guard
 import { canonical, designSystem, hygiene, reactPack } from '@arch-guard/core/presets'
 
 export default {
-  packs: [reactPack], // 框架包：声明的是**源码形态**，一个项目一个（React 用 reactPack，库 / CLI 用 tsPack）
+  sourceForm: 'react', // 框架包：声明的是**源码形态**，一个项目一个（React 用 reactPack，库 / CLI 用 tsPack）
   presets: [canonical(), designSystem(), hygiene()], // 范式三选一 + 域预设任意子集
 }
 ```

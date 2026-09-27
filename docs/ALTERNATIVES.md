@@ -224,7 +224,7 @@ import {
 const FSD_LAYERS = { shared: 1, entities: 2, features: 3, widgets: 4, pages: 5, app: 6 }
 
 export default {
-  packs: [reactPack],
+  sourceForm: 'react',
   presets: [
     // ① 六层当"目录表"：只做两件事 —— 兜住**层外文件**（S01）+ 提供层号。
     //    entry 必须置空：FSD 的入口在 app/ 层内，否则 app/index.tsx 同时命中 entry 与 app 两个角色
@@ -298,7 +298,7 @@ export default {
 import { fsd, i18nextKit, noneKit, reactPack, stack } from '@arch-guard/core'
 
 export default {
-  packs: [reactPack],
+  sourceForm: 'react',
   presets: [
     fsd(), // ← 六层 + 切片 + 片段 + 公开面，**连契约落点一起声明**
     // 落点不用手写：`fsd()` 已声明 FSD 的惯用位置 —— 全局样式 / 令牌 / 第三方覆盖三处都在官方
@@ -461,7 +461,7 @@ export default {
 **这不是"管得少"，是静默通过。** 同一个工具在真正的 FSD 项目上报了 **10 条**。
 
 原因：它只认 FSD 的层/切片/片段模型，`modules/` 这种目录它没有对应概念，于是"没有发现" = "通过"。
-这与我们刚给 S20 / `metaFramework` 立的规矩正好相反 —— **我们"量不了"会明确报错，不会给假绿**。
+这与我们刚给 S20 / `sourceForm` 立的规矩正好相反 —— **我们"量不了"会明确报错，不会给假绿**。
 
 ### FSD 覆盖不到的四类
 

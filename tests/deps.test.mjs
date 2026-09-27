@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
 import {
+  coreRules,
   depsPolicyFrom,
   policyConflicts,
   readProjectDeps,
-  coreRules,
   runGuard,
 } from '../es/index.js'
 
@@ -15,7 +15,7 @@ const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const run = (fixture, options = {}) =>
   runGuard({
     cwd: `${PACKAGE_ROOT}__fixtures__/${fixture}`,
-    rules: coreRules,
+    ruleSet: coreRules,
     quiet: true,
     ...options,
   })
@@ -101,7 +101,7 @@ test('P 域：手搓日期格式化 / 解析被抓，原生原语与用 dayjs �
 
 test('P 域：命中指纹但确实在用登记方案时不报（本体即正例）', async () => {
   // 本体用 process.argv.slice（命中 cli-args 强指纹），同时真的 import 了 commander → P06 不该报
-  const result = await runGuard({ cwd: PACKAGE_ROOT, rules: coreRules, quiet: true })
+  const result = await runGuard({ cwd: PACKAGE_ROOT, ruleSet: coreRules, quiet: true })
   const deps = result.all.filter((finding) => finding.rule.startsWith('P'))
   assert.deepEqual(
     deps.map((finding) => `${finding.rule} ${finding.text}`),

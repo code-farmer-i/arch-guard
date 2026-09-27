@@ -331,8 +331,6 @@ export interface Preset {
   ignore?: string[]
   /** 契约扫描域：只有命中这些 glob 的 ts/css 参与角色判定（空 = 不限制） */
   include?: string[]
-  /** 元框架标识（`react` / `vue` / …）：决定哪些源码扩展名归本 pack 管 */
-  metaFramework?: string
   exceptions?: ExceptionEntry[]
 }
 
@@ -343,9 +341,41 @@ export interface Preset {
  * 解析后追加结果已经并进 `Config.roles`。曾经 Config 上也留了一份 `addRoles`，赋值后无人读，
  * 是同一事实的第二处存放（读它就会把角色重复计入）；现在只留在输入侧。
  */
-export type ConfigOverrides = Partial<Config> & {
+/**
+ * 项目层的声明（`overrides`）：**显式枚举**，不再 `Partial<Config>`。
+ *
+ * 为什么显式：`Partial<Config>` 会让**每一个** `Config` 字段顺手变成"可写但没人读"的键 ——
+ * 实测就有两个（`root` / `paradigm`）：写进去被静默忽略，正是 R-113 那族病。
+ * 显式之后，"可写的键"必须有人读，否则它根本不在这个类型里（配置期就报未知键）。
+ *
+ * 键的去留判据：**项目层只放"项目自己能声明"的**；派生量（`root` / `paradigm`）与
+ * 装配量（`sourceForm` / `presets`）留在顶层。
+ */
+export interface ConfigOverrides {
+  srcRoot?: string
+  layout?: { app: string; modules: string; shared: string }
+  roles?: RoleDescriptor[]
   /** 在范式角色表之上**追加**角色（不是替换；要整体替换用 `roles`） */
   addRoles?: RoleDescriptor[]
+  naming?: Partial<NamingRules>
+  thresholds?: Partial<Thresholds>
+  adapters?: Record<string, Adapter>
+  enable?: string[] | 'all'
+  disable?: string[]
+  structure?: StructureSpec
+  params?: Record<string, unknown>
+  entries?: string[]
+  ignore?: string[]
+  include?: string[]
+  exceptions?: ExceptionEntry[]
+  adviceAllow?: AdviceAllowEntry[]
+  aliases?: Record<string, string>
+  /**
+   * **追加规则**（R-143）：与内置规则集并集，合并结果就是 `Config.rules`。
+   * 同 id 同 title 幂等；同 id 不同 title → 配置期报错（见 `mergeRules`）。
+   * 规则本身由 `createRule()` 产出（id 前缀 / 等级 / title / hint 的校验在它那儿）。
+   */
+  customRules?: Rule[]
 }
 
 export interface Config {
@@ -374,13 +404,17 @@ export interface Config {
   ignore: string[]
   /** 契约扫描域（配置根相对 glob）；空 = 全树都参与契约判定 */
   include: string[]
-  /** 元框架标识：当前 pack 负责哪些源码扩展名（见 src/data/framework-sources.ts） */
-  metaFramework: string
+  /** **源码形态**（`typescript` / `react` / …）：决定哪些源码扩展名归我们管（见 src/data/framework-sources.ts） */
+  sourceForm: string
+  /**
+   * **解析后的规则集**（R-143）：内置规则集 + `overrides.customRules` 追加，在 `loadConfig` 里算定。
+   * 为什么放进配置：以前 `run.ts` 与 CLI 各自推导一遍（两处真相），而"哪些规则在跑"是配置的结论。
+   */
+  rules: Rule[]
   exceptions: ExceptionEntry[]
   /** 建议的已知例外（R-121）：豁免必须带理由、且会在报告里自述 */
   adviceAllow: AdviceAllowEntry[]
   aliases: Record<string, string>
-  autoFix?: boolean
 }
 
 /* ---------------- 规则与发现项 ---------------- */

@@ -2,14 +2,14 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
-import { runGuard, coreRules } from '../es/index.js'
+import { coreRules, runGuard } from '../es/index.js'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 const run = (fixture, options = {}) =>
   runGuard({
     cwd: `${PACKAGE_ROOT}__fixtures__/${fixture}`,
-    rules: coreRules,
+    ruleSet: coreRules,
     quiet: true,
     ...options,
   })

@@ -24,7 +24,7 @@ import type { Domain, Level, Severity } from './engine/types.js'
 import { color } from './engine/util.js'
 import { coreRules } from './packs/core/index.js'
 import { placementHint } from './packs/core/rules/placement.js'
-import { reactPack } from './packs/react/index.js'
+import { builtinSourceForms } from './packs/registry.js'
 
 const LEVELS: Level[] = ['L1', 'L2', 'L3', 'L4']
 const DOMAINS: Record<string, Domain> = {
@@ -209,7 +209,7 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
   }
 
   if (options.selfTest) {
-    const result = await runSelfTest(packageRoot, coreRules)
+    const result = await runSelfTest(packageRoot, coreRules, builtinSourceForms)
     if (result.failures.length > 0) {
       out(color.red(`✖ 夹具回归失败：${result.failures.length}/${result.total}`))
       for (const failure of result.failures) out(`  ${failure.fixture}: ${failure.message}`)
@@ -281,14 +281,11 @@ export async function run(argv: string[], hooks: { packageRoot?: string } = {}):
       cwd: process.cwd(),
       brief: options.brief === true,
       /**
-       * 规则集由框架包决定（配置里可写 `packs: [...]`）；CLI 只提供**兜底的包**。
-       *
-       * 兜底为什么仍是 `reactPack`（而不是更"通用"的 `tsPack`）：
-       * 两者的规则集今天完全相同，差别只在声明支持的适配面 —— 而 `reactPack` 是唯一能配
-       * `uiKit(...)` 的历史入口。**忘了写 `packs` 的 React 宿主靠它继续可用**，不静默变红。
-       * 泛 TS 宿主（库 / CLI）请在 `arch.config.mjs` 里显式写 `packs: [tsPack]`。
+       * 规则集与源码形态由**配置**决定（`sourceForm` + `overrides.customRules`，见 ADR-0009）；
+       * CLI 只把"引擎自带的实现"注入进去 —— 实现是代码（层 4），引擎自己不认识它。
+       * 不写 `sourceForm` 的宿主按 `typescript` 处理，与"忘了写"无关（不再需要兜底包）。
        */
-      fallbackPacks: [reactPack],
+      sourceForms: builtinSourceForms,
       cache: options.cache !== false,
       format: options.format as 'pretty' | 'json' | 'github',
       stats: options.stats === true,
@@ -324,7 +321,7 @@ async function syncDocs(configPath: string | undefined, checkOnly: boolean): Pro
     const loaded = await loadConfig({
       root: cwd,
       ...(configPath ? { configPath } : {}),
-      fallbackPacks: [reactPack],
+      sourceForms: builtinSourceForms,
     })
     const { diffs, errors, filesWithBlocks } = collectDocDiffs(cwd, loaded.config)
     if (errors.length > 0) {
@@ -362,21 +359,6 @@ async function syncDocs(configPath: string | undefined, checkOnly: boolean): Pro
 }
 
 /**
- * **当前规则集**（R-141）：以**配置给的包**为准 —— `--explain` 与 `--list-rules` 共用；
- * 此前 `--explain` 硬编码 `coreRules`，自定义 pack 的规则 id 一律被判成"未知规则"。
- * 没有包时退回 `coreRules`。`--self-test` 不走这里（那是引擎自己夹具的回归）。
- */
-async function loadRuleSet(configPath: string | undefined) {
-  const loaded = await loadConfig({
-    root: process.cwd(),
-    ...(configPath ? { configPath } : {}),
-    fallbackPacks: [reactPack],
-  })
-  const packRules = loaded.packs.flatMap((pack) => pack.rules)
-  return { config: loaded.config, rules: packRules.length > 0 ? packRules : coreRules }
-}
-
-/**
  * **两个查询**：`--explain <路径/规则 id>`（这一条要什么）与 `--list-rules`（当前规则集有哪些）。
  * 与判定路径的分工：判定说"你错了"，查询说"该怎么做 / 有哪些"。查询一条规则都不跑，
  * 数据全部来自角色表 + 布局 + 结构声明 + `params` + 规则对象 —— 零误报，退出码恒为 0。
@@ -385,7 +367,13 @@ async function query(options: CliOptions): Promise<number> {
   try {
     const cwd = process.cwd()
     const format = options.format === 'json' ? 'json' : 'pretty'
-    const { config, rules } = await loadRuleSet(options.config)
+    // 规则集在**配置解析期**就算定了（内置集 + `overrides.customRules`）—— 见 ADR-0009
+    const { config } = await loadConfig({
+      root: cwd,
+      ...(options.config ? { configPath: options.config } : {}),
+      sourceForms: builtinSourceForms,
+    })
+    const rules = config.rules
     // 这次运行的"跑不跑"账目（R-142）：两个查询都读它，而不是各自猜
     const registry = createRegistry(rules, config)
     const state = { skipped: registry.skipped, disabled: config.disable ?? [] }

@@ -10,16 +10,16 @@
  *
  * 跑：pnpm guard:self
  */
-import { deps, library, metrics, tsPack } from './es/index.js'
+import { deps, library, metrics } from './es/index.js'
 
 export default {
   // 配置格式版本：与本工具不一致时显式报错，而不是猜（见 CONFIG_SPEC_VERSION）
-  specVersion: '1',
-  // 框架包：一个项目一个，声明的是**源码形态**（不是"用了哪个框架"）。
-  // 本体是纯 TS 库/CLI —— 形态就是 TS/JS 家族，所以用框架无关的 `tsPack`；
-  // React 宿主请写 `reactPack`（两者今天共用同一份规则集，差别只在名字与将来 JSX 专属规则的家）。
-  // 显式写出来也让 `pack` 的适配面白名单有个明确边界（配了一个包不支持的 facet 会直接报错）。
-  packs: [tsPack],
+  specVersion: '2',
+  // 源码形态（不是"用了哪个框架"）：决定哪些扩展名归我们管 + 用哪一份内置规则集（ADR-0009）。
+  // 本体是纯 TS 库/CLI —— 形态就是 TS/JS 家族；React 宿主写 sourceForm: 'react'
+  // （两个形态今天共用同一份规则集，差别只在扩展名分派与将来 JSX 专属规则的家）。
+  // 显式写出来也让适配面白名单有个明确边界（配了一个不受支持的 facet 会直接报错）。
+  sourceForm: 'typescript',
   presets: [
     library({
       // 本体自己的**目录表**：目录名 → 层号（越小越底层）。

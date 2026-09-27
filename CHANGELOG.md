@@ -17,6 +17,74 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-27
+
+> **契约与迁移（这一版必读 —— 配置格式与公共 API 都有破坏性变更）**
+>
+> - **配置格式**：`CONFIG_SPEC_VERSION` `'1'` → **`'2'`**（这正是那个通道的用途，见 ADR-0005 的后续记录）。
+>   写 `specVersion: '1'` 会在配置期拿到明确报错，不会静默按新语义解释。
+>
+> | 今天                                                                  | 改成                                                                                      |
+> | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+> | `packs: [reactPack]` / `[tsPack]`                                     | `sourceForm: 'react'` / `'typescript'`（省略 = `typescript`）                             |
+> | `overrides: { metaFramework: 'vue' }`                                 | `sourceForm: 'vue'`（顶层；未实现 → 现有 fail-closed 照旧）                               |
+> | 自造包 `definePack({ framework, rules:[...内置, ...own], adapters })` | `overrides: { customRules: [...own] }` —— **不必再 spread 内置规则、不必再转发 adapters** |
+> | `runGuard({ rules })`                                                 | `runGuard({ ruleSet })`（**完整替换**；追加用配置里的 `customRules`）                     |
+> | `loadConfig({ fallbackPacks })`                                       | `loadConfig({ sourceForms })`（CLI 自己注入；宿主不写）                                   |
+> | `import { definePack, PackError, tsPack, reactPack }`                 | `defineSourceForm` · `SourceFormError` · `builtinSourceForms`（宿主通常一个都不需要）     |
+> | `config.metaFramework`                                                | `config.sourceForm`；新增 `config.rules`（解析期算定的规则集）                            |
+>
+> - **`overrides` 的键从 `Partial<Config>` 改成显式枚举**：`root` / `paradigm` 以前"可写但没人读"
+>   （静默忽略），现在会作为不认识的键报错；新增 `customRules`；**`autoFix` 删除**（全仓零消费者的死键）。
+> - **`NOTICE_CODES` 新增 `source-form-missing`**（兼容性新增，`apiVersion` 不动）：调用方没注入实现时
+>   规则集为空会自述，而不是静默跑 0 条。`SKIP_CODES` / JSON 顶层字段 / 退出码语义均不变。
+> - **顺手修掉一个真 bug（0.8.0 / 0.9.0 存在）**：R-138 加的 `http` 面**漏在框架包的适配面白名单里** ——
+>   同时声明 `packs: [reactPack]` 与 `http(axiosKit())` 会被 facet 校验拒掉。现在白名单在
+>   `packs/registry.ts` 一处维护。
+> - **规模**：规则 **107**（本版**未新增规则**）· 夹具 **96** · 需求 → **141**
+>   （`已完成` 130 / `已委派` 4 / `不做` 7）。
+>
+> **发布前必做（本版已做）**：Node **24.13.0** 与 **22.18.0** 上各跑一次完整 `pnpm check`，都 **EXIT=0**。
+> **版本号留给发布工具 bump**（本版选 **minor** → `0.10.0`）。
+
+### Added（R-144：配置键的合并语义表 —— 表即实现即文档）
+
+- **症状**：同一把键在两层语义不同，而配置里看不出来 —— `library({ enable: ['S45'] })` 是**加一条**，
+  `overrides: { enable: ['S45'] }` 是**把预设给的清单整个换掉**；`entries` / `include` / `layout` 同理
+  （预设之间拼接/逐键，项目层替换）。语义各自都说得通，但只活在 `mergePresets` 与 `config.ts` 的写法里。
+- **改成**：`src/engine/merge-spec.ts` 的 `MERGE_SPEC`（键 × 两根轴）是**唯一真相** ——
+  `mergePresets` 与 `config.ts` **读表合并**（`mergeByKind` 一份实现，`special` 的键在 `SPECIAL_MERGERS` 里点名）；
+  文档块 `<!-- arch-guard:begin merge-spec -->` **由表渲染**（`--check-docs` 盯漂移）；
+  守卫测试要求：每个可写键都在表里 · `special` 必须有名字 · 非 `special` 的项目层键必须真的被读。
+  R-113 的报错文案同时补上判据：**要选片段 → `presets`；要选源码形态 → `sourceForm`；其余全是 `overrides`**。
+- **顺带修一个真 bug（一直都在）**：`docs.ts` 的围栏配对按"首字符"比较，` ```` ` 里嵌 ` ``` ` 的常规写法
+  会被当成闭合 → **它后面的管理块整段被当成"围栏内"，静默不渲染也不校验**（DESIGN.md 加 `merge-spec` 块时实测消失）。
+  按 CommonMark 规则修（同字符且不短于开启串才闭合）+ 回归测试。
+
+### Changed（R-143：源码形态是标量，规则是追加 —— `packs` 退场）
+
+- **症状**：宿主想加自己的规则，只能 ① 自造一个"框架包"（必须**自称实现某个源码形态**、必须手工转发
+  `adapters`，否则 facet 校验报错）；或 ② 走程序化入口 `runGuard({ rules })` —— 而 CLI 从此**看不见**
+  这些规则（`--explain` / `--list-rules` / `--stats` / `--render-docs` 全盲）。写
+  `packs: [reactPack, ownRules]` 会被 `packs.length > 1` 抛掉。
+- **病根（见 ADR-0009）**：`packs` 一个字段捆了三件事，而**数组形状在诱导误用**：
+  1. 数组传递的信息量 = **一个枚举值**（两个包 `rules` 是同一份 `coreRules`、`adapters` 是同一张清单）；
+  2. 源码形态**三处可写**：`Pack.framework` / `overrides.metaFramework`（还要互校）/
+     **`Preset.metaFramework`（死声明）** —— `mergePresets` 把它搬进 `out.metaFramework`，而 `config.ts`
+     从不读它，**没有任何预设声明过、没有测试覆盖**；机械比对"merge 写出 16 个字段 / config 读入 15 个"才发现；
+  3. "能不能跑"取决于宿主有没有手递那个对象：省略 `packs` 时靠 **CLI 的 `fallbackPacks` 补丁**，
+     程序化调用方没有补丁 → 直接"没有任何可跑的规则"。
+- **改成**：顶层 `sourceForm`（**标量**、缺省 = 数据表第一条）+ `overrides.customRules`（**追加**）。
+  注册表按层拆：`data/framework-sources.ts`（层 1）只留 `{ id, extensions }`；`{ rules, adapters }` 的实现绑定
+  在 `packs/registry.ts`（层 4）**由调用方注入**（取代 `fallbackPacks`）—— data 引 `coreRules` 就是反向依赖。
+  于是：非法状态不可表达（标量取代"数组里的一个"）、形态只剩一处真相、宿主不再需要接触"包"、
+  规则集**在配置解析期算定**（`Config.rules`，CLI 与 runner 读同一份，不再各推一遍）。
+- **附带**：新增**元守卫**测试 —— 机械比对 `mergePresets` 写出的字段集合 vs `config.ts` 读入的字段集合，
+  两个方向都不许有差集（"写出没人读" = 死声明；"读了没人写" = 永远是 `undefined`）。
+  `Preset.metaFramework` 就是靠手工比对才发现的，做成守卫后不必再靠谁"仔细"。
+- 决策与迁移见 [`docs/adr/0009`](docs/adr/0009-source-form-is-a-scalar.md) 与
+  [`.scratch/rule-sources/spec.md`](.scratch/rule-sources/spec.md)；夹具 `custom-rules`（追加的规则真的在判）。
+
 ## [0.9.0] - 2026-09-27
 
 > **契约与迁移（这一版必读）**

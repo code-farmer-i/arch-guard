@@ -36,9 +36,9 @@ async function runCli(args, cwd) {
   }
 }
 
-const CONFIG = `import { canonical, designSystem, deps, tsPack } from '${INDEX_URL}'
+const CONFIG = `import { canonical, designSystem, deps } from '${INDEX_URL}'
 export default {
-  packs: [tsPack],
+  sourceForm: 'typescript',
   presets: [canonical(), designSystem(), deps({ allow: ['commander'], capabilities: { 'cli-args': 'commander' } })],
 }
 `
@@ -80,7 +80,7 @@ test('prettier 把表格对齐之后不算漂移（留白不是事实，单元�
   const { loadConfig } = await import('../es/engine/config.js')
   const dir = makeProject('')
   try {
-    const { config } = await loadConfig({ root: dir, fallbackPacks: [] })
+    const { config } = await loadConfig({ root: dir, sourceForms: [] })
     const raw = renderDocText(
       '<!-- arch-guard:begin thresholds -->\n<!-- arch-guard:end thresholds -->\n',
       config,
@@ -143,7 +143,7 @@ test('渲染只改块内内容：块外的散文与别的块一字不动', async
   const { loadConfig } = await import('../es/engine/config.js')
   const dir = makeProject('')
   try {
-    const { config } = await loadConfig({ root: dir, fallbackPacks: [] })
+    const { config } = await loadConfig({ root: dir, sourceForms: [] })
     const before =
       '前言\n\n<!-- arch-guard:begin thresholds -->\n旧内容\n<!-- arch-guard:end thresholds -->\n\n后记\n'
     const rendered = renderDocText(before, config)
@@ -198,9 +198,9 @@ test('--render-docs：config 一改，块就跟着变（阈值 × 能力表都�
     // 改 config：阈值走 overrides、批准清单加一项 —— 两者都要被重新渲染
     writeFileSync(
       join(dir, 'arch.config.mjs'),
-      `import { canonical, designSystem, deps, tsPack } from '${INDEX_URL}'
+      `import { canonical, designSystem, deps } from '${INDEX_URL}'
 export default {
-  packs: [tsPack],
+  sourceForm: 'typescript',
   presets: [canonical(), designSystem(), deps({ allow: ['commander', 'picocolors'], capabilities: { 'cli-args': 'commander' } })],
   overrides: { thresholds: { functionLines: 120 } },
 }
@@ -252,4 +252,29 @@ test('docs 目录里的块也会被扫到（不只根目录的 md）', async () 
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('围栏：四反引号里嵌三反引号之后的管理块仍要被认出来（R-144 顺带修的真 bug）', async () => {
+  const { parseDocBlocks } = await import('../es/engine/docs.js')
+  // 常规写法：用 ```` 包住一个 ``` 示例，再往后放一个真管理块
+  const text = [
+    '# 文档',
+    '',
+    '````md',
+    '```js',
+    'const x = 1',
+    '```',
+    '````',
+    '',
+    '<!-- arch-guard:begin deps -->',
+    '<!-- arch-guard:end deps -->',
+    '',
+  ].join('\n')
+  const parsed = parseDocBlocks(text)
+  assert.deepEqual(parsed.errors, [])
+  assert.deepEqual(
+    parsed.spans.map((span) => span.name),
+    ['deps'],
+    '嵌套围栏之后的管理块被当成"围栏内" = 静默不渲染、也不校验（实测 DESIGN.md 踩过）',
+  )
 })

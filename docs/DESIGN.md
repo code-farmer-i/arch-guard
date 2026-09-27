@@ -172,7 +172,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 | S19 | **宽度**：单文件导出值 ≤6 / 单文件组件数 ≤3（不含类型导出）。**仅应用范式** —— 库的入口就是公开面，导出几十个符号是对的形态                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | AST 计数              | L2    | error                                                                                                        |
 | S17 | 同一导出名在两处定义（防复制粘贴实现）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | AST                   | L2    | warn                                                                                                         |
 | S18 | `shared` 里的项只被一个域使用 → 应下沉域内                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 图入度来源            | L3    | warn                                                                                                         |
-| S20 | **框架包必须覆盖项目的源码形态**：出现当前 pack 量不了的源码（如 react pack 遇到 `.vue`）即报                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 扩展名分派            | L1    | error                                                                                                        |
+| S20 | **源码形态必须覆盖项目的源码**：出现当前 `sourceForm` 量不了的源码（如 typescript 遇到 `.vue`）即报                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 扩展名分派            | L1    | error                                                                                                        |
 | S21 | **分层单向（通用）**：只许依赖层号 ≤ 自己的文件。应用范式（`canonical()`）与库/FSD 都靠它 —— 一套机制管到底；也补上了原先没人管的 `shared → modules`、`modules → app` 向上依赖                                                                                                                                                                                                                                                                                                                                                                                                                                         | 依赖图                | L3    | error                                                                                                        |
 | S22 | **组隔离**（官方 FSD 的 `@x` 跨引用公开面是**唯一例外**：`<provider>/@x/<consumer>.ts` 只放行被指名的那一侧，R-105）：同组维度、同层、不同组之间不许互相引用（`structure.isolate` 声明了才判）                                                                                                                                                                                                                                                                                                                                                                                                                         | 依赖图                | L3    | error                                                                                                        |
 | S23 | **公开面**（`@x` 文件不算组的公开入口，但**被指名的调用方**可以直接引它 —— 与 S22 同一条例外，R-105）：组必须有入口（角色描述符 `entry: true`），且组外不许直接引用组内非入口文件（`structure.publicApi` 声明了才判）；**④ 运行时面**（R-139 / ADR-0008）：`structure.runtimes` 声明运行时与入口、`structure.faces` 声明面文件与所属性运行时，**消费者的运行时按「从各运行时入口可达」推导**，跨运行时只能进同运行时的面（**只判兼容性、不判完备性** —— 实测的面是参差不齐的）；**⑤ 面值**（R-140）：声明了 `faces[].value` 的面文件**只许导出匹配该模式的值**（类型豁免），于是"面外拿到内部实现"在提供侧就不可能发生 | 依赖图                | L3    | error                                                                                                        |
@@ -687,6 +687,42 @@ JSON 里的枚举值（`notices[].code` · `skipped[].code`；将来若加 `seve
 
 ## 7. 配置与预设形态
 
+**两层的分工与每把键的合并语义**（R-144）：顶层 = **装配**（选片段、选源码形态），
+`overrides` = **项目自己的声明**。语义**由表声明**、合并器读表执行、下面这块由表渲染 ——
+所以"哪把键是替换、哪把是并集"不会有两处说法：
+
+<!-- arch-guard:begin merge-spec -->
+
+每一把键在**两根轴**上各是什么语义（`single` 单值替换 / `fields` 逐键 / `union` 并集 /
+`concat` 拼接 / `special` 有专属合并器 / `—` 这一层不许写）：
+
+| 键            | 预设之间  | 项目层    | 说明                                                                   |
+| ------------- | --------- | --------- | ---------------------------------------------------------------------- |
+| `paradigm`    | `special` | —         | 恰好一个范式预设（多范式混用由 `loadConfig` fail-closed）              |
+| `roles`       | `single`  | `single`  | 角色表整体替换；要追加用 `addRoles`                                    |
+| `addRoles`    | `concat`  | `concat`  | 在范式角色表之上追加                                                   |
+| `layout`      | `fields`  | `single`  | 预设之间逐键，项目层整体替换                                           |
+| `srcRoot`     | `single`  | `single`  |                                                                        |
+| `naming`      | `fields`  | `fields`  | 默认层 → 预设 → 项目                                                   |
+| `thresholds`  | `fields`  | `fields`  | 默认层 → 预设 → 项目                                                   |
+| `adapters`    | `special` | `special` | 一个面只能一个方案；项目层还要过 `defineAdapter`                       |
+| `enable`      | `special` | `single`  | 预设之间并集（`all` 吸收一切）；项目层**整体替换** —— "我全都要自己定" |
+| `disable`     | `union`   | `union`   | 显式排除，只增不减                                                     |
+| `structure`   | `special` | `special` | 加法合并 + 统一校验（`resolveStructure`）                              |
+| `params`      | `fields`  | `fields`  | 面参数：项目层逐键覆盖                                                 |
+| `entries`     | `concat`  | `single`  | 预设之间拼接，项目层替换（要加就得写全）                               |
+| `ignore`      | `concat`  | `concat`  |                                                                        |
+| `include`     | `concat`  | `single`  | 契约扫描域：项目层替换                                                 |
+| `exceptions`  | `concat`  | `concat`  | 拼接；每条还要过 rule/glob/reason 校验                                 |
+| `adviceAllow` | —         | `concat`  | 只有项目能声明（预设给不了）                                           |
+| `aliases`     | —         | `special` | 默认来自 tsconfig，项目层逐键覆盖                                      |
+| `customRules` | —         | `special` | 只有项目能声明；追加进规则集，同 id 不同 title 报错（`mergeRules`）    |
+
+<!-- arch-guard:end merge-spec -->
+
+> **放错层怎么查**：`arch.config.mjs` / `overrides` 里不认识的键会在**配置期**报错（R-113）。
+> 判据一句话：**要选片段 → `presets`；要选源码形态 → `sourceForm`；其余全是 `overrides`**。
+
 ```js
 // arch.config.mjs —— 宿主的唯一导入面（换宿主/换版本只改这一行）
 import {
@@ -697,11 +733,10 @@ import {
   hygiene,
   uiKit,
   antdKit,
-  reactPack,
 } from '@arch-guard/core/presets' // 子路径导出：presets / packs/* / data/* / ui-kits/*
 
 export default {
-  packs: [reactPack], // 框架包（一个项目一个）：规则集由它给；CLI 不再硬编码规则数组
+  sourceForm: 'react', // 一处真相：扩展名分派 + 内置规则集（追加规则写 overrides.customRules）
   presets: [
     canonical(), // 三根拓扑、角色表、命名、体积阈值
     designSystem({ spacing: '--spacing', themes: ['dark', 'light'] }), // 落点默认随范式
@@ -749,7 +784,7 @@ export default {
 ### 7.0.1 组合的实测矩阵（穷举）
 
 三类预设：**范式**（`canonical` / `library` / `fsd`，**三选一**）· **域**（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`，**任意子集**）·
-**正交适配**（`uiKit(adapter)`、`packs`）。
+**正交适配**（`uiKit(adapter)`、`sourceForm`）。
 
 穷举 3 范式 × 5 域预设的全部子集（96 种）真实加载一遍 —— **这条论断由 `tests/preset-matrix.test.mjs` 钉住**
 （不是"手工跑过一次"：并集 / 加法 / 整体替换 / 落点随范式 / 幂等 / `disable` 减法逐条断言）：
@@ -880,11 +915,11 @@ export default () => ({
 
 **元自检加强（P4）**：`src/engine/**`、`src/packs/**` 与**通用预设**（`src/presets/*.ts`）不得出现任何**具体框架/库名**（组件库、数据层、路由、样式方案、i18n 库），只许出现在 `src/presets/<面>/<name>.ts` 与 `src/data/*`；违反即门禁自身报错。这条覆盖 §7.2 的全部适配器，是「同一引擎能服务多种宿主与范式」的总保证。
 
-**源码形态轴（本期范围）**：`metaFramework` 是一独立轴，取值表在 `src/data/framework-sources.ts`（纯数据，引擎里不出现形态名）。
-v1 有两个 pack：`tsPack`（`typescript`，框架无关）与 `reactPack`（`react`）—— 后者只是前者的 JSX 约定版本，
-**今天共用同一份规则集**（`packs/core/rules/`）。**认不出、或还没有 pack 的形态一律 fail-closed 报错** —— 拿 Vue 跑只会得到「0 个文件 → ✔ 通过」的假绿，
-所以宁可拒绝执行；已经混进 `.vue` 的项目由 **S20** 报出来（那些文件会被 `walk` 丢掉，不报就是静默失能）。
-换 Vue / Svelte 需要换 parser 与整套规则集，属预留轴，不在本期。
+**源码形态轴（本期范围）**：`sourceForm` 是一独立轴，取值表在 `src/data/framework-sources.ts`（纯数据，引擎里不出现形态名）；实现绑定在 `packs/registry.ts`，由调用方注入（ADR-0009）。
+v1 有两个绑定：`typescript`（框架无关）与 `react` —— 后者只是前者的 JSX 约定版本，
+**今天共用同一份规则集**（`packs/core/rules/`）。**认不出的、或调用方没有实现绑定的形态一律 fail-closed 报错** ——
+拿 Vue 跑只会得到「0 个文件 → ✔ 通过」的假绿，所以宁可拒绝执行；已经混进 `.vue` 的项目由 **S20** 报出来
+（那些文件会被 `walk` 丢掉，不报就是静默失能）。换 Vue / Svelte 需要换 parser 与整套规则集，属预留轴，不在本期。
 
 ### 7.2 其余可替换面（同类问题的一次性清查）
 
@@ -998,7 +1033,7 @@ src/presets/{router-kits,data-layer-kits,styles-kits}/   路由 / 数据层 / �
 
 **（3.1）面清单是开放的（E2）**
 
-引擎**不再枚举所有适配器面**：它只预注册「自己或框架包有消费者」的核心面（`i18n` / `metrics` / `ui-kit`，
+引擎**不再枚举所有适配器面**：它只预注册「自己或源码形态的规则集有消费者」的核心面（`i18n` / `metrics` / `ui-kit`，
 字段白名单在 `engine/adapters.ts` 的 `CORE_FACET_FIELDS`），**新面由预设用 `defineFacet` 登记**：
 
 ```js
@@ -1102,29 +1137,43 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 **（6）各面可组合、不互斥**：Tailwind + antd 混合很常见，`styles.kind='tailwind'` 与 `uiKit.vendorSelectors` 同时生效；registry 按能力并集注册。
 
-### 7.5 可扩展性三层：配置 / 适配器 / 框架包
+### 7.5 可扩展性三层：配置 / 适配器 / 源码形态
 
-换 Vue 不是「再加一个适配器」—— 元框架（React ↔ Vue ↔ Svelte）比适配器高一层，因为**换元框架要换 parser 和规则集**。三层职责：
+换 Vue 不是「再加一个适配器」—— 源码形态（React ↔ Vue ↔ Svelte）比适配器高一层，因为**换形态要换 parser 和规则集**。三层职责：
 
-| 层              | 换什么           | 形态                                        | 举例                                                                    |
-| --------------- | ---------------- | ------------------------------------------- | ----------------------------------------------------------------------- |
-| **配置**        | 项目专有事实     | 数据表                                      | 路径、令牌前缀、阈值、白名单                                            |
-| **适配器**      | 同一元框架内的库 | **纯数据表**（§7.4）                        | antd ↔ MUI、Zustand ↔ Jotai、CSS Modules ↔ Tailwind、i18next ↔ vue-i18n |
-| **框架包 pack** | **源码形态**     | **代码**（随引擎分发、经评审、带 fixtures） | `tsPack` · `reactPack`（v1 共用规则集）、Vue pack、Svelte pack          |
+| 层               | 换什么         | 形态                                        | 举例                                                                    |
+| ---------------- | -------------- | ------------------------------------------- | ----------------------------------------------------------------------- |
+| **配置**         | 项目专有事实   | 数据表                                      | 路径、令牌前缀、阈值、白名单、`overrides.customRules`                   |
+| **适配器**       | 同一形态内的库 | **纯数据表**（§7.4）                        | antd ↔ MUI、Zustand ↔ Jotai、CSS Modules ↔ Tailwind、i18next ↔ vue-i18n |
+| **源码形态绑定** | **源码形态**   | **代码**（随引擎分发、经评审、带 fixtures） | `typescript` · `react`（v1 共用规则集）、将来的 `vue` / `svelte`        |
 
-**pack 的职责**（决定「换源码形态」的边界）。**v1 的实况**：两个 pack 都从 `packs/core/rules/` 取规则 ——
-还没有任何语言专属的已实现规则，所以差异只在 `framework`（扩展名分派）与报错文案；
+**宿主只写一个标量**（ADR-0009）：
+
+```js
+export default {
+  sourceForm: 'react', // 一处真相：决定扩展名分派 + 用哪份内置规则集
+  overrides: { customRules: [own] }, // 加自己的规则用**追加**，不必自造"包"
+}
+```
+
+- **数据层**（`data/framework-sources.ts`，层 1）只说「认识哪些形态、各自管哪些扩展名」；
+- **实现绑定**（`packs/registry.ts`，层 4）给「形态 → 规则集 + 支持的适配面」，由调用方**注入**
+  `loadConfig`（CLI 注入内置的那份）—— 引擎（层 2）不认识它，否则就是反向依赖；
+- `implemented` 是**派生量**（该形态有没有绑定），不手写。
+
+**形态的职责**（决定「换源码形态」的边界）。**v1 的实况**：两个绑定都从 `packs/core/rules/` 取规则 ——
+还没有任何语言专属的已实现规则，所以差异只在扩展名分派与报错文案；
 
 职责清单（Vue/Svelte 落地时要各自补齐）：
 
-- **parser**：TS/React pack 都用 `ts.createSourceFile`（按扩展名选 `ScriptKind`，见 `facts.ts`）；Vue pack = `vue/compiler-sfc`（template / script / style 三块）
+- **parser**：TS/React 用 `ts.createSourceFile`（按扩展名选 `ScriptKind`，见 `facts.ts`）；Vue = `vue/compiler-sfc`（template / script / style 三块）
 - **角色表变体**：文件形态判据（`views/*.vue`、`<script setup>`、SFC 天然 default export）
 - **规则集变体**：语言相关规则换实现（JSX 裸文本 → 模板插值；`use*` hooks → composables；SFC `<style scoped>` 是新规则）
-- **fixtures**：pack 自带违规 / 合规样例
+- **fixtures**：各自带违规 / 合规样例
 
-**跨 pack 复用、无需重写的部分**：三条公理、10 个原语（分类词汇，见 §3.1）、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、豁免通道与三条元自检。
+**跨形态复用、无需重写的部分**：三条公理、10 个原语（分类词汇，见 §3.1）、L1 全部规则、L3 图规则（import 图 / 域隔离 / 公开面 / 可达性 / 唯一出处）、CSS 与令牌 / i18n 资源 / `package.json` 类 L2 规则、豁免通道与三条元自检。
 
-**加一个 Vue pack 的量级**：SFC parser ~350 行 + 角色表变体 ~80 行 + React 专属规则替换（S13 / C01 / H06 等约 10 条）+ Vue 专属规则（模板插值、scoped 样式约 6 条）+ fixtures ~30 个文件 ≈ **半个引擎**。所以 Vue 不进 v1；但 **pack 边界必须在 v1 就划出来**（现在已划：`packs/core/rules` 是共享规则、各自 pack 的 `rules/` 是语言专属规则的家），否则将来加 Vue 是重写而不是加法。
+**加一个 Vue 形态的量级**：SFC parser ~350 行 + 角色表变体 ~80 行 + React 专属规则替换（S13 / C01 / H06 等约 10 条）+ Vue 专属规则（模板插值、scoped 样式约 6 条）+ fixtures ~30 个文件 ≈ **半个引擎**。所以 Vue 不进 v1；但**形态边界必须在 v1 就划出来**（现在已划：`packs/core/rules` 是共享规则、将来各自 `packs/<形态>/` 是语言专属规则的家），否则将来加 Vue 是重写而不是加法。
 
 ---
 
@@ -1143,7 +1192,7 @@ examples: { vendorSelectors: { hit: ['.ant-btn'], miss: ['.my-card'] } }
 
 ## 14. 已知缺口（未实现）
 
-**只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` 的**本地对账部分** / `definePack` / config 的 `specVersion` 均已落地，从本表移除）
+**只列还没做的。**（`--format=github` / `--stats` / `--verify-deps` 的**本地对账部分** / `defineSourceForm` / config 的 `specVersion` 均已落地，从本表移除）
 已落地的能力见 [`CHANGELOG.md`](../CHANGELOG.md)，进度见 [`README.md`](../README.md) 的 Roadmap。
 
 | ID   | 缺口                                                                                                                                                                                                                    | 影响                                                                                  |
@@ -1204,7 +1253,7 @@ P09 并入 P06、P10 是 P01 的 fail-closed 表述，都不另立规则；剩�
 - 2026-09-23 补充 §7.1 UI 组件库适配：组件库降为可选、可替换的配置轴（适配表 + 指纹表），支持「用 antd / 换库 / 不用库」三种形态；引擎与预设禁止出现具体库名，由元自检强制。
 - 2026-09-23 补充 §7.2 / §7.3：把同类问题一次性清查为 16 项可替换面（T1 五个建成适配器：数据层、路由、样式、i18n、UI 组件库），并划清「可替换面 vs 范式不变量」；同时消除选型表等两处真相（文档管理块 + `--check-docs`）。
 - 2026-09-23 补充 §7.4 适配器通信协议：确定「适配器是数据不是插件」—— 单向数据契约 + 能力协商（`requires` 未满足则不注册并明列 skipped），`defineAdapter` 字段白名单校验防静默失能，适配器必须自带命中/不命中样例，用户配置禁写函数。
-- 2026-09-23 补充 §7.5 可扩展性三层（配置 / 适配器 / 框架包）：明确 Vue / Svelte 属 **pack 层**（换 parser 与规则集，约半个引擎），不是适配器能解决的；v1 只交付 React pack，但 pack 边界现在就划出来，将来加 Vue 是加法而非重写。
+- 2026-09-23 补充 §7.5 可扩展性三层（配置 / 适配器 / 源码形态）：明确 Vue / Svelte 属 **形态绑定层**（换 parser 与规则集，约半个引擎），不是适配器能解决的；v1 只交付 React pack，但 pack 边界现在就划出来，将来加 Vue 是加法而非重写。
 - 2026-09-23 补充 §14 架构自审：18 项（P0 必修 R1–R5：跨域组合落点、解析失败 fail-closed、fixer 与棘轮冲突、第三豁免通道、锚点形态；健壮性 R6–R12；扩展性 E1–E6）。**R1 / R3 / R4 改动既有决定，待拍板后再改正文。**
 - 2026-09-23 补充 §6.1.1 解析后端选型：确定 TS Compiler API parser-only（零新增依赖）；**规则只消费归一化事实模型（facts），不直接消费 TS AST** —— 换 parser 只重写 pack 的 parse/事实提取层，规则不动；Vue/Svelte pack 用各自框架自带的编译器，保持零新增依赖。同时记录 fail-closed 所需的语法诊断只能走 `transpileModule` 或非公开字段，必须由 fixtures 锁住行为。
 - 2026-09-23 补充 §6.8 检测范围（scope）：确立 **scope 只过滤报告、不过滤正确性** —— facts 按文件缓存（增量），图与全局谓词每轮全量重建（防 stale-cache 假绿）；支持 `full/changed/staged/since` + 路径/域/规则/等级/严重度/格式筛选；不可归属的全局违规默认仍然失败，禁止静默降级与静默丢弃；pre-commit 跑 index blob；CI 必须 full。据此把 R7 从"缺口"改为"已设计"。

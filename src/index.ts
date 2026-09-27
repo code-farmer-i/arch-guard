@@ -56,7 +56,12 @@ export {
   type ProjectDeps,
 } from './engine/deps.js'
 export { createRule, RuleDefinitionError } from './engine/rule.js'
-export { definePack, PackError, type Pack as PackDefinition } from './engine/pack.js'
+export {
+  defineSourceForm,
+  mergeRules,
+  SourceFormError,
+  type SourceFormBinding,
+} from './engine/source-form.js'
 export { auditAdapterDeps, describePolicy } from './engine/deps-audit.js'
 export { CONFIG_SPEC_VERSION } from './engine/config.js'
 export { runGuard, type RunOptions, type RunResult } from './engine/run.js'
@@ -110,8 +115,7 @@ export {
 } from './presets/index.js'
 
 export { coreRules } from './packs/core/index.js'
-export { tsPack } from './packs/typescript/index.js'
-export { reactPack } from './packs/react/index.js'
+export { builtinSourceForms, implementedSourceForms } from './packs/registry.js'
 export { kitFingerprints, fingerprintsOf } from './data/kit-fingerprints.js'
 export { CALL_SITE_SOURCE_IDS, callSiteSources } from './data/call-site-sources.js'
 export { ENV_READ_ROOTS } from './data/env-roots.js'

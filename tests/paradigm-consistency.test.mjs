@@ -40,8 +40,8 @@ function makeProject(name, presets, overrides = '', files = {}) {
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, private: true, type: 'module' }))
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, library, fsd, designSystem, tsPack } from '${INDEX_URL}'\n` +
-      `export default { packs: [tsPack], presets: [${presets}]${overrides ? `, overrides: { ${overrides} }` : ''} }\n`,
+    `import { canonical, library, fsd, designSystem } from '${INDEX_URL}'\n` +
+      `export default { sourceForm: 'typescript', presets: [${presets}]${overrides ? `, overrides: { ${overrides} }` : ''} }\n`,
   )
   for (const [rel, text] of Object.entries(files)) {
     mkdirSync(join(dir, rel.split('/').slice(0, -1).join('/')), { recursive: true })
@@ -87,7 +87,7 @@ test('② S12 在 FSD 下也真的判（按角色后缀），S13 则明列停用
   })
   try {
     const { config } = await loadConfig({ root: dir })
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     assert.ok(
       result.all.some(
         (finding) => finding.rule === 'S12' && finding.file === 'src/shared/api/BadNameProbe.ts',
@@ -137,7 +137,7 @@ test('③ viewLines 对 FSD 的 pages/<切片>/ui 生效（不再静默退化成
     },
   )
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     const hit = result.all.find((finding) => finding.rule === 'S16')
     assert.ok(hit, '页面文件超过 viewLines 必须报')
     assert.match(hit?.text ?? '', /超过上限 100/)
@@ -206,7 +206,7 @@ test('⑤ D16：官方 app/styles 片段放行；其它位置的裸 CSS 照报�
     'src/shared/ui/ok.module.css': '.ok {\n  color: red;\n}\n',
   })
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     const hits = result.all.filter((finding) => finding.rule === 'D16')
     assert.deepEqual(
       hits.map((finding) => finding.file),
@@ -239,7 +239,7 @@ test('⑥ S12：组件目录里的非 PascalCase 文件，按**真实形态**给
     'src/shared/ui/Pure.tsx': 'export const Pure = (): number => 1\n',
   })
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
     const byFile = new Map(
       result.all
         .filter((finding) => finding.rule === 'S12')

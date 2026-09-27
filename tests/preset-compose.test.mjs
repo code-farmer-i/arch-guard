@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { createRegistry, hasCapability, loadConfig, coreRules, runGuard } from '../es/index.js'
+import { coreRules, createRegistry, hasCapability, loadConfig, runGuard } from '../es/index.js'
 
 /**
  * 预设**组合语义**：从"用户选一个目录规范，域预设自由叠加"这个用例出发，
@@ -24,7 +24,7 @@ function project(presets, extra = '') {
   writeFileSync(
     join(dir, 'arch.config.mjs'),
     `import { canonical, copy, cssModulesKit, fsd, designSystem, i18n, i18nextKit, library, reactRouterKit, router, styles } from '${ES}'\n` +
-      `export default { packs: [], presets: [${presets}]${extra} }\n`,
+      `export default { specVersion: '2', presets: [${presets}]${extra} }\n`,
   )
   return dir
 }
@@ -76,7 +76,7 @@ test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段
       loadConfig({
         root: project(
           'canonical(), router(reactRouterKit())',
-          override("{ facet: 'router', id: 'x', specVersion: '1', packages: [], routeFile: [] }"),
+          override("{ facet: 'router', id: 'x', specVersion: '2', packages: [], routeFile: [] }"),
         ),
       }),
     /未知字段：routeFile/,
@@ -88,7 +88,7 @@ test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段
       loadConfig({
         root: project(
           'canonical()',
-          ", overrides: { adapters: { 'my-face': { facet: 'my-face', id: 'x', specVersion: '1' } } }",
+          ", overrides: { adapters: { 'my-face': { facet: 'my-face', id: 'x', specVersion: '2' } } }",
         ),
       }),
     /未知适配器面：my-face/,
@@ -99,7 +99,7 @@ test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段
       loadConfig({
         root: project(
           'canonical(), styles(cssModulesKit())',
-          ", overrides: { adapters: { styles: { facet: 'styles', id: 'x', specVersion: '1', packages: [], modulePatterns: ['('] } } }",
+          ", overrides: { adapters: { styles: { facet: 'styles', id: 'x', specVersion: '2', packages: [], modulePatterns: ['('] } } }",
         ),
       }),
     /正则无法编译/,
@@ -110,7 +110,7 @@ test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段
       loadConfig({
         root: project(
           'canonical(), router(reactRouterKit())',
-          override("{ facet: 'styles', id: 'x', specVersion: '1', packages: [] }"),
+          override("{ facet: 'styles', id: 'x', specVersion: '2', packages: [] }"),
         ),
       }),
     /与它挂在的键 router 不一致/,
@@ -120,7 +120,7 @@ test('组合：`overrides.adapters` 绕开 kit，但**不绕开校验**（字段
   const config = await load(
     'canonical(), router(reactRouterKit())',
     override(
-      "{ facet: 'router', id: 'mine', specVersion: '1', packages: [], routeFiles: ['entry.ts'] }",
+      "{ facet: 'router', id: 'mine', specVersion: '2', packages: [], routeFiles: ['entry.ts'] }",
     ),
   )
   assert.equal(config.adapters.router?.id, 'mine')
@@ -309,7 +309,7 @@ test('R-121：adviceAllow 的配置期校验（信号必存在 / 理由必填 / 
 
 test('R-125：显式 disable 掉的规则必须自述（门禁自己的账，不能静默缩水）', async () => {
   const dir = project('canonical(), designSystem()', ", overrides: { disable: ['S21', 'M02'] }")
-  const result = await runGuard({ cwd: dir, rules: coreRules, quiet: true })
+  const result = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true })
   const notice = result.notices.find((item) => item.code === 'rules-disabled')
   assert.ok(notice, '应当有一条 rules-disabled 自述')
   assert.match(notice.text, /显式停用 2 条规则：S21 \/ M02/)
@@ -317,7 +317,7 @@ test('R-125：显式 disable 掉的规则必须自述（门禁自己的账，不
   // 没 disable 就不提（不然这条自述会变成噪音）
   const clean = await runGuard({
     cwd: project('canonical(), designSystem()'),
-    rules: coreRules,
+    ruleSet: coreRules,
     quiet: true,
   })
   assert.equal(

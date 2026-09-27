@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { runGuard } from './run.js'
+import type { SourceFormBinding } from './source-form.js'
 import type { Rule } from './types.js'
 
 /**
@@ -20,7 +21,11 @@ export interface SelfTestResult {
   failures: { fixture: string; message: string }[]
 }
 
-export async function runSelfTest(packageRoot: string, rules: Rule[]): Promise<SelfTestResult> {
+export async function runSelfTest(
+  packageRoot: string,
+  rules: Rule[],
+  sourceForms: SourceFormBinding[] = [],
+): Promise<SelfTestResult> {
   const fixturesRoot = join(packageRoot, '__fixtures__')
   if (!existsSync(fixturesRoot)) return { total: 0, passed: 0, failures: [] }
 
@@ -44,7 +49,7 @@ export async function runSelfTest(packageRoot: string, rules: Rule[]): Promise<S
 
     let actual: string[]
     try {
-      const result = await runGuard({ cwd: dir, rules, quiet: true })
+      const result = await runGuard({ cwd: dir, ruleSet: rules, sourceForms, quiet: true })
       actual = result.all.map((finding) => `${finding.rule} ${finding.file}`)
     } catch (error) {
       failures.push({ fixture, message: `引擎异常：${(error as Error).message}` })

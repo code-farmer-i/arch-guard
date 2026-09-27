@@ -83,8 +83,8 @@ test('本体自包含：P1–P4 全过', () => {
   assert.ok(result.checked > 0)
 })
 
-test('definePack：id 重复与空规则在定义时就报错（不等到运行）', async () => {
-  const { definePack, PackError } = await import('../es/index.js')
+test('defineSourceForm：形态 id 必须在数据表里、规则不许空、同一份集里 id 不许冲突', async () => {
+  const { defineSourceForm, SourceFormError } = await import('../es/index.js')
   const rule = (id) => ({
     id,
     domain: 'structure',
@@ -93,23 +93,27 @@ test('definePack：id 重复与空规则在定义时就报错（不等到运行�
     title: `t${id}`,
     run: () => [],
   })
-  const pack = definePack({ id: 'demo', framework: 'react', rules: [rule('S01'), rule('S02')] })
-  assert.equal(pack.id, 'demo')
-  assert.equal(Object.isFrozen(pack), true)
-  assert.throws(() => definePack({ id: '', framework: 'react', rules: [rule('S01')] }), PackError)
-  assert.throws(() => definePack({ id: 'demo', framework: 'react', rules: [] }), PackError)
+  const binding = defineSourceForm({ id: 'react', rules: [rule('S01'), rule('S02')], adapters: [] })
+  assert.equal(binding.id, 'react')
+  assert.equal(Object.isFrozen(binding), true)
+
+  // 形态必须在数据表里登记过（否则报错时连扩展名都说不出来）
   assert.throws(
-    () =>
-      definePack({
-        id: 'demo',
-        framework: 'react',
-        rules: [rule('S01'), { ...rule('S01'), title: '另一条' }],
-      }),
-    /规则 id 重复/,
+    () => defineSourceForm({ id: 'demo', rules: [rule('S01')], adapters: [] }),
+    /不在 data\/framework-sources.ts 的形态表里/,
   )
   assert.throws(
-    () => definePack({ id: 'demo', rules: [rule('S01')] }),
-    /framework/,
-    '包必须声明它实现哪个元框架，否则换框架时会静默用错规则集',
+    () => defineSourceForm({ id: '', rules: [rule('S01')], adapters: [] }),
+    SourceFormError,
+  )
+  assert.throws(() => defineSourceForm({ id: 'react', rules: [], adapters: [] }), SourceFormError)
+  assert.throws(
+    () =>
+      defineSourceForm({
+        id: 'react',
+        rules: [rule('S01'), { ...rule('S01'), title: '另一条' }],
+        adapters: [],
+      }),
+    /规则 id 重复/,
   )
 })

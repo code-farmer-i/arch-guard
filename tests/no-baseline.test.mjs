@@ -50,7 +50,7 @@ function makeProject({ config, extraFiles = {} } = {}) {
   writeFileSync(
     join(dir, 'arch.config.mjs'),
     config ??
-      `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()] }\n`,
+      `import { canonical } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [canonical()] }\n`,
   )
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
   writeFileSync(join(dir, 'src/shared/lib/a.ts'), "export * from './b'\n")
@@ -66,7 +66,7 @@ test('违规基线已移除：手写 arch.baseline.json 也不再豁免，并明
   try {
     writeFileSync(
       join(dir, 'arch.baseline.json'),
-      `${JSON.stringify({ version: 1, specVersion: '1', entries: [{ rule: 'S11', file: 'src/shared/lib/a.ts', anchor: 'x', anchorKind: 'line' }] }, null, 2)}\n`,
+      `${JSON.stringify({ version: 1, specVersion: '2', entries: [{ rule: 'S11', file: 'src/shared/lib/a.ts', anchor: 'x', anchorKind: 'line' }] }, null, 2)}\n`,
     )
     const result = await runCli([], dir)
     assert.equal(result.code, 1, '有违规就必须红：基线文件不得再起豁免作用')
@@ -110,8 +110,8 @@ test('--update-coverage 只写覆盖率棘轮快照（M04），不豁免任何�
     // 换成带覆盖率棘轮的配置（仍然有 S11 违规）
     writeFileSync(
       join(dir, 'arch.config.mjs'),
-      `import { canonical, metrics, tsPack } from '${INDEX_URL}'\nexport default {
-  packs: [tsPack],
+      `import { canonical, metrics } from '${INDEX_URL}'\nexport default {
+  sourceForm: 'typescript',
   presets: [canonical(), metrics({ coverage: { report: 'coverage-summary.json', ratchet: true } })],
 }\n`,
     )
@@ -128,8 +128,8 @@ test('--update-coverage 只写覆盖率棘轮快照（M04），不豁免任何�
     // 没有启用棘轮时明确说"没写"，而不是静默
     writeFileSync(
       join(dir, 'arch.config.mjs'),
-      `import { canonical, metrics, tsPack } from '${INDEX_URL}'\nexport default {
-  packs: [tsPack],
+      `import { canonical, metrics } from '${INDEX_URL}'\nexport default {
+  sourceForm: 'typescript',
   presets: [canonical(), metrics({ coverage: { report: 'coverage-summary.json' } })],
 }\n`,
     )

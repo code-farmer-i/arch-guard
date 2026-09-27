@@ -47,8 +47,8 @@ function makeProject(overrides = '') {
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, designSystem, copy, tsPack } from '${INDEX_URL}'\n` +
-      `export default { packs: [tsPack], presets: [canonical(), designSystem(), copy()]` +
+    `import { canonical, designSystem, copy } from '${INDEX_URL}'\n` +
+      `export default { sourceForm: 'typescript', presets: [canonical(), designSystem(), copy()]` +
       `${overrides ? `, overrides: ${overrides}` : ''} }\n`,
   )
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
@@ -175,31 +175,33 @@ test('--explain：一次可以问多条路径（逗号分隔）', async () => {
 })
 
 /**
- * R-141：`--explain` / `--list-rules` 的规则集要跟**配置给的包**走，不是硬编码 `coreRules`。
+ * R-141 / R-143：`--explain` / `--list-rules` 的规则集要跟**配置**走（内置集 + 追加），
+ * 不是硬编码 `coreRules`。
  *
  * 真实踩过：宿主用自定义规则（报告里印着 `[S61]`），而 `--explain S61` 回一句
- * 「未知规则：S61（规则全表见 docs/DESIGN.md §4）」—— 解释不了自己刚报出来的规则。
+ * 「未知规则：S61」—— 解释不了自己刚报出来的规则。R-143 之后，宿主的规则**只需**写
+ * `overrides.customRules`（不必再自造包、不必再 spread 内置规则、CLI 也看得见）。
  */
 function makePackProject() {
-  const dir = mkdtempSync(join(tmpdir(), 'ag-explain-pack-'))
+  const dir = mkdtempSync(join(tmpdir(), 'ag-explain-rules-'))
   mkdirSync(join(dir, 'src/app'), { recursive: true })
   writeFileSync(
     join(dir, 'package.json'),
-    JSON.stringify({ name: 'explain-pack', private: true, type: 'module' }),
+    JSON.stringify({ name: 'explain-rules', private: true, type: 'module' }),
   )
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, createRule, definePack, tsPack } from '${INDEX_URL}'\n` +
+    `import { canonical, createRule } from '${INDEX_URL}'\n` +
       `const own = createRule({ id: 'S99', domain: 'structure', level: 'L2',\n` +
       `  title: '自有规则：外壳只碰公开面', hint: '走 @/modules/<域> 的公开面', run: () => [] })\n` +
-      `export default { packs: [definePack({ id: 'own', framework: 'typescript', rules: [...tsPack.rules, own] })],\n` +
-      `  presets: [canonical()] }\n`,
+      `export default { specVersion: '2', sourceForm: 'typescript', presets: [canonical()],\n` +
+      `  overrides: { customRules: [own] } }\n`,
   )
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
   return dir
 }
 
-test('R-141：配置里的自定义 pack 规则也能被 --explain 展开', async () => {
+test('R-141/R-143：overrides.customRules 里的规则也能被 --explain 展开', async () => {
   const dir = makePackProject()
   try {
     const result = await runCli(['--explain', 'S99'], dir)

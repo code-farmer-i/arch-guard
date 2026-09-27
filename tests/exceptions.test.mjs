@@ -50,7 +50,7 @@ function makeProject(exception) {
   const overrides = exception ? `, overrides: { exceptions: [${JSON.stringify(exception)}] }` : ''
   writeFileSync(
     join(dir, 'arch.config.mjs'),
-    `import { canonical, tsPack } from '${INDEX_URL}'\nexport default { packs: [tsPack], presets: [canonical()]${overrides} }\n`,
+    `import { canonical } from '${INDEX_URL}'\nexport default { sourceForm: 'typescript', presets: [canonical()]${overrides} }\n`,
   )
   writeFileSync(join(dir, 'src/app/main.tsx'), 'export const boot = 1\n')
   writeFileSync(join(dir, 'src/shared/lib/a.ts'), "export * from './b'\n")

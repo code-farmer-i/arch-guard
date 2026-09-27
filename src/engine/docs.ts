@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 
 import { depsPolicyFrom } from './deps.js'
+import { MERGE_SPEC } from './merge-spec.js'
 import type { Config } from './types.js'
 import { readText, relOf, walk } from './util.js'
 
@@ -89,7 +90,7 @@ const renderLayout: DocBlockRenderer = (config) =>
         config.layout.shared === '' ? '（本范式没有这一层）' : code(config.layout.shared),
       ],
       ['可达性入口', config.entries.length > 0 ? config.entries.map(code).join(' · ') : '（无）'],
-      ['元框架 / 源码形态', code(config.metaFramework)],
+      ['元框架 / 源码形态', code(config.sourceForm)],
     ],
   )
 
@@ -182,6 +183,31 @@ const renderExceptions: DocBlockRenderer = (config) =>
       )
     : '（本项目没有任何规则级例外）'
 
+/**
+ * **配置键的合并语义**（R-144）：这块由 `MERGE_SPEC` **渲染** —— 表即实现即文档，
+ * 手抄一份迟早会与代码漂移（`--check-docs` 盯着它）。
+ */
+const renderMergeSpec: DocBlockRenderer = () => {
+  const lines: string[] = []
+  lines.push(
+    '每一把键在**两根轴**上各是什么语义（`single` 单值替换 / `fields` 逐键 / `union` 并集 /',
+  )
+  lines.push('`concat` 拼接 / `special` 有专属合并器 / `—` 这一层不许写）：')
+  lines.push('')
+  lines.push(
+    table(
+      ['键', '预设之间', '项目层', '说明'],
+      Object.entries(MERGE_SPEC).map(([key, spec]) => [
+        code(key),
+        spec.presets === 'n/a' ? '—' : code(spec.presets),
+        spec.project === 'n/a' ? '—' : code(spec.project),
+        spec.note ?? '',
+      ]),
+    ),
+  )
+  return lines.join('\n')
+}
+
 export const DOC_BLOCKS: Record<string, DocBlockRenderer> = {
   deps: renderDeps,
   thresholds: renderThresholds,
@@ -191,6 +217,7 @@ export const DOC_BLOCKS: Record<string, DocBlockRenderer> = {
   roles: renderRoles,
   params: renderParams,
   exceptions: renderExceptions,
+  'merge-spec': renderMergeSpec,
 }
 
 export const BLOCK_NAMES = Object.keys(DOC_BLOCKS).sort()
@@ -212,13 +239,21 @@ export function parseDocBlocks(text: string): { spans: DocSpan[]; errors: string
   const errors: string[] = []
   let open: { name: string; line: number } | null = null
   /** 围栏代码块里的内容一律不看 —— 否则"示范标记语法"本身会被当成真块（本仓 README / CHANGELOG 就踩过） */
-  let fence: string | null = null
+  /**
+   * 围栏要按 **CommonMark 的规则**配对：**同一字符、且长度不短于开启它的那串**才算闭合。
+   * 为什么较真：文档里用 ````（四反引号）嵌 ```（三反引号）示例是常规写法 —— 按"首字符"配对会把
+   * 内层的 ``` 当成闭合，于是**它后面的管理块整段被当成"围栏内"，静默不渲染也不校验**
+   * （实测：DESIGN.md 里 `merge-spec` 块就是这么消失的）。
+   */
+  let fence: { char: string; length: number } | null = null
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] as string
-    const fenceMatch = line.match(/^\s*(```+|~~~+)/)
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/)
     if (fenceMatch) {
-      const marker = (fenceMatch[1] as string)[0] as string
-      fence = fence === null ? marker : fence === marker ? null : fence
+      const marker = fenceMatch[1] as string
+      const char = marker[0] as string
+      if (fence === null) fence = { char, length: marker.length }
+      else if (fence.char === char && marker.length >= fence.length) fence = null
       continue
     }
     if (fence !== null) continue

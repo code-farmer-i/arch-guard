@@ -3,20 +3,27 @@ import { pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
 
-import {
-  defaultFramework,
-  frameworkSourceOf,
-  frameworkSources,
-  implementedFrameworks,
-} from '../data/framework-sources.js'
+import { defaultFramework, frameworkSourceOf, frameworkSources } from '../data/framework-sources.js'
 import { defineAdapter } from './adapters.js'
 import type { Diagnostic } from './codes.js'
 import { DEFAULT_NAMING, DEFAULT_THRESHOLDS } from './defaults.js'
-import type { Pack } from './pack.js'
+import { resolveProject } from './merge-spec.js'
 import { resolveStructure } from './structure.js'
 import { ADVICE_SIGNALS } from './advice-types.js'
+import { mergeRules, type SourceFormBinding } from './source-form.js'
 import type { StructureSpec } from './structure-spec.js'
-import type { Adapter, Config, ConfigOverrides, Preset } from './types.js'
+import type {
+  Adapter,
+  AdviceAllowEntry,
+  Config,
+  ConfigOverrides,
+  ExceptionEntry,
+  NamingRules,
+  Preset,
+  RoleDescriptor,
+  Rule,
+  Thresholds,
+} from './types.js'
 import { exists, mergePresets } from './util.js'
 
 export interface RawProjectConfig {
@@ -24,10 +31,11 @@ export interface RawProjectConfig {
   specVersion?: string
   presets?: Preset[]
   /**
-   * 框架包（**代码**，由宿主从本体 import 进来）。省略 = 用调用方给的回退包（CLI 给的是 react pack）。
-   * 一个项目只允许一个：换元框架是换 parser 与整套规则，不是叠加。
+   * **源码形态**（`typescript` / `react` / …）：标量、一处真相（ADR-0009）。
+   * 它决定"哪些源码扩展名归我们管"以及"用哪一份内置规则集"；缺省 = 数据表里第一条（`typescript`）。
+   * 规则要**追加**就写 `overrides.customRules`（不是造一个"包"）。
    */
-  packs?: Pack[]
+  sourceForm?: string
   /** 项目差异只写这里；与预设合并后即最终配置 */
   overrides?: ConfigOverrides
 }
@@ -36,8 +44,6 @@ export interface LoadedConfig {
   config: Config
   notices: Diagnostic[]
   path: string
-  /** 实际生效的框架包（恰好一个，或空数组 = 调用方直接给了规则集） */
-  packs: Pack[]
 }
 
 let importCounter = 0
@@ -116,7 +122,7 @@ export function aliasesFromTsconfig(root: string): {
 }
 
 /** 配置格式版本 */
-export const CONFIG_SPEC_VERSION = '1'
+export const CONFIG_SPEC_VERSION = '2'
 
 /**
  * **键白名单**（R-113）。为什么用 `Record<keyof X, true>` 写而不是散着的字符串数组：
@@ -129,17 +135,21 @@ export const CONFIG_SPEC_VERSION = '1'
 const KNOWN_TOP_KEYS: Record<keyof RawProjectConfig, true> = {
   specVersion: true,
   presets: true,
-  packs: true,
+  sourceForm: true,
   overrides: true,
 }
 
-/** `overrides` 的可用键 = `Config` 的键（逐键覆盖）+ `addRoles`（在角色表之上追加） */
+/**
+ * `overrides` 的可用键 = `ConfigOverrides` 的键（**显式枚举**，不是 `Partial<Config>`）。
+ *
+ * 为什么不再从 `Config` 推导：那样每个新字段都会顺手变成"可写但没人读"的键 ——
+ * 实测就有两个（`root` / `paradigm`）。现在可写的键必须有人读，否则它压根不在类型里。
+ */
 const KNOWN_OVERRIDE_KEYS: Record<keyof ConfigOverrides, true> = {
-  root: true,
   srcRoot: true,
-  paradigm: true,
   layout: true,
   roles: true,
+  addRoles: true,
   naming: true,
   thresholds: true,
   adapters: true,
@@ -150,12 +160,10 @@ const KNOWN_OVERRIDE_KEYS: Record<keyof ConfigOverrides, true> = {
   entries: true,
   ignore: true,
   include: true,
-  metaFramework: true,
   exceptions: true,
   adviceAllow: true,
   aliases: true,
-  autoFix: true,
-  addRoles: true,
+  customRules: true,
 }
 
 const KNOWN_STRUCTURE_KEYS: Record<keyof StructureSpec, true> = {
@@ -205,10 +213,16 @@ export async function loadConfig(options: {
   root: string
   configPath?: string
   /**
-   * 调用方（CLI）能提供的框架包。配置里写了 `packs` 就以配置为准；没写就用这个兜底。
-   * 引擎自己不认识任何 pack —— pack 是代码，依赖方向是 pack → 引擎，不能反过来。
+   * **调用方注入的源码形态实现**（`rules` + `adapters`）。引擎不认识任何"包" ——
+   * 实现是代码（层 4），依赖方向只能是它 → 引擎，所以由调用方传进来（CLI 传内置的那份）。
+   * 宿主不写这个：配置里只写 `sourceForm: 'react'`（ADR-0009）。
    */
-  fallbackPacks?: Pack[]
+  sourceForms?: SourceFormBinding[]
+  /**
+   * **调用方提供的完整规则集**：给了就替代内置集（程序化调用 / 单测 / 工具集成）。
+   * 与配置里的 `overrides.customRules`（**追加**）语义不同，名字也不同。
+   */
+  ruleSet?: Rule[]
 }): Promise<LoadedConfig> {
   const { root } = options
   const path = options.configPath ? join(root, options.configPath) : join(root, 'arch.config.mjs')
@@ -238,7 +252,7 @@ export async function loadConfig(options: {
       'overrides',
       values,
       KNOWN_OVERRIDE_KEYS,
-      '提示：`addRoles` / `include` / `entries` 都在 **overrides 层**（与 `structure` 平级）。',
+      '判据：要选片段 → `presets`；要选源码形态 → `sourceForm`；**其余全是 `overrides`**（`addRoles` / `include` / `entries` 与 `structure` 平级）。',
     )
     if (values.structure !== undefined) {
       assertKnownKeys(
@@ -268,57 +282,75 @@ export async function loadConfig(options: {
   const preset = mergePresets(presetList)
   const overrides = raw.overrides ?? {}
 
-  /* ---- 框架包：恰好一个，且它与 metaFramework 只能有一处真相 ---- */
-  const packs = raw.packs ?? options.fallbackPacks ?? []
-  if (packs.length > 1) {
-    throw new Error(
-      `一个项目只允许一个框架包，配置里出现了 ${packs.map((pack) => pack.id).join(' / ')}\n` +
-        '（多框架混装要按框架分别建配置，见 docs/DESIGN.md §7.5）',
-    )
-  }
-  const pack = packs[0]
-  const declaredFramework = overrides.metaFramework
-  if (pack && declaredFramework !== undefined && declaredFramework !== pack.framework) {
-    throw new Error(
-      `metaFramework 与框架包不一致：配置写的是 ${declaredFramework}，包 ${pack.id} 实现的是 ${pack.framework}\n` +
-        '（这两处只能有一个真相；直接用包，或把 overrides.metaFramework 去掉）',
-    )
-  }
-  const metaFramework = declaredFramework ?? pack?.framework ?? defaultFramework
-  const framework = frameworkSourceOf(metaFramework)
-  // 认不出的取值、或「声明了某个框架却没有对应 pack」都必须 fail-closed：
+  /* ---- 源码形态：**一个标量**，实现由调用方注入的绑定表给出（ADR-0009） ---- */
+  const sourceForms = options.sourceForms ?? []
+  /** 宿主**显式声明**的形态（没写 ≠ 声明 typescript —— 缺省由数据表给，见下） */
+  const declaredSourceForm = raw.sourceForm
+  const sourceFormId = declaredSourceForm ?? sourceForms[0]?.id ?? defaultFramework
+  const sourceForm = frameworkSourceOf(sourceFormId)
+  // 认不出的取值、或「声明了某个形态却没有实现」都必须 fail-closed：
   // 否则「本工具量不了这个项目」会表现为「扫到 0 个文件 → ✔ 通过」的假绿。
-  if (!framework) {
+  if (!sourceForm) {
     throw new Error(
-      `未知的 metaFramework：${metaFramework}（已登记：${frameworkSources.map((item) => item.id).join(' / ')}）`,
+      `未知的 sourceForm：${sourceFormId}（已登记：${frameworkSources.map((item) => item.id).join(' / ')}）`,
     )
   }
-  if (!pack && !framework.implemented) {
+  const binding = sourceForms.find((item) => item.id === sourceForm.id)
+  /**
+   * 规则集的**底**：调用方给的完整集优先，否则用绑定里的内置集。
+   *
+   * 两种"没有"要分开（判据不同）：
+   * - 调用方**注入了一份绑定表**，而宿主声明的形态不在其中 → 配置期**报错**
+   *   （说好要量 vue 却量不了，拿它跑只会得到「0 个文件 → 通过」的假绿）；
+   * - 调用方**一行都没注入**（`sourceForms` 为空）→ 规则集为空 + 自述。这是**调用方**的省略：
+   *   `loadConfig` 仍然把配置语义解析完（很多调用方只关心角色 / 布局 / 结构），
+   *   而 `runGuard` 会在"没有任何可跑的规则"那里硬报错 —— 不会静默通过。
+   */
+  const baseRules = options.ruleSet ?? binding?.rules
+  if (!baseRules && sourceForms.length > 0) {
     throw new Error(
-      `本工具还没有 ${framework.id} 框架包（现在只有 ${implementedFrameworks().join(' / ')}）：` +
+      `本工具还没有 ${sourceForm.id} 的实现（现在只有 ${sourceForms.map((item) => item.id).join(' / ') || '（调用方一个都没注入）'}）：` +
         `拿它跑只会得到「0 个文件 → 通过」的假绿，所以这里直接拒绝，而不是静默通过\n` +
-        '（已经有 pack 的话，在 arch.config.mjs 里用 packs: [xxxPack] 声明它）',
+        `（写 sourceForm: '${sourceForms[0]?.id ?? 'typescript'}'，或让调用方传 sourceForms / ruleSet）`,
     )
+  }
+  /**
+   * **规则集**（R-143）：内置集 + `overrides.customRules` 追加，**解析期算定**成 `Config.rules`。
+   * 以前 `run.ts` 与 CLI 各推一遍（两处真相）；合并的冲突语义只有一份实现（`mergeRules`）。
+   */
+  const rules = mergeRules('overrides.customRules', baseRules ?? [], overrides.customRules ?? [])
+  if (!baseRules && sourceForms.length === 0) {
+    notices.push({
+      code: 'source-form-missing',
+      text: '调用方没有注入源码形态实现（sourceForms）：规则集为空，本次只解析了配置语义',
+    })
   }
 
   /**
-   * `Pack.adapters` 不再是一份死声明，而是一条 fail-closed 校验：
-   * 宿主配的适配器 facet 必须被该 pack 支持 —— 否则就是"配了却没有任何规则读它"。
+   * 声明的适配器 facet 必须被这套规则集支持（fail-closed）——
+   * 否则就是"配了却没有任何规则读它"。
+   * 调用方用 `ruleSet` 自带规则集、又没注入绑定时**不查**：那时规则集的所有权在调用方手里。
    */
-  if (pack) {
-    const supported = new Set(pack.adapters ?? [])
+  if (binding) {
+    const supported = new Set(binding.adapters)
     const configured = Object.keys({ ...preset.adapters, ...overrides.adapters })
     const unknown = configured.filter((facet) => !supported.has(facet))
     if (unknown.length > 0) {
       throw new Error(
-        `框架包 ${pack.id} 不支持这些适配器 facet：${unknown.join(' / ')}（支持：${[...supported].join(' / ')}）\n` +
+        `源码形态 ${binding.id} 的规则集不支持这些适配器 facet：${unknown.join(' / ')}（支持：${[...supported].join(' / ')}）\n` +
           '（每个 facet 都必须有规则消费它 —— 没有消费者的 facet 已按"声明必须有消费者"删除）',
       )
     }
   }
 
+  // 预设 + 项目层 → 最终值：语义由 `MERGE_SPEC` 声明，执行在 `resolveProject`（R-144）
+  const project = resolveProject(
+    preset as unknown as Record<string, unknown>,
+    overrides as unknown as Record<string, unknown>,
+  )
+
   // 布局默认值属于预设（canonical），引擎不假设任何项目布局（见 §15.2 P3）
-  const layout = overrides.layout ?? preset.layout
+  const layout = project.layout
   if (!layout) {
     throw new Error('配置里没有 layout（项目布局）。请引入结构预设，例如 presets: [canonical()]')
   }
@@ -326,11 +358,11 @@ export async function loadConfig(options: {
   const tsconfigAliases = aliasesFromTsconfig(root)
   if (tsconfigAliases.notice) notices.push({ code: 'config-aliases', text: tsconfigAliases.notice })
 
+  // `aliases` 是 `special`：底来自 tsconfig（不是预设），项目层逐键覆盖
   const aliases: Record<string, string> = { ...tsconfigAliases.aliases, ...overrides.aliases }
-  const entries = overrides.entries ?? preset.entries ?? [`${layout.app}/main.tsx`]
+  const entries = project.entries ?? [`${layout.app}/main.tsx`]
   if (exists(join(root, 'index.html'))) entries.push('index.html')
 
-  const params = { ...preset.params, ...overrides.params }
   const adapters = { ...preset.adapters, ...overrides.adapters }
   /**
    * **合并后的适配器全部过一遍 `defineAdapter`**：预设里的本来就校验过（幂等重跑），
@@ -354,51 +386,49 @@ export async function loadConfig(options: {
     i18nAdapter &&
     usesI18nLibrary &&
     !i18nAdapter.resourceDir &&
-    typeof params.i18nDir === 'string'
+    typeof project.params.i18nDir === 'string'
   ) {
     // 只在适配器**声明了 i18n 库**（`from` 非空）时补落点：
     // `noneI18nKit()` 表达的是"项目不用 i18n"，给它补落点会让 C 域照跑、C07 还会误报"声明了 i18n 却零资源"。
-    adapters.i18n = { ...i18nAdapter, resourceDir: params.i18nDir } as Adapter
+    adapters.i18n = { ...i18nAdapter, resourceDir: project.params.i18nDir } as Adapter
   }
 
   // 追加角色：项目自己的目录（`src/legacy/**`）加在范式角色表之上，不必整份重写
-  const roles = [
-    ...(overrides.roles ?? preset.roles ?? []),
-    ...(preset.addRoles ?? []),
-    ...(overrides.addRoles ?? []),
-  ]
+  const roles = [...(project.roles as RoleDescriptor[]), ...(project.addRoles as RoleDescriptor[])]
 
   const config: Config = {
     root,
-    srcRoot: overrides.srcRoot ?? preset.srcRoot ?? 'src',
+    srcRoot: project.srcRoot ?? 'src',
     layout,
     // 角色表：范式角色表**整体替换**（`overrides.roles`），再在其上**追加** addRoles
     // （预设的 addRoles 与 overrides 的 addRoles 都追加 —— 项目自己的目录不必重写范式角色表）。
     // 注：Config 上不再单独保留 `addRoles` 字段 —— 它曾被赋值却无人读，而 `roles` 已含追加结果，
     // 留着就是同一个事实的第二处存放。结构声明的校验也要看到**同一份** roles，所以先算成局部常量。
     roles,
-    naming: { ...DEFAULT_NAMING, ...preset.naming, ...overrides.naming },
-    thresholds: { ...DEFAULT_THRESHOLDS, ...preset.thresholds, ...overrides.thresholds },
+    naming: { ...DEFAULT_NAMING, ...(project.naming as Partial<NamingRules>) },
+    thresholds: { ...DEFAULT_THRESHOLDS, ...(project.thresholds as Partial<Thresholds>) },
     adapters,
-    // `overrides.enable` 仍是"我全都要自己定"的总开关（整体替换）；预设之间是并集（见 mergePresets）
-    enable: overrides.enable ?? preset.enable ?? 'all',
-    disable: [...new Set([...(preset.disable ?? []), ...(overrides.disable ?? [])])],
+    // `enable`：预设之间是并集（`all` 吸收，special），项目层是**整体替换**（表里写着）；
+    // 谁都没写 = 'all'（"全部注册的规则"）
+    enable: (project.enable as string[] | 'all' | undefined) ?? 'all',
+    disable: project.disable,
     // 结构声明同样是加法：预设与 overrides 合并后**统一校验**（维度/角色必须真实存在，见 resolveStructure）
     structure: resolveStructure({
       preset: preset.structure,
       overrides: overrides.structure,
       roles,
     }),
-    params,
+    params: project.params,
     entries,
-    ignore: [...(preset.ignore ?? []), ...(overrides.ignore ?? [])],
-    // 契约扫描域：预设给默认（canonical / library 都收窄到 src），overrides 可覆盖；空 = 不限制
-    include: overrides.include ?? preset.include ?? [],
-    metaFramework,
+    ignore: project.ignore,
+    // 契约扫描域：预设之间拼接、项目层替换（表里写着）；空 = 不限制
+    include: project.include,
+    sourceForm: sourceForm.id,
+    rules,
     // 范式标识带进最终配置：`placementHint` / `--explain` 靠它区分「三根 / 库 / FSD」三套落点
     ...(paradigms[0] ? { paradigm: paradigms[0] } : {}),
-    exceptions: [...(preset.exceptions ?? []), ...(overrides.exceptions ?? [])],
-    adviceAllow: [...(overrides.adviceAllow ?? [])],
+    exceptions: project.exceptions as ExceptionEntry[],
+    adviceAllow: project.adviceAllow as AdviceAllowEntry[],
     aliases,
   }
 
@@ -457,5 +487,5 @@ export async function loadConfig(options: {
       text: '项目根没有 package.json：依赖类规则会被跳过',
     })
 
-  return { config, notices, path, packs }
+  return { config, notices, path }
 }

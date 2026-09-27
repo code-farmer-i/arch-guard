@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { reactPack } from '../es/packs/react/index.js'
+import { builtinSourceForms } from '../es/index.js'
 import { FACTS_CACHE_SPEC } from '../es/engine/facts-cache.js'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -34,7 +34,7 @@ function makeProject() {
 }
 
 const run = (dir, extra = {}) =>
-  runGuard({ cwd: dir, fallbackPacks: [reactPack], quiet: true, ...extra })
+  runGuard({ cwd: dir, sourceForms: builtinSourceForms, quiet: true, ...extra })
 const cachePath = (dir) => join(dir, '.arch-guard-cache', 'facts.json.gz')
 
 test('facts 缓存：第二次运行全部命中，且发现项一致', async () => {

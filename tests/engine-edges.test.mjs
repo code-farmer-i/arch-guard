@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { aliasesFromTsconfig, loadConfig } from '../es/engine/config.js'
 import { parseLocaleFile } from '../es/engine/i18n.js'
 import { describeTypeScriptProblem } from '../es/engine/ts-api.js'
-import { coreRules, reactPack, runGuard } from '../es/index.js'
+import { builtinSourceForms, coreRules, runGuard } from '../es/index.js'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const INDEX_URL = pathToFileURL(join(PACKAGE_ROOT, 'es/index.js')).href
@@ -44,7 +44,7 @@ test('config：找不到配置文件 / specVersion 不认识 / 缺 layout 都显
   try {
     await assert.rejects(() => loadConfig({ root: dir }), /找不到配置文件/)
 
-    writeFileSync(join(dir, 'arch.config.mjs'), `export default { specVersion: '2' }\n`)
+    writeFileSync(join(dir, 'arch.config.mjs'), `export default { specVersion: '9' }\n`)
     await assert.rejects(() => loadConfig({ root: dir }), /specVersion 不支持/)
 
     writeFileSync(join(dir, 'arch.config.mjs'), 'export default { overrides: { roles: [] } }\n')
@@ -54,74 +54,17 @@ test('config：找不到配置文件 / specVersion 不认识 / 缺 layout 都显
   }
 })
 
-test('config：metaFramework 认不出 / 还没有 pack 时直接拒绝（防「0 文件 → 通过」的假绿）', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ag-fw-'))
-  try {
-    const write = (framework) =>
-      writeFileSync(
-        join(dir, 'arch.config.mjs'),
-        `import { canonical } from '${INDEX_URL}'\n` +
-          `export default { presets: [canonical()], overrides: { metaFramework: '${framework}' } }\n`,
-      )
-
-    write('nope')
-    await assert.rejects(() => loadConfig({ root: dir }), /未知的 metaFramework/)
-
-    write('vue')
-    await assert.rejects(() => loadConfig({ root: dir }), /还没有 vue 框架包/)
-
-    // 不写就用**默认源码形态**（data 表里第一个已实现的：typescript）——
-    // 引擎不假设前端框架，所以这里不是 'react'
-    writeFileSync(
-      join(dir, 'arch.config.mjs'),
-      `import { canonical } from '${INDEX_URL}'\nexport default { presets: [canonical()] }\n`,
-    )
-    const { config } = await loadConfig({ root: dir })
-    assert.equal(config.metaFramework, 'typescript')
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test('config：规则集由框架包决定，且 pack 与 metaFramework 只有一处真相', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ag-pack-'))
-  try {
-    const write = (body) => writeFileSync(join(dir, 'arch.config.mjs'), body)
-    const head = `import { canonical, reactPack } from '${INDEX_URL}'\n`
-
-    write(`${head}export default { presets: [canonical()], packs: [reactPack] }\n`)
-    const loaded = await loadConfig({ root: dir })
-    assert.equal(loaded.config.metaFramework, 'react', 'metaFramework 由包给出，不用再手写一遍')
-    assert.deepEqual(
-      loaded.packs.map((pack) => pack.id),
-      ['react'],
-    )
-    assert.ok(loaded.packs[0].rules.length > 0, '包自带规则集')
-
-    write(`${head}export default { presets: [canonical()], packs: [reactPack, reactPack] }\n`)
-    await assert.rejects(() => loadConfig({ root: dir }), /只允许一个框架包/)
-
-    write(
-      `${head}export default { presets: [canonical()], packs: [reactPack], ` +
-        `overrides: { metaFramework: 'vue' } }\n`,
-    )
-    await assert.rejects(() => loadConfig({ root: dir }), /不一致/)
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test('runGuard：不给 rules 时用框架包（CLI 走的路），一个包都没有则明确报错', async () => {
+test('runGuard：注入了内置实现就跑（CLI 走的路）；一行都不注入则明确报错', async () => {
   const dir = makeProject()
   try {
-    const result = await runGuard({ cwd: dir, fallbackPacks: [reactPack], quiet: true })
-    assert.equal(result.config.metaFramework, 'react')
-    assert.ok(result.stats.length > 0, '兜底包生效，规则真的跑了')
+    const result = await runGuard({ cwd: dir, sourceForms: builtinSourceForms, quiet: true })
+    assert.equal(result.config.sourceForm, 'typescript', '这份配置没写 sourceForm → 缺省形态')
+    assert.ok(result.stats.length > 0, '内置实现生效，规则真的跑了')
 
     await assert.rejects(
       () => runGuard({ cwd: dir, quiet: true }),
       /没有任何可跑的规则/,
-      '没包又没 rules 时必须报错，而不是「跑 0 条规则 → 通过」',
+      '没注入实现又没 ruleSet 时必须报错，而不是「跑 0 条规则 → 通过」',
     )
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -191,7 +134,7 @@ test('ts-api：非对象导出给出可执行报错，而不是让人看 undefin
 test('run：没有 git 时 scope=changed 降级全量并显式给出 notice', async () => {
   const dir = makeProject()
   try {
-    const result = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
+    const result = await runGuard({ cwd: dir, ruleSet: coreRules, scope: 'changed', quiet: true })
     assert.ok(result.all.length > 0)
     assert.equal(result.scope, 'changed')
   } finally {
@@ -221,7 +164,7 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
       'export function a(): void {\n  console.log("改过的文件")\n  debugger\n}\n',
     )
 
-    const changed = await runGuard({ cwd: dir, rules: coreRules, scope: 'changed', quiet: true })
+    const changed = await runGuard({ cwd: dir, ruleSet: coreRules, scope: 'changed', quiet: true })
     // scope 只过滤**报告**（active），不影响正确性判定（all）—— 这是防「假绿」的设计
     assert.deepEqual(changed.scopeFiles, ['src/shared/lib/a.ts'])
     assert.ok(changed.active.some((finding) => finding.file === 'src/shared/lib/a.ts'))
@@ -235,7 +178,7 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
       '但 all 里必须仍然保留它（否则增量会变成假绿）',
     )
 
-    const staged = await runGuard({ cwd: dir, rules: coreRules, scope: 'staged', quiet: true })
+    const staged = await runGuard({ cwd: dir, ruleSet: coreRules, scope: 'staged', quiet: true })
     assert.equal(
       staged.active.some((finding) => finding.file === 'src/shared/lib/a.ts'),
       false,
@@ -243,10 +186,10 @@ test('run：git 仓库里 scope=changed/staged 只报告变更文件，--local-o
     )
 
     git('add', '-A')
-    const stagedNow = await runGuard({ cwd: dir, rules: coreRules, scope: 'staged', quiet: true })
+    const stagedNow = await runGuard({ cwd: dir, ruleSet: coreRules, scope: 'staged', quiet: true })
     assert.ok(stagedNow.active.some((finding) => finding.file === 'src/shared/lib/a.ts'))
 
-    const since = await runGuard({ cwd: dir, rules: coreRules, scope: 'since:HEAD', quiet: true })
+    const since = await runGuard({ cwd: dir, ruleSet: coreRules, scope: 'since:HEAD', quiet: true })
     assert.ok(Array.isArray(since.all))
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -260,7 +203,7 @@ test('run：--paths 接受绝对路径（IDE / lint 工具按文件传参的形�
     writeFileSync(join(dir, 'src/modules/demo/helper.ts'), 'export const helper = 1\n')
     const absolute = await runGuard({
       cwd: dir,
-      rules: coreRules,
+      ruleSet: coreRules,
       quiet: true,
       paths: [join(dir, 'src/modules/demo/helper.ts')],
     })
@@ -271,7 +214,7 @@ test('run：--paths 接受绝对路径（IDE / lint 工具按文件传参的形�
     )
     const relativeRun = await runGuard({
       cwd: dir,
-      rules: coreRules,
+      ruleSet: coreRules,
       quiet: true,
       paths: ['src/modules/demo/helper.ts'],
     })

@@ -184,13 +184,13 @@ export function scanProject(
 ): ScanResult {
   const { root } = config
   /**
-   * 遍历时把**所有**框架的源码扩展名都收进来，再按当前 `metaFramework` 分流：
+   * 遍历时把**所有**框架的源码扩展名都收进来，再按当前 `sourceForm` 分流：
    * 支持的正常走角色判定；别的框架的（如 react pack 遇到 `.vue`）进 `foreign`。
    *
    * 为什么要收而不是直接无视：扩展名不在白名单里的文件会被 walk 静默丢掉，
    * 于是「本工具量不了这个项目」表现为「0 个文件 → ✔ 通过」—— 假绿比报错危险（S20）。
    */
-  const framework = resolveFramework(config.metaFramework)
+  const framework = resolveFramework(config.sourceForm)
   const supported = supportedExtensions(framework)
   const foreign_ext = foreignExtensions(framework)
   const allFrameworkExtensions = [...new Set(frameworkSources.flatMap((item) => item.extensions))]

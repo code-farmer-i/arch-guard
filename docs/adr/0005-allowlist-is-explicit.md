@@ -21,4 +21,4 @@
 - 只配 `capabilities` 的项目**不再**获得 `P01`；要「未登记即拒」必须显式写 `deps({ allow: [...] })`。能力首选仍可只登记一次（写进 `allow` 即可，`policyConflicts` 会核对）。
 - 批准名单的**组成**是 `allow ∪ 适配表声明的 packages`。适配器本来就是「项目用什么库」的唯一声明（P04 读同一份数据），没理由让组件库在 `allow` 里重抄一遍；但它只**并入名单**，不负责打开 `P01` —— 开关仍然只有 `allow`，否则重演这条 ADR 要修的同一个坑。
 - 这是一次**收紧方向反转**的行为变更：原本靠能力表隐式获得 `P01` 的存量配置会失去这条门禁。因此**不静默**：`runGuard` 在「有 `capabilities`、无 `allow`」时打印 notice，说明能力表只驱动 P06、P01 未开启。
-- 配置**格式**没变（字段与类型不变），故不 bump `CONFIG_SPEC_VERSION`；语义变更记入 CHANGELOG。若将来需要硬拦截存量配置，再把 `specVersion` 提到 `2` 即可 —— 通道保留，不在本次使用。
+- 配置**格式**没变（字段与类型不变），故不 bump `CONFIG_SPEC_VERSION`；语义变更记入 CHANGELOG。**后来用了**：`0.10.0`（ADR-0009）里配置格式真的变了（`packs` → `sourceForm`、新增 `overrides.customRules`），`CONFIG_SPEC_VERSION` 提到 `'2'` —— 这正是这个通道的用途。

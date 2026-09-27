@@ -29,10 +29,10 @@ pnpm add -D @arch-guard/core        # 包名是 @arch-guard/core；命令名是 
 在项目根建 `arch.config.mjs`（最小可用形态）：
 
 ```js
-import { canonical, designSystem, hygiene, reactPack } from '@arch-guard/core/presets'
+import { canonical, designSystem, hygiene } from '@arch-guard/core/presets'
 
 export default {
-  packs: [reactPack], // 框架包：声明的是**源码形态**，一个项目一个
+  sourceForm: 'react', // 源码形态（标量、一处真相）：决定扩展名分派 + 内置规则集
   presets: [canonical(), designSystem(), hygiene()], // 范式（三选一）+ 域（任意子集）
 }
 ```
@@ -44,12 +44,12 @@ echo $?                           # 0 = 通过；1 = 有 error；2 = 请求无�
 
 **包名与导入面**（`package.json` 的 `exports` 是权威）：
 
-| 导入                                                  | 是什么                                                                        |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `@arch-guard/core`                                    | 公共 API：`runGuard` / `loadConfig` / `createRule` / `coreRules` / code 常量… |
-| `@arch-guard/core/presets`                            | **宿主最常用的面**：范式和域预设、kit 工厂                                    |
-| `@arch-guard/core/presets/*`                          | 单个预设文件（按需精确引入）                                                  |
-| `@arch-guard/core/ui-kits/*` · `/packs/*` · `/data/*` | 适配器 kit / 框架包 / 纯数据表（自写适配器时用）                              |
+| 导入                                     | 是什么                                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `@arch-guard/core`                       | 公共 API：`runGuard` / `loadConfig` / `createRule` / `coreRules` / code 常量…                 |
+| `@arch-guard/core/presets`               | **宿主最常用的面**：范式和域预设、kit 工厂                                                    |
+| `@arch-guard/core/presets/*`             | 单个预设文件（按需精确引入）                                                                  |
+| `@arch-guard/core/ui-kits/*` · `/data/*` | 适配器 kit / 纯数据表（自写适配器时用）；形态绑定在 `packs/registry.ts`（引擎自带，宿主不写） |
 
 > **CLI 名与包名不是一个东西**：命令叫 `arch-guard`，包叫 `@arch-guard/core`。
 > 复制配置示例时最容易踩的就是这里 —— `from 'arch-guard/presets'` 解析不到。
@@ -60,8 +60,8 @@ echo $?                           # 0 = 通过；1 = 有 error；2 = 请求无�
 
 ```js
 export default {
-  specVersion: '1', // 配置格式版本：省略 = 用当前版本；写了与本工具不一致则**显式报错**，而不是猜
-  packs: [reactPack], // 框架包（一项目一个）：tsPack（TS/JS 家族）· reactPack（React）
+  specVersion: '2', // 配置格式版本：省略 = 用当前版本；写了与本工具不一致则**显式报错**，而不是猜
+  sourceForm: 'react', // 源码形态：'typescript'（库 / CLI）· 'react'（React 应用）；省略 = typescript
   presets: [...], // 预设：范式 + 域 + 方案面（见 §2）
   overrides: {...}, // 项目差异只写这里（下表的每个键都是 `Config` 的逐键覆盖）
 }
@@ -96,7 +96,7 @@ export default {
 
 ## 2. 从 5 行开始（渐进接入）
 
-**别一上来就照着 `examples/full` 抄 211 行**。这条路径是有顺序的：
+**别一上来就照着 `examples/full` 抄 210 行**。这条路径是有顺序的：
 
 | 步  | 做什么                                                                                                                                     | 你会得到             |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
@@ -683,17 +683,17 @@ arch-guard --check-docs     # 只校验：不一致即红
 
 ## 9. 常见任务
 
-| 任务                             | 怎么做                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档                                                                                                                                                                                                                                                                           |
-| **想看「配全」长什么样**         | 两份对称的活样板：[`examples/full/`](../examples/full/)（`canonical()` 三根拓扑，**102/107 在跑**）与 [`examples/full-fsd/`](../examples/full-fsd/)（`fsd()` 六层切片，**91/107**）。两者都是 0 finding；差的那几条：M02–M06 覆盖率五条要一份比 HEAD 新的产物（入库的必然过期，本仓自己也不声明 `coverage`），FSD 另有 S13 / S37 明列停用 + 9 条应用专属规则不适用。最短可用看 [`examples/minimal/`](../examples/minimal/)（71/107）                                             |
-| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                                                                                                                                                                                                                                                                                                       |
-| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                                                                                                                                                                                                                                                                                                      |
-| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                                                                                                                                                                                                                                                                                                  |
-| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                                                                                                                                                                                                                                                                                           |
-| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                                                                                                                                                                                                                                                                                              |
-| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)。**自定义规则要能被 `--explain <id>` / `--list-rules` 看到**，就得让规则进当前规则集：`arch.config.mjs` 的 `packs`（用 `definePack({ rules: [...tsPack.rules, 自己的] })`），或程序化入口 `runGuard({ rules })` —— 后者 CLI 看不到，自己调 `explainRules()` / `renderRuleCatalog()` 展开 |
-| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 任务                             | 怎么做                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **新项目从零接入**               | ① 选范式（`canonical` / `library` / `fsd`）② 加域预设（`designSystem` / `copy` / `deps` / `metrics` / `hygiene`）③ 加方案面（`uiKit` / `i18n` …）④ 补 `params` 落点 ⑤ 进 CI ⑥ `--render-docs` 同步文档                                                                                                                                                                                                                                                                                                                                     |
+| **想看「配全」长什么样**         | 两份对称的活样板：[`examples/full/`](../examples/full/)（`canonical()` 三根拓扑，**102/107 在跑**）与 [`examples/full-fsd/`](../examples/full-fsd/)（`fsd()` 六层切片，**91/107**）。两者都是 0 finding；差的那几条：M02–M06 覆盖率五条要一份比 HEAD 新的产物（入库的必然过期，本仓自己也不声明 `coverage`），FSD 另有 S13 / S37 明列停用 + 9 条应用专属规则不适用。最短可用看 [`examples/minimal/`](../examples/minimal/)（71/107）                                                                                                       |
+| **已有项目接入（存量很多违规）** | 没有基线可刷：先用 `include` 把契约域**收窄到已经守得住的部分**，再逐块放开；`--explain` 先问清落点；确实不适用的写 `exceptions`（带理由）                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **换组件库 / 不用组件库**        | 改 `uiKit(antdKit() → 你的 kit → noneKit())` 一行；适配器约 30 行（`packages` / `vendorSelectors` / `detachedApis` / `examples`）。**换完旧库残留一条不剩**是可判定验收条件                                                                                                                                                                                                                                                                                                                                                                |
+| **换 i18n / 不用 i18n**          | `i18n(i18nextKit({…}) → 你的 kit → noneI18nKit())`；不用 i18n 时 C 域整体不注册                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **迁移到 FSD**                   | 换 `canonical()` → `fsd()`，按层声明 `slicedLayers` / `segments`；分组切片要显式开 `slicesGrouped`（两种形态无法用一组 glob 同时表达）                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **写代码前问契约**               | `arch-guard --explain <路径>`（路径还没写也能问：它会告诉你该放哪）                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **加一条自己的规则**             | 需求进 `REQUIREMENTS.md` → 设计进 `docs/DESIGN.md` → 规格进 `.scratch/<slug>/spec.md` → `createRule()` + `__fixtures__/` 夹具（违规必报 × 合规不报）→ 见 [`../AGENTS.md`](../AGENTS.md)。**加自己的规则只写一行**：`overrides: { customRules: [自己的规则] }`（`createRule()` 产出）—— 与内置规则集**并集**，同 id 同 title 幂等、不同 title 配置期报错；`--explain <id>` / `--list-rules` 直接看得到。程序化调用要**整体替换**规则集时用 `runGuard({ ruleSet })`（CLI 看不到那种规则集，自己调 `explainRules()` / `renderRuleCatalog()`） |
+| **本地地址 / dev-only 形态**     | 见 §5.1 与 [`../PARADIGM.md`](../PARADIGM.md) §7.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ---
 

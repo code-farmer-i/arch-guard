@@ -29,8 +29,8 @@ function project(presetsExpr) {
   writeFileSync(
     join(dir, 'arch.config.mjs'),
     `import { antdKit, canonical, copy, deps, designSystem, fsd, hygiene, i18n, i18nextKit, library, noneI18nKit, stack, uiKit } from '${ES}'\n` +
-      `import { reactPack } from '${ES}'\n` +
-      `export default { packs: [reactPack], presets: [${presetsExpr}] }\n`,
+      `import { builtinSourceForms } from '${ES}'\n` +
+      `export default { sourceForm: 'react', presets: [${presetsExpr}] }\n`,
   )
   return dir
 }

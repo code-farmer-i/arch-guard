@@ -120,7 +120,7 @@ test('R-118 在真示例上：canonical 给出一条（client.ts 的取数函数
   const adviceOf = async (name) => {
     const result = await runGuard({
       cwd: fileURLToPath(new URL(`../examples/${name}`, import.meta.url)),
-      rules: coreRules,
+      ruleSet: coreRules,
       quiet: true,
     })
     return result.notices.filter((notice) => notice.code === 'architecture-advice')

@@ -142,7 +142,7 @@ test('cli：基线机制已移除 —— --update-baseline 不存在，存量违
     // 就算手写一份基线文件也没用：违规照报
     writeFileSync(
       join(dir, 'arch.baseline.json'),
-      JSON.stringify({ version: 1, specVersion: '1', entries: [] }),
+      JSON.stringify({ version: 1, specVersion: '2', entries: [] }),
     )
     const run = await runCli([], { cwd: dir })
     assert.equal(run.code, 1, '有违规就必须红')

@@ -48,7 +48,7 @@ export const INIT_SNIPPETS = {
       'copy(),',
       'hygiene(),',
     ],
-    imports: ['copy', 'designSystem', 'hygiene', 'metrics', 'reactPack'],
+    imports: ['copy', 'designSystem', 'hygiene', 'metrics'],
     packages: ['react', 'react-dom'],
     metrics:
       `metrics({\n` +

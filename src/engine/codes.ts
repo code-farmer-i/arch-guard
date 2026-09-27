@@ -27,6 +27,8 @@ export const NOTICE_CODES = [
   'architecture-advice',
   /** 显式停用的规则：门禁自己的账（与「因能力未声明而停用」不同，R-125） */
   'rules-disabled',
+  /** 调用方没注入源码形态实现（`sourceForms`）：规则集为空，只解析了配置语义（ADR-0009） */
+  'source-form-missing',
   /** 生效的适配器（`facet=id` 清单）：适配器只写在配置里，报告不提它就看不出"跑的是哪套 kit" */
   'adapters-in-use',
   /** 别名取自 tsconfig（含"取自哪个 tsconfig"这类说明） */

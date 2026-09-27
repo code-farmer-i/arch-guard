@@ -240,7 +240,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
   try {
     const scoped = await runGuard({
       cwd: dir,
-      rules: coreRules,
+      ruleSet: coreRules,
       quiet: true,
       paths: ['src/orphans/**'],
     })
@@ -249,7 +249,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
       ['src/orphans/thing.ts'],
     )
 
-    const advisory = await runGuard({ cwd: dir, rules: coreRules, quiet: true, reportOnly: true })
+    const advisory = await runGuard({ cwd: dir, ruleSet: coreRules, quiet: true, reportOnly: true })
     assert.equal(advisory.exitCode, 0, 'report-only 永远 0')
     assert.ok(advisory.active.length > 0)
 
@@ -264,7 +264,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
     })
     const crashed = await runGuard({
       cwd: dir,
-      rules: [...coreRules, boom],
+      ruleSet: [...coreRules, boom],
       quiet: true,
       only: ['H99'],
     })
@@ -278,7 +278,7 @@ test('run：--paths 过滤报告、--report-only 不阻断、规则异常 fail-c
 test('run：能力未声明时规则不注册，且报告里能看到 skipped', async () => {
   const result = await runGuard({
     cwd: `${PACKAGE_ROOT}examples/minimal`,
-    rules: coreRules,
+    ruleSet: coreRules,
     quiet: true,
   })
   assert.equal(result.exitCode, 0)

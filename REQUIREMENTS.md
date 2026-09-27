@@ -482,7 +482,7 @@
 
 ## 七、后补的需求（按疼度排序）
 
-> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 128 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
+> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 130 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
 > **已撤**：R-30 复杂度 · R-70 抑制注释 · **R-94（analytics 面 kit 化）** —— 编号登记在第八节，不复用（见 N-06 / N-07 / N-13）。
 > 本节是**后补的一批**（含已完成与判不做的），按疼度排序；更早的按主题分散在一~六节。
 
@@ -842,6 +842,67 @@
   `[跑] / [未启用] / [缺能力]`（机读 `state` 字段）。`apiVersion` 不动（新增 code 属兼容性新增，§6.9）
 - **升级了 R-87 的守卫**：`paradigm-coverage` 以前靠"算差集"**记录** FSD 那 9 条应用专属规则的静默缺席；
   现在要求**账目闭合**（一条都不许没下落）+ 那 9 条必须**明列** `not-enabled` —— 同一份名单，更强的判据
+
+**R-143 源码形态被 `packs` 数组捆住：宿主加规则只能冒充框架包** · 已完成 · 本体（`sourceForm` 标量 + `customRules` 追加）
+
+- **长这样**（dsh-workbench，实测）：他们要把 5 条套件边界规则（S60–S64）交给门禁，只有两条路 ——
+  ① 自造包：`definePack({ id:'own', framework:'react', rules:[...reactPack.rules, ...own],
+adapters: reactPack.adapters })`（**必须自称实现某个元框架**、必须**手工转发 adapters**，否则
+  `config.ts` 的 fail-closed 报"包不支持这个 facet"）；② `runGuard({ rules: [...] })` 程序化入口 ——
+  而 **CLI 从此看不见这些规则**（`--explain` / `--list-rules` / `--stats` / `--render-docs` 全盲）。
+  直接写 `packs: [reactPack, ownRules]` 会被 `packs.length > 1` 抛掉
+- **病根（三轮修正后的结论）**：`packs` 一个字段捆了三件事，而且**数组形状在诱导误用** ——
+  宿主看到数组就写两个，撞抛错，绕道程序化入口。实测三条：
+  1. **数组传递的信息量 = 一个枚举值**：`tsPack` 与 `reactPack` 的 `rules` 是同一份 `coreRules`、
+     `adapters` 是同一张 12 项清单，只差 `id`/`framework`；
+  2. **源码形态三处可写**：`Pack.framework`（被读）· `overrides.metaFramework`（被读，且与前者互校）·
+     **`Preset.metaFramework` 是死声明**（`mergePresets` 搬进 `out.metaFramework`、`config.ts` 不读、
+     没有预设声明过、没有测试覆盖 —— 机械比对"merge 写出 16 个字段 / config 读入 15 个"才发现）；
+  3. **"能不能跑"取决于宿主有没有手递那个对象**：省略 `packs` 时靠 **CLI 的 `fallbackPacks` 补丁**
+     才跑得起来，程序化调用方没有补丁 → 直接"没有任何可跑的规则"
+- **期望**：**取消 `packs` 配置项**，把捆在一起的两件事拆开 ——
+  顶层 `sourceForm`（**标量**、缺省 = 数据表里第一个已实现形态）声明源码形态；
+  `overrides.customRules` 作为**追加**通道（与 `aliases` / `adviceAllow` 同层：预设给不了、只有项目能声明）。
+  注册表**按层拆**（`data/framework-sources.ts` 只留纯数据 `{id, extensions}`；`{rules, adapters}` 绑定放
+  `packs/registry.ts` 由调用方注入，取代 `fallbackPacks`）—— 因为 data 是层 1、`coreRules` 是层 4，
+  合成一张表就是反向依赖。`Pack` / `definePack` 降为**内部**（框架实现细节）：删 `Pack.framework`、
+  `overrides.metaFramework`、死声明 `Preset.metaFramework` 与互校校验；`implemented` 改派生；
+  `RunOptions.rules` → `ruleSet`（完整替换）；`CONFIG_SPEC_VERSION` `'1'` → `'2'`
+- **边界**：不动能力模型（`requires` 仍是字符串根）· 不做插件/包依赖系统 · **保留 `overrides` 层**
+  （它提供"项目优先"这条轴，且让"哪些是项目自己的决定"在配置里可读）· 层与合并语义的明文归类
+  （实测同一把键在"预设之间"与"项目层"是两套语义：`enable`/`entries`/`include`/`layout` 预设之间是并集/拼接、
+  项目层是整体替换）单独做
+- **附带**：新增「**声明字段必须有消费者**」的元守卫（机械比对 `mergePresets` 写出的字段集合 vs
+  `config.ts` 读入的字段集合，差集非空即红）—— `Preset.metaFramework` 是手工比对才发现的，
+  做成守卫就不必靠谁"仔细"；`--verify-deps` 的 `adapters` 来源随之改（fail-closed 校验口径不变）
+- **落地**：顶层 `sourceForm`（标量）+ `overrides.customRules`（追加）+ 注册表按层拆
+  （`data/framework-sources.ts` 纯数据 / `packs/registry.ts` 绑定由调用方注入）；
+  删 `Pack.framework` / `overrides.metaFramework` / **死声明 `Preset.metaFramework`** 与互校；
+  `Pack` / `definePack` 退场（→ `defineSourceForm` / `SourceFormBinding` / `builtinSourceForms`）；
+  `implemented` 改派生；`RunOptions.rules` → `ruleSet`；`CONFIG_SPEC_VERSION` `'1'` → `'2'`；
+  `Config.rules` 在解析期算定（CLI 与 runner 读同一份）。附带**元守卫**：机械比对
+  `mergePresets` 写出 vs `config.ts` 读入的字段集合（`Preset.metaFramework` 就是这么发现的）。
+  夹具 `custom-rules`（追加的规则真的在判）+ `tests/source-form.test.mjs`；
+  顺手修掉 0.8/0.9 里 `http` 面漏在白名单的真 bug。见 ADR-0009 与 CHANGELOG `## [0.10.0]`
+
+**R-144 同一把键在两层有两种合并语义，而配置里看不出来** · 已完成 · 本体（`MERGE_SPEC` + 表即文档 + 守卫）
+
+- **长这样**：`library({ enable: ['S45'] })` 是**往并集里加一条**；而 `overrides: { enable: ['S45'] }` 是
+  **把预设给的清单整个换掉**。`entries` / `include` / `layout` 同理（预设之间拼接/逐键，项目层整体替换）。
+  语义各自都说得通，但**没有任何地方写明** —— 只能读 `mergePresets` 与 `config.ts` 才知道
+- **会怎样**：每加一个配置键，都在赌作者记得住"这四种写法里该用哪一种"；R-113 把"放错层"变成了
+  **响亮的报错**（列可用键），但**没说"哪一层放什么"的判据** —— 判据只活在读源码的人脑子里
+- **期望**：① 合并语义**一处声明**（键 × 两根轴的语义表）；② 合并器**读表执行**（新键不会顺手获得
+  "碰巧"的语义）；③ 文档块**由表渲染**（`--check-docs` 盯漂移）；④ 守卫：`Preset ∪ ConfigOverrides`
+  的每个可写键都要在表里、`special` 必须有名字、非 `special` 的项目层键必须真的被读（死键）
+- **落地**：`src/engine/merge-spec.ts`（`MERGE_SPEC` / `mergeByKind` / `resolveProject` / `SPECIAL_MERGERS`）；
+  `mergePresets` 与 `config.ts` 改为读表；文档块 `merge-spec`（DESIGN §7，由表渲染）；
+  守卫 `tests/merge-spec.test.mjs`（3 例）
+- **顺带清掉两个"声明了没人读"**：`autoFix`（`Config` / `ConfigOverrides` / 键白名单里都有、**全仓零消费者**）
+  删除；`Preset.metaFramework`（R-143 里删的死声明）现在由守卫结构性挡住
+- **顺带修一个真 bug**：`docs.ts` 的围栏配对按"首字符"比较，把 ````（四反引号）嵌 ``` 示例当成闭合
+  → **它后面的管理块整段被当成"围栏内"，静默不渲染也不校验**（DESIGN.md 的 `merge-spec` 块实测消失）。
+  按 CommonMark 规则修（同字符且不短于开启串才闭合）+ 回归测试
 
 **R-138 用 axios 的项目，端点唯一出处那条纪律会静默失效** · 已完成 · 本体（`http` 面 + `axiosKit()`）
 

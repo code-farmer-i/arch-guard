@@ -30,7 +30,7 @@ function project(structure, files) {
   writeFileSync(
     join(dir, 'arch.config.mjs'),
     `import { library } from '${ES}'\n` +
-      `export default { packs: [], presets: [library({ src: 'src',\n` +
+      `export default { specVersion: '2', presets: [library({ src: 'src',\n` +
       `  entry: ['app/host.ts', 'app/client.tsx'],\n` +
       `  modules: { shared: 1, 'modules/a': 10, 'app/layouts': 10 } })],\n` +
       `  overrides: { enable: ['S23'], ignore: ['arch.config.mjs'], structure: ${JSON.stringify(structure)} } }\n`,
@@ -61,7 +61,7 @@ const BASE_FILES = {
 }
 
 const findingsOf = async (dir) => {
-  const result = await runGuard({ cwd: dir, rules: coreRules, cache: false })
+  const result = await runGuard({ cwd: dir, ruleSet: coreRules, cache: false })
   return result.all.map((item) => `${item.rule}|${item.file}`)
 }
 
