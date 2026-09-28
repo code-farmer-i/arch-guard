@@ -17,6 +17,13 @@
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-28
+
+> **契约与迁移**：`contrastPairs` 增一个**可选**字段 `parent`（兼容性新增）——
+> `REPORT_API_VERSION` / JSON 顶层字段集 / `NOTICE_CODES` / `SKIP_CODES` / 退出码语义**均不变**，
+> 旧配置原样可用。TS 宿主从这一版起可以合法地写 `parent`（此前它只活在内部规则的类型里，
+> 公开类型漏了它，写出来是编译期红）。
+
 ### Fixed（`ContrastPair` 的形状只有一份 —— 公开的那份曾漏了 `parent`）
 
 - **症状**：`designSystem({ contrastPairs })` 的公开类型 `ContrastPair` 只声明 `fg / bg / usage / min`，
