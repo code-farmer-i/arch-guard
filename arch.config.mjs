@@ -65,6 +65,8 @@ export default {
       'es/**',
       'lib/**',
       'bin/**',
+      '.agents/**',
+      'skills-lock.json',
       'examples/**',
       '__fixtures__/**',
       '.scratch/**',
