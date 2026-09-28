@@ -17,6 +17,21 @@
 
 ## [Unreleased]
 
+### Fixed（`ContrastPair` 的形状只有一份 —— 公开的那份曾漏了 `parent`）
+
+- **症状**：`designSystem({ contrastPairs })` 的公开类型 `ContrastPair` 只声明 `fg / bg / usage / min`，
+  而 `parent` 是引擎实打实在读的：D07 用它把半透明柔底**压到实际那张面上**再算比值
+  （`packs/core/rules/design-vendor.ts`），D05 把它算作"被引用"（`design-tokens.ts`）。
+  于是 TS 宿主想写 `parent` 直接编译期红，用 JS 写的人则根本不知道有这个字段 ——
+  半透明底一律退回**压白色**，暗色主题下算出假通过（`4.5` 的尺子量在一个不存在的面上）。
+- **根因**：同一形状在两处各写一份（公开的 `presets/design-system.ts` 有四个字段、
+  内部的 `packs/core/rules/design-shared.ts` 有五个），内部那份额外长了 `parent` —— 双定义必然这样漂移。
+- **改成**：内部那份复用公开那份（`export type { ContrastPair }`），并把 `ContrastPair`
+  加进 `tests/process.test.mjs` 的「同一事实只许一处定义」冻结清单（接口从此只许出现在公开那份）；
+  补一条 D07 回归：声明 `parent` → 按压底后的实际面色算、这一对过关；不声明 → 退回压白色、同一对报错。
+- **契约**：`contrastPairs` 增一个**可选**字段（兼容性新增；`apiVersion` / `NOTICE_CODES` /
+  `SKIP_CODES` / JSON 顶层字段 / 退出码语义**均不变**），`ContrastPair` 同时从 `@arch-guard/core/presets` 导出。
+
 ## [0.10.0] - 2026-09-27
 
 > **契约与迁移（这一版必读 —— 配置格式与公共 API 都有破坏性变更）**

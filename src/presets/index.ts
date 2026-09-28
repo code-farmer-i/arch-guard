@@ -1,7 +1,13 @@
 export { canonical, roleTable, type CanonicalOptions } from './canonical.js'
 export { library, libraryRoleTable, type LibraryOptions } from './library.js'
 export { fsd, fsdRoleTable, type FsdOptions } from './fsd.js'
-export { designSystem, deps, type DesignSystemOptions, type DepsOptions } from './design-system.js'
+export {
+  designSystem,
+  deps,
+  type ContrastPair,
+  type DesignSystemOptions,
+  type DepsOptions,
+} from './design-system.js'
 export { copy } from './copy.js'
 export { i18nextKit, type I18nextKitOptions } from './i18n-kits/i18next.js'
 export { axiosKit, AXIOS_APIS } from './http-kits/axios.js'

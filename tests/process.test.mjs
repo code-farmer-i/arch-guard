@@ -458,6 +458,11 @@ test('冻结：这些「同一事实」全仓只许有一处定义（曾经各�
       needle: /^(export )?const FACET_FIELDS = /m,
       home: 'src/data/face-forms.ts',
     },
+    {
+      label: 'ContrastPair（对比度组合的形状）',
+      needle: /^export interface ContrastPair \{/m,
+      home: 'src/presets/design-system.ts',
+    },
   ]
   for (const item of singles) {
     const found = files

@@ -3,15 +3,17 @@ import { join } from 'node:path'
 
 import { parseCss } from '../../../engine/css.js'
 import type { RuleContext } from '../../../engine/types.js'
+import type { ContrastPair } from '../../../presets/design-system.js'
 
-export interface ContrastPair {
-  fg: string
-  bg: string
-  /** bg 是半透明柔底时，压在哪个底色上算 */
-  parent?: string
-  usage: string
-  min: number
-}
+/**
+ * 对比度组合的形状**只有一份**：公开配置那份（`presets/design-system.ts`）。
+ *
+ * 这里曾经各写一份，于是两份**漂移**了：公开的那份漏了 `parent`，而 D07（按 parent 压底算比值）
+ * 与 D05（把 parent 也算作被引用）都在读它 —— TS 宿主写 `parent` 直接编译期红。
+ * 同一事实两处定义必然这样，所以这份改为复用，并由 `tests/process.test.mjs` 的
+ * "同一事实只许一处定义"钉住接口只在公开那份出现。
+ */
+export type { ContrastPair }
 
 /** 令牌前缀（`--sh-*`）曾在这里作为参数 —— 但**没有任何规则读它**（D02/D18 未实现），
  * 而且是宿主 superhive 的前缀，不该做通用默认。删掉；将来实现 D02/D18 时再作为
