@@ -17,6 +17,23 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-08
+
+> **契约与迁移（这一版必读 —— 退出码语义扩展 + 运行时依赖 2 → 8）**
+>
+> - **契约面**：`REPORT_API_VERSION` / JSON 顶层字段集 / `NOTICE_CODES` / `SKIP_CODES` **均未变**，
+>   消费方不用改解析。
+> - **退出码 2 的语义扩展（会对 CI 生效）**：扫描到的 `.css` / `.scss` / `.less` **语法坏了**现在**抛错并退 2**
+>   （以前静默错解、照常 ✔）。CI 里的表现是"以前绿的仓库可能红"——那是修好了，不是回归。
+>   **迁移**：先修语法；确实要把某份文件移出扫描范围就写进 `ignore`（那是项目边界）。
+> - **运行时依赖 2 → 8**：`postcss` / `postcss-scss` / `postcss-less`（CSS 解析）·
+>   `picomatch`（glob）· `postcss-value-parser`（CSS 值的词法）· `culori`（颜色与 WCAG）。
+>   **宿主若开了 `deps({ allow })`，要把这几个加进白名单**，否则 P01「未登记即拒」会报。
+> - **行为变更方向一律是"多报"**：以前**静默漏判 / 错判**的写法现在会显形 ——
+>   glob 的字符类与 extglob 真的能用（`include` 欠匹配 = 静默不判）· `calc()` / `min()` / `var()` 回退里的数值
+>   进 D12–D14 · `rgb()` / `hsl()` / 具名色 / `oklch()` 的颜色值进 D07 与 D03 ·
+>   覆盖率产物读不懂时 fail-closed · 目录符号链接成环不再产出幻影路径。
+
 ### Changed（R-145：CSS 解析换成 postcss —— 手搓扫描器会静默错解，且是 O(n²)）
 
 > **升级注意（行为变更，两处；`apiVersion` / `NOTICE_CODES` / `SKIP_CODES` 与退出码枚举均未变）**

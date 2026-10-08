@@ -156,7 +156,7 @@ export function createProgram(version: string = packageVersion()): Command {
 退出码（CI 用它做判断）：
   0  通过（只有 warn 也算通过）
   1  有 error 级违规
-  2  用法 / 配置错（配置文件缺失、键拼错、--paths 零匹配…）
+  2  用法 / 配置错（配置缺失、键拼错、--paths 零匹配…）或**扫描到的文件语法坏了**（fail-closed）
 
 颜色：NO_COLOR 非空即无色（优先级最高）；FORCE_COLOR 非空就表态（0 / false = 显式关色，其余强制有色）；
       TERM=dumb 视为无色；都没有时只在终端上色（管道 / CI 里无色）。
