@@ -24,7 +24,12 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "pluralize": "^8.0.0"
+    "picomatch": "^4.0.7",
+    "pluralize": "^8.0.0",
+    "postcss": "^8.5.28",
+    "postcss-less": "^6.0.0",
+    "postcss-scss": "^4.0.9",
+    "postcss-value-parser": "^4.2.0"
   },
   "module": "./es/index.js",
   "types": "./es/index.d.ts",
@@ -97,7 +102,9 @@
     "@eslint/js": "^10.0.1",
     "@pagoda-cli/core": "^1.0.23",
     "@types/node": "^26.6.2",
+    "@types/picomatch": "^4.0.3",
     "@types/pluralize": "^0.0.33",
+    "@types/postcss-less": "^4.0.7",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.12.0",

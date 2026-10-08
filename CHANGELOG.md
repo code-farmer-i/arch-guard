@@ -17,6 +17,92 @@
 
 ## [Unreleased]
 
+### Changed（R-145：CSS 解析换成 postcss —— 手搓扫描器会静默错解，且是 O(n²)）
+
+> **升级注意（行为变更，两处；`apiVersion` / `NOTICE_CODES` / `SKIP_CODES` 与退出码枚举均未变）**
+>
+> - **坏语法不再静默通过**：`.css` / `.scss` / `.less` 的语法错误（未闭合块 / 未闭合注释 / 未知词）
+>   现在**抛错并以退出码 2 结束**，信息带 `文件:行:列 + 原因`。
+>   **迁移**：先修语法；确实要把某份文件移出扫描范围就写进 `ignore`（那是项目边界）。
+>   受影响的只可能是本来就解析不了的文件 —— 旧实现会把它静默错解（少判 + 照常 ✔）。
+> - **at-rule 前奏不再算选择器**：`@media (…)` / `@layer …` 不再进 `selectors`，D10 / D10b / P11 的
+>   vendor 选择器模式命中面收窄到**真选择器**。更正确，但若你的模式原本靠命中 at-rule 前奏生效会看到变化。
+
+- **`parseCss` 改由 `postcss` 实现**（`src/engine/css.ts`）：导出 API 形状与行号语义不变，**规则层一行未改**
+  （与 DESIGN §6.1.1「规则不消费 AST」同一口径）。按扩展名选语法，映射在纯数据表 `src/data/css-syntaxes.ts`：
+  `.css` → postcss · `.scss` → `postcss-scss` · `.less` → `postcss-less`。
+- **修掉三处静默错解**：值里的 `;` / `}` / `url(data:…)` 不再截断声明
+  （旧实现 `.b{content:";}";background:url(data:…;base64,AAA=)}` 会丢掉整条 `background`）；
+  at-rule 前奏不再污染选择器；`!important` 仍留在声明值里（D09 是拿 `value` 正则判的）。
+- **性能**：行号不再逐条从头 `slice().split()` 算 → 从 **O(文件长度²)** 降到线性。
+  实测同一批合成 CSS：46KB 70ms → 8ms · 139KB 568ms → 22ms · 279KB 2217ms → 29ms；
+  而 `cssFiles(ctx)` 全仓 18 处调用、每次调用都重解析全部 CSS。
+- **运行时依赖 2 → 5**：`postcss`（自身带 `nanoid` / `picocolors` / `source-map-js` 三个传递依赖）
+  - `postcss-scss` + `postcss-less`（各 0 依赖）。三者已同时登记进 `deps({ allow })`、
+    `metrics({ depsBudget })` 与 `portability.ts` 的 `ALLOWED_BARE_IMPORTS`，理由见 DESIGN §6.1.2。
+    后两个是 Sass / Less 专有语法（`#{$x}` / `@{x}`）的托底 —— 不带它们等于"宿主用了 Sass 就直接红"。
+- `CSS_EXTENSIONS` 改为由 `src/data/css-syntaxes.ts` 派生：扩展名与解析语法的**唯一出处**，
+  不再一处写在 `scan.ts`、一处写在解析器里。
+- 新增盘点文档 [`docs/DEPENDENCY-REVIEW.md`](./docs/DEPENDENCY-REVIEW.md)：
+  引擎内部还有哪些手搓实现该换库（glob → picomatch、ANSI 颜色、色彩 NaN、`numericTokens`…），逐条带实测证据。
+  其中**阶段一的三条 0 依赖问题已在本版修掉**，见下。
+
+### Changed（R-149：glob 匹配换成 picomatch —— 手搓 glob 的欠匹配 = 静默不判）
+
+> **升级注意**：唯一的行为变化是**"以前静默匹配不上的 glob，现在能匹配上了"** ——
+> 原来写错或写宽的模式（字符类、extglob）会开始生效，报告可能多出条目；那是修复，不是回归。
+> **点文件、尾随 `/**`、首字符 `!` 的语义都没变**（见下）。
+
+- **`globToRegExp` 的实现改由 `picomatch` 承担**（`src/engine/util.ts`）：导出 API 不变（仍是 `(glob) => RegExp`），
+  **全仓 23 个调用点零改动**。新增能力：`[...]` 字符类、extglob。
+  修的是**静默不判** —— 手搓版把 `src/**/[a-z]*.ts` 的方括号转义成字面量 → 永不匹配，
+  实测同一宿主换成这种同义写法后 `[S05]` 与 `[S08]` 两条 error 一起消失，
+  而 S24 只在**整个**扫描域为空时才报（**部分欠匹配零诊断**）。
+- **三个兼容口径显式定住**：`dot: true`（点文件仍被 `**` 命中，picomatch 默认不命中）；
+  尾随 `/**` 再补一层 `/*`（标准 globstar 里 `a/**` 也匹配目录 `a` 本身，会让
+  `src/features/{slice}/{segment}/**` 把 `index.tsx` 吃成 `segment = index.tsx`，与切片入口角色撞车 → S01 歧义，
+  实测在 `fsd()` 的 pages/features 层成立）；`nonegate: true`（**不引入** `!` 取反语法）。
+- 夹具 `include-custom` 改用 `include: ['src/**', 'scripts/**/[a-z]*.ts']` 并加一个 `Gen.ts` 作域外对照 ——
+  旧实现下这条夹具会**少报 S01**，是端到端回归锁。
+- **运行时依赖 5 → 6**（`deps({ allow })` / `metrics({ depsBudget })` / `portability.ts` 三处同步）。
+- **加一层 glob 编译缓存**：picomatch 的编译比手搓慢约 4×（8 个 glob 一轮 14.8µs → 58µs），
+  而仓里有几处是**按文件**调 `globToRegExp` 的（`structure-discipline` 的 `globs.some(...)` 每条记录一次）——
+  缓存后同一轮 **2.2µs**，热路径比旧实现还快 ~7×；返回的仍是新 RegExp 实例，调用方互不影响。
+
+### Fixed（R-150：`calc()` 是 D12–D14 的逃生门 —— 取值器读不到函数里的数值）
+
+- **`numericTokens` 改用 `postcss-value-parser` 取值 AST**（`packs/core/rules/design-shared.ts`，D12–D14 / D15 / D19 共用）：
+  旧实现是 `split(/\s+/)` + 正则，**函数里的值一个都取不到** —— `padding: calc(100% - 13px)` 声明了刻度也
+  **一条不报**，而 `padding: 13px` 会报（D19 反倒显式跳过 calc，两条规则态度不一致）。
+  现在函数里也进去：`calc` / `min` / `max` / `clamp` / `var(--gap, 13px)` 的回退值都算数。
+- 顺带修掉三处同类静默：**单位大小写不敏感**（`13PX` / `150MS` 以前取不到，既不报也不说）、
+  **数值归一化**（`+13px` → `13px`、`2.0rem` → `2rem`、`0px` → `0` —— 白名单按"值"写，归一后的 `0`
+  由调用方按"零到处都在"放过）、`url(...)` 与字符串不再被当成数值。
+- **不误报**：单位族仍要求带单位（`line-height: 1.5` 的无单位倍数是正常写法）、`z-index` 仍只认整数、
+  `cubic-bezier(0.4, 0, 0.2, 1)` 的参数不算时长。
+- 夹具 `value-whitelists` 加 `CalcBad.module.css`（必报）与 `CalcGood.module.css`（不报）；
+  新增 `tests/design-value-tokens.test.mjs`（4 组）。**运行时依赖 6 → 7**。
+
+### Fixed（R-146 / R-147 / R-148：三条"静默失真"，全部 0 新依赖、不动依赖预算）
+
+- **R-146 `FORCE_COLOR=0` 在真 TTY 下仍然上色**：实现是"非空**且非 `0`** 才强制开"，于是 `0` 会掉到
+  `return process.stdout.isTTY === true` —— CI / 日志采集器用来**显式关色**的标准开关在真终端里失效
+  （只在管道里"看起来对"；项目自己的测试断言了相反结果，靠"`node --test` 子进程 stdout 是管道"才没红）。
+  现在：`FORCE_COLOR` 非空即**表态**（`0` / `false` = 显式关闭，其余强制有色），`TERM=dumb` 视为无色，
+  `NO_COLOR` 仍是最高优先级（与文档承诺一致）。`--help` 与 `docs/USAGE.md` 的口径同步。
+- **R-147 Node 覆盖率表格解析在 Node 22 上全军覆没**：报告行前缀随 Node 版本变（24 是 `ℹ `、**22 是 `# `**），
+  旧实现只剥 `ℹ` → 在 `engines` 下限 22.18.0 上解出 `"#  engine/#   a.mjs"` 这种全错路径，且一条不报；
+  文件行判据还带扩展名白名单（漏 `.mts` / `.cts` / `.svelte`，与 `data/framework-sources.ts` 自相矛盾）——
+  实测把**文件行**当目录压栈：它自己消失、**后面每一行的路径都被它污染**。
+  现在：前缀按 `[ℹ#]` 通吃（保留缩进），文件行判据改成「前三列都是数字」（目录行没有数字，22.18.0 / 24.13.0 实测一致），
+  **删掉扩展名白名单**，`all files` 汇总行显式排除。
+- **R-148 4 位 hex 让 D07 对比度静默失效**：`toRgb('#0008')` → `[0, 8, NaN]` → `contrastRatio = NaN`，
+  而 D07 的判据 `ratio + 1e-9 < pair.min` 对 NaN **恒为 false** → **一条不报**
+  （`#RGBA` 是 CSS Color 4 的标准写法）；`#RRGGBBAA`（Tailwind 的 `/50` 惯用）则把 alpha 当成 rgb 的一部分，
+  比值算错同样不报。现在：hex 支持 `#rgb` / `#rgba` / `#rrggbb` / `#rrggbbaa` 且 **alpha 真的参与求值**，
+  解析不了（含通道 / alpha 非有限）返回 `null` 让规则跳过，**绝不产出 NaN**；带 alpha 的两色 `color-mix`
+  直接跳过（要 premultiplied alpha，不猜）。新夹具 `contrast-alpha`（夹具数 96 → 97）。
+
 ## [0.10.0] - 2026-09-27
 
 > **契约与迁移（这一版必读 —— 配置格式与公共 API 都有破坏性变更）**

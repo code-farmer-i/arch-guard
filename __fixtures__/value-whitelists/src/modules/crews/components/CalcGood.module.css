@@ -1,0 +1,8 @@
+/* 合规不报：函数里的值是刻度内的；单位大小写、前导 + 与零的拼写都不该造成误报 */
+.good {
+  padding: calc(100% - 8px);
+  width: min(100%, 8px);
+  margin: 0px;
+  z-index: +10;
+  transition-duration: 150MS;
+}

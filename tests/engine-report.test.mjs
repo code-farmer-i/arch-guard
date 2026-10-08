@@ -400,3 +400,40 @@ test('R-130：颜色按 NO_COLOR / FORCE_COLOR / TTY 判定（管道与 CI 日�
     process.env = saved
   }
 })
+
+test('R-146：FORCE_COLOR=0 / TERM=dumb 在真 TTY 下也必须无色', async () => {
+  const { colorsEnabled } = await import('../es/engine/util.js')
+  const saved = { ...process.env }
+  const tty = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
+  const setTty = (value) => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value,
+      configurable: true,
+      writable: true,
+    })
+  }
+  try {
+    // 旧实现只在管道里"看起来对"：真 TTY 下 FORCE_COLOR=0 会掉到 isTTY 判断 → 上色
+    setTty(true)
+    delete process.env.NO_COLOR
+    delete process.env.TERM
+    process.env.FORCE_COLOR = '0'
+    assert.equal(colorsEnabled(), false, 'FORCE_COLOR=0 是显式关闭，真 TTY 下也不许上色')
+    process.env.FORCE_COLOR = 'false'
+    assert.equal(colorsEnabled(), false, 'FORCE_COLOR=false 同上')
+    delete process.env.FORCE_COLOR
+    process.env.TERM = 'dumb'
+    assert.equal(colorsEnabled(), false, 'TERM=dumb：终端自述不支持样式')
+    delete process.env.TERM
+    assert.equal(colorsEnabled(), true, '真 TTY 且没有任何开关 → 上色')
+    process.env.TERM = 'dumb'
+    process.env.FORCE_COLOR = '1'
+    assert.equal(colorsEnabled(), true, 'FORCE_COLOR 显式强制优先于 TERM=dumb')
+    process.env.NO_COLOR = '1'
+    assert.equal(colorsEnabled(), false, 'NO_COLOR 仍是最高优先级（与文档一致）')
+  } finally {
+    process.env = saved
+    if (tty) Object.defineProperty(process.stdout, 'isTTY', tty)
+    else delete process.stdout.isTTY
+  }
+})

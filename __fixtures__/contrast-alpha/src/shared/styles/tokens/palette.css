@@ -1,0 +1,6 @@
+/* 色板：颜色字面量的唯一出处 */
+:root {
+  --sh-static-ink-alpha: #00000060;
+  --sh-static-ink: #101014;
+  --sh-static-surface: #ffffff;
+}

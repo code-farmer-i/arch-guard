@@ -65,24 +65,33 @@ function parseIstanbul(text: string, path: string, root: string, mtimeMs: number
   return { path, format: 'istanbul-json', mtimeMs, files }
 }
 
-/** Node 覆盖率表格：|---| 分隔行、`all files` 汇总行、缩进表示树层级 */
+/**
+ * Node 覆盖率表格：`file | line % | branch % | funcs % | uncovered lines`，缩进表示树层级。
+ *
+ * 两条判据（R-147）：
+ * - **前缀随 Node 版本变**：24 是 `ℹ `、22 是 `# ` —— 只去掉前缀本身、**保留缩进**（缩进才是树层级）。
+ *   旧实现只剥 `ℹ`，于是在 Node 22（`engines` 下限）上解出 `"#  engine/#   a.mjs"` 这种全错路径，且一条不报。
+ * - **文件行 = 前三列都是数字**：目录行**没有**数字（Node 22.18.0 与 24.13.0 实测一致），
+ *   带数字的 `all files` 汇总行显式排除。
+ *
+ * 为什么不再按扩展名白名单判：白名单漏一个扩展名（`.mts` / `.cts` / `.svelte`…）就会把**文件行**当目录压栈 ——
+ * 那个文件自己消失，**它后面每一行的路径都被它污染**（实测 `src/b.cts/c.tsx`），而且每加一种源码形态都要改这里。
+ */
 function parseNodeTable(text: string, path: string, mtimeMs: number): CoverageReport {
   const files: CoverageEntry[] = []
   const stack: { depth: number; name: string }[] = []
   for (const line of text.split('\n')) {
-    const body = line.replace(/^ℹ\s?/, '')
+    // `ℹ `（Node 24）/ `# `（Node 22）：只剥前缀本身，缩进留给下面的深度判断
+    const body = line.replace(/^\s*[ℹ#]\s?/, '')
     if (!body.includes('|')) continue
     const cells = body.split('|')
     if (cells.length < 5) continue
     const label = cells[0] ?? ''
     const name = label.trim()
-    if (name === '' || name === 'file' || name.startsWith('-----')) continue
-    // 第 4 列是「未覆盖行号」，经常为空，所以只按前三列（行/分支/函数）判是不是文件行
+    if (name === '' || name === 'file' || name.startsWith('-----') || name === 'all files') continue
+    // 第 4 列是「未覆盖行号」，经常为空或是 `12-15` 这种区间，所以只按前三列（行 / 分支 / 函数）判
     const numbers = cells.slice(1, 4).map((cell) => Number.parseFloat(cell.trim()))
-    const isFile =
-      /\.(js|mjs|cjs|ts|tsx|vue|jsx)$/.test(name) &&
-      numbers.every((value) => Number.isFinite(value))
-    if (!isFile) {
+    if (!numbers.every((value) => Number.isFinite(value))) {
       // 目录行：按缩进维护栈（Node 的树形输出靠缩进表达层级）
       const depth = label.length - label.trimStart().length
       while (stack.length > 0 && (stack[stack.length - 1] as { depth: number }).depth >= depth)

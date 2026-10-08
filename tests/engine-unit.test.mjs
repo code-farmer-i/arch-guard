@@ -30,6 +30,45 @@ test('glob：支持 ** / ? / 花括号枚举 / 转义', () => {
   assert.ok(!globToRegExp('src/{index.ts,cli.ts}').test('src/index.ts.bak'))
 })
 
+test('glob：点文件仍然命中 **（dot:true 与旧实现一致）；首字符 ! 不当取反', () => {
+  // 旧实现手写的 `**` → `(?:.*/)?` 会命中点文件；picomatch 默认**不**匹配 —— 不传 dot:true 就是静默丢文件
+  assert.ok(globToRegExp('**/*.ts').test('.agents/x.ts'))
+  assert.ok(globToRegExp('src/**').test('src/.hidden/a.ts'))
+  // `nonegate:true`：凭空多出取反语义属行为变更，不夹在"补 glob 能力"里
+  assert.ok(globToRegExp('!x').test('!x'))
+  assert.ok(!globToRegExp('!x').test('y'))
+})
+
+test('R-149：字符类 `[...]` 必须真的当字符类（手搓版编译成字面量 → 永不匹配 = 静默不判）', () => {
+  const matcher = globToRegExp('src/shared/**/[a-z]*.ts')
+  assert.ok(matcher.test('src/shared/lib/format.ts'), '小写开头的文件必须命中')
+  assert.ok(matcher.test('src/shared/lib/deep/x.ts'), '`**` 之后的字符类同样生效')
+  assert.ok(!matcher.test('src/shared/lib/Format.ts'), '大写开头不命中')
+  assert.ok(!matcher.test('src/shared/lib/format.js'), '扩展名不命中')
+  assert.ok(!matcher.source.includes('\\[a-z\\]'), '不许把字符类当字面量编译')
+  // extglob 也一并可用（旧实现同样不支持）
+  assert.ok(globToRegExp('src/**/!(*.test).ts').test('src/a/b.ts'))
+  assert.ok(!globToRegExp('src/**/!(*.test).ts').test('src/a/b.test.ts'))
+})
+
+test('R-149：尾随 `/**` 仍要求"至少还有一层"（与旧实现零行为变更）', () => {
+  // 标准 globstar 里 `src/**` 也匹配 `src` 自己；角色表是**文件**匹配器，不该这样匹配目录
+  assert.ok(!globToRegExp('src/**').test('src'), '尾随 ** 不匹配目录自身')
+  assert.ok(globToRegExp('src/**').test('src/a.ts'))
+  assert.ok(globToRegExp('src/**').test('src/deep/a.ts'))
+
+  // 更要紧的是**捕获**：`{slice}/{segment}/**` 不许把文件名吃进 `{segment}`（否则与切片入口角色撞车 → S01 歧义）
+  const roleLike = (pattern) => {
+    const slot = '__AG_SLOT__'
+    const source = globToRegExp(pattern.replace(/\{(\w+)\}/g, slot)).source
+    return new RegExp(source.split(slot).join('([^/]+)'))
+  }
+  const sliceSegment = roleLike('src/features/{slice}/{segment}/**')
+  assert.ok(!sliceSegment.test('src/features/x/index.tsx'), '文件名不能被当成 segment')
+  assert.ok(sliceSegment.test('src/features/x/ui/Filter.tsx'))
+  assert.ok(sliceSegment.test('src/features/x/ui/deep/Filter.tsx'))
+})
+
 test('锚点：对格式不敏感，对内容敏感', () => {
   assert.equal(anchorOf('  const a = 1  '), anchorOf('const   a =  1'))
   assert.notEqual(anchorOf('const a = 1'), anchorOf('const a = 2'))

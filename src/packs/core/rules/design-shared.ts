@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import valueParser from 'postcss-value-parser'
+
 import { parseCss } from '../../../engine/css.js'
 import type { RuleContext } from '../../../engine/types.js'
 
@@ -149,16 +151,53 @@ export const whitelistOf = (
   return found && found.allow.length > 0 ? found.allow : null
 }
 
-/** 从一个声明值里取出该族的数值（`13px 4px` → ['13px','4px']） */
-export const numericTokens = (value: string, units: string[]): string[] =>
-  value
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => {
-      if (token === '') return false
-      if (units.length === 0) return /^-?\d+$/.test(token)
-      return new RegExp(`^-?\\d*\\.?\\d+(?:${units.join('|')})$`).test(token)
-    })
+/**
+ * 从一个声明值里取出该族的数值（`13px 4px` → `['13px','4px']`）。
+ *
+ * 用 `postcss-value-parser` 取值 AST（R-150），不再 `split(/\s+/)` + 正则：
+ * ① **函数里面也是值**：`padding: calc(100% - 13px)` / `width: min(100%, 320px)` /
+ *    `margin: var(--gap, 13px)` 里的 `13px` 以前一个都取不到 —— D12–D14 于是对 `calc()` **完全失效**
+ *    （而 D19 在 `design-numbers.ts` 里是**显式跳过** calc 的，两条规则态度不一致），
+ *    而"把长度藏进 calc"是最省事的绕过写法；
+ * ② **单位大小写不敏感**（CSS 规定如此）：`13PX` / `150MS` 以前取不到 → 不报，也不说；
+ * ③ 数值**归一化**：`+13px` → `13px`、`2.0rem` → `2rem`、`0.0s` → `0` —— 白名单是按**值**写的，
+ *    不是按拼写写（归一后的 `0` 会被调用方按"零到处都在"放过）；
+ * ④ `url(...)` 里是地址不是数值（`url(13px)` 的词法也能切出一个 `13px` 词），显式不进去。
+ *
+ * 单位族（长度 / 时长）仍**要求带单位**：`line-height: 1.5` 的无单位倍数是正常写法，不该算魔法数字；
+ * 无单位族（z-index）只认整数。
+ */
+const DIMENSION = /^([+-]?(?:\d+\.?\d*|\.\d+))([a-zA-Z%]+)$/
+const INTEGER = /^[+-]?\d+$/
+
+/** `+013` → `13` · `2.0` → `2` · `1e3` → `1000`（白名单按值写，所以要按值比） */
+const normalizedNumber = (raw: string): string => String(Number(raw))
+
+export const numericTokens = (value: string, units: string[]): string[] => {
+  const allowed = new Set(units.map((unit) => unit.toLowerCase()))
+  const out: string[] = []
+  const visit = (nodes: valueParser.Node[]): void => {
+    for (const node of nodes) {
+      if (node.type === 'function') {
+        if (node.value.toLowerCase() !== 'url') visit(node.nodes)
+        continue
+      }
+      if (node.type !== 'word') continue
+      if (allowed.size === 0) {
+        if (INTEGER.test(node.value)) out.push(normalizedNumber(node.value))
+        continue
+      }
+      const match = DIMENSION.exec(node.value)
+      if (!match) continue
+      const unit = (match[2] as string).toLowerCase()
+      if (!allowed.has(unit)) continue
+      const number = normalizedNumber(match[1] as string)
+      out.push(number === '0' ? '0' : `${number}${unit}`)
+    }
+  }
+  visit(valueParser(value).nodes)
+  return out
+}
 
 /** 规则需要读项目里任意文件（如 index.html）时的兜底 */
 export function tryRead(ctx: RuleContext, rel: string): string | null {

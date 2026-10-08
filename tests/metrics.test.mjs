@@ -325,3 +325,73 @@ test('M09：链路按脚本名解析 —— `self-test` 不再被当成跑过 `t
   assert.deepEqual(ruleOf('M09').run(context), [])
   rmSync(dir, { recursive: true, force: true })
 })
+
+test('R-147：Node 22 的 `# ` 前缀也能还原路径（旧实现只剥 `ℹ `）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cov22-'))
+  try {
+    // 这一份是 Node 22.18.0 的真实形状（`engines` 的下限）：前缀是 `# `，目录行没有数字
+    writeFileSync(
+      join(dir, 'coverage.txt'),
+      [
+        '# -------------------------------------------------------------',
+        '# file         | line % | branch % | funcs % | uncovered lines',
+        '# -------------------------------------------------------------',
+        '# src          |        |          |         | ',
+        '#  engine      |        |          |         | ',
+        '#   a.mjs      | 100.00 |    66.67 |  100.00 | ',
+        '# tests        |        |          |         | ',
+        '#  a.test.mjs  | 100.00 |   100.00 |  100.00 | ',
+        '# -------------------------------------------------------------',
+        '# all files    | 100.00 |    80.00 |  100.00 | ',
+      ].join('\n'),
+    )
+    const report = readCoverageReport(join(dir, 'coverage.txt'), dir)
+    assert.equal(report.format, 'node-table')
+    assert.deepEqual(
+      report.files.map((file) => file.rel),
+      ['src/engine/a.mjs', 'tests/a.test.mjs'],
+      'Node 22 的前缀不能进路径',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('R-147：文件行不再按扩展名白名单判（.mts/.cts/.svelte 一个不丢、路径不被污染）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cov-ext-'))
+  try {
+    writeFileSync(
+      join(dir, 'coverage.txt'),
+      [
+        'file | line % | branch % | funcs % | uncovered lines',
+        '-----|--------|----------|---------|----------------',
+        'src |  |  |  | ',
+        ' a.mts | 100.00 | 66.67 | 100.00 | ',
+        ' b.cts | 90.00 | 80.00 | 70.00 | ',
+        ' c.tsx | 80.00 | 70.00 | 60.00 | 12-15',
+        ' d.svelte | 70.00 | 60.00 | 50.00 | ',
+        ' e.vue | 60.00 | 50.00 | 40.00 | ',
+        ' all files | 80.00 | 65.00 | 64.00 | ',
+      ].join('\n'),
+    )
+    const report = readCoverageReport(join(dir, 'coverage.txt'), dir)
+    assert.deepEqual(
+      report.files.map((file) => [file.rel, file.lines]),
+      [
+        ['src/a.mts', 100],
+        ['src/b.cts', 90],
+        ['src/c.tsx', 80],
+        ['src/d.svelte', 70],
+        ['src/e.vue', 60],
+      ],
+      '旧实现会把 a.mts 当目录压栈：它自己消失，b.cts 还污染后面两行',
+    )
+    assert.equal(
+      report.files.some((file) => file.rel.includes('all files')),
+      false,
+      '汇总行不是文件',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

@@ -26,6 +26,19 @@ const ALLOWED_BARE_IMPORTS = new Set([
   // 词形判定（S31）：`pluralize` 有十多年迭代的词表；手写表在 315 个真实名字的语料上有 2.9% 分歧
   // （含 `alias`/`atlas` 误报、`apis` 漏报的真 bug）。库名只出现在 `src/data/plural-forms.ts`（P4 允许数据表）。
   'pluralize',
+  // glob 匹配（R-149）：手搓版不支持 `[...]` 字符类 → `include` 欠匹配 = 静默不判（S05/S08 会一起消失）。
+  // 只要 `src/engine/util.ts` 的 `globToRegExp`；`dot: true` / `nonegate: true` 的取舍见那里的注释。
+  'picomatch',
+  // CSS 解析（R-145）：postcss 是事实标准 CSS AST，线性解析 + 源位置；自研字符扫描器会**静默错解**
+  // （值里一个 `;`/`}` 就丢声明）且是 O(文件长度²)。只看 `src/engine/css.ts`。
+  // 后两个是 Sass / Less 专有语法的语法插件：`.scss`/`.less` 本来就在扫描范围内，
+  // 不托底等于"宿主用了 Sass 就红"。见 docs/DESIGN.md §6.1.2。
+  'postcss',
+  'postcss-scss',
+  'postcss-less',
+  // CSS **值**的词法（R-150）：`calc()` / `min()` / `var()` 的回退值里也是值，
+  // 正则切不出来 → D12–D14 对 `calc()` 完全失效。只用于 `packs/core/rules/design-shared.ts` 的 numericTokens。
+  'postcss-value-parser',
 ])
 /** 宿主项目名（换宿主时改这里；本体不该认识任何具体宿主） */
 const HOST_MARKERS = ['superhive']

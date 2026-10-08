@@ -158,7 +158,8 @@ export function createProgram(version: string = packageVersion()): Command {
   1  有 error 级违规
   2  用法 / 配置错（配置文件缺失、键拼错、--paths 零匹配…）
 
-颜色：NO_COLOR 非空即无色；FORCE_COLOR 非空即强制有色；都不给时只在终端上色（管道/CI 里无色）。
+颜色：NO_COLOR 非空即无色（优先级最高）；FORCE_COLOR 非空就表态（0 / false = 显式关色，其余强制有色）；
+      TERM=dumb 视为无色；都没有时只在终端上色（管道 / CI 里无色）。
 `,
   )
   return program

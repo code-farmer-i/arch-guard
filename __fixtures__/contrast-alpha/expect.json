@@ -1,0 +1,9 @@
+{
+  "findings": [
+    {
+      "rule": "D07",
+      "file": "src/shared/styles/tokens/theme.css"
+    }
+  ],
+  "exact": true
+}

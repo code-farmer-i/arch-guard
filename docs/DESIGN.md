@@ -65,7 +65,8 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 - 不做 L5 语义判断（清单见 §5.6）。
 - v1 不做自动修复（`--fix` 只留给未来确定性极高的少数规则）。
 - **运行时依赖只有显式登记的少数几个**：引擎自己的解析依赖 `typescript`（peer，宿主本来就有），CLI 参数解析用
-  `commander`。这不是"零依赖洁癖"，而是一道**审查门** —— 门禁要读宿主的全量源码并跑在 CI 里，新依赖必须有人看过、
+  `commander`，词形判定用 `pluralize`，CSS 解析用 `postcss` 家族（见 §6.1.2），glob 匹配用 `picomatch`（R-149）。这不是"零依赖洁癖"，而是一道**审查门** ——
+  门禁要读宿主的全量源码并跑在 CI 里，新依赖必须有人看过、
   且不能把宿主拖进版本冲突。名单在 `src/engine/portability.ts` 的 `ALLOWED_BARE_IMPORTS`，由 `--self-check-portability`（P1）强制；
   加依赖要同时改那份名单与 `package.json`，并在 CHANGELOG 写明理由。**不引入任何运行时依赖**是早期口径，已按此更新。
 - 不替代 CI/发布流程，只产出「过/不过 + 逐条修法」。
@@ -369,6 +370,48 @@ f = {
 **一个实现坑（与 R2 相关）**：fail-closed 需要语法诊断，而 `createSourceFile` 的诊断挂在**非公开字段**（`parseDiagnostics`）。两条路：① 用 `ts.transpileModule({ reportDiagnostics: true })` 只取语法诊断（公开 API）；② 用内部字段 + TypeScript 版本区间断言。**无论哪条，都必须有 fixtures 覆盖「坏语法文件必须报错」**，否则 R2 落不了地。
 
 **性能**：parser-only 约「100 文件 <300ms、1k 文件 ~1s」量级；配合 R7 的缓存与 `--changed` 可进开发环。撞性能墙时换 oxc 的代价 = 重写事实提取，不动规则。
+
+### 6.1.2 解析后端：CSS 用 postcss（按扩展名选语法）
+
+**选型**：`postcss.parse(text, { from: rel, syntax })`，语法由**扩展名**从纯数据表 `src/data/css-syntaxes.ts` 选：
+`.css` → 默认 · `.scss` → `postcss-scss` · `.less` → `postcss-less`（`CSS_EXTENSIONS` 由这张表派生，不再有第二处真相）。
+
+| 候选                   | 新增依赖 | 结论                                                                                                                                        |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **postcss（选中）**    | 是       | 事实标准 CSS AST（块 / 声明 / at-rule / 注释 + 源位置），MIT、线性解析；自身带 `nanoid`/`picocolors`/`source-map-js` 三个传递依赖           |
+| `postcss-scss` / `postcss-less` | 是 | Sass/Less 专有语法（`#{$x}` / `@{x}` / `//` 注释）在默认解析器下**直接抛错**，而两者都在 `CSS_EXTENSIONS` 里、`cssModulesKit` 也支持 `*.module.scss` → 必须托底；各 0 依赖、合计 ~110KB |
+| `css-tree`             | 是       | 也能选（选择器/值的 AST 更全），但只做 CSS；SCSS/Less 没有同族语法插件，且本项目不需要 CSS 的语义级 AST                                     |
+| `postcss-safe-parser`  | 是       | **否决**：容错解析 = 静默错解，与本项目"宁吵不静默"相反                                                                                      |
+| 自研字符扫描器         | 无       | **已退役**（0.10.0 前）：值里一个 `;` / `}` 就错位（丢声明）、at-rule 前奏被当选择器、行号从头算是 **O(n²)**                                |
+
+**为什么必须换（实测，见 R-145）**：旧实现不是"保守跳过"而是**静默错解** ——
+`.b{content:";}";background:url(data:image/svg+xml;base64,AAA=)}` 只解析出 `content: "\""`，`background` 整条消失且无任何信号；
+同一批合成文件 46KB / 139KB / 279KB 分别 70ms / 568ms / **2217ms**（postcss 8 / 22 / 29ms），
+而 `cssFiles(ctx)` 全仓 18 处调用、每次调用都重解析全部 CSS。
+
+**归一化模型（API 形状不变）**：`CssModel = { rel, rules, vars, varRefs, comments, selectors }`，规则层一行不改。三条口径：
+
+1. **`selectors` 只收 `Rule` 的选择器** —— at-rule 前奏（`@media (…)`）不再是选择器（旧实现最大的误判来源）；
+2. **直接装声明的 at-rule**（`@page` / `@font-face`）仍作为一个块进 `rules`（选择器记为 `@name params`）——
+   否则 `@page { margin: 13px }` 会掉出 D12–D14 / D19 的判定面，那是**少判**，不是收窄；
+3. **`var()` 引用仍在声明值上扫**（保留原正则：`var(--a )` / `var(--a , 8px)` 都能认）。
+   试过 `postcss-value-parser`，**否决**：它把 `url(...)` 当一个整体，`url(var(--img))` 里的 `var` 走不到，
+   比现有正则更漏；为一个不成立的收益多一个依赖不值。
+
+**值也要按词法读**（R-150）：`numericTokens`（D12–D14 / D15 / D19 共用）用 `postcss-value-parser` 取值 AST，
+不再 `split(/\s+/)` + 正则 —— **函数里也是值**（`calc(100% - 13px)` / `min(100%, 320px)` / `var(--gap, 13px)`），
+单位大小写不敏感（`13PX` = `13px`），数值归一化（`+13px` → `13px`、`0px` → `0`），`url(...)` 与字符串不进去。
+单位族仍要求带单位（`line-height: 1.5` 的无单位倍数是正常写法），无单位族（z-index）只认整数。
+
+**fail-closed**：坏语法（未闭合块/注释、未知词）**抛错**，错误信息带 `文件:行:列 + 原因`，CLI 退出码 2 ——
+不静默错解，也不静默通过。**已知边界**：TS 侧的坏语法是 S00 的 finding（facts 里有 `parseErrors`），CSS 侧目前只有抛错；
+要把它也变成 finding，需先把 CSS 解析上移到 `collect`（顺带把 18 次重复解析收敛成 1 次）—— 另开需求，见 `.scratch/css-parser/spec.md` 的非目标。
+
+**颜色与对比度不在本次范围**（`findColorLiterals` / `resolveColor` / `flatten` / `contrastRatio`）：
+它们是 WCAG 规范数学 + 令牌求值，与解析器无关。**但已知一个必须在后续单独修的正确性 bug**：
+`toRgb('#0008')` → `[0, 8, NaN]`，经 `color-mix` 传下去使 `contrastRatio` = NaN，而 D07 的判据对 NaN 恒为 false
+→ 4 位 hex 会让**无障碍规则静默放过**（修法 ~4 行 + 夹具，独立需求）。
+候选 `culori`（1.5MB 解包）/ `colorjs.io`（16MB 解包）只在要支持 `rgb()/hsl()/oklab` 时才值得，且两者都不解析 `color-mix()`。
 
 ### 6.2 目录与模块职责
 
@@ -1179,14 +1222,14 @@ export default {
 
 ## 12. 风险与取舍
 
-| 风险                            | 应对                                                                                                     |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 误报毁掉门禁公信力              | 红线只落 L1–L3；每条规则有 fixtures；不确定的降 warn 或不写                                              |
-| 迁移面大（三根拓扑 116 import） | 机械 codemod + type-check 全量验证；或退成「平铺但同样严格」（代价：域内 import 规则从一句话变回矩阵）   |
-| CSS 扫描器覆盖面                | v1 声明支持范围（注释、@规则、块、变量、composes）；超范围（嵌套、`@layer`、CSS-in-JS）走 postcss 适配器 |
-| 规则太严 → 大家刷 `exceptions`  | 零容忍（没有基线可刷）；例外必须指名规则 + 写理由 + 可设到期 + 每次运行点名                              |
-| 门禁自身维护成本                | fixtures + 三条元自检，规则改动必须有回归                                                                |
-| 门禁与文档漂移                  | 约定即配置：人读 `ARCHITECTURE.md`，机读 `arch.config.mjs`，同源生成                                     |
+| 风险                            | 应对                                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 误报毁掉门禁公信力              | 红线只落 L1–L3；每条规则有 fixtures；不确定的降 warn 或不写                                                                             |
+| 迁移面大（三根拓扑 116 import） | 机械 codemod + type-check 全量验证；或退成「平铺但同样严格」（代价：域内 import 规则从一句话变回矩阵）                                  |
+| CSS 扫描器覆盖面                | 解析交给 postcss（按扩展名选语法，§6.1.2）：`.css` / `.scss` / `.less` 三类都进模型；坏语法 fail-closed 抛错；CSS-in-JS 走 TS 侧（D15） |
+| 规则太严 → 大家刷 `exceptions`  | 零容忍（没有基线可刷）；例外必须指名规则 + 写理由 + 可设到期 + 每次运行点名                                                             |
+| 门禁自身维护成本                | fixtures + 三条元自检，规则改动必须有回归                                                                                               |
+| 门禁与文档漂移                  | 约定即配置：人读 `ARCHITECTURE.md`，机读 `arch.config.mjs`，同源生成                                                                    |
 
 ---
 
@@ -1204,6 +1247,11 @@ export default {
 | C 域 | **6 条已落地**（C02–C07：键存在 / 多语言一致 / 一文件一命名空间 / 分片聚合 / 死键 / 声明与资源对账）；C01 裸文案已收回本体（0.4.0，含 JSX 文本 / 面向用户的属性 / 声明的组件库调用）                                    | 动态键（`t(`ns.${x}`)`）只按静态前缀放行，不做求值                                    |
 
 ## 16. 选型纪律：优先成熟开源方案（反造轮子）
+
+> **两个方向别混**：这一节管的是「**宿主**该不该用 dayjs / commander」——规则 P06/P07 判的是宿主的代码形态。
+> 反方向（**本体自己**的手搓实现该不该换成成熟库）是**维护成本**问题，盘点与逐条结论见
+> [`DEPENDENCY-REVIEW.md`](./DEPENDENCY-REVIEW.md)；本体的依赖闸门是 `deps({ allow })` + `metrics({ depsBudget })`
+> 与 `portability.ts` 的 `ALLOWED_BARE_IMPORTS` 三处，换库要同时改这三处 + CHANGELOG（CSS 解析那次即例，见 §6.1.2）。
 
 **问题**：「该不该用 dayjs / commander」是 L5 判断；直接判「是不是轮子」不可判定，会变成噪音。
 

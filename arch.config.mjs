@@ -32,21 +32,32 @@ export default {
       // 注意：能力表**不会**顺带开启 P01 依赖白名单（见 docs/adr/0005）—— P01 只由下面的 allow 开启。
       capabilities: { 'cli-args': 'commander', 'word-forms': 'pluralize' },
       // allow 是 fail-closed 白名单，**只约束 package.json 的 dependencies**：
-      // 声明了它就等于「没登记 = 没批准」。本体运行时依赖：commander（CLI 参数）+ pluralize（词形判定）。
-      // （typescript 是 peer + dev，不在这条规则的扫描范围内，所以不登记。）
+      // 声明了它就等于「没登记 = 没批准」。本体运行时依赖：commander（CLI 参数）+ pluralize（词形判定）
+      // + postcss / postcss-scss / postcss-less（CSS 解析，R-145：手搓扫描器会静默错解，见 DESIGN §6.1.2）。
+      // （typescript 是 peer + dev，不在这条规则的扫描范围内，所以不登记；`@types/*` 是 dev，不受此限。）
       //
       // 不写 deny：白名单已经覆盖它 —— 任何新依赖（含 axios/dayjs/lodash）都会被 P01 拦下。
       // 黑名单只会在白名单之外再造一份名册，多一处要同步的真相。
-      allow: ['commander', 'pluralize'],
+      allow: [
+        'commander',
+        'picomatch',
+        'pluralize',
+        'postcss',
+        'postcss-scss',
+        'postcss-less',
+        'postcss-value-parser',
+      ],
     }),
     metrics({
       // M09：**门禁链路自检** —— `check` 必须真的跑 test 与 coverage。
       // 防的是"把 test/coverage 从 check 里摘掉"这类改动：那是门禁自己漏跑，只有门禁自己能查。
       tests: { checkChain: { script: 'check', require: ['test', 'coverage'] } },
-      // M07：**依赖预算** —— 本体只许这些运行时依赖；要加第三个就改这里（diff 可见、可评审）。
+      // M07：**依赖预算** —— 本体只许这些运行时依赖；要加就改这里（diff 可见、可评审）。
       // 与 P01 的 allow 是同一件事的两面：allow 管"谁被批准"，预算管"一共几个"。
-      // 现在是 commander（CLI 参数）+ pluralize（S31 词形判定）。
-      depsBudget: { runtime: 2 },
+      // 现在是 commander（CLI 参数）+ picomatch（glob 匹配）+ pluralize（S31 词形判定）
+      // + postcss / postcss-scss / postcss-less（CSS 解析）+ postcss-value-parser（CSS 值的词法）。
+      // 三个 postcss 是一件事（R-145）：后两个是 Sass / Less 的语法插件，不带它们等于"宿主用了 Sass 就红"。
+      depsBudget: { runtime: 7 },
       // 不给 coverage：M02–M06 需要一份覆盖率产物，而产物一生成就有"是否比 HEAD 新"的问题
       // （M06 fail-closed）。本仓的覆盖率由 `pnpm check` 里的 `pnpm coverage` 保证，
       // 所以这几条在此**明列停用**而不是让 `pnpm guard:self` 变成"必须先跑覆盖率"。

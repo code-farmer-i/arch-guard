@@ -482,7 +482,7 @@
 
 ## 七、后补的需求（按疼度排序）
 
-> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 130 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
+> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 136 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
 > **已撤**：R-30 复杂度 · R-70 抑制注释 · **R-94（analytics 面 kit 化）** —— 编号登记在第八节，不复用（见 N-06 / N-07 / N-13）。
 > 本节是**后补的一批**（含已完成与判不做的），按疼度排序；更早的按主题分散在一~六节。
 
@@ -903,6 +903,108 @@ adapters: reactPack.adapters })`（**必须自称实现某个元框架**、必�
 - **顺带修一个真 bug**：`docs.ts` 的围栏配对按"首字符"比较，把 ````（四反引号）嵌 ``` 示例当成闭合
   → **它后面的管理块整段被当成"围栏内"，静默不渲染也不校验**（DESIGN.md 的 `merge-spec` 块实测消失）。
   按 CommonMark 规则修（同字符且不短于开启串才闭合）+ 回归测试
+
+**R-145 手搓 CSS 扫描器：坏语法静默错解 + 大文件 O(n²)** · 已完成 · 本体（`src/engine/css.ts` 换 postcss 家族）
+
+- **长这样**（都在本机实测过）：
+  ① `.b{content:";}";background:url(data:image/svg+xml;base64,AAA=)}` —— 值里出现一个 `;` 或 `}` 就让字符扫描器**错位**：
+  `content` 的值被截成 `"`、`background` 整条声明**消失**（该文件的 D03 / D12–D14 / D19 从此少判，而且不报）；
+  ② `@media (min-width: 600px)` / `@layer base` 这类 at-rule 前奏被当成**选择器**收进 `selectors` ——
+  D10 / D10b / P11 的判定面被污染（把"围栏"当成了"选择器"）；
+  ③ 每条声明的行号都从头 `text.slice(0, index).split('\n')` 算一次 → **O(文件长度²)**。
+  实测同一批合成 CSS：46KB 70ms / 139KB 568ms / 279KB **2217ms**；postcss 分别 8 / 22 / 29ms
+- **会怎样**：门禁对「值里带 `;` / `}` / `url(data:…)`」的样式文件**静默少判** —— 最难发现的那种假绿；
+  而 `cssFiles(ctx)` 全仓 18 处调用、**每次调用都把全部 CSS 重新解析一遍**，样式一多门禁自己就变慢
+- **期望**：CSS 解析改用成熟库 postcss（按扩展名选语法），引擎只消费归一化模型（与 §6.1.1 的"规则不消费 AST"同一口径）；
+  坏语法 **fail-closed** 报错，不再静默错解
+- **边界**：`.scss` / `.less` 都在 `CSS_EXTENSIONS` 里，`cssModulesKit` 也明确支持 `*.module.scss` →
+  用 postcss-scss / postcss-less 托底（实测：`.icon-#{$name}{}` 与 Less `.@{name}{}` 在默认解析器下直接抛错），宿主升级零回归；
+  不做 CSS-in-JS（那是 TS 侧的事，见 D15）
+- **落地**：`src/data/css-syntaxes.ts`（扩展名 → 语法，纯数据）+ `src/engine/css.ts`（postcss；导出 API 形状不变）；
+  运行时依赖 2 → 5（`arch.config.mjs` 的 `deps({ allow })` 与 `metrics({ depsBudget })` 同步，`portability.ts` 的
+  `ALLOWED_BARE_IMPORTS` 登记）；`tests/css.test.mjs` 补静默错解 / at-rule / SCSS / Less / 坏语法五组用例
+
+**R-146 `FORCE_COLOR=0` 在真 TTY 下仍然上色：开关只在管道里"看起来对"** · 已完成 · 本体（`engine/util.ts` 的 `colorsEnabled`）
+
+- **长这样**：`FORCE_COLOR=0 node es/cli.js` 在真终端（`stdout` 是 TTY）里**照样吐 ANSI** ——
+  实现是「非空 **且非 '0'** 才强制开」，于是 `'0'` 落到最后那句 `return process.stdout.isTTY === true`。
+  把 `process.stdout.isTTY` 置真实测：`colorsEnabled() === true`、`color.red('x') === '\u001b[31mx\u001b[0m'`。
+- **会怎样**：`FORCE_COLOR=0` 是 CI / 日志采集器用来**显式关色**的标准开关（Node 自己也认），在真 TTY 下失效 = 契约违背；
+  而项目自己的 `tests/engine-report.test.mjs` 断言了相反结果，今天只靠"`node --test` 子进程 stdout 是管道"才没红 ——
+  直接 `node tests/engine-report.test.mjs` 就会红。`TERM=dumb`（终端自述不支持样式）同样不认。
+- **期望**：`FORCE_COLOR` 只要非空就**表态**（`0` / `false` = 显式关闭，其余 = 强制开）；
+  `TERM=dumb` 视为无色；`NO_COLOR` 优先级不变（仍然最高，与文档承诺一致）。
+- **落地**：`src/engine/util.ts` 的 `colorsEnabled`（~6 行）；`tests/engine-report.test.mjs` 补
+  `FORCE_COLOR=false` / `TERM=dumb` / 真 TTY 三例；`cli.ts --help` 与 `docs/USAGE.md` 的口径同步
+
+**R-147 Node 覆盖率表格解析：报告前缀与扩展名白名单一起把路径搞错（Node 22 全军覆没）** · 已完成 · 本体（`engine/coverage.ts` 的 `parseNodeTable`）
+
+- **长这样**（都在本机实测）：
+  ① **报告行前缀随 Node 版本变** —— 24 是 `ℹ `、**22 是 `# `**，而解析器只剥 `ℹ`。
+  同一份 `node --test --experimental-test-coverage` 输出在 22.18.0 上解出来是
+  `["#  engine/#   a.mjs", "# tests/#  a.test.mjs"]` —— 路径全错，且**一条不报**；
+  ② **文件行判据是扩展名白名单**（`js|mjs|cjs|ts|tsx|vue|jsx`）：`src / a.mts / b.cts / c.tsx / d.vue / e.svelte`
+  实测只解出 `src/b.cts/c.tsx` 与 `src/b.cts/d.vue` —— `a.mts`、`e.svelte` 消失，
+  `b.cts` 被当成**目录前缀**污染后两行。
+- **会怎样**：`engines: >= 22.18.0` 是对外承诺，而 M 域（M02 目录下限 / M04 棘轮 / M05 变更覆盖率）在 Node 22 上
+  按**不存在的路径**算覆盖率 —— "没有文件匹配"被当成"没这回事"，用户看到的是静默失真；
+  而 `src/data/framework-sources.ts` 自己声明支持 `.mts/.cts`，两处自相矛盾。
+- **期望**：前缀按 `[ℹ#]` 通吃（保留缩进语义）；文件行判据改成「前三列（行 / 分支 / 函数）都是数字」
+  （**目录行没有数字**，Node 22.18.0 与 24.13.0 实测一致 —— 这份形状就是判据），
+  **不再有扩展名白名单**：漏一个扩展名 = 静默丢文件 + 污染后续路径，而且每加一种源码形态都要改这里；
+  `all files` 汇总行显式排除。
+- **落地**：`src/engine/coverage.ts` 的 `parseNodeTable`；`tests/metrics.test.mjs` 补 Node 22 前缀、
+  `.mts/.cts/.svelte`、汇总行三例
+
+**R-148 4 位 hex 让 D07 对比度静默失效（NaN 恒不触发判据）** · 已完成 · 本体（`engine/css.ts` 的颜色求值）
+
+- **长这样**：`toRgb('#0008')` → `[0, 8, NaN]`（`parseInt('', 16)` = NaN）；
+  `color-mix(in srgb, #0008 50%, #ffffff)` 于是给出 `contrastRatio` = **NaN**，
+  而 D07 的判据 `ratio + 1e-9 < pair.min` 对 NaN **恒为 false** → **一条不报**。
+  `#RGBA` 是 CSS Color 4 的标准写法。同类还有 `#RRGGBBAA`（Tailwind 的 `/50` 惯用）：
+  它**不产 NaN，但 alpha 被当成 rgb 的一部分**（`#00000080` → `[0,0,0]` 不透明）—— 比值算错，同样不报。
+- **会怎样**：无障碍规则（D07）对现代写法**静默放过** —— 报不报取决于写的是 `#rgb` 还是 `#rgba`，
+  而报告一个字不说。这是"唯一出处"里的静默假绿。
+- **期望**：hex 解析支持 `#rgb` / `#rgba` / `#rrggbb` / `#rrggbbaa`（alpha 真的参与 `flatten` / `color-mix` 求值）；
+  解析不了（长度不合法、**通道或 alpha 非有限**）一律返回 `null`（规则据此跳过），**绝不再产出 NaN**。
+- **落地**：`src/engine/css.ts` 的 hex 解析；`tests/css.test.mjs` 补 alpha 用例；
+  新夹具 `contrast-alpha`（半透明前景压在浅底上对比度不足**必须报**，合规对不报）
+
+**R-149 手搓 glob 不支持字符类：`include` 一旦欠匹配就是静默不判** · 已完成 · 本体（`engine/util.ts` 的 `globToRegExp` 换 picomatch）
+
+- **长这样**：`globToRegExp('src/**/[a-z]*.ts').source` 解出来是 `^src\/(?:.*\/)?\[a-z\][^/]*\.ts$` ——
+  方括号被**转义成字面量**，于是永不匹配；extglob `!(...)`、数字区间 `{1..3}` 同样不支持。
+- **会怎样**：角色表 / `ignore` / `include` / `exceptions` / `--paths` 全用它，而**欠匹配 = 静默不判**。
+  实测同一个宿主把 `include` 从 `src/shared/**` 换成带字符类的同义写法后，`[S05]` 与 `[S08]`
+  **两条 error 一起消失**，报告只多一句"域外 2 个文件不判契约" —— S24 只在**整个**扫描域为空时才报，
+  **部分欠匹配零诊断**。
+- **期望**：glob 语义用成熟库（picomatch，0 自带依赖）。**三个兼容口径显式定住**：
+  ① `dot: true` —— 点文件仍能被 `**` 命中（旧实现如此，picomatch 默认不命中，不传就是静默丢文件）；
+  ② 尾随 `/**` 仍要求"至少还有一层" —— 否则 `src/features/{slice}/{segment}/**` 会把 `index.tsx`
+  吃成 `segment = index.tsx`，与切片入口角色撞车 → S01 歧义（实测在 `fsd()` 的 pages/features 层上成立）；
+  ③ `nonegate` —— **不引入** `!` 取反语法（旧实现当字面量，凭空多一套语义属于行为变更）。
+- **落地**：`src/engine/util.ts`（导出 API 不变，仍是 `(glob) => RegExp`，23 个调用点零改动）；
+  夹具 `include-custom` 的 `include` 改成字符类写法 + 加一个 `Gen.ts` 作域外对照（违规必报 × 合规不报）；
+  `tests/engine-unit.test.mjs` 补字符类 / 点文件 / 尾随 `/**` / 不取反四组；
+  运行时依赖 5 → 6（`deps({ allow })` / `metrics({ depsBudget })` / `portability.ts` 三处同步）。
+  另加一层**编译缓存**：picomatch 的编译比手搓慢约 4×（8 个 glob 一轮 14.8µs → 58µs），
+  而 `structure-discipline` 这类调用点是**按文件**编译的 → 缓存后同一轮 2.2µs，比旧实现还快 ~7×
+
+**R-150 `calc()` 是 D12–D14 的逃生门：取值器读不到函数里的数值** · 已完成 · 本体（`design-shared.ts` 的 `numericTokens` 换 postcss-value-parser）
+
+- **长这样**：声明了刻度的项目里，`padding: calc(100% - 13px)` **一条不报**，而 `padding: 13px` 会报 ——
+  取值器是 `split(/\s+/)` + 正则，函数里的 `13px` 根本取不到。姊妹规则 D19 在 `design-numbers.ts` 里是
+  **显式跳过** calc 的（有意），两条规则对 calc 的态度不一致 → 至少一条不是故意的。
+- **会怎样**：把长度藏进 `calc()` 是最省事的绕过写法；`13PX`（CSS 单位**大小写不敏感**，是合法写法）、
+  `+13px`、`2.0rem` 同样取不到 —— 写对写错都不报。`var(--gap, 13px)` 的回退值、`min(100%, 320px)` 同理。
+- **期望**：用**值 AST**（postcss-value-parser）取值 —— 函数里也进去（calc / min / max / clamp / var 回退）；
+  单位按小写比较、数值**归一化**（`+13px` → `13px`、`2.0rem` → `2rem`、`0px` → `0`，白名单是按"值"写的）；
+  `url(...)` 与字符串不进去；单位族仍**要求带单位**（`line-height: 1.5` 的无单位倍数是正常写法），
+  无单位族（z-index）只认整数。
+- **落地**：`src/packs/core/rules/design-shared.ts`；夹具 `value-whitelists` 加 `CalcBad.module.css`
+  （`calc(100% - 13px)` 必报）与 `CalcGood.module.css`（`calc(100% - 8px)` / `min(100%, 8px)` / `0px` /
+  `+10` / `150MS` 都不报 —— 归一化不该造出误报）；`tests/design-value-tokens.test.mjs`（4 组）；
+  运行时依赖 6 → 7（`allow` / `depsBudget` / `ALLOWED_BARE_IMPORTS` 三处同步）
 
 **R-138 用 axios 的项目，端点唯一出处那条纪律会静默失效** · 已完成 · 本体（`http` 面 + `axiosKit()`）
 

@@ -1,0 +1,16 @@
+/* 语义令牌：明暗两套（这份夹具两套同值，只为让 D07 两轮都跑到） */
+:root {
+  --ink-alpha: var(--sh-static-ink-alpha);
+  --ink-strong: var(--sh-static-ink);
+  --surface: var(--sh-static-surface);
+}
+[data-theme="dark"] {
+  --ink-alpha: var(--sh-static-ink-alpha);
+  --ink-strong: var(--sh-static-ink);
+  --surface: var(--sh-static-surface);
+}
+[data-theme="light"] {
+  --ink-alpha: var(--sh-static-ink-alpha);
+  --ink-strong: var(--sh-static-ink);
+  --surface: var(--sh-static-surface);
+}

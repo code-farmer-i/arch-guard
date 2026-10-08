@@ -63,7 +63,7 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 | `src/engine/**`   | 引擎：扫描 / 事实模型 / 图 / 注册表 / 过滤器 / 报告 / scope / 依赖事实 / 自检                                                                                                                                                                                                                                       |
 | `src/packs/**`    | `core/`（共享规则实现）· `registry.ts`（**源码形态的实现绑定**：`typescript` / `react` → 规则集 + 支持的面；两者今天共用 `core` 的规则集）。宿主只写 `sourceForm: 'react'`，绑定由调用方注入（ADR-0009）                                                                                                            |
 | `src/presets/**`  | 预置与适配器：范式 `canonical` / `library` / `fsd`；域预设 `design-system` / `copy` / `deps` / `hygiene` / `metrics` / `stack`；方案面 `<面>-kits/*`（router / data-layer / styles / ui-kit / i18n，**纯数据**）与 `call-sites`（调用落点）                                                                         |
-| `src/data/**`     | 纯数据表：组件库指纹 · 轮子指纹 · 同类方案 · 源码形态扩展名 · 方案面形态词汇 · 退路标记 · 词形 · 图标包 · 产物目录（引擎零库名、零逻辑）                                                                                                                                                                            |
+| `src/data/**`     | 纯数据表：组件库指纹 · 轮子指纹 · 同类方案 · 源码形态扩展名 · 样式扩展名→解析语法 · 方案面形态词汇 · 退路标记 · 词形 · 图标包 · 产物目录（引擎零库名、零逻辑）                                                                                                                                                      |
 | `__fixtures__/**` | 被测项目夹具（故意含违规、坏语法、缺 `package.json` 等形态）                                                                                                                                                                                                                                                        |
 | `examples/**`     | 宿主示例（都是**可跑的活样板**）：`minimal`（最短可用，71/107）· `full`（`canonical()` + 4 个域 + 12 个生效适配器 + 结构声明全配，**102/107、0 finding**）· `full-fsd`（`fsd()` 版、六层含 widgets，**91/107、0 finding**）。`pnpm guard:sample` / `guard:full` / `guard:full-fsd` 跑它们（已挂在 `pnpm check` 里） |
 | `arch.config.mjs` | 门禁自己的配置（库范式 + 依赖选型 P + 度量 M07/M09）                                                                                                                                                                                                                                                                |
@@ -97,7 +97,12 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 **批准清单**（`deps({ allow })`，**非空才开启** P01「未登记即拒」）：
 
 - `commander`
+- `picomatch`
 - `pluralize`
+- `postcss`
+- `postcss-scss`
+- `postcss-less`
+- `postcss-value-parser`
 
 <!-- arch-guard:end deps -->
 

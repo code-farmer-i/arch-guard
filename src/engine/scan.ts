@@ -7,11 +7,13 @@ import {
   supportedExtensions,
 } from '../data/framework-sources.js'
 import { buildOutputDirs } from '../data/build-output-dirs.js'
+import { cssSyntaxes } from '../data/css-syntaxes.js'
 import { TS_EXTENSIONS } from './facts.js'
 import type { Config, FileKind, FileRecord, RoleDescriptor } from './types.js'
 import { globToRegExp, relOf, walk } from './util.js'
 
-export const CSS_EXTENSIONS = ['.css', '.scss', '.less']
+/** 样式扩展名的**唯一出处**是数据表（`engine/css.ts` 也从它选解析语法，见 docs/DESIGN.md §6.1.2） */
+export const CSS_EXTENSIONS = cssSyntaxes.map((item) => item.extension)
 
 const SLOT = '__AG_SLOT__'
 
