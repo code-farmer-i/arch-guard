@@ -6,6 +6,15 @@ import type { Preset } from '../engine/types.js'
 export interface ContrastPair {
   fg: string
   bg: string
+  /**
+   * `bg` 是半透明柔底时，压在哪个底色上算对比度（`bg` 的 alpha = 1 时忽略）。
+   *
+   * 为什么要有它：`--success-soft` 这类"某语义色 + transparent"的底**本身不是一个能看的面** ——
+   * 它压在卡片上还是压在画布上，观感完全不同。声明 parent 之后 D07 先把它压到 parent 上再算比值；
+   * 不声明就退回压白色（暗色主题下那是灾难性的偏亮，会算出假通过）。
+   * 它同时算作"被引用"，所以只被它引用的令牌不会被 D05 报成死令牌。
+   */
+  parent?: string
   usage: string
   min: number
 }
@@ -29,7 +38,8 @@ export interface DesignSystemOptions {
   htmlKeys?: string[]
   /**
    * 对比度基线：**项目专有**，默认空 —— 预设不替项目做决定。
-   * 形状 `[{ fg, bg, usage, min }]`，token 名由项目按自己的语义层填。
+   * 形状 `[{ fg, bg, usage, min, parent? }]`，token 名由项目按自己的语义层填。
+   * `parent` 只在 `bg` 是半透明柔底时才需要（见 `ContrastPair`）。
    */
   contrastPairs?: ContrastPair[]
   /**

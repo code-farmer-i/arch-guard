@@ -257,6 +257,49 @@ test('D 域：对比度基线的令牌解析不了时跳过（不猜、不误报
   assert.deepEqual(findings, [], '解析不了的配色要跳过，而不是报一个假对比度')
 })
 
+test('D07：半透明柔底要压到声明的 parent 上算 —— 不声明就退回压白色（会算成假通过/假失败）', () => {
+  const rule = coreRules.find((item) => item.id === 'D07')
+  // 柔底 = 白 10% 的底：压在近黑卡片上几乎还是黑（比值 5.6 过关），
+  // 而"没声明 parent"会退回压白色 —— 那时柔底等于白色，同一对文字就只有 2.6（报错）。
+  const files = {
+    'src/shared/styles/tokens/theme.css':
+      ':root {\n  --card: #101014;\n  --soft: color-mix(in srgb, #ffffff 10%, transparent);\n}\n' +
+      '[data-theme="dark"] {\n  --fg: #9aa0b4;\n}\n',
+  }
+  const base = {
+    files,
+    params: {
+      themeFile: 'src/shared/styles/tokens/theme.css',
+      tokenDir: 'src/shared/styles/tokens',
+      themes: ['dark'],
+    },
+  }
+  const withParent = rule?.run(
+    makeContext({
+      ...base,
+      params: {
+        ...base.params,
+        contrastPairs: [
+          { fg: '--fg', bg: '--soft', parent: '--card', usage: '柔底上的字', min: 4.5 },
+        ],
+      },
+    }),
+  )
+  assert.deepEqual(withParent, [], '声明了 parent 就该按压底后的实际面色算，这一对是达标的')
+
+  const withoutParent = rule?.run(
+    makeContext({
+      ...base,
+      params: {
+        ...base.params,
+        contrastPairs: [{ fg: '--fg', bg: '--soft', usage: '柔底上的字', min: 4.5 }],
+      },
+    }),
+  )
+  assert.equal(withoutParent?.length, 1, '不声明 parent 会退回压白色：同一对文字算出的是另一个数')
+  assert.match(withoutParent?.[0]?.text ?? '', /对比度 [\d.]+:1 < 4\.5/)
+})
+
 test('P12 同类方案：登记一个方案后，混入同类库才报；全在登记内 / 无同类表的面不报', () => {
   const rule = coreRules.find((item) => item.id === 'P12')
   const routerAdapter = {
