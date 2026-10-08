@@ -65,7 +65,7 @@ superhive 上已按此口径验收：D 域 0 条、C03 0 条，与旧守卫「�
 - 不做 L5 语义判断（清单见 §5.6）。
 - v1 不做自动修复（`--fix` 只留给未来确定性极高的少数规则）。
 - **运行时依赖只有显式登记的少数几个**：引擎自己的解析依赖 `typescript`（peer，宿主本来就有），CLI 参数解析用
-  `commander`，词形判定用 `pluralize`，CSS 解析用 `postcss` 家族（见 §6.1.2），glob 匹配用 `picomatch`（R-149）。这不是"零依赖洁癖"，而是一道**审查门** ——
+  `commander`，词形判定用 `pluralize`，CSS 解析用 `postcss` 家族（见 §6.1.2），glob 匹配用 `picomatch`（R-149），颜色词法与 WCAG 对比度用 `culori`（R-153）。这不是"零依赖洁癖"，而是一道**审查门** ——
   门禁要读宿主的全量源码并跑在 CI 里，新依赖必须有人看过、
   且不能把宿主拖进版本冲突。名单在 `src/engine/portability.ts` 的 `ALLOWED_BARE_IMPORTS`，由 `--self-check-portability`（P1）强制；
   加依赖要同时改那份名单与 `package.json`，并在 CHANGELOG 写明理由。**不引入任何运行时依赖**是早期口径，已按此更新。
@@ -397,6 +397,12 @@ f = {
 3. **`var()` 引用仍在声明值上扫**（保留原正则：`var(--a )` / `var(--a , 8px)` 都能认）。
    试过 `postcss-value-parser`，**否决**：它把 `url(...)` 当一个整体，`url(var(--img))` 里的 `var` 走不到，
    比现有正则更漏；为一个不成立的收益多一个依赖不值。
+
+**颜色也按 CSS 词法读**（R-153）：颜色求值交给 `culori` —— hex（3/4/6/8）· `rgb()` · `hsl()` · `hwb()` ·
+`lab()` / `lch()` / `oklab()` / `oklch()` · `color(display-p3 …)` · 具名色 · `transparent`；
+WCAG 对比度用 `wcagContrast`（换库前那份手搓数学与它**逐位一致**）；`color-mix` 按 CSS 的 premultiplied alpha 算；
+超出 sRGB 色域按渲染器裁剪；解析不了返回 `null`（**绝不产出 NaN** —— R-148 的保证）。
+D03 的色值身份由此变成"解析后的颜色"（`rgb(255, 90, 31)` ≡ `#ff5a1f`），不再是 hex 的拼写。
 
 **值也要按词法读**（R-150）：`numericTokens`（D12–D14 / D15 / D19 共用）用 `postcss-value-parser` 取值 AST，
 不再 `split(/\s+/)` + 正则 —— **函数里也是值**（`calc(100% - 13px)` / `min(100%, 320px)` / `var(--gap, 13px)`），

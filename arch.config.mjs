@@ -40,6 +40,7 @@ export default {
       // 黑名单只会在白名单之外再造一份名册，多一处要同步的真相。
       allow: [
         'commander',
+        'culori',
         'picomatch',
         'pluralize',
         'postcss',
@@ -55,9 +56,10 @@ export default {
       // M07：**依赖预算** —— 本体只许这些运行时依赖；要加就改这里（diff 可见、可评审）。
       // 与 P01 的 allow 是同一件事的两面：allow 管"谁被批准"，预算管"一共几个"。
       // 现在是 commander（CLI 参数）+ picomatch（glob 匹配）+ pluralize（S31 词形判定）
-      // + postcss / postcss-scss / postcss-less（CSS 解析）+ postcss-value-parser（CSS 值的词法）。
+      // + postcss / postcss-scss / postcss-less（CSS 解析）+ postcss-value-parser（CSS 值的词法）
+      // + culori（颜色词法与 WCAG 对比度）。
       // 三个 postcss 是一件事（R-145）：后两个是 Sass / Less 的语法插件，不带它们等于"宿主用了 Sass 就红"。
-      depsBudget: { runtime: 7 },
+      depsBudget: { runtime: 8 },
       // 不给 coverage：M02–M06 需要一份覆盖率产物，而产物一生成就有"是否比 HEAD 新"的问题
       // （M06 fail-closed）。本仓的覆盖率由 `pnpm check` 里的 `pnpm coverage` 保证，
       // 所以这几条在此**明列停用**而不是让 `pnpm guard:self` 变成"必须先跑覆盖率"。

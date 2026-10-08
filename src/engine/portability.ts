@@ -39,6 +39,9 @@ const ALLOWED_BARE_IMPORTS = new Set([
   // CSS **值**的词法（R-150）：`calc()` / `min()` / `var()` 的回退值里也是值，
   // 正则切不出来 → D12–D14 对 `calc()` 完全失效。只用于 `packs/core/rules/design-shared.ts` 的 numericTokens。
   'postcss-value-parser',
+  // 颜色词法与 WCAG 对比度（R-153）：`rgb()` / `hsl()` / 具名色 / `color-mix` 的 premultiplied
+  // 插值都交给它，只用于 `engine/css.ts`。自带类型（`@types/culori` 是 devDep）。
+  'culori',
 ])
 /** 宿主项目名（换宿主时改这里；本体不该认识任何具体宿主） */
 const HOST_MARKERS = ['superhive']

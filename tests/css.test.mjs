@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
+  colorKey,
   contrastRatio,
   findColorLiterals,
   flatten,
   maskCssComments,
-  normalizeHex,
   parseCss,
   resolveColor,
 } from '../es/engine/css.js'
@@ -54,15 +54,21 @@ test('css：块、声明、变量定义与引用、注释遮罩', () => {
   assert.equal(masked.split('\n').length, text.split('\n').length)
 })
 
-test('css：颜色字面量与 hex 归一化', () => {
+test('css：颜色字面量与色值身份（colorKey）', () => {
   const hits = findColorLiterals(
     '.a { color: #FFF; background: rgb(1,2,3); border: 1px solid }\n.b { color: oklch(0.7 0.1 20) }',
   )
   assert.equal(hits.length, 2)
   assert.equal(hits[0]?.line, 1)
-  assert.equal(normalizeHex('#FFF'), 'ffffff')
-  assert.equal(normalizeHex('fff'), 'ffffff')
-  assert.equal(normalizeHex('#A1B2C3'), 'a1b2c3')
+  // 色值身份 = 解析成 sRGB 之后的颜色，不是 hex 的拼写（R-153）
+  assert.equal(colorKey('#FFF'), 'ffffff')
+  assert.equal(colorKey('  #A1B2C3  '), 'a1b2c3')
+  assert.equal(colorKey('rgb(255, 90, 31)'), 'ff5a1f', '同一个颜色的两种拼写要算同一个色值')
+  assert.equal(colorKey('#ff5a1f'), 'ff5a1f')
+  assert.equal(colorKey('rebeccapurple'), '663399')
+  assert.equal(colorKey('#00000080'), '00000080', '带 alpha 的色值另有身份（不能和不透明的合并）')
+  assert.equal(colorKey('var(--x)'), null, 'D03 只认直接写下的色值：var() 别名是官方推荐的共用方式')
+  assert.equal(colorKey('color-mix(in srgb, #fff 50%, #000)'), null, '混色不是"写下来的那个色值"')
 })
 
 test('css：令牌求值（var 链 / color-mix / 透明 / 无法解析返回 null）', () => {
@@ -74,7 +80,7 @@ test('css：令牌求值（var 链 / color-mix / 透明 / 无法解析返回 nul
     ['--weird', 'var(--alias) /* 不是纯 var */'],
   ])
   assert.deepEqual(resolveColor(vars, '--alias')?.rgb, [0, 0, 0])
-  assert.equal(resolveColor(vars, '--mix')?.alpha, 0.2)
+  assert.ok(Math.abs((resolveColor(vars, '--mix')?.alpha ?? 0) - 0.2) < 1e-12)
   assert.deepEqual(resolveColor(vars, '--mix2')?.rgb, [128, 128, 128])
   assert.equal(resolveColor(vars, '--nope'), null)
   assert.equal(resolveColor(vars, '--weird'), null, '只认 var(--x) 这种纯引用')
@@ -200,17 +206,24 @@ test('css：4/8 位 hex 带 alpha，且任何输入都不产 NaN（R-148）', ()
   // `#RRGGBBAA`：alpha 不再被当成 rgb 的一部分
   assert.ok(Math.abs((resolveColor(vars, '--rrggbbaa')?.alpha ?? 0) - 128 / 255) < 1e-9)
   // 与 transparent 混 = alpha 乘权重
-  assert.deepEqual(resolveColor(vars, '--mix-transparent'), {
-    rgb: [255, 255, 255],
-    alpha: 0.4,
-  })
+  const mixTransparent = resolveColor(vars, '--mix-transparent')
+  assert.deepEqual(mixTransparent?.rgb, [255, 255, 255])
+  // alpha 由 culori 插值算出（0.2 → 0.19999999999999996）：按容差比，别钉浮点字面量
+  assert.ok(Math.abs((mixTransparent?.alpha ?? 0) - 0.4) < 1e-12)
 
   // 解析不了的：返回 null（让规则跳过），**不是** NaN 颜色
   assert.equal(resolveColor(vars, '--five'), null)
   assert.equal(resolveColor(vars, '--not-hex'), null)
   assert.equal(resolveColor(vars, '--bare-word'), null, '不带 # 的单词不能被当成 hex')
-  assert.equal(resolveColor(vars, '--mix-alpha'), null, '带 alpha 的两色混合不猜（premultiplied）')
-  assert.equal(resolveColor(vars, '--mix-both-alpha'), null)
+  // 带 alpha 的两色混合：R-148 当时"不猜"（返回 null），R-153 起按 CSS 的 premultiplied alpha 真算。
+  // `#fff 50% + #00000080 50%`：预乘 c=0.5、a=0.75098 → 反预乘 0.6658 → 170（不是 [128,128,128]）
+  const bothAlpha = resolveColor(vars, '--mix-both-alpha')
+  assert.deepEqual(bothAlpha?.rgb, [170, 170, 170])
+  assert.ok(Math.abs((bothAlpha?.alpha ?? 0) - 0.7509803921568627) < 1e-12)
+  // `#0008 50% + #ffffff 50%`：预乘 c=0.5、a=0.76667 → 反预乘 0.6522 → 166
+  const oneAlpha = resolveColor(vars, '--mix-alpha')
+  assert.deepEqual(oneAlpha?.rgb, [166, 166, 166])
+  assert.ok(Math.abs((oneAlpha?.alpha ?? 0) - 0.7666666666666666) < 1e-12)
 
   // 回归断言：**任何**解析得出来的颜色都不许含 NaN（旧实现在 #0008 上给 [0, 8, NaN]）
   for (const name of vars.keys()) {
@@ -222,4 +235,70 @@ test('css：4/8 位 hex 带 alpha，且任何输入都不产 NaN（R-148）', ()
       `${name} 产出了非有限值：${JSON.stringify(color)}`,
     )
   }
+})
+
+test('R-153：色彩词法交给 culori —— rgb / hsl / 具名色 / oklch 的令牌不再"消失"', () => {
+  const vars = new Map([
+    ['--rgb', 'rgb(255, 90, 31)'],
+    ['--hsl', 'hsl(20 100% 56%)'],
+    ['--named', 'rebeccapurple'],
+    ['--oklch', 'oklch(0.7 0.15 40)'],
+    ['--p3', 'color(display-p3 1 0 0)'],
+    ['--junk', 'currentColor'],
+  ])
+  // 旧实现只认 hex：上面这些一律 null → D07 里"声明过的对比度对"直接不算（静默少判）
+  assert.deepEqual(resolveColor(vars, '--rgb')?.rgb, [255, 90, 31])
+  assert.deepEqual(resolveColor(vars, '--named')?.rgb, [102, 51, 153])
+  assert.equal(resolveColor(vars, '--hsl')?.rgb[1], 105)
+  assert.ok((resolveColor(vars, '--oklch')?.rgb[0] ?? 0) > 0)
+  // 超色域：按渲染器那样裁剪到 [0,255]，而不是返回 null（返回 null 等于这一对彻底不判）
+  assert.deepEqual(resolveColor(vars, '--p3')?.rgb, [255, 0, 0], 'display-p3 红裁到 sRGB 红')
+  assert.equal(resolveColor(vars, '--junk'), null, '真的解析不了才返回 null')
+})
+
+test('R-153：color-mix 按 CSS 的 premultiplied alpha 算（两个带 alpha 的色不再跳过）', () => {
+  const vars = new Map([
+    ['--both-alpha', 'color-mix(in srgb, #00000080 50%, #ffffff40)'],
+    ['--rgb-mix', 'color-mix(in srgb, rgb(255, 0, 0) 30%, hsl(240 100% 50%))'],
+    ['--transparent', 'color-mix(in srgb, #ffffff 20%, transparent)'],
+  ])
+  // 手算：预乘 (0,0,0,0.50196) 与 (1,1,1,0.25098) 各半 → c=0.12549 a=0.37647 → 反预乘 0.33333 → 85
+  const mixed = resolveColor(vars, '--both-alpha')
+  assert.deepEqual(mixed?.rgb, [85, 85, 85], 'premultiplied：不是 [128,128,128]')
+  assert.ok(Math.abs((mixed?.alpha ?? 0) - 0.3764705882352941) < 1e-12)
+  assert.deepEqual(resolveColor(vars, '--rgb-mix')?.rgb, [77, 0, 179], '操作数可以是任意 CSS 颜色')
+  assert.ok(
+    Math.abs((resolveColor(vars, '--transparent')?.alpha ?? 0) - 0.2) < 1e-12,
+    '与 transparent 混 = alpha 乘权重',
+  )
+})
+
+test('R-153：WCAG 对比度换成 culori 的 wcagContrast —— 与手搓那份逐位一致', () => {
+  /** 参照实现：换库前 `engine/css.ts` 里那份（WCAG 2.x 相对亮度 + 0.03928 阈值） */
+  const reference = ([r, g, b], [r2, g2, b2]) => {
+    const channel = (v) => {
+      const c = v / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    const lum = ([rr, gg, bb]) => 0.2126 * channel(rr) + 0.7152 * channel(gg) + 0.0722 * channel(bb)
+    const [hi, lo] = [lum([r, g, b]), lum([r2, g2, b2])].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  // 网格采样：覆盖 0 通道、阈值附近的通道值（10 / 11）、中间灰与极值
+  const channelValues = [0, 1, 10, 11, 12, 128, 200, 254, 255]
+  let checked = 0
+  for (const r of channelValues)
+    for (const g of channelValues)
+      for (const b of channelValues) {
+        const a = [r, g, b]
+        const c = [255 - r, 255 - g, 255 - b]
+        assert.ok(
+          Math.abs(contrastRatio(a, c) - reference(a, c)) < 1e-12,
+          `与手搓那份不一致：${a} vs ${c}`,
+        )
+        checked += 1
+      }
+  assert.ok(checked >= 700, `采样数 ${checked}`)
+  assert.equal(contrastRatio([0, 0, 0], [255, 255, 255]), 21, '黑白仍是 21:1')
+  assert.equal(contrastRatio([10, 10, 10], [10, 10, 10]), 1)
 })

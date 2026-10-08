@@ -69,6 +69,30 @@
   而仓里有几处是**按文件**调 `globToRegExp` 的（`structure-discipline` 的 `globs.some(...)` 每条记录一次）——
   缓存后同一轮 **2.2µs**，热路径比旧实现还快 ~7×；返回的仍是新 RegExp 实例，调用方互不影响。
 
+### Changed（R-153：色彩词法与 WCAG 数学换成 culori —— 只认 hex 等于把 `rgb()` 令牌从判定面里删掉）
+
+> **升级注意（行为变更，方向是"多报"）**：以前**只认 hex** 的颜色值现在按 CSS 全语法解析 ——
+> 色板里用 `rgb()` / `hsl()` / 具名色 / `oklch()` 写的令牌，从此会真的进 D07（对比度）与 D03（色值唯一）。
+> 受影响的宿主本来就在**静默漏判**（`contrastPairs` 里声明过的对，一对都没算）；
+> 另外 D03 的色值身份从"hex 的拼写"变成"解析后的颜色" → `rgb(255, 90, 31)` 与 `#ff5a1f` 从此算同一个色值。
+
+- **`src/engine/css.ts` 的颜色求值改由 `culori` 承担**：hex（3/4/6/8）· `rgb()` · `hsl()` · `hwb()` ·
+  `lab()` / `lch()` / `oklab()` / `oklch()` · `color(display-p3 …)` · **具名色** · `transparent`。
+  旧实现只认 `#hex`：色板写 `rgb(255, 90, 31)` 的令牌 `resolveColor` 返回 `null`，D07 直接 `continue` ——
+  白字压这个品牌色只有 **3.12:1**，一条不报（新夹具 `contrast-syntax` 就是这条静默假绿）。
+- **WCAG 对比度换成 `wcagContrast`**：与手搓那份（gamma 展开 + 0.03928 阈值）**逐位一致** ——
+  729 组网格采样差 < 1e-12，黑白仍是 21:1。于是删掉自己那份数学，只留"0..255 整数 → culori 颜色"的适配。
+- **`color-mix` 按 CSS 的 premultiplied alpha 算**：两个都带 alpha 的操作数以前直接返回 `null`（"不猜"）→
+  从此真算（`#00000080` 各半 `#ffffff40` → `rgb(85,85,85)` alpha 0.37647，与规范手算吻合）；
+  操作数也不再限定 hex / `var()`，任意 CSS 颜色都行。
+- **超出 sRGB 色域的值按渲染器裁剪**（`color(display-p3 1 0 0)` → `rgb(255, 0, 0)`）：
+  返回 `null` 等于这一对彻底不判。解析不了的（`currentColor` / `var()` / 裸 hex 词如 `abcdef`）仍是 `null`，
+  **绝不产出 NaN**（R-148 的保证不变）。
+- **D03 的色值身份改用 `colorKey`**（解析后的 `rrggbb[aa]`，取代 `normalizeHex`）：`rgb(255, 90, 31)` 与
+  `#ff5a1f` 是同一个色值；`var()` 别名与 `color-mix()` 照旧不算（前者是官方推荐的共用方式）。
+- **运行时依赖 7 → 8**（culori，自身 0 依赖、MIT；**不自带类型声明**，`@types/culori` 走 devDep）。
+  新夹具 `contrast-syntax`（夹具数 97 → 98）。
+
 ### Fixed（R-152：覆盖率产物读不懂时的**静默 0%** / 幻影文件）
 
 > **升级注意（行为变更）**：以前"是 JSON 就当覆盖率摘要"，现在**读不懂就报**（M06，error 级）。

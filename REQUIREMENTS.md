@@ -482,7 +482,7 @@
 
 ## 七、后补的需求（按疼度排序）
 
-> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 138 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
+> **开着的：没有了**（`进行中` 0）—— 全部条目都已定：`已完成` 139 · `已委派` 4 · `不做` 7（R-04 / R-49 / R-50 / R-51 / R-52 / R-53 / R-109）。
 > **已撤**：R-30 复杂度 · R-70 抑制注释 · **R-94（analytics 面 kit 化）** —— 编号登记在第八节，不复用（见 N-06 / N-07 / N-13）。
 > 本节是**后补的一批**（含已完成与判不做的），按疼度排序；更早的按主题分散在一~六节。
 
@@ -1040,6 +1040,28 @@ adapters: reactPack.adapters })`（**必须自称实现某个元框架**、必�
   （盘点里对应 `istanbul-lib-coverage`，+1 依赖），等真有宿主用它再单独决策。
 - **落地**：`src/engine/coverage.ts`（**0 新依赖**）；`tests/metrics.test.mjs` 加三例
   （原始格式 / 指错文件四种 / 这条错误由 M06 带修法呈现）
+
+**R-153 色彩只认 hex：`rgb()` / `hsl()` / 具名色的令牌在 D07 与 D03 里直接消失** · 已完成 · 本体（`engine/css.ts` 的色彩数学换 culori）
+
+- **长这样**（都在本机实测）：
+  ① 色板写 `--sh-static-brand: rgb(255, 90, 31)`、`contrastPairs` 里也声明了它 → `resolveColor` 返回 `null`
+  → D07 直接 `continue`：白字压这个色只有 **3.12:1**，**一对都不算**（静默假绿，新夹具就是它）；
+  ② `color-mix(in srgb, A 30%, B)` 只要**两个操作数都带 alpha** 就返回 `null`（旧实现"不猜"）→ 又一处静默少判；
+  ③ D03 的色值身份是 `/#([0-9a-fA-F]{3,8})/` 抠出来的 → `--a: rgb(255, 90, 31)` **取不到键**，
+  与 `--b: #ff5a1f`（同一个色值）不算重复 → 跨族重复色值漏报。
+- **期望**：颜色词法与数学改用 culori 实现 —— hex（3/4/6/8）· `rgb()` · `hsl()` · `hwb()` ·
+  `lab()` / `lch()` / `oklab()` / `oklch()` · `color(display-p3 …)` · **具名色** · `transparent`；
+  WCAG 对比度用 `wcagContrast`（与手搓那份**逐位一致**：729 组网格采样差 < 1e-12，0.03928 / 0.04045
+  两个阈值在 0..255 整数通道上不分叉）；`color-mix` 按 CSS 的 **premultiplied alpha** 算
+  （`#00000080` 与 `#ffffff40` 各半 → `rgb(85,85,85)` alpha 0.37647，手算吻合）；
+  超出 sRGB 色域按渲染器那样裁剪；解析不了（`currentColor` / `var()` / 裸 hex 词）返回 `null`，**绝不产出 NaN**。
+- **落地**：`src/engine/css.ts`（`parseHex` + 手搓 `luminance` → culori；新增 `colorKey` 取代 `normalizeHex`）；
+  `design-tokens.ts` 的 D03 改用 `colorKey`；新夹具 `contrast-syntax`（夹具数 97 → 98；旧实现下 D07 与 D03 **都漏报**）；
+  `tests/css.test.mjs` 3 组 + `tests/rules-branches.test.mjs` 2 组；
+  运行时依赖 7 → 8（culori 自身 0 依赖、MIT；**不自带类型**，`@types/culori` 是 devDep）
+- **边界（本次不改）**：`findColorLiterals`（D01 的扫描）仍是窄正则 —— 具名色字面量
+  （`color: rebeccapurple`）**不在** D01 的判定面：把它扩成"词扫描 + 颜色校验"会误匹配选择器里的类名
+  （`.white { … }`）。D07 对**解析不了**的令牌仍是静默跳过（本轮保证的是"能解析的都算"）
 
 **R-138 用 axios 的项目，端点唯一出处那条纪律会静默失效** · 已完成 · 本体（`http` 面 + `axiosKit()`）
 

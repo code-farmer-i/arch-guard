@@ -15,17 +15,17 @@
 
 ## 0. 结论速览
 
-| #   | 候选                                                           | 结论                                           | 依赖代价        |
-| --- | -------------------------------------------------------------- | ---------------------------------------------- | --------------- |
-| A   | `globToRegExp` → picomatch                                     | ✅ **已落地**（R-149）                         | +1              |
-| B   | `walk` 的符号链接策略                                          | ✅ **已落地**（R-151：保留跟随，只切环）       | 0               |
-| C   | ANSI 颜色策略 `colorsEnabled`                                  | ✅ **已落地**（R-146，就地修）                 | 0               |
-| D   | 色彩与对比度数学                                               | ✅ **NaN 已修**（R-148）；要 oklab 再上 culori | 0 或 +1         |
-| E   | `numericTokens`                                                | **换**（待拍板）                               | +1（复用则 +0） |
-| F   | `coverage.ts` istanbul 分支                                    | **换（低优先级）**                             | +1              |
-| G   | `coverage.ts` Node 表格分支                                    | ✅ **已落地**（R-147，另修 Node 22 前缀）      | 0               |
-| —   | `git.ts` / `stableKey` / `graph.ts` / `config.ts` / CLI / 排版 | **不换**（见 §2）                              | 0               |
-| —   | **CSS 解析（已落地）**                                         | **换 postcss 家族**（R-145，见 §3）            | +3              |
+| #   | 候选                                                           | 结论                                             | 依赖代价        |
+| --- | -------------------------------------------------------------- | ------------------------------------------------ | --------------- |
+| A   | `globToRegExp` → picomatch                                     | ✅ **已落地**（R-149）                           | +1              |
+| B   | `walk` 的符号链接策略                                          | ✅ **已落地**（R-151：保留跟随，只切环）         | 0               |
+| C   | ANSI 颜色策略 `colorsEnabled`                                  | ✅ **已落地**（R-146，就地修）                   | 0               |
+| D   | 色彩与对比度数学                                               | ✅ **已落地**（R-153：culori 认全 CSS 颜色语法） | +1              |
+| E   | `numericTokens`                                                | **换**（待拍板）                                 | +1（复用则 +0） |
+| F   | `coverage.ts` istanbul 分支                                    | **换（低优先级）**                               | +1              |
+| G   | `coverage.ts` Node 表格分支                                    | ✅ **已落地**（R-147，另修 Node 22 前缀）        | 0               |
+| —   | `git.ts` / `stableKey` / `graph.ts` / `config.ts` / CLI / 排版 | **不换**（见 §2）                                | 0               |
+| —   | **CSS 解析（已落地）**                                         | **换 postcss 家族**（R-145，见 §3）              | +3              |
 
 **三个会改变判断的实测结论**：
 
@@ -199,10 +199,13 @@
    那要 `istanbul-lib-coverage`（+1），等真有宿主用这两种格式再单独拍板。
 7. ~~**B** —— `walk` 的符号链接策略~~ → **R-151**（✅ 已落地）。决策：**保留跟随**（workspace 链接源码目录，
    不跟随 = 少判 = 静默假绿），只按"真实路径链"切环 —— 因此**不需要** `fs.globSync` / `fdir`，预算不动。
-8. **D 后半** —— 色彩换 `culori`：只在要 `rgb()/hsl()/oklab` 或想删掉 WCAG 数学时才做。
+8. ~~**D 后半** —— 色彩换 `culori`~~ → **R-153**（✅ 已落地）。不只是补 `rgb()/hsl()/oklab`：
+   顺手把 WCAG 数学换成 `wcagContrast`（与手搓那份逐位一致，729 组采样 < 1e-12），
+   并把 `color-mix` 的 premultiplied alpha 与 D03 的色值身份一起收口 —— 后两处原本都是**静默少判**。
 
-**预算账**：`depsBudget.runtime` 现在是 **7**（commander / picomatch / pluralize / postcss / postcss-less /
-postcss-scss / postcss-value-parser）。阶段一三条**不动预算**；阶段二两条各 +1。
+**预算账**：`depsBudget.runtime` 现在是 **8**（commander / culori / picomatch / pluralize / postcss /
+postcss-less / postcss-scss / postcss-value-parser）。阶段一三条**不动预算**；阶段二两条、阶段三的 A 与 D 各 +1，
+B 与 F 都是 0（决策改成了就地修）。**盘点的每一项都已落地**，没有待拍板项。
 `capabilities` 这轮都不用动 —— 现有能力是 `datetime / cli-args / deep-clone / unique-id / number-format /
 deep-equal / query-string / debounce-throttle / validation`，P06 不会因为不登记而报错；但 **P01 会**
 （开关是 `allow`），所以新增运行时依赖必须同步 `allow`。

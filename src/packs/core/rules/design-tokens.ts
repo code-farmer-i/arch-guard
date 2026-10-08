@@ -1,4 +1,4 @@
-import { findColorLiterals, normalizeHex } from '../../../engine/css.js'
+import { colorKey, findColorLiterals } from '../../../engine/css.js'
 import type { Finding, Rule } from '../../../engine/types.js'
 
 import { cssFiles, designParams, finding, isTokenFile, tryRead } from './design-shared.js'
@@ -20,9 +20,13 @@ export const paletteColorUnique: Rule = {
     const seen = new Map<string, { line: number; name: string }>()
     const out: Finding[] = []
     for (const item of file.vars) {
-      const hex = item.value.match(/#([0-9a-fA-F]{3,8})\b/)
-      if (!hex) continue
-      const key = normalizeHex(hex[1] as string)
+      /**
+       * 色值身份 = **解析成 sRGB 之后的颜色**（R-153），不是 hex 的拼写：
+       * `--a: rgb(255, 90, 31)` 与 `--b: #ff5a1f` 是同一个色值（旧实现只认 hex 字面量，
+       * 前者取不到键 → 跨族重复静默漏报）。`var()` 别名是官方推荐的共用方式，解析不了就跳过。
+       */
+      const key = colorKey(item.value)
+      if (!key) continue
       const prev = seen.get(key)
       if (prev) {
         out.push(

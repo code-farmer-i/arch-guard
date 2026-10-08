@@ -97,6 +97,7 @@ pnpm check    # ★ 一条命令跑完整门禁：build → typecheck → lint �
 **批准清单**（`deps({ allow })`，**非空才开启** P01「未登记即拒」）：
 
 - `commander`
+- `culori`
 - `picomatch`
 - `pluralize`
 - `postcss`

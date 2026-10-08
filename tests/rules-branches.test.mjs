@@ -331,3 +331,57 @@ test('P12 同类方案：登记一个方案后，混入同类库才报；全在�
     [],
   )
 })
+
+test('R-153：色值身份按"解析后的颜色"算 —— 同一个色的两种拼写算重复色值', () => {
+  const files = {
+    'src/shared/styles/tokens/palette.css':
+      ':root {\n' +
+      '  --sh-static-brand: rgb(255, 90, 31);\n' +
+      '  --sh-static-brand-copy: #ff5a1f;\n' +
+      '  --sh-static-brand-alias: var(--sh-static-brand);\n' +
+      '}\n',
+  }
+  const findings =
+    coreRules
+      .find((rule) => rule.id === 'D03')
+      ?.run(
+        makeContext({
+          files,
+          params: {
+            paletteFile: 'src/shared/styles/tokens/palette.css',
+            tokenDir: 'src/shared/styles/tokens',
+          },
+        }),
+      ) ?? []
+  assert.equal(findings.length, 1, 'rgb() 与 #hex 是同一个色值（旧实现只认 hex 字面量，静默漏报）')
+  assert.match(findings[0]?.text ?? '', /ff5a1f/)
+  assert.doesNotMatch(
+    JSON.stringify(findings),
+    /sh-static-brand-alias/,
+    'var() 别名是官方推荐的共用方式，不算重复色值',
+  )
+})
+
+test('R-153：对比度基线的令牌写 rgb() / hsl() 也要算（旧实现只认 hex，一对都不算）', () => {
+  const files = {
+    'src/shared/styles/tokens/theme.css':
+      ':root {\n  --surface: #ffffff;\n}\n' +
+      '[data-theme="light"] {\n  --brand: rgb(255, 90, 31);\n  --surface: #ffffff;\n}\n',
+  }
+  const findings =
+    coreRules
+      .find((rule) => rule.id === 'D07')
+      ?.run(
+        makeContext({
+          files,
+          params: {
+            themeFile: 'src/shared/styles/tokens/theme.css',
+            tokenDir: 'src/shared/styles/tokens',
+            themes: ['light'],
+            contrastPairs: [{ fg: '--surface', bg: '--brand', usage: '白字压品牌色', min: 4.5 }],
+          },
+        }),
+      ) ?? []
+  assert.equal(findings.length, 1, 'rgb() 令牌必须被解析出来算比值，而不是静默跳过')
+  assert.match(findings[0]?.text ?? '', /3\.12:1/)
+})

@@ -11,6 +11,12 @@
  * 与 §6.1.1「规则不消费 TS AST」同一口径，换解析器只改这里。
  */
 import { cssSyntaxes, type CssSyntaxId } from '../data/css-syntaxes.js'
+import {
+  converter,
+  interpolateWithPremultipliedAlpha,
+  parse as parseColorValue,
+  wcagContrast,
+} from 'culori'
 import postcss, { type ChildNode, type Declaration, type Root } from 'postcss'
 import postcssLess from 'postcss-less'
 import { parse as parseScss } from 'postcss-scss'
@@ -197,51 +203,74 @@ export function findColorLiterals(text: string): { line: number; text: string }[
   return out
 }
 
-/** 归一化为 6 位小写（带不带 `#` 都接受；3 位缩写展开） */
-export function normalizeHex(hex: string): string {
-  const body = hex.trim().toLowerCase().replace(/^#/, '')
-  return body.length === 3
-    ? body
-        .split('')
-        .map((c) => c + c)
-        .join('')
-    : body
+/**
+ * 颜色值的**规范化键**（D03 用）：解析成 sRGB 之后的 `rrggbb`（不透明）/ `rrggbbaa`（带 alpha）。
+ *
+ * 交给 culori 解析（R-153）而不是正则抠 `#hex`，是为了让**同一个颜色的两种拼写**算同一个色值 ——
+ * `--a: rgb(255, 90, 31)` 与 `--b: #ff5a1f` 在色板里就是"跨族重复"，旧实现只认 hex 字面量：
+ * 前者根本取不到键，于是重复色值静默漏报。
+ *
+ * 解析不了的（`var(--x)` / `color-mix()` / 渐变 —— D03 只认**直接写下的**色值，`var()` 别名是
+ * 官方推荐的共用方式）返回 `null`，调用方跳过。
+ */
+export function colorKey(value: string): string | null {
+  const color = parseColor(value)
+  if (!color) return null
+  const hex = color.rgb.map((channel) => channel.toString(16).padStart(2, '0')).join('')
+  if (color.alpha >= 1) return hex
+  return `${hex}${Math.round(color.alpha * 255)
+    .toString(16)
+    .padStart(2, '0')}`
 }
 
 /* ---------------- 颜色求值与对比度（D07 用） ---------------- */
 
 /**
- * hex → 颜色：`#rgb` / `#rgba` / `#rrggbb` / `#rrggbbaa`（CSS Color 4），**alpha 真的参与求值**。
- * 解析不了（长度不合法 / 通道或 alpha 非有限）一律返回 `null` —— **绝不产出 NaN**（R-148）：
- * 旧实现把 `#0008` 切成 `[0, 8, NaN]`，一路传成 `contrastRatio = NaN`，而 D07 的判据
- * `ratio + 1e-9 < pair.min` 对 NaN **恒为 false** → 无障碍规则静默放过；
- * 8 位 hex（`#00000080`）更隐蔽：alpha 被当成 rgb 的一部分（不透明黑），比值算错也不报。
+ * sRGB 转换器与通道归一化（culori 的颜色都是 0..1 浮点，本模块内部一律用 0..255 整数）。
+ *
+ * **超色域的值按渲染器那样裁剪**（`color(display-p3 1 0 0)` → 转 sRGB 会得到 279 / -58 / -38）：
+ * 返回 null 会让声明过的这一对**彻底不判**，而"声明过的对比度对都要算一遍"正是 D07 的立意；
+ * 裁剪也是浏览器把 p3 色投到 sRGB 时的实际行为。
  */
-function parseHex(hex: string): ResolvedColor | null {
-  if (!hex.startsWith('#')) return null
-  const body = hex.slice(1).toLowerCase()
-  if (!/^[0-9a-f]+$/.test(body)) return null
-  const short = body.length === 3 || body.length === 4
-  if (!short && body.length !== 6 && body.length !== 8) return null
-  const pairs = short
-    ? [...body.slice(0, 3)].map((char) => char + char)
-    : (body.slice(0, 6).match(/../g) ?? [])
-  const channels = pairs.map((pair) => Number.parseInt(pair, 16))
-  if (channels.length !== 3 || channels.some((value) => !Number.isFinite(value))) return null
-  /** 短写法 `#RGBA` 的 alpha 也要展开（`8` → `88`） */
-  const rawAlpha = short ? body[3]?.repeat(2) : body.slice(6, 8)
-  const alpha = rawAlpha === undefined || rawAlpha === '' ? 1 : Number.parseInt(rawAlpha, 16) / 255
-  if (!Number.isFinite(alpha)) return null
-  return { rgb: channels as [number, number, number], alpha }
-}
+const toSrgb = converter('rgb')
 
-const luminance = ([r, g, b]: [number, number, number]): number => {
-  const channel = (v: number): number => {
-    const c = v / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  const [lr, lg, lb] = [channel(r), channel(g), channel(b)]
-  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb
+const channel255 = (value: number | undefined): number | null =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(255, Math.max(0, Math.round(value * 255)))
+    : null
+
+/**
+ * CSS 颜色值 → sRGB 颜色（**词法交给 culori**，R-153）。
+ *
+ * 认这些写法：hex（`#rgb` / `#rgba` / `#rrggbb` / `#rrggbbaa`，alpha 真的参与求值 —— R-148）、
+ * `rgb()` / `rgba()`、`hsl()` / `hsla()`、`hwb()`、`lab()` / `lch()` / `oklab()` / `oklch()`、
+ * `color(display-p3 …)`、**具名色**（`white` / `rebeccapurple`）、`transparent`。
+ * 旧实现只认 hex：色板里写 `rgb(255, 90, 31)` 的令牌在 D07 / D03 里**直接消失**（静默少判）。
+ *
+ * 解析不了（`currentColor`、`var(--x)`、垃圾值）一律返回 `null` —— 调用方跳过，**绝不产出 NaN**。
+ */
+const BARE_HEX = /^[0-9a-fA-F]{3,8}$/
+
+function parseColor(value: string): ResolvedColor | null {
+  const text = value.trim()
+  /**
+   * 裸 hex 词（没有 `#`）不是 CSS 颜色。culori 的 `parse` 为了方便也接受 `abcdef` / `beef` / `fade`，
+   * 但声明值里那种写法是**无效 CSS** —— 放进来会把"漏写 `#` 的色值"当成真颜色算下去，
+   * 而正确行为是解析不了就跳过（旧实现也跳过）。纯十六进制字符的词不可能撞上具名色
+   * （具名色里总有 `r` / `s` / `t` / `l` 这类非 hex 字母）。
+   */
+  if (BARE_HEX.test(text)) return null
+  const parsed = parseColorValue(text)
+  if (!parsed) return null
+  const srgb = toSrgb(parsed)
+  if (!srgb) return null
+  const rgb = [channel255(srgb.r), channel255(srgb.g), channel255(srgb.b)]
+  if (rgb.some((channel) => channel === null)) return null
+  const alpha =
+    typeof srgb.alpha === 'number' && Number.isFinite(srgb.alpha)
+      ? Math.min(1, Math.max(0, srgb.alpha))
+      : 1
+  return { rgb: rgb as [number, number, number], alpha }
 }
 
 export interface ResolvedColor {
@@ -263,37 +292,50 @@ export function resolveColor(
   if (!value) return null
   const ref = value.match(/^var\((--[a-zA-Z0-9-]+)\)$/)
   if (ref) return resolveColor(vars, ref[1] as string, depth + 1)
-  const direct = parseHex(value)
+  const direct = parseColor(value)
   if (direct) return direct
-  const mix = value.match(
-    /^color-mix\(in srgb,\s*(var\(--[a-zA-Z0-9-]+\)|#[0-9a-fA-F]{3,8})\s*([\d.]+)%,\s*(transparent|var\(--[a-zA-Z0-9-]+\)|#[0-9a-fA-F]{3,8})\)$/,
-  )
+  const mix = value.match(/^color-mix\(\s*in\s+srgb\s*,\s*(.+?)\s+([\d.]+)%\s*,\s*(.+?)\s*\)$/)
   if (!mix) return null
-  /** 操作数既可以是令牌引用，也可以是十六进制字面量 */
+  /** 操作数既可以是令牌引用，也可以是**任意 CSS 颜色字面量**（R-153：以前只认 hex） */
   const operand = (raw: string): ResolvedColor | null => {
     const ref = raw.match(/^var\((--[a-zA-Z0-9-]+)\)$/)
     if (ref) return resolveColor(vars, ref[1] as string, depth + 1)
-    return parseHex(raw)
+    return parseColor(raw)
   }
   const base = operand(mix[1] as string)
-  if (!base) return null
-  const ratio = Number(mix[2]) / 100
-  /** 与 `transparent` 混：等价于把 base 的 alpha 乘上权重（premultiplied 插值），色相不变 */
-  if (mix[3] === 'transparent') return { rgb: base.rgb, alpha: base.alpha * ratio }
-  /**
-   * 两色混合：任一操作数带 alpha 就要做 premultiplied alpha，超出本函数的表达力 ——
-   * **不猜**（返回 null 让规则跳过），而不是给一个错的比值。
-   */
   const other = operand(mix[3] as string)
-  if (base.alpha !== 1 || !other || other.alpha !== 1) return null
-  return {
-    rgb: base.rgb.map((c, i) => Math.round(c * ratio + (other.rgb[i] as number) * (1 - ratio))) as [
-      number,
-      number,
-      number,
-    ],
-    alpha: 1,
-  }
+  const ratio = Number(mix[2]) / 100
+  if (!base || !other || !Number.isFinite(ratio)) return null
+  return mixColors(base, other, ratio)
+}
+
+/**
+ * CSS `color-mix(in srgb, A p%, B)` 的语义 = **premultiplied alpha 插值**：两色先按 alpha 预乘、
+ * 按 `p` / `1-p` 加权、再除以合成后的 alpha。交给 culori 的 `interpolateWithPremultipliedAlpha`
+ * （与 CSS 规范**逐位吻合**：`#00000080` 与 `#ffffff40` 各半 → `rgb(85,85,85) alpha 0.37647`，手算一致）。
+ *
+ * 这同时补掉一处静默少判（R-153）：旧实现遇到**两个都带 alpha** 的色直接返回 `null`（"不猜"），
+ * 于是这类令牌在 D07 里一对都不算。culori 的 `t=0` 指第一个色，所以权重 `p` 对应 `t = 1 - p`。
+ */
+function mixColors(base: ResolvedColor, other: ResolvedColor, ratio: number): ResolvedColor | null {
+  const toCulori = ({ rgb, alpha }: ResolvedColor) => ({
+    mode: 'rgb' as const,
+    r: rgb[0] / 255,
+    g: rgb[1] / 255,
+    b: rgb[2] / 255,
+    alpha,
+  })
+  const mixed = toSrgb(
+    interpolateWithPremultipliedAlpha([toCulori(base), toCulori(other)], 'rgb')(1 - ratio),
+  )
+  if (!mixed) return null
+  const rgb = [channel255(mixed.r), channel255(mixed.g), channel255(mixed.b)]
+  if (rgb.some((channel) => channel === null)) return null
+  const alpha =
+    typeof mixed.alpha === 'number' && Number.isFinite(mixed.alpha)
+      ? Math.min(1, Math.max(0, mixed.alpha))
+      : 1
+  return { rgb: rgb as [number, number, number], alpha }
 }
 
 /** 半透明色先压到某个底色上再算对比度 */
@@ -307,7 +349,19 @@ export const flatten = (
         Math.round(v * color.alpha + (background[i] as number) * (1 - color.alpha)),
       ) as [number, number, number])
 
+/**
+ * WCAG 对比度（`(L1 + 0.05) / (L2 + 0.05)`）—— **换成 culori 的 `wcagContrast`**（R-153）。
+ *
+ * 手搓那份（`luminance` 的 gamma 展开 + 0.03928 阈值）与 culori **逐位一致**：实测 21:1 / 6.734 /
+ * 3.118 / 18.09 / 1.104 / 1.000 六组全等（0..255 的整数通道上 0.03928 与 0.04045 两个阈值不分叉）。
+ * 于是这里删掉自己那份数学，只留一个"0..255 整数 → culori 颜色"的适配。
+ */
 export function contrastRatio(a: [number, number, number], b: [number, number, number]): number {
-  const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number]
-  return (l1 + 0.05) / (l2 + 0.05)
+  const toCulori = ([r, g, b]: [number, number, number]) => ({
+    mode: 'rgb' as const,
+    r: r / 255,
+    g: g / 255,
+    b: b / 255,
+  })
+  return wcagContrast(toCulori(a), toCulori(b))
 }

@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
+    "culori": "^4.0.2",
     "picomatch": "^4.0.7",
     "pluralize": "^8.0.0",
     "postcss": "^8.5.28",
@@ -101,6 +102,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@pagoda-cli/core": "^1.0.23",
+    "@types/culori": "^4.0.1",
     "@types/node": "^26.6.2",
     "@types/picomatch": "^4.0.3",
     "@types/pluralize": "^0.0.33",

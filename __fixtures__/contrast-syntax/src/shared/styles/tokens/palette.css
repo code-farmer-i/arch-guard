@@ -1,0 +1,7 @@
+/* 色板：颜色字面量的唯一出处 */
+:root {
+  --sh-static-brand: rgb(255, 90, 31);
+  /* 下面这行与上一行是**同一个色值**，只是换了拼写（D03 必报） */
+  --sh-static-brand-copy: #ff5a1f;
+  --sh-static-surface: #ffffff;
+}

@@ -187,6 +187,7 @@ test('manifest：运行时依赖清单是审查门（每加一个都要有人看
   const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'))
   // commander：CLI 参数解析。pluralize：S31 的词形判定（手写表在语料上有真 bug，见 data/plural-forms.ts）。
   // picomatch：glob 匹配（R-149 —— 手搓 glob 不支持 `[...]`，`include` 欠匹配就是静默不判）。
+  // culori：颜色词法与 WCAG 对比度（R-153 —— 只认 hex 会让 rgb()/hsl() 令牌在 D07/D03 里消失）。
   // postcss-value-parser：CSS 值的词法（R-150 —— `calc()` 里也是值，正则切不出来）。
   // postcss / postcss-scss / postcss-less：CSS 解析（R-145 —— 手搓字符扫描器会静默错解且是 O(n²)，
   // 见 docs/DESIGN.md §6.1.2；后两个是 Sass / Less 语法的托底，否则宿主用了 Sass 就会红）。
@@ -194,6 +195,7 @@ test('manifest：运行时依赖清单是审查门（每加一个都要有人看
     Object.keys(pkg.dependencies ?? {}),
     [
       'commander',
+      'culori',
       'picomatch',
       'pluralize',
       'postcss',
