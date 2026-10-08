@@ -395,3 +395,82 @@ test('R-147：文件行不再按扩展名白名单判（.mts/.cts/.svelte 一个
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('R-152：istanbul 的**原始**格式（coverage-final.json）不能再被当成摘要算成 0', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cov-raw-'))
+  try {
+    writeFileSync(
+      join(dir, 'coverage-final.json'),
+      JSON.stringify({
+        '/p/src/a.ts': {
+          path: '/p/src/a.ts',
+          statementMap: {},
+          s: {},
+          fnMap: {},
+          f: {},
+          branchMap: {},
+          b: {},
+        },
+      }),
+    )
+    assert.throws(
+      () => readCoverageReport(join(dir, 'coverage-final.json'), dir),
+      (error) => {
+        assert.match(error.message, /原始.*格式/, '要说清这是原始格式')
+        assert.match(error.message, /json-summary/, '要给出改用什么报告的修法')
+        return true
+      },
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('R-152：指错文件一律报错，不再静默给空集 / 幻影文件', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cov-wrong-'))
+  try {
+    const cases = {
+      // 以前：把 name / version 当成三个"文件"，四指标全 0
+      'pkg.json': JSON.stringify({ name: 'x', version: '1.0.0' }),
+      // 以前：files: [] —— 看起来像"没有文件"，其实是"读不懂"
+      'empty.json': JSON.stringify({}),
+      'arr.json': JSON.stringify([]),
+      'readme.txt': '# 这不是覆盖率\n随便写点东西\n',
+    }
+    for (const [name, body] of Object.entries(cases)) {
+      writeFileSync(join(dir, name), body)
+      assert.throws(
+        () => readCoverageReport(join(dir, name), dir),
+        /不是覆盖率/,
+        `${name} 必须报错`,
+      )
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('R-152：这条错误由 M06 呈现（fail-closed、带修法）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ag-cov-m06-'))
+  try {
+    writeFileSync(
+      join(dir, 'coverage-final.json'),
+      JSON.stringify({ '/p/a.ts': { statementMap: {}, s: {} } }),
+    )
+    let message = ''
+    try {
+      readCoverageReport(join(dir, 'coverage-final.json'), dir)
+    } catch (error) {
+      message = error.message
+    }
+    assert.notEqual(message, '', '原始格式必须抛错')
+    const findings = ruleOf('M06').run(
+      context({ coverage: { report: 'coverage-final.json' }, error: message }),
+    )
+    assert.equal(findings.length, 1)
+    assert.match(findings[0].text, /覆盖率产物读不到/)
+    assert.match(findings[0].text, /json-summary/, '修法要跟着错误一起到报告里')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

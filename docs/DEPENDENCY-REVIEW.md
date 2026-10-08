@@ -9,7 +9,7 @@
 > 判据留在本体，但**怎么解析、怎么匹配**不该是自研的。
 >
 > 状态：**部分落地**（2026-10-08 盘点）。已落地：§3 的 CSS 解析（R-145）与 §4 阶段一的三条 0 依赖修复
-> （R-146 / R-147 / R-148）与阶段二的 A（R-149，glob → picomatch）、E（R-150，取值器）与 B（R-151，walk 环检测）；**F 与 D 后半仍待拍板**。每条落地时都要先回填 [`REQUIREMENTS.md`](../REQUIREMENTS.md) 与
+> （R-146 / R-147 / R-148）与阶段二的 A（R-149，glob → picomatch）、E（R-150，取值器）、B（R-151，walk 环检测）与 F 的 fail-closed 版（R-152）；**只剩 D 后半（culori）待拍板**。每条落地时都要先回填 [`REQUIREMENTS.md`](../REQUIREMENTS.md) 与
 > `.scratch/<slug>/spec.md` —— 本文只是证据与选项，不是承诺。
 > 测量环境：Node v24.13.0；Node 内置能力与 Node 22 特有行为另在 **v22.18.0（`engines` 下限）** 复验。
 
@@ -194,7 +194,9 @@
 
 **阶段三 · 需决策或收益较小**
 
-6. **F** —— `coverage` istanbul 分支 → `istanbul-lib-coverage`（顺带让"指错文件"报错）。
+6. ~~**F** —— `coverage` istanbul 分支~~ → **R-152**（✅ 已落地，**0 依赖**）。决策：本次只做
+   **fail-closed**（读不懂就报，由 M06 呈现），不新增"解析 coverage-final.json / lcov"的能力 ——
+   那要 `istanbul-lib-coverage`（+1），等真有宿主用这两种格式再单独拍板。
 7. ~~**B** —— `walk` 的符号链接策略~~ → **R-151**（✅ 已落地）。决策：**保留跟随**（workspace 链接源码目录，
    不跟随 = 少判 = 静默假绿），只按"真实路径链"切环 —— 因此**不需要** `fs.globSync` / `fdir`，预算不动。
 8. **D 后半** —— 色彩换 `culori`：只在要 `rgb()/hsl()/oklab` 或想删掉 WCAG 数学时才做。

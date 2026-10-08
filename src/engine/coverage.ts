@@ -42,6 +42,22 @@ const pct = (metric: IstanbulMetric | undefined): number => {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
+/** 一条 istanbul 指标：`{ pct: number }` */
+const isMetric = (value: unknown): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { pct?: unknown }).pct === 'number'
+
+/** 摘要条目：至少有一个已知指标 —— `coverage-summary.json` 的 `total` 行与每个文件行都是这个形状 */
+const isSummaryEntry = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false
+  const entry = value as Record<string, unknown>
+  return ['lines', 'branches', 'functions', 'statements'].some((key) => isMetric(entry[key]))
+}
+
+/** istanbul 的**原始**格式（`coverage-final.json`）：值里是这些映射，而不是 `pct` */
+const RAW_COVERAGE_KEYS = ['statementMap', 'fnMap', 'branchMap', 's', 'f', 'b'] as const
+
 /** 把 istanbul 的绝对路径换算成配置根相对路径；换不了就原样保留 */
 function relativize(rawPath: string, root: string): string {
   if (!rawPath.startsWith('/')) return rawPath
@@ -49,17 +65,59 @@ function relativize(rawPath: string, root: string): string {
   return rawPath.startsWith(prefix) ? rawPath.slice(prefix.length) : rawPath
 }
 
+/**
+ * istanbul / c8 / vitest 的 `coverage-summary.json`：顶层 `total` + 每个文件四指标 `pct`。
+ *
+ * **认不出来就抛错**（R-152）：以前"是 JSON 就当摘要"，于是
+ * ① `coverage-final.json`（istanbul 的**原始**格式）被静默算成**四个 0**；
+ * ② 指到 `package.json` 更离谱 —— 它把 `name` / `version` / `private` 当成**三个文件**算 0%。
+ * M 域（M02 目录下限 / M04 棘轮 / M05 变更覆盖率）于是按一份假数据下结论，而报告一个字不说。
+ * 与 M06 的「产物读不到就 fail-closed」同一口径：**读到了但读不懂，也要报**（错误由 M06 呈现，带修法）。
+ */
 function parseIstanbul(text: string, path: string, root: string, mtimeMs: number): CoverageReport {
-  const raw = JSON.parse(text) as Record<string, IstanbulEntry>
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (error) {
+    // 转抛也要留住根因（eslint `preserve-caught-error`）：JSON 的出错位置等信息只在这里
+    throw new Error(`${path} 不是合法 JSON：${(error as Error).message}`, { cause: error })
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error(
+      `${path} 不是覆盖率摘要：顶层应是一个对象（istanbul / c8 / vitest 的 json-summary）`,
+    )
+  }
+  const record = raw as Record<string, unknown>
+  if (!isSummaryEntry(record.total)) {
+    const isRaw = Object.values(record).some(
+      (entry) =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        RAW_COVERAGE_KEYS.some((key) => key in (entry as Record<string, unknown>)),
+    )
+    throw new Error(
+      isRaw
+        ? `${path} 是 istanbul 的**原始**格式（coverage-final.json），本工具只认**摘要**：` +
+            '请改用摘要报告（vitest `--coverage.reporter=json-summary` / c8 `--reporter=json-summary`）'
+        : `${path} 不是覆盖率摘要：要的是 istanbul / c8 / vitest 的 coverage-summary.json` +
+            '（顶层有 total，每个文件有 lines / branches / functions / statements 的 pct）',
+    )
+  }
   const files: CoverageEntry[] = []
-  for (const [key, entry] of Object.entries(raw)) {
+  for (const [key, entry] of Object.entries(record)) {
     if (key === 'total') continue
+    if (!isSummaryEntry(entry)) {
+      throw new Error(
+        `${path} 的 ${key} 不是覆盖率条目（缺 lines / branches / functions / statements 的 pct）—— 指错文件了？`,
+      )
+    }
+    const metrics = entry as IstanbulEntry
     files.push({
       rel: relativize(key, root),
-      lines: pct(entry.lines),
-      branches: pct(entry.branches),
-      functions: pct(entry.functions),
-      statements: pct(entry.statements),
+      lines: pct(metrics.lines),
+      branches: pct(metrics.branches),
+      functions: pct(metrics.functions),
+      statements: pct(metrics.statements),
     })
   }
   return { path, format: 'istanbul-json', mtimeMs, files }
@@ -80,12 +138,15 @@ function parseIstanbul(text: string, path: string, root: string, mtimeMs: number
 function parseNodeTable(text: string, path: string, mtimeMs: number): CoverageReport {
   const files: CoverageEntry[] = []
   const stack: { depth: number; name: string }[] = []
+  /** 见过表格行吗：没有表格也没有 JSON = 指错文件了（R-152：读不懂就报，不静默给空集） */
+  let sawTable = false
   for (const line of text.split('\n')) {
     // `ℹ `（Node 24）/ `# `（Node 22）：只剥前缀本身，缩进留给下面的深度判断
     const body = line.replace(/^\s*[ℹ#]\s?/, '')
     if (!body.includes('|')) continue
     const cells = body.split('|')
     if (cells.length < 5) continue
+    sawTable = true
     const label = cells[0] ?? ''
     const name = label.trim()
     if (name === '' || name === 'file' || name.startsWith('-----') || name === 'all files') continue
@@ -108,13 +169,24 @@ function parseNodeTable(text: string, path: string, mtimeMs: number): CoverageRe
       statements: numbers[0] as number,
     })
   }
+  if (!sawTable) {
+    throw new Error(
+      `${path} 不是覆盖率产物：既不是 JSON 摘要（istanbul / c8 / vitest 的 coverage-summary.json），` +
+        '也不是 Node 覆盖率表格（`node --test --experimental-test-coverage` 的输出）—— 指错文件了？',
+    )
+  }
   return { path, format: 'node-table', mtimeMs, files }
 }
 
 export function readCoverageReport(path: string, root: string): CoverageReport {
   const text = readFileSync(path, 'utf8')
   const mtimeMs = statSync(path).mtimeMs
-  if (text.trimStart().startsWith('{')) return parseIstanbul(text, path, root, mtimeMs)
+  const head = text.trimStart()
+  /**
+   * JSON（摘要，或"以为自己是摘要"的东西）一律走 JSON 分支 —— **认不出来会在那里抛错**（R-152）。
+   * 判据放宽到 `{` 与 `[`：数组也是 JSON，进去才能拿到"不是覆盖率摘要"这句人话，而不是静默给空集。
+   */
+  if (head.startsWith('{') || head.startsWith('[')) return parseIstanbul(text, path, root, mtimeMs)
   return parseNodeTable(text, path, mtimeMs)
 }
 

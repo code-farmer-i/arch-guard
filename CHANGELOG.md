@@ -69,6 +69,20 @@
   而仓里有几处是**按文件**调 `globToRegExp` 的（`structure-discipline` 的 `globs.some(...)` 每条记录一次）——
   缓存后同一轮 **2.2µs**，热路径比旧实现还快 ~7×；返回的仍是新 RegExp 实例，调用方互不影响。
 
+### Fixed（R-152：覆盖率产物读不懂时的**静默 0%** / 幻影文件）
+
+> **升级注意（行为变更）**：以前"是 JSON 就当覆盖率摘要"，现在**读不懂就报**（M06，error 级）。
+> 受影响的只可能是**本来就指错文件或用了不支持格式**的配置 —— 旧行为是拿假数据静默放行。
+
+- **`readCoverageReport` 的嗅探与 istanbul 分支改为 fail-closed**（`src/engine/coverage.ts`，**0 新依赖**）：
+  - `coverage-final.json`（istanbul 的**原始**格式）以前被算成**四个 0** → 现在明确报错并指出
+    "改用摘要报告（vitest `--coverage.reporter=json-summary` / c8 `--reporter=json-summary`）"；
+  - 指到 `package.json` 以前会把 `name` / `version` / `private` 当成**三个文件**算 0% → 现在报"不是覆盖率摘要"；
+  - `{}` / `[]` / 任意文本（README、lcov）以前静默给**空文件集** → 现在报"不是覆盖率产物：既不是 JSON 摘要，
+    也不是 Node 覆盖率表格"。
+  - 错误由 **M06** 呈现（与"产物读不到"同一条通道），修法跟着一起到报告里。
+- **能力边界**：本次**不**新增"解析 `coverage-final.json` / lcov"的能力（那是能力新增，需另开需求 + 依赖）。
+
 ### Fixed（R-151：目录符号链接成环时 `walk` 无限下降，报告被幻影路径淹没）
 
 - **`walk` 增加环检测**（`src/engine/util.ts`）：宿主里一个指回祖先的目录链接（`ln -s .. src/back`）
