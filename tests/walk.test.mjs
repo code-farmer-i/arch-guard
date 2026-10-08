@@ -127,3 +127,36 @@ test('walk：输出稳定排序（跨多次调用一致）', () => {
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('R-151：目录环被切断（`ln -s ..` 不再无限下降到 ENAMETOOLONG）', () => {
+  const root = mkdtempSync(join(tmpdir(), 'ag-walk-loop-'))
+  try {
+    mkdirSync(join(root, 'src/deep'), { recursive: true })
+    writeFileSync(join(root, 'src/a.ts'), 'export const a = 1\n')
+    writeFileSync(join(root, 'src/deep/b.ts'), 'export const b = 1\n')
+    symlinkSync(root, join(root, 'src/back'), 'dir') // 指回项目根：环
+    symlinkSync(join(root, 'src'), join(root, 'src/deep/up'), 'dir') // 指回祖先：环
+
+    const files = walk(root, { extensions: ['.ts'] }).map((file) => file.slice(root.length + 1))
+    assert.deepEqual(
+      files,
+      ['src/a.ts', 'src/deep/b.ts'],
+      '幻影路径一个都不许出现（旧实现会产出 src/back/src/… 直到 ENAMETOOLONG）',
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('R-151：不是环的"两条路到同一个目录"照旧都收（跟随链接的既有语义不变）', () => {
+  const root = mkdtempSync(join(tmpdir(), 'ag-walk-twopath-'))
+  try {
+    mkdirSync(join(root, 'real'), { recursive: true })
+    writeFileSync(join(root, 'real/x.ts'), 'export const x = 1\n')
+    symlinkSync(join(root, 'real'), join(root, 'alias'), 'dir')
+    const files = walk(root, { extensions: ['.ts'] }).map((file) => file.slice(root.length + 1))
+    assert.deepEqual(files.sort(), ['alias/x.ts', 'real/x.ts'], '不成环 ⇒ 两条路都要收')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

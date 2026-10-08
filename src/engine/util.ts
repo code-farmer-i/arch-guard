@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { MERGE_SPEC, mergeByKind } from './merge-spec.js'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import type { Dirent } from 'node:fs'
 import { join, relative } from 'node:path'
 import picomatch from 'picomatch'
@@ -41,13 +41,34 @@ function classifyEntry(entry: Dirent, full: string): 'dir' | 'file' | 'skip' {
   }
 }
 
-/** 目录遍历：跳过忽略项，按扩展名收文件 */
+/**
+ * 目录遍历：跳过忽略项，按扩展名收文件。
+ *
+ * **目录符号链接照旧跟随**（workspace / monorepo 会链接源码目录；不跟随 = 少判 = 静默假绿），
+ * 但**环要切断**（R-151）：`ln -s .. src/back` 这类链接以前会让遍历无限下降 ——
+ * 实测一路膨胀到 `ENAMETOOLONG` 才被 catch 终止，返回 32 个**幻影文件**（`src/back/src/back/…`），
+ * 该宿主跑门禁得到 66 个 error，报告完全不可用；而且幻影路径落在 `src/**` 契约域内，会被当真文件判角色。
+ *
+ * 判环只付符号链接那一次 `realpathSync`：**目录环一定穿过符号链接**（目录硬链接不允许），
+ * 所以链上记「这条路径已经走过的真实目录」，非链接子目录的真实路径 = 父的真实路径 + 名字，零 syscall。
+ * 这样 `link -> real`（两条路到同一个目录、但不成环）的既有行为**不变**（两边都收），
+ * 只有真正的环被挡下。
+ */
 export function walk(
   dir: string,
   { skip = new Set<string>(), extensions = null }: WalkOptions = {},
 ): string[] {
   const out: string[] = []
-  const visit = (current: string): void => {
+  /** 当前这条路径上每个目录的真实路径（栈：进目录 push、出目录 pop） */
+  const chain: string[] = []
+  const realOf = (path: string): string | null => {
+    try {
+      return realpathSync(path)
+    } catch {
+      return null
+    }
+  }
+  const visit = (current: string, currentReal: string | null): void => {
     let entries: Dirent[]
     try {
       // 类型随目录项一起返回：省掉旧实现里"每个条目一次 statSync"
@@ -61,11 +82,24 @@ export function walk(
       const full = join(current, name)
       const kind = classifyEntry(entry, full)
       if (kind === 'skip') continue
-      if (kind === 'dir') visit(full)
-      else if (!extensions || extensions.some((ext) => name.endsWith(ext))) out.push(full)
+      if (kind === 'file') {
+        if (!extensions || extensions.some((ext) => name.endsWith(ext))) out.push(full)
+        continue
+      }
+      const real = entry.isSymbolicLink()
+        ? realOf(full)
+        : currentReal === null
+          ? null
+          : join(currentReal, name)
+      if (real !== null && chain.includes(real)) continue // 环：这条路已经走过
+      chain.push(real ?? full)
+      visit(full, real)
+      chain.pop()
     }
   }
-  visit(dir)
+  const rootReal = realOf(dir)
+  chain.push(rootReal ?? dir)
+  visit(dir, rootReal)
   return out.sort()
 }
 
